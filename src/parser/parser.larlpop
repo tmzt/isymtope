@@ -1,0 +1,157 @@
+
+use parser::ast::{NodeType, ComponentDefinitionType, ElementType, ExprType, ExprValue};
+use parser::token::Token;
+//use self::NodeType::*;
+//use self::Token::*;
+
+grammar<'input>;
+
+pub Template: Vec<NodeType> = {
+    <NodeType*>
+};
+
+NodeType: NodeType = {
+    ComponentDefinitionNode,
+    ElementNode,
+    ExpressionNode
+};
+
+ComponentDefinitionNode: NodeType =
+{
+    ComponentKeyword <name:Id> "{"
+        <children:NodeType*>
+    "}" =>
+    {
+        let definition_name = name.into();
+
+        NodeType::ComponentDefinitionNode(
+            ComponentDefinitionType {
+                name: definition_name,
+                inputs: None,
+                children: Some(children)
+            }
+        )
+    },
+    ComponentKeyword <name:Id> "(" <v:(Id ","?)*> ")" "{"
+        <children:NodeType*>
+    "}" =>
+    {
+        let definition_name = name.into();
+        let inputs = v.iter().map(|id| id.0.into()).collect();
+
+        NodeType::ComponentDefinitionNode(
+            ComponentDefinitionType {
+                name: definition_name,
+                inputs: Some(inputs),
+                children: Some(children)
+            }
+        )
+    }
+};
+
+ExprValue : ExprValue =
+{
+    <ident:Id> => ExprValue::VariableReference(ident.into()),
+    <s:LitStr> => ExprValue::LiteralString(s)
+};
+
+CommaList<T> : Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => {
+        match e {
+            None => v,
+            Some(e) => {
+                let mut v = v;
+                v.push(e);
+                v
+            }
+        }
+    }
+};
+
+#[inline]
+Param : (String, ExprValue) = {
+    <ident:Id> "=" <val:ExprValue> =>
+    {
+        let ident = ident.into();
+        
+        (ident, val)
+    }
+};
+
+#[inline]
+ParamList : Vec<(String, ExprValue)> = {
+    <v:(<Param> ",")*> <e:Param?> => {
+        let mut v = v;
+        if let Some(e) = e { v.push(e); }
+        v
+    }
+};
+
+ElementNode : NodeType = {
+    <element_ty:Id> "{"
+        <children:NodeType*>
+    "}" =>
+        {
+            let element_ty = element_ty.into();
+
+            NodeType::ElementNode(
+                ElementType {
+                    element_ty: element_ty,
+                    attrs: None,
+                    children: Some(children)
+                }
+            )
+        },
+    <element_ty:Id> "(" <attrs:ParamList> ")"  "{"
+        <children:NodeType*>
+    "}" =>
+        {
+            let element_ty = element_ty.into();
+
+            NodeType::ElementNode(
+                ElementType {
+                    element_ty: element_ty,
+                    attrs: Some(attrs),
+                    children: Some(children)
+                }
+            )
+        },
+    <element_ty:Id> "(" <attrs:ParamList> ")" =>
+        {
+            let element_ty = element_ty.into();
+
+            NodeType::ElementNode(
+                ElementType {
+                    element_ty: element_ty,
+                    attrs: Some(attrs),
+                    children: None
+                }
+            )
+        }
+};
+
+ExpressionNode : NodeType = {
+    <ident:Id> =>
+        {
+            NodeType::ExpressionNode(ExprType::VariableReference(ident.into()))
+        },
+    <value:LitStr> =>
+        {
+            NodeType::ExpressionNode(ExprType::LiteralString(value.into()))
+        }
+};
+
+extern {
+    
+    enum Token<'input> {
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+        "," => Token::Comma,
+        "=" => Token::Equals,
+        Id => Token::Identifier(<&'input str>),
+        LitStr => Token::LiteralString(<String>),
+        ComponentKeyword => Token::ComponentKeyword
+    }
+}
