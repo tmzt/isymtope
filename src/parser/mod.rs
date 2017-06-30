@@ -17,14 +17,14 @@ fn parse(input: &'static str) -> TokenIter {
     Box::new(lexer::lex(input))
 }
 
-pub fn read_file(path: &Path) -> io::Result<String> {
+fn read_file(path: &Path) -> io::Result<String> {
     let mut f = fs::File::open(path)?;
     let mut content = String::new();
     f.read_to_string(&mut content)?;
     Ok(content)
 }
 
-fn parse_file<'input>(path: &Path) -> Result<ast::Template, io::Error> {
+pub fn parse_file<'input>(path: &Path) -> Result<ast::Template, io::Error> {
     let input = read_file(path)?;
     let lexer = lexer::lex(&input);
 

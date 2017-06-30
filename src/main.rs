@@ -4,6 +4,7 @@
 extern crate wren;
 
 mod parser;
+mod output;
 
 use wren::{VM, Configuration};
 
