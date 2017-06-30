@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_macros)]
 
-use std::str::CharIndices;
+use std::str::{CharIndices, FromStr};
 use parser::token::{Token, Result, Error};
 
 macro_rules! take_until {
@@ -114,52 +114,37 @@ impl<'input> Lexer<'input> {
         self.n0.map(|n| n.0).unwrap_or(self.source_len)
     }
 
-    fn identifier(&mut self, start: usize) -> Result<(usize, Token<'input>, usize)> {
+    fn identifier(&mut self, start: usize) -> Result<(usize, Token, usize)> {
         let (end, content) = take!(self, start, 'a'...'z' | 'A'...'Z' | '_' | '0'...'9');
-
-/*        let token = match content {
-            "component" => {
-                self.block_name_mode = true;
-                Some(Token::ComponentKeyword)
-            },
-            _ => None
-        };
-
-        if let Some(token) = token {
-            return Ok((start, token, end));
-        }
-
-        let identifer = content;
-
-        if self.block_name_mode {
-            self.block_name_mode = false;
-            return Ok((start, Token::BlockName(identifier), end));
-        }
-
-        if self.param_list_mode {
-            return Ok((start, Token::InputVariable(identifier), end));
-        }
-
-*/
-        /*
-        self.identifier_str = Some(identifier);
-        self.detect_element_name_mode = true;
-        continue;
-        */
 
         let token = match content {
             "component" => {
                 self.block_name_mode = true;
                 Token::ComponentKeyword
-            }
+            },
 
-            identifier => Token::Identifier(identifier)
+            "use" => Token::UseKeyword,
+            "let" => Token::LetKeyword,
+
+            "store" => Token::StoreKeyword,
+            "action" => Token::ActionKeyword,
+            "api" => Token::ApiKeyword,
+            "resource" => Token::ResourceKeyword,
+            "methods" => Token::MethodsKeyword,
+
+            "get" => Token::GetKeyword,
+            "post" => Token::PostKeyword,
+            "put" => Token::PutKeyword,
+            "del" => Token::DelKeyword,
+            "patch" => Token::PatchKeyword,
+
+            identifier => Token::Identifier(identifier.into())
         };
 
         return Ok((start, token, end));
     }
 
-    fn string(&mut self, start: usize) -> Result<(usize, Token<'input>, usize)> {
+    fn string(&mut self, start: usize) -> Result<(usize, Token, usize)> {
         self.buffer.clear();
         self.step();
 
@@ -176,7 +161,17 @@ impl<'input> Lexer<'input> {
         Err(Error::UnterminatedString { start: start }.into())
     }
 
-    fn normal(&mut self) -> Option<Result<(usize, Token<'input>, usize)>> {
+    fn numeric(&mut self, start: usize) -> Result<(usize, Token, usize)> {
+        // TODO: Support negative numbers
+        let (end, content) = take!(self, start, '0'...'9');
+        if let Ok(num) = i32::from_str(content) {
+            return Ok((start, Token::LiteralNumber(num), end));
+        }
+
+        Err(Error::InvalidNumber { start: start }.into())        
+    }
+
+    fn normal(&mut self) -> Option<Result<(usize, Token, usize)>> {
         loop {
             if let Some((start, a, b)) = self.two() {
                 let token = match (a, b) {
@@ -191,7 +186,8 @@ impl<'input> Lexer<'input> {
             };
 
             if let Some((start, c)) = self.one() {
-                println!("Char: {:?}", c);
+
+                //println!("Char: {:?}", c);
 
                 let token = match c {
                     '{' => {
@@ -219,6 +215,18 @@ impl<'input> Lexer<'input> {
                     '.' => Token::Dot,
                     ',' => Token::Comma,
                     '=' => Token::Equals,
+                    ';' => Token::Semi,
+
+                    // TODO: Support uniary minus (two char match)
+                    '+' => Token::Plus,
+                    '-' => Token::Minus,
+                    '*' => Token::Mul,
+                    '/' => Token::Div,
+
+                    // TODO: Support negative numbers
+                    '0'...'9' => {
+                        return Some(self.numeric(start));
+                    },
 
                     'A'...'Z' | 'a'...'z' => {
                         return Some(self.identifier(start));
@@ -244,14 +252,19 @@ impl<'input> Lexer<'input> {
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<(usize, Token<'input>, usize)>;
+    type Item = Result<(usize, Token, usize)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.normal()
+        if let Some(Ok((start, token, end))) = self.normal() {
+            println!("Token: {:?} ({:?}, {:?})", token, start, end);
+            Some(Ok((start, token, end)))
+        } else {
+            None
+        }
     }
 }
 
-pub fn lex(input: &str) -> Lexer {
+pub fn lex<'input>(input: &'input str) -> Lexer<'input> {
     let mut source = input.char_indices();
 
     let n0 = source.next();

@@ -3,12 +3,28 @@
 #[derive(Debug)]
 pub enum Error {
     Unexpected { pos: usize },
-    UnterminatedString { start: usize }
+    UnterminatedString { start: usize },
+    InvalidNumber { start: usize },
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token<'input> {
+pub enum Token {
+    UseKeyword,
+    LetKeyword,
+
     ComponentKeyword,
+    StoreKeyword,
+    ActionKeyword,
+    ApiKeyword,
+    ResourceKeyword,
+    MethodsKeyword,
+
+    GetKeyword,
+    PostKeyword,
+    PutKeyword,
+    DelKeyword,
+    PatchKeyword,
+
     HashRocket,
     OpenBrace,
     CloseBrace,
@@ -17,13 +33,15 @@ pub enum Token<'input> {
     Dot,
     Comma,
     Equals,
-    Identifier(&'input str),
-    ComponentIdentifier(&'input str),
+    Semi,
+    Plus,
+    Minus,
+    Mul,
+    Div,
+    Identifier(String),
+    LiteralNumber(i32),
     LiteralString(String),
-    VariableReference(&'input str),
-    // InputVariable(&'input str),
-    // BlockName(&'input str),
-    // ElementName(&'input str)
+    VariableReference(String),
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

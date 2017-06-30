@@ -1,0 +1,23 @@
+use html;
+
+store {
+    let counter = 0;
+
+    counter {
+        action increment
+        action decrement
+    }
+
+    api {
+        resource photos
+    }
+}
+
+component test {
+    h1 { "hello" }
+}
+component test2(name) { p { { name } } }
+component test3(name, color) { p(style = color) { { name } } }
+test2(name = "jack") { }
+test2(name = myname) { }
+test2(name = "jack", color = "black");

@@ -1,19 +1,48 @@
 
-use parser::ast::{NodeType, ComponentDefinitionType, ElementType, ExprType, ExprValue};
-use parser::token::Token;
-//use self::NodeType::*;
-//use self::Token::*;
+use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp};
+use parser::store::ScopeNodeType;
+use parser::api::{self, ApiNodeType, MethodType};
+use parser::loc::Loc;
+use parser::token::{self, Token};
 
-grammar<'input>;
+grammar;
 
-pub Template: Vec<NodeType> = {
-    <NodeType*>
+pub Template: Template = {
+    <children:Loc<NodeType>*> => Template { children: children }
 };
 
 NodeType: NodeType = {
+    UseStmtNode,
     ComponentDefinitionNode,
+    StoreNode,
+    <content:ContentNodeType> => NodeType::ContentNode(content)
+};
+
+ContentNodeType : ContentNodeType = {
     ElementNode,
-    ExpressionNode
+    <num:LitNum> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralNumber(num)),
+    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit)),
+    "{" <expr:ExprValue> "}" => ContentNodeType::ExpressionValueNode(expr),
+};
+
+// Store defines a default scope
+StoreNode : NodeType =
+{
+    StoreKeyword "{" <children:ScopeNodeType*> "}" => NodeType::StoreNode(children)
+};
+
+UseStmtNode : NodeType =
+{
+    UseKeyword <package:Id> ";" =>
+    {
+        let package = package.into();
+
+        NodeType::UseStmtNode(
+            ast::UseStmtType {
+                package: package
+            }
+        )
+    }
 };
 
 ComponentDefinitionNode: NodeType =
@@ -25,23 +54,20 @@ ComponentDefinitionNode: NodeType =
         let definition_name = name.into();
 
         NodeType::ComponentDefinitionNode(
-            ComponentDefinitionType {
+            ast::ComponentDefinitionType {
                 name: definition_name,
                 inputs: None,
                 children: Some(children)
             }
         )
     },
-    ComponentKeyword <name:Id> "(" <v:(Id ","?)*> ")" "{"
+    ComponentKeyword <name:Id> "(" <inputs:CommaList<Id>> ")" "{"
         <children:NodeType*>
     "}" =>
     {
-        let definition_name = name.into();
-        let inputs = v.iter().map(|id| id.0.into()).collect();
-
         NodeType::ComponentDefinitionNode(
-            ComponentDefinitionType {
-                name: definition_name,
+            ast::ComponentDefinitionType {
+                name: name.into(),
                 inputs: Some(inputs),
                 children: Some(children)
             }
@@ -49,10 +75,42 @@ ComponentDefinitionNode: NodeType =
     }
 };
 
+ExprOp : ExprOp =
+{
+    "+" => ExprOp::Add,
+    "-" => ExprOp::Sub,
+    "*" => ExprOp::Mul,
+    "/" => ExprOp::Div
+};
+
 ExprValue : ExprValue =
 {
+    <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
+    <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
+    ExprFactor
+};
+
+ExprFactor : ExprValue =
+{
+    <l:ExprFactor> "*" <r:ExprTerm> => ExprValue::Expr(ExprOp::Mul, Box::new(l), Box::new(r)),
+    <l:ExprFactor> "/" <r:ExprTerm> => ExprValue::Expr(ExprOp::Div, Box::new(l), Box::new(r)),
+    ExprTerm
+};
+
+ExprTerm : ExprValue =
+{
+    <n:LitNum> => ExprValue::LiteralNumber(n),
+    "(" <ExprValue> ")",
     <ident:Id> => ExprValue::VariableReference(ident.into()),
-    <s:LitStr> => ExprValue::LiteralString(s)
+    <s:LitStr> => ExprValue::LiteralString(s),
+};
+
+AtLeastOne<T> : Vec<T> = {
+    <v:(<T> ",")*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
 };
 
 CommaList<T> : Vec<T> = {
@@ -87,71 +145,99 @@ ParamList : Vec<(String, ExprValue)> = {
     }
 };
 
-ElementNode : NodeType = {
-    <element_ty:Id> "{"
-        <children:NodeType*>
+ElementNode : ContentNodeType = {
+    <element_ty:Id> <attrs:("(" <AtLeastOne<Param>> ")")?>  "{"
+        <children:ContentNodeType*>
     "}" =>
         {
             let element_ty = element_ty.into();
 
-            NodeType::ElementNode(
-                ElementType {
+            ContentNodeType::ElementNode(
+                ast::ElementType {
                     element_ty: element_ty,
-                    attrs: None,
+                    attrs: attrs,
                     children: Some(children)
                 }
             )
         },
-    <element_ty:Id> "(" <attrs:ParamList> ")"  "{"
-        <children:NodeType*>
-    "}" =>
+    <element_ty:Id> <attrs:("(" <AtLeastOne<Param>> ")")?>  ";" =>
         {
             let element_ty = element_ty.into();
 
-            NodeType::ElementNode(
-                ElementType {
+            ContentNodeType::ElementNode(
+                ast::ElementType {
                     element_ty: element_ty,
-                    attrs: Some(attrs),
-                    children: Some(children)
-                }
-            )
-        },
-    <element_ty:Id> "(" <attrs:ParamList> ")" =>
-        {
-            let element_ty = element_ty.into();
-
-            NodeType::ElementNode(
-                ElementType {
-                    element_ty: element_ty,
-                    attrs: Some(attrs),
+                    attrs: attrs,
                     children: None
                 }
             )
         }
 };
 
-ExpressionNode : NodeType = {
-    <ident:Id> =>
-        {
-            NodeType::ExpressionNode(ExprType::VariableReference(ident.into()))
-        },
-    <value:LitStr> =>
-        {
-            NodeType::ExpressionNode(ExprType::LiteralString(value.into()))
-        }
+// Scope: store/{scope*}
+
+ScopeNodeType : ScopeNodeType = {
+    LetKeyword <var:Id> <expr:("=" <ExprValue>)?> ";" => ScopeNodeType::LetNode(var.into(), expr),
+    ActionKeyword <name:Id> => ScopeNodeType::ActionNode(name.into()),
+    ApiKeyword "{" <children:ApiNodeType*> "}" => ScopeNodeType::ApiNode(children),
+    <name:Id> "{" <children:ScopeNodeType*> "}" => ScopeNodeType::ScopeNode(name.into(), children)
 };
 
+// Scope: store/{scope*}/api
+
+ApiNodeType : ApiNodeType = {
+    MethodsKeyword "{" <methods:MethodType*> "}" => ApiNodeType::MethodsNode(methods),
+    ResourceKeyword <name:Id> => ApiNodeType::ResourceNode( api::ApiResourceData { resource_name: name.into(), children: None } ),
+    ResourceKeyword <name:Id> "{" <children:ApiNodeType*> "}" => ApiNodeType::ResourceNode(
+        api::ApiResourceData { resource_name: name.into(), children: Some(children) }
+    ),
+    <method:MethodType> => ApiNodeType::BareMethodNode( method )
+};
+
+MethodType : MethodType = {
+    GetKeyword ";" => MethodType::Get,
+    PostKeyword ";" => MethodType::Post,
+    PutKeyword ";" => MethodType::Put,
+    DelKeyword ";" => MethodType::Delete,
+    PatchKeyword ";" => MethodType::Patch
+};
+
+Loc<Inner> : Loc<Inner, (usize, usize)> = <s:@L> <inner:Inner> <e:@R> => Loc { pos: (s, e), inner: inner };
+
 extern {
+    type Location = usize;
+    type Error = token::Error;
     
-    enum Token<'input> {
+    enum Token {
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
         "," => Token::Comma,
         "=" => Token::Equals,
-        Id => Token::Identifier(<&'input str>),
+        ";" => Token::Semi,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Mul,
+        "/" => Token::Div,
+
+        Id => Token::Identifier(<String>),
+        LitNum => Token::LiteralNumber(<i32>),
         LitStr => Token::LiteralString(<String>),
-        ComponentKeyword => Token::ComponentKeyword
+        UseKeyword => Token::UseKeyword,
+        LetKeyword => Token::LetKeyword,
+
+        ComponentKeyword => Token::ComponentKeyword,
+        StoreKeyword => Token::StoreKeyword,
+        ActionKeyword => Token::ActionKeyword,
+        ApiKeyword => Token::ApiKeyword,
+        ResourceKeyword => Token::ResourceKeyword,
+        MethodsKeyword => Token::MethodsKeyword,
+
+        GetKeyword => Token::GetKeyword,
+        PostKeyword => Token::PostKeyword,
+        PutKeyword => Token::PutKeyword,
+        DelKeyword => Token::DelKeyword,
+        PatchKeyword => Token::PatchKeyword
     }
 }

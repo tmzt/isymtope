@@ -1,24 +1,59 @@
 #![allow(dead_code)]
 
+use parser::store::ScopeNodeType;
+use parser::loc::Loc;
+
 #[derive(Debug)]
-pub enum NodeType {
-    ComponentDefinitionNode(ComponentDefinitionType),
-    ElementNode(ElementType),
-    ExpressionNode(ExprType)
+pub struct Template {
+    pub children: Vec<Loc<NodeType, (usize, usize)>>
 }
 
+#[derive(Debug)]
+pub enum NodeType {
+    UseStmtNode(UseStmtType),
+    ComponentDefinitionNode(ComponentDefinitionType),
+    StoreNode(Vec<ScopeNodeType>),
+    ContentNode(ContentNodeType)
+}
+
+#[derive(Debug)]
+pub enum ContentNodeType {
+    ElementNode(ElementType),
+    ExpressionValueNode(ExprValue),
+}
+
+/// Operators
+#[derive(Debug)]
+pub enum ExprOp {
+    Add,
+    Sub,
+    Mul,
+    Div
+}
+
+/*
 /// Complex expression
 #[derive(Debug)]
 pub enum ExprType {
+    LiteralNumber(i32),
     LiteralString(String),
-    VariableReference(String)
+    VariableReference(String),
+    Expr(ExprOp, ExprType, ExprType)
 }
+*/
 
 /// Simple expression (parameter value)
 #[derive(Debug)]
 pub enum ExprValue {
+    LiteralNumber(i32),
     LiteralString(String),
-    VariableReference(String)    
+    VariableReference(String),
+    Expr(ExprOp, Box<ExprValue>, Box<ExprValue>)
+}
+
+#[derive(Debug)]
+pub struct UseStmtType {
+    pub package: String
 }
 
 #[derive(Debug)]
@@ -32,5 +67,5 @@ pub struct ComponentDefinitionType {
 pub struct ElementType {
     pub element_ty: String,
     pub attrs: Option<Vec<(String, ExprValue)>>,
-    pub children: Option<Vec<NodeType>>
+    pub children: Option<Vec<ContentNodeType>>
 }
