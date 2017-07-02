@@ -4,8 +4,8 @@ store {
     let counter = 0;
 
     counter {
-        action increment
-        action decrement
+        action increment;
+        action decrement;
     }
 
     api {

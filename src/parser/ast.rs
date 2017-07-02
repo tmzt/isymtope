@@ -23,7 +23,7 @@ pub enum ContentNodeType {
 }
 
 /// Operators
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ExprOp {
     Add,
     Sub,
@@ -43,11 +43,12 @@ pub enum ExprType {
 */
 
 /// Simple expression (parameter value)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprValue {
     LiteralNumber(i32),
     LiteralString(String),
     VariableReference(String),
+    DefaultVariableReference,
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>)
 }
 

@@ -33,8 +33,7 @@ pub fn parse_file<'input>(path: &Path) -> Result<ast::Template, io::Error> {
     let res = parser::parse_Template(lexer);
     if let Err(e) = res {
         println!("Parse error: {:?}", e);
-
-        panic!("Error parsing file");
+        panic!(format!("Error parsing file {:?}", path));
     }
     Ok(res.unwrap())
 }
@@ -59,7 +58,7 @@ mod tests {
                 }
 
                 scope1 {
-                    action act1
+                    action act1;
                 }
             }
 
@@ -119,9 +118,16 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer3() {
+    fn test_lexer_file1() {
         let res = super::parse_file(::std::path::Path::new("./res/tests/test1.ism"));
-        println!("Result 3: {:?}", res);
+        println!("Result for lexer test file1: {:?}", res);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_lexer_file2() {
+        let res = super::parse_file(::std::path::Path::new("./res/tests/test2.ism"));
+        println!("Result for lexer text file2: {:?}", res);
         assert!(res.is_ok());
     }
 

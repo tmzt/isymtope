@@ -5,9 +5,13 @@ use std::fmt;
 use parser::ast::*;
 
 mod format_html {
+    use std::clone::Clone;
     use std::fmt::{self, Write};
+    use std::collections::hash_map::{HashMap, Entry};
     use itertools;
     use parser::ast::*;
+    use parser::store::*;
+    use output::structs::*;
 
     pub struct FormatHtml {
     }
@@ -17,11 +21,18 @@ mod format_html {
             FormatHtml {}
         }
 
-        pub fn write_js_expr_value(&self, w: &mut fmt::Write, node: &ExprValue, var_prefix: Option<&str>) -> fmt::Result {
+        pub fn write_js_expr_value(&self, w: &mut fmt::Write, node: &ExprValue, var_prefix: Option<&str>, default_var: Option<&str>) -> fmt::Result {
             match node {
                 // TODO: Handle the case where quotes appear in the string
                 &ExprValue::LiteralString(ref s) => { write!(w, "\"{}\"", s)?; },
                 &ExprValue::LiteralNumber(ref n) => { write!(w, "{}", n)?; },
+
+                &ExprValue::DefaultVariableReference => {
+                    write!(w, "{}{}",
+                        var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
+                        default_var.unwrap_or("value".into())
+                    )?;
+                },
 
                 &ExprValue::VariableReference(ref s) => {
                     if let Some(ref prefix) = var_prefix {
@@ -32,7 +43,14 @@ mod format_html {
                 },
 
                 &ExprValue::Expr(ref sym, ref l, ref r) => {
-                    write!(w, "{:?} {:?} {:?}", l, sym, r)?;
+                    self.write_js_expr_value(w, l, var_prefix, default_var)?;
+                    match sym {
+                        &ExprOp::Add => { write!(w, " + ")?; },
+                        &ExprOp::Sub => { write!(w, " - ")?; },
+                        &ExprOp::Mul => { write!(w, " * ")?; },
+                        &ExprOp::Div => { write!(w, " / ")?; },
+                    }
+                    self.write_js_expr_value(w, r, var_prefix, default_var)?;
                 }
             }
             Ok(())
@@ -42,6 +60,14 @@ mod format_html {
             match node {
                 &ExprValue::LiteralString(ref s) => { write!(w, "{}", s)?; },
                 &ExprValue::LiteralNumber(ref n) => { write!(w, "{}", n)?; },
+
+                &ExprValue::DefaultVariableReference => {
+                    if let Some(ref prefix) = var_prefix {
+                        write!(w, "{}", prefix)?;
+                    } else {
+                        write!(w, "value")?;
+                    }
+                },
 
                 &ExprValue::VariableReference(ref s) => {
                     if let Some(ref prefix) = var_prefix {
@@ -159,7 +185,7 @@ mod format_html {
                 },
                 &ContentNodeType::ExpressionValueNode(ref expr) => {
                     let mut expr_str = String::new();
-                    self.write_js_expr_value(&mut expr_str, &expr, var_prefix)?;
+                    self.write_js_expr_value(&mut expr_str, &expr, var_prefix, Some("".into()))?;
                     writeln!(w, "IncrementalDOM.text({});", expr_str)?;
                 }
             };
@@ -179,6 +205,232 @@ mod format_html {
                 }
             }
             writeln!(w, "}};")?;
+            Ok(())
+        }
+
+        pub fn write_js_scope_nodes(&self, w: &mut fmt::Write, nodes: &Vec<ScopeNodeType>, reducer_key: &str, action_prefix: Option<&str>, var_prefix: Option<&str>) -> fmt::Result {
+            let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+
+            for ref node in nodes {
+                match *node {
+                    &ScopeNodeType::LetNode(ref var_name, ref expr) => {
+                        let var_path = format!("{}{}",
+                            var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
+                            var_name
+                        );
+                        let entry = reducer_key_data.entry(reducer_key).or_insert_with(|| ReducerKeyData::from_name(reducer_key));
+                        if let &Some(ref expr) = expr {
+                            entry.default_expr = Some(expr.clone());
+                        };
+                    },
+                    &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
+                        let entry = reducer_key_data.entry(reducer_key).or_insert_with(|| ReducerKeyData::from_name(reducer_key));
+
+                        let action_path = format!("{}{}",
+                            action_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_lowercase()))).unwrap_or_default(),
+                            action_name
+                        );
+
+                        let mut action = ReducerActionData::from_name(&action_path);
+                        if let &Some(ref simple_expr) = simple_expr {
+                            action.state_expr = Some(simple_expr.clone());
+                        }
+                        if let Some(ref mut actions) = entry.actions {
+                            actions.push(action);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+
+            for (ref reducer_key, ref reducer_data) in reducer_key_data.iter() {
+                let function_name = format!("{}Reducer", reducer_key);
+                let mut default_expr_str = String::new();
+
+                if let Some(ref default_expr) = reducer_data.default_expr {
+                    self.write_js_expr_value(&mut default_expr_str, default_expr, None, None)?;
+                } else {
+                    write!(default_expr_str, "null")?;
+                }
+
+                writeln!(w, "  function {}(state, action) {{", function_name)?;
+
+                //writeln!(w, "  /* {:?} */", reducer_data)?;
+
+                if let Some(ref actions) = reducer_data.actions {
+                    for ref action_data in actions {
+                        let ref action_type = action_data.action_type;
+                        let mut state_expr_str = String::new();
+
+                        match &action_data.state_expr {
+                            &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
+                                self.write_js_expr_value(&mut state_expr_str, simple_expr, None, None)?;
+                                writeln!(w, "  if ('undefined' !== typeof action && '{}' == action.type) {{ return {}; }}",
+                                    action_type,
+                                    state_expr_str
+                                )?;
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+
+                writeln!(w, "    return state || {};", default_expr_str)?;
+                writeln!(w, "  }}")?;
+            };
+
+            writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
+            for (ref reducer_key, _) in reducer_key_data.iter() {
+                writeln!(w, "    {}: {}Reducer,", &reducer_key, &reducer_key)?;
+            }
+            writeln!(w, "  }});")?;
+
+            writeln!(w, "  var store = Redux.createStore(rootReducer, {{}});")?;
+            Ok(())
+        }
+
+        pub fn collect_js_store_scopes(&self, reducer_entry: &mut ReducerKeyData, reducer_key: &str, nodes: &Vec<ScopeNodeType>, reducer_key_prefix: Option<&str>) -> fmt::Result {
+            /*
+            let var_path = format!("{}{}",
+                var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
+                var_name
+            );
+            */
+            let reducer_key = String::from(reducer_key);
+
+            for ref node in nodes {
+                match *node {
+                    &ScopeNodeType::LetNode(ref var_name, ref expr) => {
+                        /*
+                        let var_path = format!("{}{}",
+                            var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
+                            var_name
+                        );
+                        */
+                        //let entry = reducer_key_data.entry(&reducer_key.clone()).or_insert_with(|| ReducerKeyData::from_name(&reducer_key));
+                        if let &Some(ref expr) = expr {
+                            reducer_entry.default_expr = Some(expr.clone());
+                        };
+                    },
+                    &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
+                        //let entry = reducer_key_data.entry(&reducer_key.clone()).or_insert_with(|| ReducerKeyData::from_name(&reducer_key));
+
+                        let action_path = format!("{}{}",
+                            reducer_key_prefix
+                                .and_then(|prefix| Some(format!("{}", prefix.to_uppercase())))
+                                .and_then(|prefix| Some(format!("{}.", prefix.to_uppercase())))
+                                .unwrap_or_default(),
+                            action_name
+                        );
+
+                        let mut action = ReducerActionData::from_name(&action_path);
+                        if let &Some(ref simple_expr) = simple_expr {
+                            action.state_expr = Some(simple_expr.clone());
+                        }
+                        if let Some(ref mut actions) = reducer_entry.actions {
+                            actions.push(action);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+
+        pub fn write_js_store(&self, w: &mut fmt::Write, nodes: &Vec<ScopeNodeType>) -> fmt::Result {
+            let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+
+            for ref node in nodes {
+                match *node {
+                    &ScopeNodeType::LetNode(ref var_name, ref expr) => {
+                        let entry = reducer_key_data.entry(var_name).or_insert_with(|| ReducerKeyData::from_name(var_name));
+                        if let &Some(ref expr) = expr {
+                            entry.default_expr = Some(expr.clone());
+                        }
+                    },
+                    &ScopeNodeType::ScopeNode(ref scope_name, ref nodes) => {
+                        let entry = reducer_key_data.entry(scope_name).or_insert_with(|| ReducerKeyData::from_name(scope_name));
+                        let reducer_key = scope_name.to_lowercase();
+                        self.collect_js_store_scopes(&mut *entry, &reducer_key, nodes, None)?;
+                        /*
+                        self.write_js_scope_nodes(w, nodes, &reducer_key, None, None)?;
+                        */
+                    },
+
+                    /*
+                    &ScopeNodeType::ActionNode(ref name, ref simple_expr) => {
+                        let entry = reducer_key_data.entry(name).or_insert_with(|| ReducerKeyData::from_name(name));
+                        let mut action = ReducerActionData::from_name(name);
+                        if let &Some(ref simple_expr) = simple_expr {
+                            action.state_expr = Some(simple_expr.clone());
+                        }
+                        if let Some(ref mut actions) = entry.actions {
+                            actions.push(action);
+                        }
+                    },
+                    */
+                    _ => {}
+                }
+            }
+
+            // TODO: Implement default scope?
+
+            // Generate script
+            for (ref reducer_key, ref reducer_data) in reducer_key_data.iter() {
+                let function_name = format!("{}Reducer", reducer_key);
+                let mut default_expr_str = String::new();
+
+                if let Some(ref default_expr) = reducer_data.default_expr {
+                    self.write_js_expr_value(&mut default_expr_str, default_expr, None, None)?;
+                } else {
+                    write!(default_expr_str, "null")?;
+                }
+
+                writeln!(w, "  function {}(state, action) {{", function_name)?;
+
+                //writeln!(w, "  /* {:?} */", reducer_data)?;
+
+                if let Some(ref actions) = reducer_data.actions {
+                    for ref action_data in actions {
+                        let mut state_expr_str = String::new();
+
+                        /*
+                        let action_type = format!("{}{}",
+                            action_prefix.and_then(|prefix| Some(format!("{}_", prefix.to_uppercase()))).unwrap_or_default(),
+                            &action_data.action_type.to_uppercase()
+                        );
+                        */
+
+                        let action_type = format!("{}.{}",
+                            reducer_key.to_uppercase(),
+                            action_data.action_type
+                        );
+
+                        match &action_data.state_expr {
+                            &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
+                                self.write_js_expr_value(&mut state_expr_str, simple_expr, None, Some("state".into()))?;
+                                writeln!(w, "  if ('undefined' !== typeof action && '{}' == action.type) {{ return {}; }}",
+                                    action_type,
+                                    state_expr_str
+                                )?;
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+
+                writeln!(w, "    return state || {};", default_expr_str)?;
+                writeln!(w, "  }}")?;
+            };
+
+            writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
+            for (ref reducer_key, _) in reducer_key_data.iter() {
+                writeln!(w, "    {}: {}Reducer,", &reducer_key, &reducer_key)?;
+            }
+            writeln!(w, "  }});")?;
+
+            writeln!(w, "  var store = Redux.createStore(rootReducer, {{}});")?;
+
             Ok(())
         }
 
@@ -220,22 +472,35 @@ mod format_html {
             writeln!(w, "  IncrementalDOM.patch(root_el, render.bind(null, store));")?;
             writeln!(w, "}}")?;
 
+            /*
             writeln!(w, "function counterReducer(state, action) {{")?;
             writeln!(w, "  if ('undefined' !== typeof action && 'INCREMENT' == action.type) {{ return state + 1; }}")?;
             writeln!(w, "  return state || 0;")?;
             writeln!(w, "}}")?;
+            */
 
             writeln!(w, "document.addEventListener(\"DOMContentLoaded\", function(event) {{")?;
+
+            let mut store_nodes = ast.children.iter().filter_map(|n| {
+                if let &NodeType::StoreNode(ref nodes) = &n.inner { return Some(nodes) } else { return None; }
+            }).take(1);
+
+            if let Some(ref store_nodes) = store_nodes.next() {
+                writeln!(w, "  // Define store")?;
+                self.write_js_store(w, store_nodes)?;
+            }
+
+            writeln!(w, "  // Root subscription")?;
             writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
-            writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
-            writeln!(w, "    counter: counterReducer,")?;
-            writeln!(w, "  }});")?;
             writeln!(w, "  var store = Redux.createStore(rootReducer, {{}});")?;
             writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
             writeln!(w, "  store.dispatch({{ type: \"START\" }});")?;
 
+            writeln!(w, "  // Bind action links")?;
             writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
-            writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"INCREMENT\" }}); }};")?;
+            writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
+            writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
+            writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
 
             //writeln!(w, "  setTimeout(function() {{ update(root_el); }}, 0);")?;
             writeln!(w, "}});")?;

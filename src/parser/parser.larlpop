@@ -1,6 +1,6 @@
 
 use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp};
-use parser::store::ScopeNodeType;
+use parser::store::{ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
 use parser::token::{self, Token};
@@ -102,6 +102,7 @@ ExprTerm : ExprValue =
 {
     <n:LitNum> => ExprValue::LiteralNumber(n),
     "(" <ExprValue> ")",
+    ValueKeyword => ExprValue::DefaultVariableReference,
     <ident:Id> => ExprValue::VariableReference(ident.into()),
     <s:LitStr> => ExprValue::LiteralString(s),
 };
@@ -183,9 +184,20 @@ ElementNode : ContentNodeType = {
 
 ScopeNodeType : ScopeNodeType = {
     LetKeyword <var:Id> <expr:("=" <ExprValue>)?> ";" => ScopeNodeType::LetNode(var.into(), expr),
-    ActionKeyword <name:Id> => ScopeNodeType::ActionNode(name.into()),
+    ActionNode,
     ApiKeyword "{" <children:ApiNodeType*> "}" => ScopeNodeType::ApiNode(children),
     <name:Id> "{" <children:ScopeNodeType*> "}" => ScopeNodeType::ScopeNode(name.into(), children)
+};
+
+ActionNode : ScopeNodeType = {
+    ActionKeyword <name:Id> <expr:("=>" <ExprValue>)?> ";" => {
+        // TODO: Support other expression types
+        if let Some(expr) = expr {
+            ScopeNodeType::ActionNode(name.into(), Some(ActionStateExprType::SimpleReducerKeyExpr(expr)))
+        } else {
+            ScopeNodeType::ActionNode(name.into(), None)
+        }
+    }
 };
 
 // Scope: store/{scope*}/api
@@ -214,6 +226,8 @@ extern {
     type Error = token::Error;
     
     enum Token {
+        "=>" => Token::HashRocket,
+
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
         "(" => Token::OpenParen,
@@ -231,7 +245,8 @@ extern {
         LitStr => Token::LiteralString(<String>),
         UseKeyword => Token::UseKeyword,
         LetKeyword => Token::LetKeyword,
-
+        ValueKeyword => Token::ValueKeyword,
+        
         ComponentKeyword => Token::ComponentKeyword,
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,

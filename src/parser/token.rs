@@ -11,6 +11,7 @@ pub enum Error {
 pub enum Token {
     UseKeyword,
     LetKeyword,
+    ValueKeyword,
 
     ComponentKeyword,
     StoreKeyword,

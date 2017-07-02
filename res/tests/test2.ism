@@ -1,0 +1,15 @@
+use html;
+
+store {
+    let counter = 0;
+
+    counter {
+        action increment => value + 1;
+        action decrement => value - 1;
+    }
+}
+
+h4 { "Counter: " { counter } }
+a (href="#increment") { "Increment" }
+br {}
+a (href="#decrement") { "Decrement" }
