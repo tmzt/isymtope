@@ -10,6 +10,8 @@ store {
 }
 
 h4 { "Counter: " { counter } }
-a (href="#increment") { "Increment" }
-br {}
-a (href="#decrement") { "Decrement" }
+p (class="actions") {
+    a (href="#decrement") { "Decrement" }
+    { " | " }
+    a (href="#increment") { "Increment" }
+}
