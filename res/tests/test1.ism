@@ -21,3 +21,6 @@ component test3(name, color) { p(style = color) { { name } } }
 test2(name = "jack") { }
 test2(name = myname) { }
 test2(name = "jack", color = "black");
+h3 { "Hi from the root!" }
+h4 { "Counter: " { counter } }
+a (href="#increment") { "Increment" }

@@ -66,6 +66,7 @@ pub struct ComponentDefinitionType {
 #[derive(Debug)]
 pub struct ElementType {
     pub element_ty: String,
+    pub element_key: Option<String>,
     pub attrs: Option<Vec<(String, ExprValue)>>,
     pub children: Option<Vec<ContentNodeType>>
 }

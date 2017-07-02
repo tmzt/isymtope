@@ -2,6 +2,8 @@
 #![recursion_limit="1000"]
 
 extern crate wren;
+extern crate uuid;
+extern crate itertools;
 
 mod parser;
 mod output;

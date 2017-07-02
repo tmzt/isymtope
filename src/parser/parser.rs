@@ -3,6 +3,7 @@ use parser::store::ScopeNodeType;
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
 use parser::token::{self, Token};
+use parser::util::allocate_element_key;
 extern crate lalrpop_util as __lalrpop_util;
 
 mod __parse__Template {
@@ -13,6 +14,7 @@ mod __parse__Template {
     use parser::api::{self, ApiNodeType, MethodType};
     use parser::loc::Loc;
     use parser::token::{self, Token};
+    use parser::util::allocate_element_key;
     extern crate lalrpop_util as __lalrpop_util;
     use super::__ToTriple;
     #[allow(dead_code)]
@@ -3360,10 +3362,12 @@ fn __action30<
 {
     {
             let element_ty = element_ty.into();
+            let element_key = allocate_element_key();
 
             ContentNodeType::ElementNode(
                 ast::ElementType {
                     element_ty: element_ty,
+                    element_key: Some(element_key),
                     attrs: attrs,
                     children: Some(children)
                 }
@@ -3380,10 +3384,12 @@ fn __action31<
 {
     {
             let element_ty = element_ty.into();
+            let element_key = allocate_element_key();
 
             ContentNodeType::ElementNode(
                 ast::ElementType {
                     element_ty: element_ty,
+                    element_key: Some(element_key),
                     attrs: attrs,
                     children: None
                 }

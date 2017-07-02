@@ -1,4 +1,3 @@
-
 pub mod token;
 pub mod ast;
 pub mod loc;
@@ -6,6 +5,7 @@ pub mod store;
 pub mod api;
 pub mod lexer;
 pub mod parser;
+pub mod util;
 
 use std::path::Path;
 use std::io::{self, Read};
@@ -13,7 +13,8 @@ use std::fs;
 
 type TokenIter = Box<Iterator<Item = token::Result<(usize, token::Token, usize)>>>;
 
-fn parse(input: &'static str) -> TokenIter {
+#[allow(dead_code)]
+pub fn parse(input: &'static str) -> TokenIter {
     Box::new(lexer::lex(input))
 }
 
@@ -24,6 +25,7 @@ fn read_file(path: &Path) -> io::Result<String> {
     Ok(content)
 }
 
+#[allow(dead_code)]
 pub fn parse_file<'input>(path: &Path) -> Result<ast::Template, io::Error> {
     let input = read_file(path)?;
     let lexer = lexer::lex(&input);
