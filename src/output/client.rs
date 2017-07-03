@@ -106,6 +106,11 @@ mod format_html {
                         }
                     }
 
+                    // Special attributes
+                    if let Some(ref element_key) = element_data.element_key {
+                        write!(attrs_str, " key=\"{}\"", element_key)?;
+                    }
+
                     // For now, assume these are HTML nodes
                     write!(w, "<{}{}>",
                         element_tag,
@@ -144,10 +149,14 @@ mod format_html {
                 ), ", "))?;
             }
 
+            let element_key_str = element_data.element_key.as_ref().map(|s| format!("\"{}\"", &s)).unwrap_or("null".into());
+
             if let Some(ref children) = element_data.children {
+
                 // Open element
-                writeln!(w, "IncrementalDOM.elementOpen(\"{}\", null, [{}], []);",
+                writeln!(w, "IncrementalDOM.elementOpen(\"{}\", {}, [{}], []);",
                     element_tag,
+                    element_key_str,
                     attrs_str
                 )?;
 
@@ -160,8 +169,9 @@ mod format_html {
                 writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
             } else {
                 // Void element
-                writeln!(w, "IncrementalDOM.elementVoid(\"{}\", null, [{}], []);",
+                writeln!(w, "IncrementalDOM.elementVoid(\"{}\", {}, [{}], []);",
                     element_tag,
+                    element_key_str,
                     attrs_str
                 )?;
             }
@@ -413,6 +423,15 @@ mod format_html {
                         _ => {},
                     }
                 }
+
+                // Rebind actions
+                // TODO: Implement proper event system
+                writeln!(w, "  // Bind action links")?;
+                writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
+                writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
+                writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
+                writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
+
             writeln!(w, "}}")?;
 
             writeln!(w, "function update(root_el, store) {{")?;
@@ -427,13 +446,37 @@ mod format_html {
             writeln!(w, "  // Root subscription")?;
             writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
             writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
-            writeln!(w, "  store.dispatch({{ type: \"START\" }});")?;
+            //writeln!(w, "  store.dispatch({{ type: \"START\" }});")?;
 
             writeln!(w, "  // Bind action links")?;
             writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
             writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
             writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
             writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
+
+            // HACK: Try to be compatible with DATA_PROP on incdom nodes and prevent
+            // our nodes from being overwritten, which fails to preserve attributes.
+            writeln!(w, "  var DATA_PROP = '__incrementalDOMData';")?;
+            writeln!(w, "  function Blank() {{}}")?;
+            writeln!(w, "  Blank.prototype = Object.create(null)")?;
+            writeln!(w, "  function createMap() {{ return new Blank(); }}")?;
+            writeln!(w, "  function NodeData() {{}}")?;
+            writeln!(w, "  function existingNode(el, attrsArr) {{")?;
+            writeln!(w, "    var data = new NodeData(); el[DATA_PROP] = data;")?;
+            writeln!(w, "    data.nodeName = el.localName;")?;
+            writeln!(w, "    data.attrs = createMap();")?;
+            writeln!(w, "    data.focused = false;")?;
+            writeln!(w, "    attrsArr = data.attrsArr = attrsArr || [];")?;
+            writeln!(w, "    for (var i=0; i<attrsArr.length; i++) {{")?;
+            writeln!(w, "      data.attrs[attrsArr[0]] = attrsArr[1];")?;
+            writeln!(w, "    }}")?;
+            writeln!(w, "    data.newAttrs = createMap();")?;
+            writeln!(w, "    data.staticsApplied = true;")?;
+            writeln!(w, "    data.key = el.getAttribute('key');")?;
+            writeln!(w, "    el[DATA_PROP] = data;")?;
+            writeln!(w, "  }}")?;
+            writeln!(w, "  existingNode(increment_el, [['href', '#increment']]);")?;
+            writeln!(w, "  existingNode(decrement_el, [['href', '#decrement']]);")?;
 
             //writeln!(w, "  setTimeout(function() {{ update(root_el); }}, 0);")?;
             writeln!(w, "}});")?;
@@ -443,8 +486,7 @@ mod format_html {
             writeln!(w, "<body>")?;
             writeln!(w, "<div id=\"root\">")?;
 
-            /*
-            for ref loc in ast.children.iter() {
+            for ref loc in self.ast.children.iter() {
                 match &loc.inner {
                     &NodeType::ContentNode(ref content) => {
                         self.write_html_content(w, &content)?
@@ -452,7 +494,6 @@ mod format_html {
                     _ => {}
                 }
             }
-            */
 
             writeln!(w, "</div>")?;
             writeln!(w, "</body>")?;
