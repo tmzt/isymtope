@@ -1,6 +1,6 @@
 
 use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp};
-use parser::store::{ScopeNodeType, ActionStateExprType};
+use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
 use parser::token::{self, Token};
@@ -26,10 +26,10 @@ ContentNodeType : ContentNodeType = {
     "{" <expr:ExprValue> "}" => ContentNodeType::ExpressionValueNode(expr),
 };
 
-// Store defines a default scope
+// Store defines a default scope which restricts the type of nodes allowed
 StoreNode : NodeType =
 {
-    StoreKeyword "{" <children:ScopeNodeType*> "}" => NodeType::StoreNode(children)
+    StoreKeyword "{" <children:DefaultScopeNodeType*> "}" => NodeType::StoreNode(children)
 };
 
 UseStmtNode : NodeType =
@@ -180,7 +180,14 @@ ElementNode : ContentNodeType = {
         }
 };
 
-// Scope: store/{scope*}
+// Scope: store/
+
+DefaultScopeNodeType : DefaultScopeNodeType = {
+    LetKeyword <var:Id> <expr:("=" <ExprValue>)?> ";" => DefaultScopeNodeType::LetNode(var.into(), expr),
+    <name:Id> "{" <children:ScopeNodeType*> "}" => DefaultScopeNodeType::ScopeNode(name.into(), children)
+};
+
+// Scope: store/{scope+}
 
 ScopeNodeType : ScopeNodeType = {
     LetKeyword <var:Id> <expr:("=" <ExprValue>)?> ";" => ScopeNodeType::LetNode(var.into(), expr),

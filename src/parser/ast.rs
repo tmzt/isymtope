@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use parser::store::ScopeNodeType;
+use parser::store::DefaultScopeNodeType;
 use parser::loc::Loc;
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub struct Template {
 pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
-    StoreNode(Vec<ScopeNodeType>),
+    StoreNode(Vec<DefaultScopeNodeType>),
     ContentNode(ContentNodeType)
 }
 

@@ -7,18 +7,24 @@ use parser::ast::*;
 mod format_html {
     use std::clone::Clone;
     use std::fmt::{self, Write};
-    use std::collections::hash_map::{HashMap, Entry};
+    use std::collections::hash_map::HashMap;
     use itertools;
     use parser::ast::*;
     use parser::store::*;
     use output::structs::*;
 
-    pub struct FormatHtml {
+    pub struct FormatHtml<'input> {
+        ast: &'input Template,
+        //reducer_key_data: HashMap<&'input str, ReducerKeyData>
     }
 
-    impl FormatHtml {
-        pub fn new() -> FormatHtml {
-            FormatHtml {}
+    impl<'input> FormatHtml<'input> {
+
+        pub fn from_template<'inp>(ast: &'inp Template) -> FormatHtml<'inp> {
+            FormatHtml { 
+                ast: ast
+                //reducer_key_data: HashMap::new()
+            }
         }
 
         pub fn write_js_expr_value(&self, w: &mut fmt::Write, node: &ExprValue, var_prefix: Option<&str>, default_var: Option<&str>) -> fmt::Result {
@@ -192,31 +198,41 @@ mod format_html {
             Ok(())
         }
 
-        pub fn collect_js_store_scopes(&self, reducer_entry: &mut ReducerKeyData, reducer_key: &str, nodes: &Vec<ScopeNodeType>, reducer_key_prefix: Option<&str>) -> fmt::Result {
+        pub fn collect_js_store_child_scope(&self, reducer_key_data: &mut HashMap<&'input str, ReducerKeyData>, reducer_key: &'input str, nodes: &'input Vec<ScopeNodeType>, reducer_key_prefix: Option<&str>) -> fmt::Result {
+            //let reducer_key = String::from(reducer_key);
+            //let reducer_entry = reducer_key_data.entry(reducer_key).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
+
+            /*
+            let reducer_key_path = format!("{}{}",
+                reducer_key_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_lowercase()))).unwrap_or_default(),
+                reducer_key
+            );
+            */
+
             /*
             let var_path = format!("{}{}",
                 var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
                 var_name
             );
             */
-            let reducer_key = String::from(reducer_key);
 
             for ref node in nodes {
                 match *node {
                     &ScopeNodeType::LetNode(ref var_name, ref expr) => {
+                        let reducer_entry = reducer_key_data.entry(var_name).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
                         /*
                         let var_path = format!("{}{}",
                             var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
                             var_name
                         );
                         */
-                        //let entry = reducer_key_data.entry(&reducer_key.clone()).or_insert_with(|| ReducerKeyData::from_name(&reducer_key));
+
                         if let &Some(ref expr) = expr {
                             reducer_entry.default_expr = Some(expr.clone());
                         };
                     },
                     &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
-                        //let entry = reducer_key_data.entry(&reducer_key.clone()).or_insert_with(|| ReducerKeyData::from_name(&reducer_key));
+                        let reducer_entry = reducer_key_data.entry(reducer_key).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
 
                         let action_path = format!("{}{}",
                             reducer_key_prefix
@@ -229,10 +245,13 @@ mod format_html {
                         let mut action = ReducerActionData::from_name(&action_path);
                         if let &Some(ref simple_expr) = simple_expr {
                             action.state_expr = Some(simple_expr.clone());
-                        }
+                        };
                         if let Some(ref mut actions) = reducer_entry.actions {
                             actions.push(action);
-                        }
+                        };
+                    },
+                    &ScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
+                        self.collect_js_store_child_scope(reducer_key_data, scope_name, scope_nodes, reducer_key_prefix)?;
                     },
                     _ => {}
                 }
@@ -240,41 +259,45 @@ mod format_html {
             Ok(())
         }
 
-        pub fn write_js_store(&self, w: &mut fmt::Write, nodes: &Vec<ScopeNodeType>) -> fmt::Result {
-            let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
-
+        pub fn collect_js_store_default_scope(&self, reducer_key_data: &mut HashMap<&'input str, ReducerKeyData>, nodes: &'input Vec<DefaultScopeNodeType>) -> fmt::Result {
             for ref node in nodes {
                 match *node {
-                    &ScopeNodeType::LetNode(ref var_name, ref expr) => {
-                        let entry = reducer_key_data.entry(var_name).or_insert_with(|| ReducerKeyData::from_name(var_name));
+                    &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
+                        // Within the default scope let defines a new scope and it's default expression
+                        let reducer_entry = reducer_key_data.entry(var_name).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
+
                         if let &Some(ref expr) = expr {
-                            entry.default_expr = Some(expr.clone());
-                        }
+                            reducer_entry.default_expr = Some(expr.clone());
+                        };
                     },
+                    &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
+                        self.collect_js_store_child_scope(reducer_key_data, scope_name, scope_nodes, None)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        /*
+        pub fn collect_js_store(&'reducers mut self, nodes: &'reducers Vec<ScopeNodeType>) -> fmt::Result {
+            for ref node in nodes {
+                match *node {
                     &ScopeNodeType::ScopeNode(ref scope_name, ref nodes) => {
-                        let entry = reducer_key_data.entry(scope_name).or_insert_with(|| ReducerKeyData::from_name(scope_name));
-                        let reducer_key = scope_name.to_lowercase();
-                        self.collect_js_store_scopes(&mut *entry, &reducer_key, nodes, None)?;
+                        {
+                            self.collect_js_store_scopes(scope_name, nodes, None)?;
+                        }
                         /*
                         self.write_js_scope_nodes(w, nodes, &reducer_key, None, None)?;
                         */
                     },
-
-                    /*
-                    &ScopeNodeType::ActionNode(ref name, ref simple_expr) => {
-                        let entry = reducer_key_data.entry(name).or_insert_with(|| ReducerKeyData::from_name(name));
-                        let mut action = ReducerActionData::from_name(name);
-                        if let &Some(ref simple_expr) = simple_expr {
-                            action.state_expr = Some(simple_expr.clone());
-                        }
-                        if let Some(ref mut actions) = entry.actions {
-                            actions.push(action);
-                        }
-                    },
-                    */
                     _ => {}
                 }
             }
+        }
+        */
+
+        pub fn write_js_store(&self, w: &mut fmt::Write, reducer_key_data: &HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
+            //let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
 
             // TODO: Implement default scope?
 
@@ -338,7 +361,26 @@ mod format_html {
         }
 
         #[allow(dead_code)]
-        pub fn write_html_document(&self, w : &mut fmt::Write, ast: &Template) -> fmt::Result {
+        pub fn process_nodes(&self, reducer_key_data: &mut HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
+            // Collect
+            for ref loc in self.ast.children.iter() {
+                match &loc.inner {
+                    &NodeType::StoreNode(ref scope_nodes) => {
+                        {
+                            self.collect_js_store_default_scope(reducer_key_data, scope_nodes)?;
+                        }
+
+                        // TODO: Allow more than one store?
+                        break;
+                    },
+                    _ => {}
+                }
+            };
+            Ok(())
+        }
+
+        #[allow(dead_code)]
+        pub fn write_html_document(&self, w : &mut fmt::Write, reducer_key_data: &HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
             writeln!(w, "<!doctype HTML>")?;
             writeln!(w, "<html>")?;
             writeln!(w, "<head>")?;
@@ -346,9 +388,11 @@ mod format_html {
             writeln!(w, "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>", )?;
             writeln!(w, "<script>", )?;
 
+            //let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+
             writeln!(w, "function render(store) {{")?;
                 // Define components
-                for ref loc in ast.children.iter() {
+                for ref loc in self.ast.children.iter() {
                     match &loc.inner {
                         &NodeType::ComponentDefinitionNode(ref component_data) => {
                             self.write_js_function(w, component_data)?;
@@ -361,7 +405,7 @@ mod format_html {
 
                 // Render content nodes
 
-                for ref loc in ast.children.iter() {
+                for ref loc in self.ast.children.iter() {
                     match &loc.inner {
                         &NodeType::ContentNode(ref content) => {
                             self.write_js_incdom_content(w, content, Some("store.getState().".into()))?;
@@ -375,27 +419,13 @@ mod format_html {
             writeln!(w, "  IncrementalDOM.patch(root_el, render.bind(null, store));")?;
             writeln!(w, "}}")?;
 
-            /*
-            writeln!(w, "function counterReducer(state, action) {{")?;
-            writeln!(w, "  if ('undefined' !== typeof action && 'INCREMENT' == action.type) {{ return state + 1; }}")?;
-            writeln!(w, "  return state || 0;")?;
-            writeln!(w, "}}")?;
-            */
-
             writeln!(w, "document.addEventListener(\"DOMContentLoaded\", function(event) {{")?;
 
-            let mut store_nodes = ast.children.iter().filter_map(|n| {
-                if let &NodeType::StoreNode(ref nodes) = &n.inner { return Some(nodes) } else { return None; }
-            }).take(1);
-
-            if let Some(ref store_nodes) = store_nodes.next() {
-                writeln!(w, "  // Define store")?;
-                self.write_js_store(w, store_nodes)?;
-            }
+            writeln!(w, "  // Define store")?;
+            self.write_js_store(w, &reducer_key_data)?;
 
             writeln!(w, "  // Root subscription")?;
             writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
-            writeln!(w, "  var store = Redux.createStore(rootReducer, {{}});")?;
             writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
             writeln!(w, "  store.dispatch({{ type: \"START\" }});")?;
 
@@ -433,22 +463,38 @@ mod format_html {
 }
 
 use self::format_html::FormatHtml;
+use output::structs::*;
+use std::collections::hash_map::HashMap;
 
 pub type Result = io::Result<fmt::Result>;
 
-pub struct ClientOutput {
+pub struct ClientOutput<'input> {
+    ast: &'input Template
 }
 
-impl ClientOutput {
-    pub fn new() -> ClientOutput {
-        ClientOutput {}
+impl<'input> ClientOutput<'input> {
+    pub fn from_template(ast: &'input Template) -> ClientOutput {
+        ClientOutput {
+            ast: ast
+        }
     }
 
-    pub fn write_html(&self, w : &mut io::Write, ast: &Template) -> Result {
-        let format = FormatHtml::new();
+    pub fn write_html(&self, w : &mut io::Write) -> Result {
+        let format = FormatHtml::from_template(self.ast);
+
+        let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+
+        {
+            let ref mut reducer_key_data = reducer_key_data;
+            if let Err(e) = format.process_nodes(reducer_key_data) {
+                return Ok(Err(e));            
+            }
+        }
+
+        //write!(w, "/* {:?} */", &reducer_key_data)?;
 
         let mut doc_str = String::new();
-        if let Err(e) = format.write_html_document(&mut doc_str, ast) {
+        if let Err(e) = format.write_html_document(&mut doc_str, &reducer_key_data) {
             return Ok(Err(e));
         }
 

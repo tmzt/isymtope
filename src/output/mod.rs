@@ -11,9 +11,9 @@ use parser::ast::*;
 use self::client::{ClientOutput, Result};
 
 #[allow(dead_code)]
-pub fn write_client_html(w: &mut io::Write, template: &Template) -> Result {
-    let output = ClientOutput::new();
-    output.write_html(w, template)
+pub fn write_client_html<'input>(w: &mut io::Write, template: &'input Template) -> Result {
+    let output = ClientOutput::from_template(template);
+    output.write_html(w)
 }
 
 #[cfg(test)]
