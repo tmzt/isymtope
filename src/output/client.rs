@@ -8,10 +8,19 @@ mod format_html {
     use std::clone::Clone;
     use std::fmt::{self, Write};
     use std::collections::hash_map::HashMap;
+    //use std::iter;
+    //use std::slice::Iter;
     use itertools;
     use parser::ast::*;
     use parser::store::*;
     use output::structs::*;
+
+    //pub type NodesVec<'inp> = Vec<(&'inp str, &'inp str, Option<Vec<(&'inp str, ExprValue)>>)>;
+    pub type NodesVec = Vec<(String, Option<String>, Option<Vec<(String, ExprValue)>>)>;
+    pub type OpsVec = Vec<ElementOp>;
+    pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
+
+    //use output::client::format_html::{NodesVec, OpsVec, ReducerKeyMap};
 
     pub struct FormatHtml<'input> {
         ast: &'input Template,
@@ -134,19 +143,26 @@ mod format_html {
             Ok(())
         }
 
+        #[inline]
+        fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>) -> fmt::Result {
+            // Collect (static) attrs first
+            write!(w, "{}", itertools::join(attrs.iter().map(
+                |&(ref key, ref expr)| {
+                    let mut expr_str = String::new();
+                    self.write_computed_expr_value(&mut expr_str, &expr, None).expect("Could not write attribute value in DOM node.");
+                    format!("\"{}\", \"{}\"", key, expr_str)
+                }
+            ), ", "))?;
+            Ok(())
+        }
+
         pub fn write_js_incdom_element(&self, w: &mut fmt::Write, element_data: &ElementType, var_prefix: Option<&str>) -> fmt::Result {
             let element_tag = element_data.element_ty.to_lowercase();
             let mut attrs_str = String::new();
 
             // Collect (static) attrs first
             if let Some(ref attrs) = element_data.attrs {
-                write!(attrs_str, "{}", itertools::join(attrs.iter().map(
-                    |&(ref key, ref expr)| {
-                        let mut expr_str = String::new();
-                        self.write_computed_expr_value(&mut expr_str, &expr, None).expect("Could not write attribute value in DOM node.");
-                        format!("\"{}\", \"{}\"", key, expr_str)
-                    }
-                ), ", "))?;
+                self.write_js_incdom_attr_array(&mut attrs_str, attrs)?;
             }
 
             let element_key_str = element_data.element_key.as_ref().map(|s| format!("\"{}\"", &s)).unwrap_or("null".into());
@@ -370,9 +386,78 @@ mod format_html {
             Ok(())
         }
 
+        /*
+        fn iter_content(&self, content: &'input Iterator<Item = &'input ContentNodeType>) -> Box<Iterator<Item = &'input ElementOp> + 'input> {
+            Box::new(content.flat_map(|x| {
+                if let &ContentNodeType::ElementNode(ref element_data) = x {
+                    if let Some(ref children) = element_data.children {
+                        return self.iter_content(&children.iter())
+                    }
+                };
+                Box::new(iter::empty())
+            }) as Box<Iterator<Item = &'input ElementOp> + 'input>)
+        }
+        */
+
+        #[inline]
+        fn process_content_node(&self, node: &'input ContentNodeType, nodes_vec: &'input mut NodesVec, ops_vec: &'input mut OpsVec) -> fmt::Result {
+            match node {
+                &ContentNodeType::ElementNode(ref element_data) => {
+                    let element_tag = element_data.element_ty.to_lowercase();
+                    let ref element_key = element_data.element_key;
+
+                    //let node_attrs: Vec<(String, ExprValue)> = element_data.attrs.unwrap_or_default().copy();
+                    //let op_attrs: Vec<(String, ExprValue)> = element_data.attrs.unwrap_or_default().copy();
+
+                    let mut node_attrs: Vec<(String, ExprValue)> = vec![];
+                    let mut op_attrs: Vec<(String, ExprValue)> = vec![];
+
+                    if let Some(ref attrs) = element_data.attrs {
+                        for attr in attrs {
+                            node_attrs.push((attr.0.clone(), attr.1.clone()));
+                            op_attrs.push((attr.0.clone(), attr.1.clone()));
+                        }
+                    }
+
+                    /*
+                    if let Some(ref attrs) = element_data.attrs {
+                        nodes_vec.push((element_tag, element_key, attrs.clone()))
+                    }
+                    */
+
+                    nodes_vec.push((element_tag.clone(), element_key.clone(), Some(node_attrs)));
+
+                    if let Some(ref children) = element_data.children {
+                        let open_tag = element_tag.clone();
+                        let close_tag = element_tag.clone();
+                        let element_key = element_key.clone();
+
+                        // Push element open
+                        ops_vec.push(ElementOp::ElementOpen(open_tag, element_key, Some(op_attrs)));
+
+                        // Iterate over children
+                        for ref child in children {
+                            self.process_content_node(child, nodes_vec, ops_vec)?;
+                        }
+
+                        // Push element close
+                        ops_vec.push(ElementOp::ElementClose(close_tag));
+                    } else {
+                        ops_vec.push(ElementOp::ElementVoid(element_tag.clone(), element_key.clone(), Some(op_attrs)));
+                    }
+                },
+                &ContentNodeType::ExpressionValueNode(ref expr) => {
+                    let mut expr_str = String::new();
+                    self.write_js_expr_value(&mut expr_str, &expr, None, Some("".into()))?;
+                    ops_vec.push(ElementOp::Text(expr_str));
+                }
+            }
+            (Ok(()))
+        }
+
         #[allow(dead_code)]
-        pub fn process_nodes(&self, reducer_key_data: &mut HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
-            // Collect
+        pub fn process_nodes(&self, reducer_key_data: &mut self::ReducerKeyMap<'input>, nodes_vec: &mut self::NodesVec, ops_vec: &mut self::OpsVec) -> fmt::Result {
+            // Collect store
             for ref loc in self.ast.children.iter() {
                 match &loc.inner {
                     &NodeType::StoreNode(ref scope_nodes) => {
@@ -386,11 +471,20 @@ mod format_html {
                     _ => {}
                 }
             };
+            // Content nodes
+            for ref loc in self.ast.children.iter() {
+                match &loc.inner {
+                    &NodeType::ContentNode(ref content) => {
+                        self.process_content_node(content, nodes_vec, ops_vec)?;
+                    },
+                    _ => {}
+                }
+            }
             Ok(())
         }
 
         #[allow(dead_code)]
-        pub fn write_html_document(&self, w : &mut fmt::Write, reducer_key_data: &HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
+        pub fn write_html_document(&self, w : &mut fmt::Write) -> fmt::Result {
             writeln!(w, "<!doctype HTML>")?;
             writeln!(w, "<html>")?;
             writeln!(w, "<head>")?;
@@ -398,9 +492,19 @@ mod format_html {
             writeln!(w, "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>", )?;
             writeln!(w, "<script>", )?;
 
-            //let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+            // Document processing state
+            let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
+            let mut nodes_vec: ::output::client::format_html::NodesVec = Vec::new();
+            let mut ops_vec: ::output::client::format_html::OpsVec = Vec::new();
 
+            // Process document nodes and extract element operations and nodes_vec
+            self.process_nodes(&mut reducer_key_data, &mut nodes_vec, &mut ops_vec)?;
+
+            writeln!(w, "/* Nodes: {:?} */", nodes_vec)?;
+
+            // Javascript output
             writeln!(w, "function render(store) {{")?;
+
                 // Define components
                 for ref loc in self.ast.children.iter() {
                     match &loc.inner {
@@ -413,8 +517,7 @@ mod format_html {
                 writeln!(w, "")?;
                 writeln!(w, "")?;
 
-                // Render content nodes
-
+                // Render content nodes as incdom calls
                 for ref loc in self.ast.children.iter() {
                     match &loc.inner {
                         &NodeType::ContentNode(ref content) => {
@@ -438,6 +541,7 @@ mod format_html {
             writeln!(w, "  IncrementalDOM.patch(root_el, render.bind(null, store));")?;
             writeln!(w, "}}")?;
 
+            // Callback that will execute after deferred scripts and content is ready
             writeln!(w, "document.addEventListener(\"DOMContentLoaded\", function(event) {{")?;
 
             writeln!(w, "  // Define store")?;
@@ -462,6 +566,7 @@ mod format_html {
             writeln!(w, "  function createMap() {{ return new Blank(); }}")?;
             writeln!(w, "  function NodeData() {{}}")?;
             writeln!(w, "  function existingNode(el, attrsArr) {{")?;
+            writeln!(w, "    if (!el) {{ return }}")?;
             writeln!(w, "    var data = new NodeData(); el[DATA_PROP] = data;")?;
             writeln!(w, "    data.nodeName = el.localName;")?;
             writeln!(w, "    data.attrs = createMap();")?;
@@ -475,8 +580,40 @@ mod format_html {
             writeln!(w, "    data.key = el.getAttribute('key');")?;
             writeln!(w, "    el[DATA_PROP] = data;")?;
             writeln!(w, "  }}")?;
-            writeln!(w, "  existingNode(increment_el, [['href', '#increment']]);")?;
-            writeln!(w, "  existingNode(decrement_el, [['href', '#decrement']]);")?;
+
+            // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
+            for node in nodes_vec.iter() {
+                match *node {
+                    (_, Some(ref element_key), _) => {
+                        write!(w, "  existingNode(document.querySelector(\"[key='{}']\"), [", element_key)?;
+                        if let Some(ref attrs) = node.2 {
+                            self.write_js_incdom_attr_array(w, attrs)?;
+                        }
+                        write!(w, "]);\n")?;
+                    },
+                    _ => {
+                        writeln!(w, "// Unmatched node: {:?}", node)?;
+                    }
+                }
+            }
+
+            /*
+            for element in elements_vec.iter() {
+                match *element {
+                    (_, Some(ref element_key), _) => {
+                        write!(w, "  existingNode(document.querySelector(\"[key='{}']\"), [", element_key)?;
+                        if let Some(ref attrs) = element.2 {
+                            self.write_js_incdom_attr_array(w, attrs)?;
+                        }
+                        write!(w, "]);\n")?;
+                    },
+                    _ => {}
+                }
+            }
+            */
+
+            //writeln!(w, "  existingNode(increment_el, [['href', '#increment']]);")?;
+            //writeln!(w, "  existingNode(decrement_el, [['href', '#decrement']]);")?;
 
             //writeln!(w, "  setTimeout(function() {{ update(root_el); }}, 0);")?;
             writeln!(w, "}});")?;
@@ -504,8 +641,6 @@ mod format_html {
 }
 
 use self::format_html::FormatHtml;
-use output::structs::*;
-use std::collections::hash_map::HashMap;
 
 pub type Result = io::Result<fmt::Result>;
 
@@ -522,20 +657,9 @@ impl<'input> ClientOutput<'input> {
 
     pub fn write_html(&self, w : &mut io::Write) -> Result {
         let format = FormatHtml::from_template(self.ast);
-
-        let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
-
-        {
-            let ref mut reducer_key_data = reducer_key_data;
-            if let Err(e) = format.process_nodes(reducer_key_data) {
-                return Ok(Err(e));            
-            }
-        }
-
-        //write!(w, "/* {:?} */", &reducer_key_data)?;
-
         let mut doc_str = String::new();
-        if let Err(e) = format.write_html_document(&mut doc_str, &reducer_key_data) {
+
+        if let Err(e) = format.write_html_document(&mut doc_str) {
             return Ok(Err(e));
         }
 
