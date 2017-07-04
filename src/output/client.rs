@@ -9,7 +9,6 @@ mod format_html {
     use std::slice::Iter;
     use std::fmt;
     use std::collections::hash_map::HashMap;
-    use itertools;
     use parser::ast::*;
     use parser::store::*;
     use output::structs::*;
@@ -93,7 +92,6 @@ mod format_html {
             Ok(())
         }
 
-        #[allow(dead_code)]
         pub fn write_html_ops_content(&self, w : &mut fmt::Write, ops: Iter<ElementOp>) -> fmt::Result {
             for ref op in ops {
                 match *op {
@@ -130,8 +128,8 @@ mod format_html {
                         }
                         writeln!(w, " />")?;
                     },
-                    &ElementOp::Text(ref content) => {
-                        write!(w, "{}", content)?;
+                    &ElementOp::WriteValue(ref expr) => {
+                        self.write_computed_expr_value(w, expr, None)?;
                     }
                 }
             }
@@ -141,81 +139,72 @@ mod format_html {
 
         #[inline]
         fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>) -> fmt::Result {
-            // Collect (static) attrs first
-            write!(w, "{}", itertools::join(attrs.iter().map(
-                |&(ref key, ref expr)| {
-                    let mut expr_str = String::new();
-                    self.write_computed_expr_value(&mut expr_str, &expr, None).expect("Could not write attribute value in DOM node.");
-                    format!("\"{}\", \"{}\"", key, expr_str)
+            let mut wrote_first = false;
+            for &(ref key, ref expr) in attrs {
+                if wrote_first {
+                    write!(w, ", ")?
+                } else {
+                    wrote_first = true;
                 }
-            ), ", "))?;
-            Ok(())
-        }
-
-        pub fn write_js_incdom_element(&self, w: &mut fmt::Write, element_data: &ElementType, var_prefix: Option<&str>) -> fmt::Result {
-            let element_tag = element_data.element_ty.to_lowercase();
-            let mut attrs_str = String::new();
-
-            // Collect (static) attrs first
-            if let Some(ref attrs) = element_data.attrs {
-                self.write_js_incdom_attr_array(&mut attrs_str, attrs)?;
-            }
-
-            let element_key_str = element_data.element_key.as_ref().map(|s| format!("\"{}\"", &s)).unwrap_or("null".into());
-
-            if let Some(ref children) = element_data.children {
-
-                // Open element
-                writeln!(w, "IncrementalDOM.elementOpen(\"{}\", {}, [{}]);",
-                    element_tag,
-                    element_key_str,
-                    attrs_str
-                )?;
-
-                // Output children
-                for child in children {
-                    self.write_js_incdom_content(w, child, var_prefix)?;
-                }
-
-                // Close element
-                writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
-            } else {
-                // Void element
-                writeln!(w, "IncrementalDOM.elementVoid(\"{}\", {}, [{}]);",
-                    element_tag,
-                    element_key_str,
-                    attrs_str
-                )?;
-            }
-            Ok(())
-        }
-
-        pub fn write_js_incdom_content(&self, w: &mut fmt::Write, node: &ContentNodeType, var_prefix: Option<&str>) -> fmt::Result {
-            match node {
-                &ContentNodeType::ElementNode(ref element_data) => {
-                    self.write_js_incdom_element(w, element_data, var_prefix)?;
-                },
-                &ContentNodeType::ExpressionValueNode(ref expr) => {
-                    let mut expr_str = String::new();
-                    self.write_js_expr_value(&mut expr_str, &expr, var_prefix, Some("".into()))?;
-                    writeln!(w, "IncrementalDOM.text({});", expr_str)?;
-                }
+                write!(w, "\"{}\", \"", key)?;
+                self.write_computed_expr_value(w, &expr, None)?;
+                write!(w, "\"")?;
             };
             Ok(())
         }
 
-        pub fn write_js_function(&self, w: &mut fmt::Write, component_data: &ComponentDefinitionType) -> fmt::Result {
-            writeln!(w, "function {}(props) {{", &component_data.name)?;
-            if let Some(ref children) = component_data.children {
-                for child in children.iter() {
-                    match child {
-                        &NodeType::ContentNode(ref content) => {
-                            self.write_js_incdom_content(w, content, Some("props.".into()))?;
-                        },
-                        _ => {}
+        #[inline]
+        pub fn write_js_incdom_ops_content(&self, w: &mut fmt::Write, ops: Iter<ElementOp>, var_prefix: Option<&str>, default_var: Option<&str>) -> fmt::Result {
+            for ref op in ops {
+                match *op {
+                    &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs) => {
+                        write!(w, "IncrementalDOM.elementOpen(\"{}\", \"{}\", [",
+                            element_tag,
+                            element_key.as_ref().map_or("null", |s| s)
+                        )?;
+
+                        // Static attrs
+                        if let &Some(ref attrs) = attrs {
+                            self.write_js_incdom_attr_array(w, attrs)?;
+                        };
+
+                        // TODO: Dynamic attributes
+
+                        writeln!(w, "]);")?;
+                    },
+                    &ElementOp::ElementClose(ref element_tag) => {
+                        writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
+                    },
+                    &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs) => {
+                        write!(w, "IncrementalDOM.elementVoid(\"{}\", \"{}\", [);",
+                            element_tag,
+                            element_key.as_ref().map_or("null", |s| s)
+                        )?;
+
+                        // Static attrs
+                        if let &Some(ref attrs) = attrs {
+                            self.write_js_incdom_attr_array(w, &attrs)?;
+                        };
+
+                        // TODO: Dynamic attributes
+
+                        writeln!(w, "]);")?;
+                    },
+                    &ElementOp::WriteValue(ref expr) => {
+                        write!(w, "IncrementalDOM.text(")?;
+                        self.write_js_expr_value(w, expr, var_prefix, default_var)?;
+                        write!(w, ");")?;
                     }
                 }
-            }
+            };
+
+            Ok(())
+        }
+
+        #[allow(dead_code)]
+        pub fn write_js_incdom_component(&self, w: &mut fmt::Write, component_name: &str, ops: Iter<ElementOp>) -> fmt::Result {
+            writeln!(w, "function {}(props) {{", component_name)?;
+            self.write_js_incdom_ops_content(w, ops, Some("props."), Some("props"))?;
             writeln!(w, "}};")?;
             Ok(())
         }
@@ -365,15 +354,12 @@ mod format_html {
                     }
                 },
                 &ContentNodeType::ExpressionValueNode(ref expr) => {
-                    let mut expr_str = String::new();
-                    self.write_computed_expr_value(&mut expr_str, &expr, Some("".into()))?;
-                    ops_vec.push(ElementOp::Text(expr_str));
+                    ops_vec.push(ElementOp::WriteValue(expr.clone()));
                 }
             }
             (Ok(()))
         }
 
-        #[allow(dead_code)]
         pub fn process_nodes(&self, reducer_key_data: &mut self::ReducerKeyMap<'input>, nodes_vec: &mut self::NodesVec, ops_vec: &mut self::OpsVec) -> fmt::Result {
             let mut processed_store = false;
 
@@ -418,6 +404,7 @@ mod format_html {
             // Javascript output
             writeln!(w, "function render(store) {{")?;
 
+                /*
                 // Define components
                 for ref loc in self.ast.children.iter() {
                     match &loc.inner {
@@ -429,24 +416,10 @@ mod format_html {
                 }
                 writeln!(w, "")?;
                 writeln!(w, "")?;
+                */
 
                 // Render content nodes as incdom calls
-                for ref loc in self.ast.children.iter() {
-                    match &loc.inner {
-                        &NodeType::ContentNode(ref content) => {
-                            self.write_js_incdom_content(w, content, Some("store.getState().".into()))?;
-                        },
-                        _ => {},
-                    }
-                }
-
-                // Rebind actions
-                // TODO: Implement proper event system
-                writeln!(w, "  // Bind action links")?;
-                writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
-                writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
-                writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
-                writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
+                self.write_js_incdom_ops_content(w, ops_vec.iter(), Some("store.getState()."), Some("store.getState()"))?;
 
             writeln!(w, "}}")?;
 
