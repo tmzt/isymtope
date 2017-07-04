@@ -6,25 +6,20 @@ use parser::ast::*;
 
 mod format_html {
     use std::clone::Clone;
-    use std::fmt::{self, Write};
+    use std::slice::Iter;
+    use std::fmt;
     use std::collections::hash_map::HashMap;
-    //use std::iter;
-    //use std::slice::Iter;
     use itertools;
     use parser::ast::*;
     use parser::store::*;
     use output::structs::*;
 
-    //pub type NodesVec<'inp> = Vec<(&'inp str, &'inp str, Option<Vec<(&'inp str, ExprValue)>>)>;
     pub type NodesVec = Vec<(String, Option<String>, Option<Vec<(String, ExprValue)>>)>;
     pub type OpsVec = Vec<ElementOp>;
     pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 
-    //use output::client::format_html::{NodesVec, OpsVec, ReducerKeyMap};
-
     pub struct FormatHtml<'input> {
-        ast: &'input Template,
-        //reducer_key_data: HashMap<&'input str, ReducerKeyData>
+        ast: &'input Template
     }
 
     impl<'input> FormatHtml<'input> {
@@ -32,7 +27,6 @@ mod format_html {
         pub fn from_template<'inp>(ast: &'inp Template) -> FormatHtml<'inp> {
             FormatHtml { 
                 ast: ast
-                //reducer_key_data: HashMap::new()
             }
         }
 
@@ -100,46 +94,48 @@ mod format_html {
         }
 
         #[allow(dead_code)]
-        pub fn write_html_content(&self, w : &mut fmt::Write, node: &ContentNodeType) -> fmt::Result {
-            // Write node
-            match node {
-                &ContentNodeType::ElementNode(ref element_data) => {
-                    let element_tag = element_data.element_ty.to_lowercase();
-                    let mut attrs_str = String::new();
-
-                    if let Some(ref attrs) = element_data.attrs {
-                        for &(ref key, ref expr) in attrs.iter() {
-                            let mut expr_str = String::new();
-                            self.write_computed_expr_value(&mut expr_str, &expr, None)?;
-                            write!(attrs_str, " {}=\"{}\"", key, expr_str)?;
+        pub fn write_html_ops_content(&self, w : &mut fmt::Write, ops: Iter<ElementOp>) -> fmt::Result {
+            for ref op in ops {
+                match *op {
+                    &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs) => {
+                        write!(w, "<{}", element_tag)?;
+                        if let &Some(ref element_key) = element_key {
+                            write!(w, " key=\"{}\"", element_key)?;
                         }
-                    }
 
-                    // Special attributes
-                    if let Some(ref element_key) = element_data.element_key {
-                        write!(attrs_str, " key=\"{}\"", element_key)?;
-                    }
-
-                    // For now, assume these are HTML nodes
-                    write!(w, "<{}{}>",
-                        element_tag,
-                        attrs_str
-                    )?;
-
-                    if let Some(ref children) = element_data.children {
-                        for ref child in children {
-                            self.write_html_content(w, child)?;
+                        if let &Some(ref attrs) = attrs {
+                            for &(ref key, ref expr) in attrs {
+                                write!(w, " {}=\"", key)?;
+                                self.write_computed_expr_value(w, expr, None)?;
+                                write!(w, "\"")?;
+                            }
                         }
-                    }
+                        writeln!(w, ">")?;
+                    },
+                    &ElementOp::ElementClose(ref element_tag) => {
+                        writeln!(w, "</{}>", element_tag)?;
+                    },
+                    &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs) => {
+                        write!(w, "<{}", element_tag)?;
+                        if let &Some(ref element_key) = element_key {
+                            write!(w, " key=\"{}\"", element_key)?;
+                        }
 
-                    write!(w, "</{}>", element_tag)?;
-                },
-                &ContentNodeType::ExpressionValueNode(ref expr) => {
-                    let mut expr_str = String::new();
-                    self.write_computed_expr_value(&mut expr_str, expr, None)?;
-                    write!(w, "{}", expr_str)?;
+                        if let &Some(ref attrs) = attrs {
+                            for &(ref key, ref expr) in attrs {
+                                write!(w, " {}=\"", key)?;
+                                self.write_computed_expr_value(w, expr, None)?;
+                                write!(w, "\"")?;
+                            }
+                        }
+                        writeln!(w, " />")?;
+                    },
+                    &ElementOp::Text(ref content) => {
+                        write!(w, "{}", content)?;
+                    }
                 }
             }
+
             Ok(())
         }
 
@@ -170,7 +166,7 @@ mod format_html {
             if let Some(ref children) = element_data.children {
 
                 // Open element
-                writeln!(w, "IncrementalDOM.elementOpen(\"{}\", {}, [{}], []);",
+                writeln!(w, "IncrementalDOM.elementOpen(\"{}\", {}, [{}]);",
                     element_tag,
                     element_key_str,
                     attrs_str
@@ -185,7 +181,7 @@ mod format_html {
                 writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
             } else {
                 // Void element
-                writeln!(w, "IncrementalDOM.elementVoid(\"{}\", {}, [{}], []);",
+                writeln!(w, "IncrementalDOM.elementVoid(\"{}\", {}, [{}]);",
                     element_tag,
                     element_key_str,
                     attrs_str
@@ -224,24 +220,7 @@ mod format_html {
             Ok(())
         }
 
-        pub fn collect_js_store_child_scope(&self, reducer_key_data: &mut HashMap<&'input str, ReducerKeyData>, reducer_key: &'input str, nodes: &'input Vec<ScopeNodeType>, reducer_key_prefix: Option<&str>) -> fmt::Result {
-            //let reducer_key = String::from(reducer_key);
-            //let reducer_entry = reducer_key_data.entry(reducer_key).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
-
-            /*
-            let reducer_key_path = format!("{}{}",
-                reducer_key_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_lowercase()))).unwrap_or_default(),
-                reducer_key
-            );
-            */
-
-            /*
-            let var_path = format!("{}{}",
-                var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
-                var_name
-            );
-            */
-
+        pub fn collect_js_store_child_scope(&self, reducer_key_data: &mut ReducerKeyMap<'input>, reducer_key: &'input str, nodes: &'input Vec<ScopeNodeType>, reducer_key_prefix: Option<&str>) -> fmt::Result {
             for ref node in nodes {
                 match *node {
                     &ScopeNodeType::LetNode(ref var_name, ref expr) => {
@@ -304,54 +283,17 @@ mod format_html {
             Ok(())
         }
 
-        /*
-        pub fn collect_js_store(&'reducers mut self, nodes: &'reducers Vec<ScopeNodeType>) -> fmt::Result {
-            for ref node in nodes {
-                match *node {
-                    &ScopeNodeType::ScopeNode(ref scope_name, ref nodes) => {
-                        {
-                            self.collect_js_store_scopes(scope_name, nodes, None)?;
-                        }
-                        /*
-                        self.write_js_scope_nodes(w, nodes, &reducer_key, None, None)?;
-                        */
-                    },
-                    _ => {}
-                }
-            }
-        }
-        */
-
         pub fn write_js_store(&self, w: &mut fmt::Write, reducer_key_data: &HashMap<&'input str, ReducerKeyData>) -> fmt::Result {
-            //let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
-
             // TODO: Implement default scope?
 
             // Generate script
             for (ref reducer_key, ref reducer_data) in reducer_key_data.iter() {
-                let function_name = format!("{}Reducer", reducer_key);
-                let mut default_expr_str = String::new();
-
-                if let Some(ref default_expr) = reducer_data.default_expr {
-                    self.write_js_expr_value(&mut default_expr_str, default_expr, None, None)?;
-                } else {
-                    write!(default_expr_str, "null")?;
-                }
-
-                writeln!(w, "  function {}(state, action) {{", function_name)?;
-
+                writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
                 //writeln!(w, "  /* {:?} */", reducer_data)?;
 
                 if let Some(ref actions) = reducer_data.actions {
                     for ref action_data in actions {
                         let mut state_expr_str = String::new();
-
-                        /*
-                        let action_type = format!("{}{}",
-                            action_prefix.and_then(|prefix| Some(format!("{}_", prefix.to_uppercase()))).unwrap_or_default(),
-                            &action_data.action_type.to_uppercase()
-                        );
-                        */
 
                         let action_type = format!("{}.{}",
                             reducer_key.to_uppercase(),
@@ -361,7 +303,7 @@ mod format_html {
                         match &action_data.state_expr {
                             &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
                                 self.write_js_expr_value(&mut state_expr_str, simple_expr, None, Some("state".into()))?;
-                                writeln!(w, "  if ('undefined' !== typeof action && '{}' == action.type) {{ return {}; }}",
+                                writeln!(w, "    if ('undefined' !== typeof action && '{}' == action.type) {{ return {}; }}",
                                     action_type,
                                     state_expr_str
                                 )?;
@@ -371,7 +313,15 @@ mod format_html {
                     }
                 }
 
-                writeln!(w, "    return state || {};", default_expr_str)?;
+                // Default expression used to initialize state
+                write!(w, "    return state || ")?;
+                if let Some(ref default_expr) = reducer_data.default_expr {
+                    self.write_js_expr_value(w, default_expr, None, None)?;
+                } else {
+                    write!(w, "null")?;
+                }
+                writeln!(w, ";")?;
+
                 writeln!(w, "  }}")?;
             };
 
@@ -386,19 +336,6 @@ mod format_html {
             Ok(())
         }
 
-        /*
-        fn iter_content(&self, content: &'input Iterator<Item = &'input ContentNodeType>) -> Box<Iterator<Item = &'input ElementOp> + 'input> {
-            Box::new(content.flat_map(|x| {
-                if let &ContentNodeType::ElementNode(ref element_data) = x {
-                    if let Some(ref children) = element_data.children {
-                        return self.iter_content(&children.iter())
-                    }
-                };
-                Box::new(iter::empty())
-            }) as Box<Iterator<Item = &'input ElementOp> + 'input>)
-        }
-        */
-
         #[inline]
         fn process_content_node(&self, node: &'input ContentNodeType, nodes_vec: &'input mut NodesVec, ops_vec: &'input mut OpsVec) -> fmt::Result {
             match node {
@@ -406,34 +343,15 @@ mod format_html {
                     let element_tag = element_data.element_ty.to_lowercase();
                     let ref element_key = element_data.element_key;
 
-                    //let node_attrs: Vec<(String, ExprValue)> = element_data.attrs.unwrap_or_default().copy();
-                    //let op_attrs: Vec<(String, ExprValue)> = element_data.attrs.unwrap_or_default().copy();
+                    let attrs = element_data.attrs.as_ref();
+                    let node_attrs = attrs.map(|attrs| attrs.iter().map(Clone::clone).collect());
+                    let op_attrs = attrs.map(|attrs| attrs.iter().map(Clone::clone).collect());
 
-                    let mut node_attrs: Vec<(String, ExprValue)> = vec![];
-                    let mut op_attrs: Vec<(String, ExprValue)> = vec![];
-
-                    if let Some(ref attrs) = element_data.attrs {
-                        for attr in attrs {
-                            node_attrs.push((attr.0.clone(), attr.1.clone()));
-                            op_attrs.push((attr.0.clone(), attr.1.clone()));
-                        }
-                    }
-
-                    /*
-                    if let Some(ref attrs) = element_data.attrs {
-                        nodes_vec.push((element_tag, element_key, attrs.clone()))
-                    }
-                    */
-
-                    nodes_vec.push((element_tag.clone(), element_key.clone(), Some(node_attrs)));
+                    nodes_vec.push((element_tag.clone(), element_key.clone(), node_attrs));
 
                     if let Some(ref children) = element_data.children {
-                        let open_tag = element_tag.clone();
-                        let close_tag = element_tag.clone();
-                        let element_key = element_key.clone();
-
                         // Push element open
-                        ops_vec.push(ElementOp::ElementOpen(open_tag, element_key, Some(op_attrs)));
+                        ops_vec.push(ElementOp::ElementOpen(element_tag.clone(), element_key.clone(), op_attrs));
 
                         // Iterate over children
                         for ref child in children {
@@ -441,14 +359,14 @@ mod format_html {
                         }
 
                         // Push element close
-                        ops_vec.push(ElementOp::ElementClose(close_tag));
+                        ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
                     } else {
-                        ops_vec.push(ElementOp::ElementVoid(element_tag.clone(), element_key.clone(), Some(op_attrs)));
+                        ops_vec.push(ElementOp::ElementVoid(element_tag.clone(), element_key.clone(), op_attrs));
                     }
                 },
                 &ContentNodeType::ExpressionValueNode(ref expr) => {
                     let mut expr_str = String::new();
-                    self.write_js_expr_value(&mut expr_str, &expr, None, Some("".into()))?;
+                    self.write_computed_expr_value(&mut expr_str, &expr, Some("".into()))?;
                     ops_vec.push(ElementOp::Text(expr_str));
                 }
             }
@@ -457,29 +375,24 @@ mod format_html {
 
         #[allow(dead_code)]
         pub fn process_nodes(&self, reducer_key_data: &mut self::ReducerKeyMap<'input>, nodes_vec: &mut self::NodesVec, ops_vec: &mut self::OpsVec) -> fmt::Result {
-            // Collect store
+            let mut processed_store = false;
+
             for ref loc in self.ast.children.iter() {
                 match &loc.inner {
                     &NodeType::StoreNode(ref scope_nodes) => {
-                        {
-                            self.collect_js_store_default_scope(reducer_key_data, scope_nodes)?;
-                        }
-
                         // TODO: Allow more than one store?
-                        break;
+                        if !processed_store {
+                            self.collect_js_store_default_scope(reducer_key_data, scope_nodes)?;
+                            processed_store = true;
+
+                        }
                     },
-                    _ => {}
-                }
-            };
-            // Content nodes
-            for ref loc in self.ast.children.iter() {
-                match &loc.inner {
                     &NodeType::ContentNode(ref content) => {
                         self.process_content_node(content, nodes_vec, ops_vec)?;
                     },
                     _ => {}
                 }
-            }
+            };
             Ok(())
         }
 
@@ -493,14 +406,14 @@ mod format_html {
             writeln!(w, "<script>", )?;
 
             // Document processing state
-            let mut reducer_key_data: HashMap<&str, ReducerKeyData> = HashMap::new();
-            let mut nodes_vec: ::output::client::format_html::NodesVec = Vec::new();
-            let mut ops_vec: ::output::client::format_html::OpsVec = Vec::new();
+            let mut reducer_key_data: ReducerKeyMap = Default::default();
+            let mut nodes_vec: NodesVec = Default::default();
+            let mut ops_vec: OpsVec = Default::default();
 
             // Process document nodes and extract element operations and nodes_vec
             self.process_nodes(&mut reducer_key_data, &mut nodes_vec, &mut ops_vec)?;
 
-            writeln!(w, "/* Nodes: {:?} */", nodes_vec)?;
+            writeln!(w, "(function() {{")?;
 
             // Javascript output
             writeln!(w, "function render(store) {{")?;
@@ -550,7 +463,6 @@ mod format_html {
             writeln!(w, "  // Root subscription")?;
             writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
             writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
-            //writeln!(w, "  store.dispatch({{ type: \"START\" }});")?;
 
             writeln!(w, "  // Bind action links")?;
             writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
@@ -558,38 +470,21 @@ mod format_html {
             writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
             writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
 
-            // HACK: Try to be compatible with DATA_PROP on incdom nodes and prevent
-            // our nodes from being overwritten, which fails to preserve attributes.
-            writeln!(w, "  var DATA_PROP = '__incrementalDOMData';")?;
-            writeln!(w, "  function Blank() {{}}")?;
-            writeln!(w, "  Blank.prototype = Object.create(null)")?;
-            writeln!(w, "  function createMap() {{ return new Blank(); }}")?;
-            writeln!(w, "  function NodeData() {{}}")?;
-            writeln!(w, "  function existingNode(el, attrsArr) {{")?;
-            writeln!(w, "    if (!el) {{ return }}")?;
-            writeln!(w, "    var data = new NodeData(); el[DATA_PROP] = data;")?;
-            writeln!(w, "    data.nodeName = el.localName;")?;
-            writeln!(w, "    data.attrs = createMap();")?;
-            writeln!(w, "    data.focused = false;")?;
-            writeln!(w, "    attrsArr = data.attrsArr = attrsArr || [];")?;
-            writeln!(w, "    for (var i=0; i<attrsArr.length; i++) {{")?;
-            writeln!(w, "      data.attrs[attrsArr[0]] = attrsArr[1];")?;
-            writeln!(w, "    }}")?;
-            writeln!(w, "    data.newAttrs = createMap();")?;
-            writeln!(w, "    data.staticsApplied = true;")?;
-            writeln!(w, "    data.key = el.getAttribute('key');")?;
-            writeln!(w, "    el[DATA_PROP] = data;")?;
-            writeln!(w, "  }}")?;
+            writeln!(w, "function Blank() {{}}")?;
+            writeln!(w, "Blank.prototype = Object.create(null)")?;
+
+            writeln!(w, "function markExisting(node, key, attrsArr) {{")?;
+            writeln!(w, "  IncrementalDOM.importNode(node);")?;
+            writeln!(w, "  var data = node['__incrementalDOMData'];")?;
+            writeln!(w, "  data.staticsApplied = true;")?;
+            writeln!(w, "  data.newAttrs = new Blank();")?;
+            writeln!(w, "}}")?;
 
             // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
             for node in nodes_vec.iter() {
                 match *node {
                     (_, Some(ref element_key), _) => {
-                        write!(w, "  existingNode(document.querySelector(\"[key='{}']\"), [", element_key)?;
-                        if let Some(ref attrs) = node.2 {
-                            self.write_js_incdom_attr_array(w, attrs)?;
-                        }
-                        write!(w, "]);\n")?;
+                        writeln!(w, "  markExisting(document.querySelector(\"[key='{}']\"), \"{}\");", element_key, element_key)?;
                     },
                     _ => {
                         writeln!(w, "// Unmatched node: {:?}", node)?;
@@ -597,40 +492,15 @@ mod format_html {
                 }
             }
 
-            /*
-            for element in elements_vec.iter() {
-                match *element {
-                    (_, Some(ref element_key), _) => {
-                        write!(w, "  existingNode(document.querySelector(\"[key='{}']\"), [", element_key)?;
-                        if let Some(ref attrs) = element.2 {
-                            self.write_js_incdom_attr_array(w, attrs)?;
-                        }
-                        write!(w, "]);\n")?;
-                    },
-                    _ => {}
-                }
-            }
-            */
-
-            //writeln!(w, "  existingNode(increment_el, [['href', '#increment']]);")?;
-            //writeln!(w, "  existingNode(decrement_el, [['href', '#decrement']]);")?;
-
-            //writeln!(w, "  setTimeout(function() {{ update(root_el); }}, 0);")?;
             writeln!(w, "}});")?;
+            writeln!(w, "}})();")?;
 
             writeln!(w, "</script>\n</head>")?;
 
             writeln!(w, "<body>")?;
             writeln!(w, "<div id=\"root\">")?;
 
-            for ref loc in self.ast.children.iter() {
-                match &loc.inner {
-                    &NodeType::ContentNode(ref content) => {
-                        self.write_html_content(w, &content)?
-                    },
-                    _ => {}
-                }
-            }
+            self.write_html_ops_content(w, ops_vec.iter())?;
 
             writeln!(w, "</div>")?;
             writeln!(w, "</body>")?;
