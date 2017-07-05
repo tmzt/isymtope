@@ -26,3 +26,13 @@ component counter {
 
 counter (x="counter") {}
 ```
+
+Running the example
+
+```
+cargo test
+```
+
+You will find the output for this example in `output/test_output3.html`.
+
+Note, the javascript actions for the links are currently hard-coded so you will have to modify the resulting html or the Rust source.
