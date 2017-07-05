@@ -11,10 +11,10 @@ mod format_html {
     use std::collections::hash_map::HashMap;
     use parser::ast::*;
     use parser::store::*;
+    use parser::util::allocate_element_key;
     use output::structs::*;
 
     pub type NodesVec = Vec<(String, Option<String>, Option<Vec<(String, ExprValue)>>)>;
-    pub type OpsVec = Vec<ElementOp>;
     pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 
     pub struct FormatHtml<'input> {
@@ -92,13 +92,17 @@ mod format_html {
             Ok(())
         }
 
-        pub fn write_html_ops_content(&self, w : &mut fmt::Write, ops: Iter<ElementOp>) -> fmt::Result {
+        #[inline]
+        #[allow(unused_variables)]
+        pub fn write_html_ops_content(&self, w : &mut fmt::Write, ops: Iter<ElementOp>, nodes_vec: &mut NodesVec, comp_map: &'input ComponentMap<'input>) -> fmt::Result {
             for ref op in ops {
                 match *op {
                     &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs) => {
                         write!(w, "<{}", element_tag)?;
                         if let &Some(ref element_key) = element_key {
                             write!(w, " key=\"{}\"", element_key)?;
+                        } else {
+                            write!(w, " key=\"{}\"", allocate_element_key())?;
                         }
 
                         if let &Some(ref attrs) = attrs {
@@ -108,15 +112,19 @@ mod format_html {
                                 write!(w, "\"")?;
                             }
                         }
-                        writeln!(w, ">")?;
+                        write!(w, ">")?;
+
+                        nodes_vec.push((element_tag.clone(), element_key.clone(), attrs.as_ref().map(|attrs| attrs.iter().map(Clone::clone).collect())));
                     },
                     &ElementOp::ElementClose(ref element_tag) => {
-                        writeln!(w, "</{}>", element_tag)?;
+                        write!(w, "</{}>", element_tag)?;
                     },
                     &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs) => {
                         write!(w, "<{}", element_tag)?;
                         if let &Some(ref element_key) = element_key {
                             write!(w, " key=\"{}\"", element_key)?;
+                        } else {
+                            write!(w, " key=\"{}\"", allocate_element_key())?;
                         }
 
                         if let &Some(ref attrs) = attrs {
@@ -126,10 +134,37 @@ mod format_html {
                                 write!(w, "\"")?;
                             }
                         }
-                        writeln!(w, " />")?;
+                        write!(w, " />")?;
+
+                        nodes_vec.push((element_tag.clone(), element_key.clone(), attrs.as_ref().map(|attrs| attrs.iter().map(Clone::clone).collect())));
                     },
-                    &ElementOp::WriteValue(ref expr) => {
+                    &ElementOp::WriteValue(ref expr, ref element_key) => {
+                        let key_str = element_key.as_ref().map_or("null", |s| s);
+                        write!(w, "<span key=\"{}\">", key_str)?;
                         self.write_computed_expr_value(w, expr, None)?;
+                        write!(w, "</span>")?;
+
+                        nodes_vec.push((String::from("span"), element_key.as_ref().map(Clone::clone), None));
+                    },
+                    &ElementOp::InstanceComponent(ref component_ty, ref component_key, ref attrs) => {
+                        // Try to locate a matching component
+                        if let Some(ref comp) = comp_map.get(component_ty.as_str()) {
+                            // Render a component
+
+                            write!(w, "<div")?;
+                            if let &Some(ref component_key) = component_key {
+                                write!(w, " key=\"{}\"", component_key)?;
+                            }
+                            write!(w, ">")?;
+
+                            if let Some(ref component_ops) = comp.ops {
+                                self.write_html_ops_content(w, component_ops.iter(), nodes_vec, comp_map)?;
+                            };
+
+                            write!(w, "</div>")?;
+
+                            nodes_vec.push((String::from("div"), component_key.as_ref().map(Clone::clone), None));
+                        };
                     }
                 }
             }
@@ -138,8 +173,13 @@ mod format_html {
         }
 
         #[inline]
-        fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>) -> fmt::Result {
+        #[allow(unused_variables)]
+        fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>, element_key: Option<&str>) -> fmt::Result {
             let mut wrote_first = false;
+            // if let Some(element_key) = element_key {
+            //     write!(w, "\"key\", \"{}\"", element_key)?;
+            //     wrote_first = true;
+            // };
             for &(ref key, ref expr) in attrs {
                 if wrote_first {
                     write!(w, ", ")?
@@ -154,18 +194,22 @@ mod format_html {
         }
 
         #[inline]
-        pub fn write_js_incdom_ops_content(&self, w: &mut fmt::Write, ops: Iter<ElementOp>, var_prefix: Option<&str>, default_var: Option<&str>) -> fmt::Result {
+        #[allow(unused_variables)]
+        pub fn write_js_incdom_ops_content(&self, w: &mut fmt::Write, ops: Iter<ElementOp>, var_prefix: Option<&str>, default_var: Option<&str>, key_prefix: Option<&str>, comp_map: &ComponentMap<'input>) -> fmt::Result {
             for ref op in ops {
                 match *op {
                     &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs) => {
+                        let element_key = element_key.as_ref().map_or("null", |s| s);
+
                         write!(w, "IncrementalDOM.elementOpen(\"{}\", \"{}\", [",
                             element_tag,
-                            element_key.as_ref().map_or("null", |s| s)
+                            // element_key.as_ref().map_or("null", |s| key_prefix.map_or(s, |kp| format!("{}-{}", kp, s)))
+                            element_key
                         )?;
 
                         // Static attrs
                         if let &Some(ref attrs) = attrs {
-                            self.write_js_incdom_attr_array(w, attrs)?;
+                            self.write_js_incdom_attr_array(w, attrs, Some(element_key))?;
                         };
 
                         // TODO: Dynamic attributes
@@ -176,24 +220,43 @@ mod format_html {
                         writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
                     },
                     &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs) => {
+                        let element_key = element_key.as_ref().map_or("null", |s| s);
+
                         write!(w, "IncrementalDOM.elementVoid(\"{}\", \"{}\", [);",
                             element_tag,
-                            element_key.as_ref().map_or("null", |s| s)
+                            // element_key.as_ref().map_or("null", |s| key_prefix.map_or(s, |kp| &format!("{}-{}", kp, s)))
+                            element_key
                         )?;
 
                         // Static attrs
                         if let &Some(ref attrs) = attrs {
-                            self.write_js_incdom_attr_array(w, &attrs)?;
+                            self.write_js_incdom_attr_array(w, &attrs, Some(element_key))?;
                         };
 
                         // TODO: Dynamic attributes
 
                         writeln!(w, "]);")?;
                     },
-                    &ElementOp::WriteValue(ref expr) => {
+                    &ElementOp::WriteValue(ref expr, ref element_key) => {
+                        let element_key = element_key.as_ref().map_or("null", |s| s);
+                        writeln!(w, "IncrementalDOM.elementOpen(\"span\", \"{}\", [\"key\", \"{}\"]);", element_key, element_key)?;
                         write!(w, "IncrementalDOM.text(")?;
                         self.write_js_expr_value(w, expr, var_prefix, default_var)?;
-                        write!(w, ");")?;
+                        writeln!(w, ");")?;
+                        writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
+                    },
+                    &ElementOp::InstanceComponent(ref component_ty, ref component_key, ref attrs) => {
+                        let comp = comp_map.get(component_ty.as_str());
+                        if comp.is_some() {
+                            let component_key = component_key.as_ref().map_or("null", |s| s);
+                            writeln!(w, "IncrementalDOM.elementOpen(\"div\", \"{}\", []);", component_key)?;
+                            write!(w, "component_{}([", component_ty)?;
+                            if let &Some(ref attrs) = attrs {
+                                self.write_js_incdom_attr_array(w, attrs, None)?;
+                            }
+                            writeln!(w, "]);")?;
+                            writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
+                        }
                     }
                 }
             };
@@ -202,9 +265,9 @@ mod format_html {
         }
 
         #[allow(dead_code)]
-        pub fn write_js_incdom_component(&self, w: &mut fmt::Write, component_name: &str, ops: Iter<ElementOp>) -> fmt::Result {
+        pub fn write_js_incdom_component(&self, w: &mut fmt::Write, component_name: &str, component_key: &str, ops: Iter<ElementOp>, comp_map: &ComponentMap<'input>) -> fmt::Result {
             writeln!(w, "function {}(props) {{", component_name)?;
-            self.write_js_incdom_ops_content(w, ops, Some("props."), Some("props"))?;
+            self.write_js_incdom_ops_content(w, ops, Some("props."), Some("props"), Some(component_key), comp_map)?;
             writeln!(w, "}};")?;
             Ok(())
         }
@@ -326,41 +389,75 @@ mod format_html {
         }
 
         #[inline]
-        fn process_content_node(&self, node: &'input ContentNodeType, nodes_vec: &'input mut NodesVec, ops_vec: &'input mut OpsVec) -> fmt::Result {
+        fn process_content_node(&self, node: &'input ContentNodeType, ops_vec: &'input mut OpsVec, comp_map: &'input ComponentMap<'input>) -> fmt::Result {
             match node {
                 &ContentNodeType::ElementNode(ref element_data) => {
                     let element_tag = element_data.element_ty.to_lowercase();
-                    let ref element_key = element_data.element_key;
+                    //let element_key = element_data.element_key.as_ref().map_or_else(allocate_element_key, Clone::clone);
+                    let element_key = element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
+                    let op_attrs = element_data.attrs.as_ref().map(|attrs| attrs.iter().map(Clone::clone).collect());
 
-                    let attrs = element_data.attrs.as_ref();
-                    let node_attrs = attrs.map(|attrs| attrs.iter().map(Clone::clone).collect());
-                    let op_attrs = attrs.map(|attrs| attrs.iter().map(Clone::clone).collect());
-
-                    nodes_vec.push((element_tag.clone(), element_key.clone(), node_attrs));
-
-                    if let Some(ref children) = element_data.children {
-                        // Push element open
-                        ops_vec.push(ElementOp::ElementOpen(element_tag.clone(), element_key.clone(), op_attrs));
-
-                        // Iterate over children
-                        for ref child in children {
-                            self.process_content_node(child, nodes_vec, ops_vec)?;
-                        }
-
-                        // Push element close
-                        ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
+                    // Try to locate a matching component
+                    let comp = comp_map.get(element_data.element_ty.as_str());
+                    if let Some(..) = comp {
+                        // Render a component during render
+                        ops_vec.push(ElementOp::InstanceComponent(element_tag, Some(element_key), op_attrs));
                     } else {
-                        ops_vec.push(ElementOp::ElementVoid(element_tag.clone(), element_key.clone(), op_attrs));
+                        // Treat this as an HTML element
+                        // TODO: Support imported elements
+
+                        if let Some(ref children) = element_data.children {
+                            // Push element open
+                            ops_vec.push(ElementOp::ElementOpen(element_tag.clone(), Some(element_key), op_attrs));
+
+                            // Iterate over children
+                            for ref child in children {
+                                self.process_content_node(child, ops_vec, comp_map)?;
+                            }
+
+                            // Push element close
+                            ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
+                        } else {
+                            ops_vec.push(ElementOp::ElementVoid(element_tag.clone(), Some(element_key), op_attrs));
+                        }
                     }
                 },
                 &ContentNodeType::ExpressionValueNode(ref expr) => {
-                    ops_vec.push(ElementOp::WriteValue(expr.clone()));
+                    ops_vec.push(ElementOp::WriteValue(expr.clone(), Some(allocate_element_key())));
                 }
             }
             (Ok(()))
         }
+        
+        #[allow(dead_code)]
+        pub fn process_component_definition(&self, component_data: &'input ComponentDefinitionType, _: &mut self::ReducerKeyMap<'input>, comp_map: &mut ComponentMap<'input>) -> fmt::Result {
+            let name: &'input str = component_data.name.as_str();
+            let mut ops: OpsVec = Vec::new();
 
-        pub fn process_nodes(&self, reducer_key_data: &mut self::ReducerKeyMap<'input>, nodes_vec: &mut self::NodesVec, ops_vec: &mut self::OpsVec) -> fmt::Result {
+            if let Some(ref children) = component_data.children {
+                for ref child in children {
+                    match *child {
+                        &NodeType::ContentNode(ref content) => {
+                            self.process_content_node(content, &mut ops, comp_map)?;
+                        },
+                        _ => {}
+                    }
+                }
+            }
+
+            let comp = Component {
+                name: name,
+                ops: Some(ops),
+                uses: None,
+                child_map: Default::default()
+            };
+
+            comp_map.insert(name, comp);
+
+            Ok(())
+        }
+
+        pub fn process_nodes(&self, reducer_key_data: &mut self::ReducerKeyMap<'input>, ops_vec: &mut self::OpsVec, comp_map: &mut ComponentMap<'input>) -> fmt::Result {
             let mut processed_store = false;
 
             for ref loc in self.ast.children.iter() {
@@ -373,8 +470,11 @@ mod format_html {
 
                         }
                     },
+                    &NodeType::ComponentDefinitionNode(ref component_data) => {
+                        self.process_component_definition(component_data, reducer_key_data, comp_map)?;
+                    },
                     &NodeType::ContentNode(ref content) => {
-                        self.process_content_node(content, nodes_vec, ops_vec)?;
+                        self.process_content_node(content, ops_vec, comp_map)?;
                     },
                     _ => {}
                 }
@@ -384,42 +484,46 @@ mod format_html {
 
         #[allow(dead_code)]
         pub fn write_html_document(&self, w : &mut fmt::Write) -> fmt::Result {
-            writeln!(w, "<!doctype HTML>")?;
-            writeln!(w, "<html>")?;
-            writeln!(w, "<head>")?;
-            writeln!(w, "<script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>")?;
-            writeln!(w, "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>", )?;
-            writeln!(w, "<script>", )?;
-
             // Document processing state
             let mut reducer_key_data: ReducerKeyMap = Default::default();
+            let mut comp_map: ComponentMap = Default::default();
             let mut nodes_vec: NodesVec = Default::default();
             let mut ops_vec: OpsVec = Default::default();
 
-            // Process document nodes and extract element operations and nodes_vec
-            self.process_nodes(&mut reducer_key_data, &mut nodes_vec, &mut ops_vec)?;
+            // Process document nodes and populate processing state
+            self.process_nodes(&mut reducer_key_data, &mut ops_vec, &mut comp_map)?;
 
+            // Output
+            writeln!(w, "<!doctype HTML>")?;
+            writeln!(w, "<html>")?;
+            writeln!(w, "<head>")?;
+            writeln!(w, "  <script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>")?;
+            writeln!(w, "  <script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>", )?;
+            writeln!(w, "</head>")?;
+
+            writeln!(w, "<body>")?;
+            write!(w, "<div id=\"root\">")?;
+            self.write_html_ops_content(w, ops_vec.iter(), &mut nodes_vec, &comp_map)?;
+            writeln!(w, "</div>")?;
+
+            writeln!(w, "<script>", )?;
             writeln!(w, "(function() {{")?;
 
             // Javascript output
             writeln!(w, "function render(store) {{")?;
 
-                /*
                 // Define components
-                for ref loc in self.ast.children.iter() {
-                    match &loc.inner {
-                        &NodeType::ComponentDefinitionNode(ref component_data) => {
-                            self.write_js_function(w, component_data)?;
-                        },
-                        _ => {}
+                for (ref component_ty, ref comp_def) in comp_map.iter() {
+                    writeln!(w, "  function component_{}(props) {{", component_ty)?;
+                    if let Some(ref ops) = comp_def.ops {
+                        self.write_js_incdom_ops_content(w, ops.iter(), Some("store.getState()."), Some("store.getState()"), None, &comp_map)?;
                     }
+                    writeln!(w, "  }};")?;
+                    writeln!(w, "")?;
                 }
-                writeln!(w, "")?;
-                writeln!(w, "")?;
-                */
 
                 // Render content nodes as incdom calls
-                self.write_js_incdom_ops_content(w, ops_vec.iter(), Some("store.getState()."), Some("store.getState()"))?;
+                self.write_js_incdom_ops_content(w, ops_vec.iter(), Some("store.getState()."), Some("store.getState()"), None, &comp_map)?;
 
             writeln!(w, "}}")?;
 
@@ -432,16 +536,6 @@ mod format_html {
 
             writeln!(w, "  // Define store")?;
             self.write_js_store(w, &reducer_key_data)?;
-
-            writeln!(w, "  // Root subscription")?;
-            writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
-            writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
-
-            writeln!(w, "  // Bind action links")?;
-            writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
-            writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
-            writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
-            writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
 
             writeln!(w, "function Blank() {{}}")?;
             writeln!(w, "Blank.prototype = Object.create(null)")?;
@@ -456,8 +550,8 @@ mod format_html {
             // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
             for node in nodes_vec.iter() {
                 match *node {
-                    (_, Some(ref element_key), _) => {
-                        writeln!(w, "  markExisting(document.querySelector(\"[key='{}']\"), \"{}\");", element_key, element_key)?;
+                    (ref element_tag, Some(ref element_key), _) => {
+                        writeln!(w, "  markExisting(document.querySelector(\"[key='{}']\"), \"{}\"); // {}", element_key, element_key, element_tag)?;
                     },
                     _ => {
                         writeln!(w, "// Unmatched node: {:?}", node)?;
@@ -465,17 +559,20 @@ mod format_html {
                 }
             }
 
+            writeln!(w, "  // Root subscription")?;
+            writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
+            writeln!(w, "  store.subscribe(function() {{ update(root_el, store); }});")?;
+
+            writeln!(w, "  // Bind action links")?;
+            writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
+            writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
+            writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
+            writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
+
             writeln!(w, "}});")?;
             writeln!(w, "}})();")?;
 
-            writeln!(w, "</script>\n</head>")?;
-
-            writeln!(w, "<body>")?;
-            writeln!(w, "<div id=\"root\">")?;
-
-            self.write_html_ops_content(w, ops_vec.iter())?;
-
-            writeln!(w, "</div>")?;
+            writeln!(w, "</script>")?;
             writeln!(w, "</body>")?;
             writeln!(w, "</html>")?;
             Ok(())
