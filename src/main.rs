@@ -24,7 +24,7 @@ pub fn main() {
     vm.interpret(source);
 
     vm.get_variable("main", "Unicorn", 0);
-    let class_handle = vm.get_slot_handle(0).unwrap();
+    let class_handle = vm.get_slot_handle(0);
 
     let has_horn = vm.make_call_handle("hasHorn()");
     vm.set_slot_handle(0, &class_handle);

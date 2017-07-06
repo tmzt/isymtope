@@ -8,7 +8,7 @@ store {
         action decrement;
     }
 
-    api {
+    api photostore {
         resource photos
     }
 }

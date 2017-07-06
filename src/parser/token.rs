@@ -26,7 +26,11 @@ pub enum Token {
     DelKeyword,
     PatchKeyword,
 
+    EventKeyword,
+    DispatchKeyword,
+
     HashRocket,
+    Pipe,
     OpenBrace,
     CloseBrace,
     OpenParen,

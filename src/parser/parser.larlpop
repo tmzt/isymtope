@@ -1,5 +1,5 @@
 
-use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp};
+use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp, ActionOpNode};
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
@@ -88,6 +88,7 @@ ExprValue : ExprValue =
 {
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
     <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
+//    "|" <attrs:("(" <AtLeastOne<Id>> ")")?> "|" "{" <action_ops:ActionOpNode*> "}" => ExprValue::Action(attrs, Some(action_ops)),
     ExprFactor
 };
 
@@ -105,6 +106,10 @@ ExprTerm : ExprValue =
     ValueKeyword => ExprValue::DefaultVariableReference,
     <ident:Id> => ExprValue::VariableReference(ident.into()),
     <s:LitStr> => ExprValue::LiteralString(s),
+};
+
+ActionOpNode: ActionOpNode = {
+    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<Param>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
 };
 
 AtLeastOne<T> : Vec<T> = {
@@ -147,10 +152,15 @@ ParamList : Vec<(String, ExprValue)> = {
     }
 };
 
+//    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
+
+ElementNodeEvent: (Option<Vec<String>>, Option<Vec<ActionOpNode>>) = 
+    "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => (params, act_ops);
+
 ElementNode : ContentNodeType = {
-    <element_ty:Id> <attrs:("(" <AtLeastOne<Param>> ")")?>  "{"
-        <children:ContentNodeType*>
-    "}" =>
+    <element_ty:Id> "(" <attrs:AtLeastOne<Param>?> ")"
+    <events:(ElementNodeEvent+)?>
+    "{" <children:ContentNodeType*> "}" =>
         {
             let element_ty = element_ty.into();
             let element_key = allocate_element_key();
@@ -160,11 +170,12 @@ ElementNode : ContentNodeType = {
                     element_ty: element_ty,
                     element_key: Some(element_key),
                     attrs: attrs,
-                    children: Some(children)
+                    children: Some(children),
+                    events: events
                 }
             )
         },
-    <element_ty:Id> <attrs:("(" <AtLeastOne<Param>> ")")?>  ";" =>
+    <element_ty:Id> "{" <children:ContentNodeType*> "}" =>
         {
             let element_ty = element_ty.into();
             let element_key = allocate_element_key();
@@ -173,8 +184,9 @@ ElementNode : ContentNodeType = {
                 ast::ElementType {
                     element_ty: element_ty,
                     element_key: Some(element_key),
-                    attrs: attrs,
-                    children: None
+                    attrs: None,
+                    children: Some(children),
+                    events: None
                 }
             )
         }
@@ -184,6 +196,7 @@ ElementNode : ContentNodeType = {
 
 DefaultScopeNodeType : DefaultScopeNodeType = {
     LetKeyword <var:Id> <expr:("=" <ExprValue>)?> ";" => DefaultScopeNodeType::LetNode(var.into(), expr),
+    ApiKeyword <api_scope:Id> "{" <children:ApiNodeType*> "}" => DefaultScopeNodeType::ApiRootNode(api_scope.into(), Some(children)),
     <name:Id> "{" <children:ScopeNodeType*> "}" => DefaultScopeNodeType::ScopeNode(name.into(), children)
 };
 
@@ -234,6 +247,7 @@ extern {
     
     enum Token {
         "=>" => Token::HashRocket,
+        "|" => Token::Pipe,
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
@@ -265,6 +279,9 @@ extern {
         PostKeyword => Token::PostKeyword,
         PutKeyword => Token::PutKeyword,
         DelKeyword => Token::DelKeyword,
-        PatchKeyword => Token::PatchKeyword
+        PatchKeyword => Token::PatchKeyword,
+
+        EventKeyword => Token::EventKeyword,
+        DispatchKeyword => Token::DispatchKeyword
     }
 }

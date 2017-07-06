@@ -39,8 +39,8 @@ impl ReducerActionData {
 
 #[derive(Debug, Clone)]
 pub enum ElementOp {
-    ElementOpen(String, Option<String>, Option<Vec<(String, ExprValue)>>),
-    ElementVoid(String, Option<String>, Option<Vec<(String, ExprValue)>>),
+    ElementOpen(String, Option<String>, Option<Vec<(String, ExprValue)>>, Option<EventHandlersVec>),
+    ElementVoid(String, Option<String>, Option<Vec<(String, ExprValue)>>, Option<EventHandlersVec>),
     ElementClose(String),
     WriteValue(ExprValue, Option<String>),
     InstanceComponent(String, Option<String>, Option<Vec<(String, ExprValue)>>)

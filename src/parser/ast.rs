@@ -49,7 +49,13 @@ pub enum ExprValue {
     LiteralString(String),
     VariableReference(String),
     DefaultVariableReference,
-    Expr(ExprOp, Box<ExprValue>, Box<ExprValue>)
+    Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
+    Action(Option<Vec<String>>, Option<Vec<ActionOpNode>>)
+}
+
+#[derive(Debug, Clone)]
+pub enum ActionOpNode {
+    DispatchAction(String, Option<Vec<(String, ExprValue)>>)
 }
 
 #[derive(Debug)]
@@ -64,10 +70,16 @@ pub struct ComponentDefinitionType {
     pub children: Option<Vec<NodeType>>
 }
 
+pub type EventHandlerParams = Vec<String>;
+pub type EventHandlerActionOps = Vec<ActionOpNode>;
+pub type EventHandlersVec = Vec<(Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
+pub type EventsVec = Vec<(String,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
+
 #[derive(Debug)]
 pub struct ElementType {
     pub element_ty: String,
     pub element_key: Option<String>,
     pub attrs: Option<Vec<(String, ExprValue)>>,
-    pub children: Option<Vec<ContentNodeType>>
+    pub children: Option<Vec<ContentNodeType>>,
+    pub events: Option<Vec<(Option<EventHandlerParams>,Option<EventHandlerActionOps>)>>
 }

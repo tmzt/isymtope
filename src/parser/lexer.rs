@@ -139,6 +139,9 @@ impl<'input> Lexer<'input> {
             "del" => Token::DelKeyword,
             "patch" => Token::PatchKeyword,
 
+            "event" => Token::EventKeyword,
+            "dispatch" => Token::DispatchKeyword,
+
             identifier => Token::Identifier(identifier.into())
         };
 
@@ -191,18 +194,8 @@ impl<'input> Lexer<'input> {
                 //println!("Char: {:?}", c);
 
                 let token = match c {
-                    '{' => {
-                        /*
-                        if self.detect_element_name_mode {
-                            if let Some(identifier) = self.identifier_str {
-                                let end = self.step_n(1);
-                                return Some(Ok((start, Token::ElementName(identifier), end)));
-                            }
-                        }
-                        */
-                        
-                        Token::OpenBrace
-                    },
+                    '|' => Token::Pipe,
+                    '{' => Token::OpenBrace,
                     '}' => Token::CloseBrace,
                     '(' => {
                         self.param_list_mode = true;
