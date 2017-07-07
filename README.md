@@ -1,4 +1,4 @@
-# ismytope
+# isymtope
 Experimental hybrid redux+IncrementalDOM client and server-side rendering in Rust. (Pronounced like isomorphic + asymtope)
 
 Here's the classic counter example:

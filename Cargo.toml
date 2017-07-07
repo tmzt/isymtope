@@ -1,7 +1,7 @@
 [package]
 authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 build = "build.rs"
-name = "ismytope"
+name = "isymtope"
 version = "0.1.0"
 
 [build-dependencies]
