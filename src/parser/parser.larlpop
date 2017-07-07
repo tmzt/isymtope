@@ -154,8 +154,8 @@ ParamList : Vec<(String, ExprValue)> = {
 
 //    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
 
-ElementNodeEvent: (Option<Vec<String>>, Option<Vec<ActionOpNode>>) = 
-    "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => (params, act_ops);
+ElementNodeEvent: (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>) = 
+    <event_name:Id?> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => (event_name, params, act_ops);
 
 ElementNode : ContentNodeType = {
     <element_ty:Id> "(" <attrs:AtLeastOne<Param>?> ")"

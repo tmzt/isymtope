@@ -62,6 +62,7 @@ mod format_html {
                     self.write_js_expr_value(w, r, var_prefix, default_var)?;
                 },
 
+                &ExprValue::DefaultAction(..) => {},
                 &ExprValue::Action(..) => {}
             }
             Ok(())
@@ -93,9 +94,27 @@ mod format_html {
                     write!(w, "{:?} {:?} {:?}", l, sym, r)?;
                 },
 
+                &ExprValue::DefaultAction(..) => {
+                }
+
                 &ExprValue::Action(..) => {
                 }
             }
+            Ok(())
+        }
+
+        #[inline]
+        #[allow(unused_variables)]
+        pub fn write_js_action(&self, w: &mut fmt::Write, act_iter: Iter<ActionOpNode>) -> fmt::Result {
+            write!(w, "function(event) {{")?;
+            for ref act_op in act_iter {
+                match *act_op {
+                    &ActionOpNode::DispatchAction(ref action, ref params) => {
+                        write!(w,  " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
+                    }
+                }
+            }
+            write!(w, "}}")?;
             Ok(())
         }
 
@@ -117,34 +136,36 @@ mod format_html {
 
                         if let &Some(ref attrs) = attrs {
                             for &(ref key, ref expr) in attrs {
-                                if let &ExprValue::Action(ref params, ref act_ops) = expr {
-                                    write!(w, "function(event) {{")?;
-                                    if let &Some(ref act_ops) = act_ops {
-                                        for ref act_op in act_ops {
-                                            match *act_op {
-                                                &ActionOpNode::DispatchAction(ref action, ref params) => {
-                                                    write!(w,  " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
-                                                }
-                                            }
-                                        }
+                                match expr {
+                                    &ExprValue::DefaultAction(ref params, ref act_ops) => {
+                                        if let &Some(ref act_ops) = act_ops {
+                                            self.write_js_action(w, act_ops.iter())?;
+                                            continue;
+                                        };
+                                    },
+                                    &ExprValue::Action(ref event_name, ref params, ref act_ops) => {
+                                        if let &Some(ref act_ops) = act_ops {
+                                            self.write_js_action(w, act_ops.iter())?;
+                                            continue;
+                                        };
+                                    },
+                                    _ => {
+                                        write!(w, " {}=\"", key)?;
+                                        self.write_computed_expr_value(w, expr, None)?;
+                                        write!(w, "\"")?;
                                     }
-                                    write!(w, "}}")?;
-                                    continue;
                                 };
-
-                                write!(w, " {}=\"", key)?;
-                                self.write_computed_expr_value(w, expr, None)?;
-                                write!(w, "\"")?;
-                            }
-                        }
+                            };
+                        };
                         write!(w, ">")?;
 
                         // Process events
                         if let &Some(ref events) = events {
-                            for &(ref event_params, ref action_ops) in events {
+                            for &(ref event_name, ref event_params, ref action_ops) in events {
                                 let event_params = event_params.as_ref().map(Clone::clone);
                                 let action_ops = action_ops.as_ref().map(Clone::clone);
-                                events_vec.push((element_key.clone(), event_params, action_ops));
+                                let event_name = event_name.as_ref().map(Clone::clone);
+                                events_vec.push((element_key.clone(), event_name, event_params, action_ops));
                             }
                         }
 
@@ -224,7 +245,7 @@ mod format_html {
                     wrote_first = true;
                 }
 
-                if let &ExprValue::Action(ref params, ref act_ops) = expr {
+                if let &ExprValue::DefaultAction(ref params, ref act_ops) = expr {
                     write!(w, "\"{}\", ", key)?;
                     write!(w, "function(event) {{")?;
                     if let &Some(ref act_ops) = act_ops {
@@ -483,10 +504,11 @@ mod format_html {
 
                         // Process events
                         if let Some(ref events) = element_data.events {
-                            for &(ref event_params, ref action_ops) in events {
+                            for &(ref event_name, ref event_params, ref action_ops) in events {
+                                let event_name = event_name.as_ref().map(Clone::clone);
                                 let event_params = event_params.as_ref().map(Clone::clone);
                                 let action_ops = action_ops.as_ref().map(Clone::clone);
-                                events_vec.push((element_key.clone(), event_params, action_ops));
+                                events_vec.push((element_key.clone(), event_name, event_params, action_ops));
                             }
                         }
 
@@ -570,8 +592,9 @@ mod format_html {
         #[allow(unused_variables)]
         pub fn write_js_event_bindings(&self, w: &mut fmt::Write, events_vec: &EventsVec, action_prefix: Option<&str>) -> fmt::Result {
             writeln!(w,   "  // Bind actions")?;
-            for &(ref element_key, ref params, ref action_ops) in events_vec {
-                writeln!(w, "  document.querySelector(\"[key='{}']\").addEventListener(\"click\", function(event) {{", element_key)?;
+            for &(ref element_key, ref event_name, ref params, ref action_ops) in events_vec {
+                let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
+                writeln!(w, "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", function(event) {{", element_key, event_name)?;
                 if let &Some(ref action_ops) = action_ops {
                     for ref action_op in action_ops {
                         match *action_op {
