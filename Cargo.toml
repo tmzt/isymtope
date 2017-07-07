@@ -2,7 +2,7 @@
 authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 build = "build.rs"
 name = "isymtope"
-version = "0.1.0"
+version = "0.2.0"
 
 [build-dependencies]
 lalrpop = "0.13.1"
