@@ -1,5 +1,7 @@
 
 #![recursion_limit="1000"]
+#![feature(plugin)]
+#![plugin(indoc)]
 
 extern crate wren;
 extern crate uuid;

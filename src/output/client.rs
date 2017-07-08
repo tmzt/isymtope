@@ -1,5 +1,4 @@
 
-
 use std::io;
 use std::fmt;
 use parser::ast::*;
@@ -397,7 +396,7 @@ mod format_html {
                                      "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
                                      component_key)
                                 ?;
-                            write!(w, "component_{}([", component_ty)?;
+                            write!(w, "component_{}(store, [", component_ty)?;
                             if let &Some(ref attrs) = attrs {
                                 self.write_js_incdom_attr_array(w, attrs)?;
                             }
@@ -785,35 +784,32 @@ mod format_html {
                                &mut comp_map)?;
 
             // Output
-            writeln!(w, "<!doctype HTML>")?;
-            writeln!(w, "<html>")?;
-            writeln!(w, "<head>")?;
-            writeln!(w,
-                     "  <script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>")
-                ?;
-            writeln!(w, "  <script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>", )?;
-            writeln!(w, "</head>")?;
+            write!(w, "{}", indoc!(r#"
+                <!doctype HTML>
+                <html>
+                  <head>
+                    <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
+                    <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+                  </head>
+                  <body>
+                    <div id="root">
+            "#))?;
 
-            writeln!(w, "<body>")?;
-            write!(w, "<div id=\"root\">")?;
             self.write_html_ops_content(w,
                                         ops_vec.iter(),
                                         &mut nodes_vec,
                                         &mut events_vec,
                                         &comp_map)?;
-            writeln!(w, "</div>")?;
 
-            writeln!(w, "<script>", )?;
-            writeln!(w, "(function() {{")?;
-
-            writeln!(w, "/* {:?} */", ops_vec)?;
-
-            // Javascript output
-            writeln!(w, "function render(store) {{")?;
+            write!(w, "{}", indoc!(r#"
+                    </div>
+                    <script>
+                      (function() {
+            "#))?;
 
             // Define components
             for (ref component_ty, ref comp_def) in comp_map.iter() {
-                writeln!(w, "  function component_{}(props) {{", component_ty)?;
+                writeln!(w, "  function component_{}(store, props) {{", component_ty)?;
                 if let Some(ref ops) = comp_def.ops {
                     self.write_js_incdom_ops_content(w,
                                                      ops.iter(),
@@ -826,6 +822,8 @@ mod format_html {
                 writeln!(w, "")?;
             }
 
+            writeln!(w, "function render(store) {{")?;
+
             // Render content nodes as incdom calls
             self.write_js_incdom_ops_content(w,
                                              ops_vec.iter(),
@@ -836,11 +834,11 @@ mod format_html {
 
             writeln!(w, "}}")?;
 
-            writeln!(w, "function update(root_el, store) {{")?;
-            writeln!(w,
-                     "  IncrementalDOM.patch(root_el, render.bind(null, store));")
-                ?;
-            writeln!(w, "}}")?;
+            write!(w, "{}", indoc!(r#"
+                        function update(root_el, store) {
+                          IncrementalDOM.patch(root_el, render.bind(null, store));
+                        }
+            "#))?;
 
             // Callback that will execute after deferred scripts and content is ready
             writeln!(w,
@@ -850,15 +848,17 @@ mod format_html {
             writeln!(w, "  // Define store")?;
             self.write_js_store(w, &reducer_key_data)?;
 
-            writeln!(w, "function Blank() {{}}")?;
-            writeln!(w, "Blank.prototype = Object.create(null)")?;
-
-            writeln!(w, "function markExisting(node, key, attrsArr) {{")?;
-            writeln!(w, "  IncrementalDOM.importNode(node);")?;
-            writeln!(w, "  var data = node['__incrementalDOMData'];")?;
-            writeln!(w, "  data.staticsApplied = true;")?;
-            writeln!(w, "  data.newAttrs = new Blank();")?;
-            writeln!(w, "}}")?;
+            write!(w, "{}", indoc!(r#"
+                        function Blank() {}
+                        Blank.prototype = Object.create(null);
+                        
+                        function markExisting(node, key, attrsArr) {
+                            IncrementalDOM.importNode(node);
+                            var data = node['__incrementalDOMData'];
+                            data.staticsApplied = true;
+                            data.newAttrs = new Blank();
+                        }
+            "#))?;
 
             // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
             for node in nodes_vec.iter() {
@@ -878,8 +878,6 @@ mod format_html {
                 }
             }
 
-            writeln!(w, "  // Root subscription")?;
-            writeln!(w, "  var root_el = document.querySelector(\"#root\");")?;
             writeln!(w,
                      "  store.subscribe(function() {{ update(root_el, store); }});")
                 ?;
@@ -887,12 +885,19 @@ mod format_html {
             // Event handlers
             self.write_js_event_bindings(w, &events_vec, Some("counter"))?;
 
-            writeln!(w, "}});")?;
-            writeln!(w, "}})();")?;
+            write!(w, "{}", indoc!(r#"
+                      // Root subscription
+                      var root_el = document.querySelector('#root');
+                      store.subscribe(function() { update(root_el, store); });
 
-            writeln!(w, "</script>")?;
-            writeln!(w, "</body>")?;
-            writeln!(w, "</html>")?;
+
+                      });
+                    })();
+                     </script>
+                  </body>
+                </html>
+            "#))?;
+
             Ok(())
         }
     }
