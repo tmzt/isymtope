@@ -56,6 +56,6 @@ Remember, this is only a test.
 
 Here it is:
 
-<iframe src="/isymtope/gen/output/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
+<iframe src="/isymtope/assets/demos/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
 
-<a href="/isymtope/gen/output/test_output3.html" target="_blank">Open demo in new tab</a>.
+<a href="/isymtope/assets/demos/test_output3.html" target="_blank">Open demo in new tab</a>.
