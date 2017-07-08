@@ -30,6 +30,7 @@ mod format_html {
             }
         }
 
+        #[inline]
         pub fn write_js_expr_value(&self, w: &mut fmt::Write, node: &ExprValue, var_prefix: Option<&str>, default_var: Option<&str>) -> fmt::Result {
             match node {
                 // TODO: Handle the case where quotes appear in the string
@@ -68,6 +69,7 @@ mod format_html {
             Ok(())
         }
 
+        #[inline]
         #[allow(unused_variables)]
         pub fn write_computed_expr_value(&self, w: &mut fmt::Write, node: &ExprValue, var_prefix: Option<&str>) -> fmt::Result {
             match node {
@@ -128,11 +130,6 @@ mod format_html {
 
                         write!(w, "<{}", element_tag)?;
                         write!(w, " key=\"{}\"", element_key)?;
-                        // if let &Some(ref element_key) = element_key {
-                        //     write!(w, " key=\"{}\"", element_key)?;
-                        // } else {
-                        //     write!(w, " key=\"{}\"", allocate_element_key())?;
-                        // }
 
                         if let &Some(ref attrs) = attrs {
                             for &(ref key, ref expr) in attrs {
@@ -179,11 +176,6 @@ mod format_html {
 
                         write!(w, "<{}", element_tag)?;
                         write!(w, " key=\"{}\"", element_key)?;
-                        // if let &Some(ref element_key) = element_key {
-                        //     write!(w, " key=\"{}\"", element_key)?;
-                        // } else {
-                        //     write!(w, " key=\"{}\"", allocate_element_key())?;
-                        // }
 
                         if let &Some(ref attrs) = attrs {
                             for &(ref key, ref expr) in attrs {
@@ -232,12 +224,8 @@ mod format_html {
 
         #[inline]
         #[allow(unused_variables)]
-        fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>, element_key: Option<&str>) -> fmt::Result {
+        fn write_js_incdom_attr_array(&self, w: &mut fmt::Write, attrs: &Vec<(String, ExprValue)>) -> fmt::Result {
             let mut wrote_first = false;
-            // if let Some(element_key) = element_key {
-            //     write!(w, "\"key\", \"{}\"", element_key)?;
-            //     wrote_first = true;
-            // };
             for &(ref key, ref expr) in attrs {
                 if wrote_first {
                     write!(w, ", ")?
@@ -284,7 +272,7 @@ mod format_html {
 
                         // Static attrs
                         if let &Some(ref attrs) = attrs {
-                            self.write_js_incdom_attr_array(w, attrs, Some(element_key))?;
+                            self.write_js_incdom_attr_array(w, attrs)?;
                         };
 
                         // TODO: Dynamic attributes
@@ -305,7 +293,7 @@ mod format_html {
 
                         // Static attrs
                         if let &Some(ref attrs) = attrs {
-                            self.write_js_incdom_attr_array(w, &attrs, Some(element_key))?;
+                            self.write_js_incdom_attr_array(w, attrs)?;
                         };
 
                         // TODO: Dynamic attributes
@@ -327,7 +315,7 @@ mod format_html {
                             writeln!(w, "IncrementalDOM.elementOpen(\"div\", \"{}\", []);", component_key)?;
                             write!(w, "component_{}([", component_ty)?;
                             if let &Some(ref attrs) = attrs {
-                                self.write_js_incdom_attr_array(w, attrs, None)?;
+                                self.write_js_incdom_attr_array(w, attrs)?;
                             }
                             writeln!(w, "]);")?;
                             writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
@@ -352,12 +340,6 @@ mod format_html {
                 match *node {
                     &ScopeNodeType::LetNode(ref var_name, ref expr) => {
                         let reducer_entry = reducer_key_data.entry(var_name).or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
-                        /*
-                        let var_path = format!("{}{}",
-                            var_prefix.and_then(|prefix| Some(format!("{}.", prefix.to_uppercase()))).unwrap_or_default(),
-                            var_name
-                        );
-                        */
 
                         if let &Some(ref expr) = expr {
                             reducer_entry.default_expr = Some(expr.clone());
@@ -436,7 +418,6 @@ mod format_html {
             // Generate script
             for (ref reducer_key, ref reducer_data) in reducer_key_data.iter() {
                 writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
-                //writeln!(w, "  /* {:?} */", reducer_data)?;
 
                 if let Some(ref actions) = reducer_data.actions {
                     for ref action_data in actions {
@@ -488,7 +469,6 @@ mod format_html {
             match node {
                 &ContentNodeType::ElementNode(ref element_data) => {
                     let element_tag = element_data.element_ty.to_lowercase();
-                    //let element_key = element_data.element_key.as_ref().map_or_else(allocate_element_key, Clone::clone);
                     let element_key = element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
                     let op_attrs = element_data.attrs.as_ref().map(|attrs| attrs.iter().map(Clone::clone).collect());
                     let events = element_data.events.as_ref().map(|attrs| attrs.iter().map(Clone::clone).collect());
@@ -699,27 +679,6 @@ mod format_html {
 
             // Event handlers
             self.write_js_event_bindings(w, &events_vec, Some("counter"))?;
-
-            // writeln!(w,   "  // Bind actions")?;
-            // for (ref element_key, ref params, ref action_ops) in events_vec {
-            //     write!(w, "  document.querySelector(\"[key='{}']\").addEventListener(\"click\", function(event) {{", element_key)?;
-            //     if let &Some(ref action_ops) = action_ops {
-            //         for ref action_op in action_ops {
-            //             match *action_op {
-            //                 &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-            //                     write!(w,  " store.dispatch({{\"type\": \"{}\"}}); ", action_key)?;
-            //                 }
-            //             }
-            //         }
-            //     }
-            //     write!(w, "  ")?;
-            // }
-
-            // writeln!(w, "  // Bind action links")?;
-            // writeln!(w, "  var increment_el = document.querySelector(\"a[href='#increment']\");")?;
-            // writeln!(w, "  increment_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.INCREMENT\" }}); }};")?;
-            // writeln!(w, "  var decrement_el = document.querySelector(\"a[href='#decrement']\");")?;
-            // writeln!(w, "  decrement_el.onclick = function() {{ store.dispatch({{ type: \"COUNTER.DECREMENT\" }}); }};")?;
 
             writeln!(w, "}});")?;
             writeln!(w, "}})();")?;
