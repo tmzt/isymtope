@@ -2,14 +2,10 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>isymtope</title>
+        <title>isymtope - server and client reactive framework for Rust</title>
         <link href="https://unpkg.com/bulma@0.4.3/css/bulma.css" rel="stylesheet" type="text/css" />
         <link href="/isymtope/assets/css/default.css" rel="stylesheet" type="text/css" />
         <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
-
-        
-       	  <title>Cobalt.rs Blog</title>
-        
     </head>
     <body>
       <section>
@@ -41,13 +37,14 @@
 <p>Design your app once and only once.</p>
 <h3>Redux-ified</h3>
 <p>Specify your stores and action right in the template, we will generate the Javascript for you, automatically.</p>
-<h3>Api's included.</h3>
-<p>Define your API's in our template language or import grpc.io, protobuf, swagger and more. We will generate the Redux actions that you can consumer in your application.</p>
-<p>Export API's for your databases using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.</p>
+<h3>API's included.</h3>
+<p>Define your API's in our template language or import definitions from grpc.io, protobuf, swagger and more. We will generate Redux for each API call, both REST and RPC.</p>
+<p>You can also define APIs for your database bindings using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.</p>
 <h3>Make free calls!</h3>
-<p>Calls to your api's are free when rendering server-side if they are in the same process, and the exact same syntax is used.</p>
+<p>Calls to your API's are free when rendering server-side (when the implementation is in the same process). Calls are always treated as asynchronous and exposed to your app as Redux actions.</p>
+<p>You write the exact same code to call your services.</p>
 <h3>No (server-side) Javascript</h3>
-<p>This framework is pure Rust and can even by compiled into a native binary. You don't need Node.js running on your server.</p>
+<p>This framework is pure Rust and can even by compile your entire site into a native binary taking advantage of Rust's zero-cost abstractions. You don't need Node.js or any Javascript framework running on your server.</p>
 
       </div>
     </div>
@@ -57,8 +54,11 @@
   
   <section>
     <div class="container"><div class="content">
-        <p><em>isymtope</em> is a work-in-progess, so not all the above features work yet.</p>
-
+        <article class="message">
+  <div class="message-body">
+    <p>Remember, <em>isymtope</em> is a work-in-progess, not all of the above features work yet.</p>
+  </div>
+</article>
       </div>
     </div>
   </section>
@@ -69,37 +69,40 @@
     <div class="container"><div class="content">
         <h2>Example</h2>
 <p>The famous counter, staple of all reactive frameworks.</p>
-<pre><code>use html;
-
-store {
-    let counter = 0;
-
-    counter {
-        action increment =&gt; value + 1;
-        action decrement =&gt; value - 1;
-    }
-}
-
-component counter {
-    h4 { &quot;Counter: &quot; { counter } }
-    p (class=&quot;actions&quot;) {
-        a (href=&quot;#decrement&quot;) || { dispatch decrement; } { &quot;Decrement&quot; }
-        { &quot; | &quot; }
-        a (href=&quot;#increment&quot;) || { dispatch increment; } { &quot;Increment&quot; }
-    }
-}
-
-counter (x=&quot;counter&quot;) {}
-</code></pre>
+<pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#b48ead;">use</span><span style="background-color:#2b303b;color:#c0c5ce;"> html</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">store </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#b48ead;">let</span><span style="background-color:#2b303b;color:#c0c5ce;"> counter </span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#d08770;">0</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">counter </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">action increment </span><span style="background-color:#2b303b;color:#c0c5ce;">=&gt;</span><span style="background-color:#2b303b;color:#c0c5ce;"> value </span><span style="background-color:#2b303b;color:#c0c5ce;">+</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#d08770;">1</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">action decrement </span><span style="background-color:#2b303b;color:#c0c5ce;">=&gt;</span><span style="background-color:#2b303b;color:#c0c5ce;"> value </span><span style="background-color:#2b303b;color:#c0c5ce;">-</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#d08770;">1</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">component counter </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">h4 </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Counter: </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> counter </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">p </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">class</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">actions</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">a </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">href</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">#decrement</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> dispatch decrement</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Decrement</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;"> | </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">a </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">href</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">#increment</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> dispatch increment</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Increment</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">counter </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">x</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">counter</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre>
 <p><em>(Of course, the syntax is still subject to change.)</em></p>
 <h3>Running the example</h3>
-<p>If you want to run this yourself, you can run.</p>
-<pre><code class="language-bash">cargo build
-cargo test
-</code></pre>
-<p>Of course you will need Rust first.</p>
-<pre><code class="language-bash">curl https://sh.rustup.rs -sSf | sh
-</code></pre>
+<p>If you want to build the example yourself, you can run:</p>
+<pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#c0c5ce;">cargo build
+</span><span style="background-color:#2b303b;color:#c0c5ce;">cargo </span><span style="background-color:#2b303b;color:#b48ead;">test</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre>
+<p>Of course you will need Rust first, if you don't have it.</p>
+<pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#c0c5ce;">curl https://</span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">.rustup.rs -sSf </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre>
 <p>Then you will find the html pages, including the counter demo, generated in <code>output/test_output3.html</code>.</p>
 <p>Remember, this is only a test.</p>
 <h2>Demo time.</h2>

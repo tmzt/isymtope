@@ -1,6 +1,11 @@
 extends: default.liquid
 title: Status
 is_section: true
+hide_title: true
 ---
 
-*isymtope* is a work-in-progess, so not all the above features work yet.
+<article class="message">
+  <div class="message-body">
+    <p>Remember, <em>isymtope</em> is a work-in-progess, not all of the above features work yet.</p>
+  </div>
+</article>

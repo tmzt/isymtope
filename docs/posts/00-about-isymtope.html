@@ -2,14 +2,10 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>isymtope</title>
+        <title>isymtope - server and client reactive framework for Rust</title>
         <link href="https://unpkg.com/bulma@0.4.3/css/bulma.css" rel="stylesheet" type="text/css" />
         <link href="/isymtope/assets/css/default.css" rel="stylesheet" type="text/css" />
         <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
-
-        
-          <title>Introducing isymtope</title>
-        
     </head>
     <body>
       <section>
@@ -40,13 +36,14 @@
 <p>Design your app once and only once.</p>
 <h3>Redux-ified</h3>
 <p>Specify your stores and action right in the template, we will generate the Javascript for you, automatically.</p>
-<h3>Api's included.</h3>
-<p>Define your API's in our template language or import grpc.io, protobuf, swagger and more. We will generate the Redux actions that you can consumer in your application.</p>
-<p>Export API's for your databases using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.</p>
+<h3>API's included.</h3>
+<p>Define your API's in our template language or import definitions from grpc.io, protobuf, swagger and more. We will generate Redux for each API call, both REST and RPC.</p>
+<p>You can also define APIs for your database bindings using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.</p>
 <h3>Make free calls!</h3>
-<p>Calls to your api's are free when rendering server-side if they are in the same process, and the exact same syntax is used.</p>
+<p>Calls to your API's are free when rendering server-side (when the implementation is in the same process). Calls are always treated as asynchronous and exposed to your app as Redux actions.</p>
+<p>You write the exact same code to call your services.</p>
 <h3>No (server-side) Javascript</h3>
-<p>This framework is pure Rust and can even by compiled into a native binary. You don't need Node.js running on your server.</p>
+<p>This framework is pure Rust and can even by compile your entire site into a native binary taking advantage of Rust's zero-cost abstractions. You don't need Node.js or any Javascript framework running on your server.</p>
 
   </div>
 </div>

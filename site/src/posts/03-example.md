@@ -7,7 +7,7 @@ is_section: true
 
 The famous counter, staple of all reactive frameworks.
 
-```
+```rust
 use html;
 
 store {
@@ -35,14 +35,14 @@ counter (x="counter") {}
 
 ### Running the example
 
-If you want to run this yourself, you can run.
+If you want to build the example yourself, you can run:
 
 ```bash
 cargo build
 cargo test
 ```
 
-Of course you will need Rust first.
+Of course you will need Rust first, if you don't have it.
 
 ```bash
 curl https://sh.rustup.rs -sSf | sh

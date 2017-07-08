@@ -14,16 +14,18 @@ Design your app once and only once.
 
 Specify your stores and action right in the template, we will generate the Javascript for you, automatically.
 
-### Api's included.
+### API's included.
 
-Define your API's in our template language or import grpc.io, protobuf, swagger and more. We will generate the Redux actions that you can consumer in your application.
+Define your API's in our template language or import definitions from grpc.io, protobuf, swagger and more. We will generate Redux for each API call, both REST and RPC.
 
-Export API's for your databases using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.
+You can also define APIs for your database bindings using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.
 
 ### Make free calls!
 
-Calls to your api's are free when rendering server-side if they are in the same process, and the exact same syntax is used.
+Calls to your API's are free when rendering server-side (when the implementation is in the same process). Calls are always treated as asynchronous and exposed to your app as Redux actions.
+
+You write the exact same code to call your services.
 
 ### No (server-side) Javascript
 
-This framework is pure Rust and can even by compiled into a native binary. You don't need Node.js running on your server.
+This framework is pure Rust and can even by compile your entire site into a native binary taking advantage of Rust's zero-cost abstractions. You don't need Node.js or any Javascript framework running on your server.
