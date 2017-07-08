@@ -7,7 +7,7 @@ use parser::store::*;
 pub struct ReducerKeyData {
     pub reducer_key: String,
     pub default_expr: Option<ExprValue>,
-    pub actions: Option<Vec<ReducerActionData>>
+    pub actions: Option<Vec<ReducerActionData>>,
 }
 
 impl ReducerKeyData {
@@ -15,7 +15,7 @@ impl ReducerKeyData {
         ReducerKeyData {
             reducer_key: String::from(reducer_key),
             default_expr: None,
-            actions: Some(Vec::new())
+            actions: Some(Vec::new()),
         }
     }
 }
@@ -23,7 +23,7 @@ impl ReducerKeyData {
 #[derive(Debug)]
 pub struct ReducerActionData {
     pub action_type: String,
-    pub state_expr: Option<ActionStateExprType>
+    pub state_expr: Option<ActionStateExprType>,
 }
 
 impl ReducerActionData {
@@ -32,7 +32,7 @@ impl ReducerActionData {
 
         ReducerActionData {
             action_type: String::from(action_type),
-            state_expr: None
+            state_expr: None,
         }
     }
 }
@@ -43,7 +43,7 @@ pub enum ElementOp {
     ElementVoid(String, Option<String>, Option<Vec<(String, ExprValue)>>, Option<EventHandlersVec>),
     ElementClose(String),
     WriteValue(ExprValue, Option<String>),
-    InstanceComponent(String, Option<String>, Option<Vec<(String, ExprValue)>>)
+    InstanceComponent(String, Option<String>, Option<Vec<(String, ExprValue)>>),
 }
 
 pub type OpsVec = Vec<ElementOp>;
@@ -56,45 +56,3 @@ pub struct Component<'input> {
     pub uses: Option<Vec<&'input str>>,
     pub child_map: Option<ComponentMap<'input>>,
 }
-
-/*
-pub struct FlattenContent;
-
-impl FlattenContent {
-    pub fn iter_content<'input>(&self, content: &'input Iterator<Item = &'input ContentNodeType>) -> Box<Iterator<Item = &'input ElementOp> + 'input> {
-        Box::new(&content.flat_map(move |x| {
-            if let &ContentNodeType::ElementNode(ref element_data) = x {
-                if let Some(ref children) = element_data.children {
-                    return self.iter_content(&children.iter())
-                }
-            };
-            Box::new(iter::empty())
-        }) as Box<Iterator<Item = &'input ElementOp> + 'input>)
-    }
-}
-*/
-
-/*
-#[derive(Debug)]
-pub struct ContentIter<I, U: iter::IntoIterator> {
-    iter: I,
-    src: U::IntoIter
-}
-*/
-
-/*
-impl<I: Iterator, U: IntoIterator> Iterator for ContentIter<I, U> {
-    type Item = U::Item;
-
-    #[inline]
-    fn next(&mut self) -> Option<U::Item> {
-        loop {
-            if let &ContentNodeType::ElementNode(ref element_data) = x {
-                if let Some(ref children) = element_data.children {
-                    return self.iter_content(&children.iter())
-                }
-            };
-        }
-    }
-}
-*/
