@@ -39,15 +39,33 @@ impl ReducerActionData {
 
 #[derive(Debug, Clone)]
 pub enum ElementOp {
-    ElementOpen(String, Option<String>, Option<Vec<(String, ExprValue)>>, Option<EventHandlersVec>),
-    ElementVoid(String, Option<String>, Option<Vec<(String, ExprValue)>>, Option<EventHandlersVec>),
+    ElementOpen(String, Option<String>, Option<Vec<Prop>>, Option<EventHandlersVec>),
+    ElementVoid(String, Option<String>, Option<Vec<Prop>>, Option<EventHandlersVec>),
     ElementClose(String),
     WriteValue(ExprValue, Option<String>),
-    InstanceComponent(String, Option<String>, Option<Vec<(String, ExprValue)>>),
+    InstanceComponent(String, Option<String>, Option<Vec<Prop>>, Option<String>),
+    StartBlock(String),
+    EndBlock(String),
+    MapCollection(String, Option<String>, ExprValue)
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub enum PrimitiveVarType {
+    StringVar,
+    Number,
+    Expr
+}
+
+#[derive(Debug, Clone)]
+pub enum VarType {
+    ArrayVar(Option<Box<VarType>>),
+    Primitive(PrimitiveVarType)
 }
 
 pub type OpsVec = Vec<ElementOp>;
 pub type ComponentMap<'inp> = HashMap<&'inp str, Component<'inp>>;
+pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone)]
 pub struct Component<'input> {

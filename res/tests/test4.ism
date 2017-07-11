@@ -1,0 +1,18 @@
+use html;
+
+store {
+    let lines = [];
+
+    lines {
+        action add => value + "Hello!<br />";
+    }
+}
+
+component greeter {
+    for line in lines { p { ("Message: " + line) } }
+    p (class="actions") {
+        a (href="#add") click || { dispatch add; } { "Say Hello" }
+    }
+}
+
+greeter (for lines) {}

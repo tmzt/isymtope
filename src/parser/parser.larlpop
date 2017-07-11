@@ -1,5 +1,5 @@
 
-use parser::ast::{self, Template, NodeType, ContentNodeType, ExprValue, ExprOp, ActionOpNode};
+use parser::ast::*;
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
@@ -19,11 +19,19 @@ NodeType: NodeType = {
     <content:ContentNodeType> => NodeType::ContentNode(content)
 };
 
+//#[inline]
 ContentNodeType : ContentNodeType = {
+    ForKeyword <for_var:(<Id> InKeyword)?> <coll_var:ExprValue> "{" <body:ContentNodeType*> "}" => ContentNodeType::ForNode(for_var, coll_var, Some(body)),
+
+//    ForKeyword <ele:(<Id> InKeyword)?> <coll:Id> "{" <body:(<ContentNodeType*>)?> "}"
+//         => ContentNodeType::ForNode(ele, coll.clone(), body),
+
+    "(" "{" <node:ContentNodeType> "}" ")" => node.clone(),
+    "(" <expr:ExprValue> ")" => ContentNodeType::ExpressionValueNode(expr.clone()),
+
     ElementNode,
     <num:LitNum> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralNumber(num)),
-    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit)),
-    "{" <expr:ExprValue> "}" => ContentNodeType::ExpressionValueNode(expr),
+    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit))
 };
 
 // Store defines a default scope which restricts the type of nodes allowed
@@ -39,7 +47,7 @@ UseStmtNode : NodeType =
         let package = package.into();
 
         NodeType::UseStmtNode(
-            ast::UseStmtType {
+            UseStmtType {
                 package: package
             }
         )
@@ -55,7 +63,7 @@ ComponentDefinitionNode: NodeType =
         let definition_name = name.into();
 
         NodeType::ComponentDefinitionNode(
-            ast::ComponentDefinitionType {
+            ComponentDefinitionType {
                 name: definition_name,
                 inputs: None,
                 children: Some(children)
@@ -67,7 +75,7 @@ ComponentDefinitionNode: NodeType =
     "}" =>
     {
         NodeType::ComponentDefinitionNode(
-            ast::ComponentDefinitionType {
+            ComponentDefinitionType {
                 name: name.into(),
                 inputs: Some(inputs),
                 children: Some(children)
@@ -86,6 +94,10 @@ ExprOp : ExprOp =
 
 ExprValue : ExprValue =
 {
+//    "(" <expr:ExprValue> ")" => expr.clone(),
+    "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),
+    "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
+    
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
     <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
 //    "|" <attrs:("(" <AtLeastOne<Id>> ")")?> "|" "{" <action_ops:ActionOpNode*> "}" => ExprValue::Action(attrs, Some(action_ops)),
@@ -102,7 +114,7 @@ ExprFactor : ExprValue =
 ExprTerm : ExprValue =
 {
     <n:LitNum> => ExprValue::LiteralNumber(n),
-    "(" <ExprValue> ")",
+//    "(" <ExprValue> ")",
     ValueKeyword => ExprValue::DefaultVariableReference,
     <ident:Id> => ExprValue::VariableReference(ident.into()),
     <s:LitStr> => ExprValue::LiteralString(s),
@@ -134,6 +146,32 @@ CommaList<T> : Vec<T> = {
 };
 
 #[inline]
+ElementLens : String = {
+    ForKeyword <lens:Id> => lens.into()
+};
+
+#[inline]
+ElementProp: Prop = {
+    <ident:Id> "=" <val:ExprValue> => (ident.into(), Some(val))
+};
+
+#[inline]
+ElementParamList : (Option<String>, Option<Vec<Prop>>) = {
+    <lens:ElementLens?> <v:(<ElementProp> ",")*> <e:ElementProp?> => {
+        let v = match e {
+            None => v,
+            Some(e) => {
+                let mut v = v;
+                v.push(e);
+                v
+            }
+        };
+
+        (lens, Some(v))
+    }
+};
+
+#[inline]
 Param : (String, ExprValue) = {
     <ident:Id> "=" <val:ExprValue> =>
     {
@@ -143,33 +181,28 @@ Param : (String, ExprValue) = {
     }
 };
 
-#[inline]
-ParamList : Vec<(String, ExprValue)> = {
-    <v:(<Param> ",")*> <e:Param?> => {
-        let mut v = v;
-        if let Some(e) = e { v.push(e); }
-        v
-    }
-};
-
 //    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
 
 ElementNodeEvent: (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>) = 
     <event_name:Id?> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => (event_name, params, act_ops);
 
 ElementNode : ContentNodeType = {
-    <element_ty:Id> "(" <attrs:AtLeastOne<Param>?> ")"
+    <element_ty:Id> "(" <params:ElementParamList> ")"
     <events:(ElementNodeEvent+)?>
     "{" <children:ContentNodeType*> "}" =>
         {
             let element_ty = element_ty.into();
             let element_key = allocate_element_key();
 
+            let lens = params.0;
+            let attrs = params.1;
+
             ContentNodeType::ElementNode(
-                ast::ElementType {
+                ElementType {
                     element_ty: element_ty,
                     element_key: Some(element_key),
                     attrs: attrs,
+                    lens: lens,
                     children: Some(children),
                     events: events
                 }
@@ -181,10 +214,11 @@ ElementNode : ContentNodeType = {
             let element_key = allocate_element_key();
 
             ContentNodeType::ElementNode(
-                ast::ElementType {
+                ElementType {
                     element_ty: element_ty,
                     element_key: Some(element_key),
                     attrs: None,
+                    lens: None,
                     children: Some(children),
                     events: None
                 }
@@ -251,6 +285,8 @@ extern {
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
         "," => Token::Comma,
@@ -266,6 +302,8 @@ extern {
         LitStr => Token::LiteralString(<String>),
         UseKeyword => Token::UseKeyword,
         LetKeyword => Token::LetKeyword,
+        ForKeyword => Token::ForKeyword,
+        InKeyword => Token::InKeyword,
         ValueKeyword => Token::ValueKeyword,
         
         ComponentKeyword => Token::ComponentKeyword,

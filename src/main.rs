@@ -2,6 +2,7 @@
 #![recursion_limit="1000"]
 #![feature(plugin)]
 #![plugin(indoc)]
+#![feature(box_patterns)]
 
 extern crate wren;
 extern crate uuid;

@@ -125,6 +125,8 @@ impl<'input> Lexer<'input> {
 
             "use" => Token::UseKeyword,
             "let" => Token::LetKeyword,
+            "for" => Token::ForKeyword,
+            "in" => Token::InKeyword,
             "value" => Token::ValueKeyword,
 
             "store" => Token::StoreKeyword,
@@ -197,6 +199,8 @@ impl<'input> Lexer<'input> {
                     '|' => Token::Pipe,
                     '{' => Token::OpenBrace,
                     '}' => Token::CloseBrace,
+                    '[' => Token::OpenBracket,
+                    ']' => Token::CloseBracket,
                     '(' => {
                         self.param_list_mode = true;
                         Token::OpenParen

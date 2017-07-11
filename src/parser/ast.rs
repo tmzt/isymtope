@@ -8,7 +8,7 @@ pub struct Template {
     pub children: Vec<Loc<NodeType, (usize, usize)>>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
@@ -16,10 +16,11 @@ pub enum NodeType {
     ContentNode(ContentNodeType)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ContentNodeType {
     ElementNode(ElementType),
     ExpressionValueNode(ExprValue),
+    ForNode(Option<String>, ExprValue, Option<Vec<ContentNodeType>>)
 }
 
 /// Operators
@@ -47,11 +48,19 @@ pub enum ExprType {
 pub enum ExprValue {
     LiteralNumber(i32),
     LiteralString(String),
+    LiteralArray(Option<Vec<ExprValue>>),
     VariableReference(String),
     DefaultVariableReference,
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
+    ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
     Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>)
+}
+
+#[derive(Debug, Clone)]
+pub enum ElementExpr {
+    Element(String,Option<String>,Option<Vec<Box<ExprValue>>>),
+    Value(ExprValue)
 }
 
 #[derive(Debug, Clone)]
@@ -59,12 +68,12 @@ pub enum ActionOpNode {
     DispatchAction(String, Option<Vec<(String, ExprValue)>>)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UseStmtType {
     pub package: String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ComponentDefinitionType {
     pub name: String,
     pub inputs: Option<Vec<String>>,
@@ -74,13 +83,18 @@ pub struct ComponentDefinitionType {
 pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
-pub type EventsVec = Vec<(String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
+pub type EventsVec = Vec<(String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>,Option<String>)>;
+pub type PropVec = Vec<Prop>;
 
-#[derive(Debug)]
+pub type Lens = (String);
+pub type Prop = (String,Option<ExprValue>);
+
+#[derive(Debug, Clone)]
 pub struct ElementType {
     pub element_ty: String,
     pub element_key: Option<String>,
-    pub attrs: Option<Vec<(String, ExprValue)>>,
+    pub attrs: Option<PropVec>,
+    pub lens: Option<Lens>,
     pub children: Option<Vec<ContentNodeType>>,
     pub events: Option<Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>>
 }

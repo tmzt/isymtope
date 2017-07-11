@@ -12,6 +12,8 @@ pub enum Token {
     UseKeyword,
     LetKeyword,
     ValueKeyword,
+    ForKeyword,
+    InKeyword,
 
     ComponentKeyword,
     StoreKeyword,
@@ -33,6 +35,8 @@ pub enum Token {
     Pipe,
     OpenBrace,
     CloseBrace,
+    OpenBracket,
+    CloseBracket,
     OpenParen,
     CloseParen,
     Dot,

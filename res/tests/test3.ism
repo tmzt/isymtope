@@ -10,11 +10,11 @@ store {
 }
 
 component counter {
-    h4 { "Counter: " { counter } }
+    h4 { ("Counter: " + counter) }
     p (class="actions") {
-        a (href="#decrement") click || { dispatch decrement; } { "Decrement" }
-        { " | " }
-        a (href="#increment") click || { dispatch increment; } { "Increment" }
+        a (href="#decrement") click || { dispatch decrement; } {( "Decrement" )}
+        (" | ")
+        a (href="#increment") click || { dispatch increment; } {( "Increment" )}
     }
 }
 

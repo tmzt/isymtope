@@ -30,7 +30,7 @@
       
         
   
-  <section>
+  <section id="00-about-isymtope">
     <div class="container"><div class="content">
         <h2>Introducing, <em>isymtope</em></h2>
 <h3>One template language for client and server</h3>
@@ -52,7 +52,7 @@
   
 
   
-  <section>
+  <section id="01-status">
     <div class="container"><div class="content">
         <article class="message">
   <div class="message-body">
@@ -65,11 +65,9 @@
   
 
   
-  <section>
-    <div class="container"><div class="content">
-        <h2>Example</h2>
-<p>The famous counter, staple of all reactive frameworks.</p>
-<pre style="background-color:#2b303b">
+  <section id="02-demo1">
+    <div class="container"><h2 class="title">Demo 1</h2><div class="content">
+        <pre style="background-color:#2b303b">
 <span style="background-color:#2b303b;color:#b48ead;">use</span><span style="background-color:#2b303b;color:#c0c5ce;"> html</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span><span style="background-color:#2b303b;color:#c0c5ce;">store </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
@@ -93,22 +91,69 @@
 </span><span style="background-color:#2b303b;color:#c0c5ce;">counter </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">x</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">counter</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span></pre>
 <p><em>(Of course, the syntax is still subject to change.)</em></p>
-<h3>Running the example</h3>
-<p>If you want to build the example yourself, you can run:</p>
+<p>Here it is running:</p>
+<iframe src="/isymtope/assets/demos/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
+<p><a href="/isymtope/assets/demos/test_output3.html" target="_blank">Open demo in new tab</a>.</p>
+
+      </div>
+    </div>
+  </section>
+  
+
+  
+  <section id="03-demo2">
+    <div class="container"><h2 class="title">Demo 2</h2><div class="content">
+        <pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#b48ead;">use</span><span style="background-color:#2b303b;color:#c0c5ce;"> html</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">store </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#b48ead;">let</span><span style="background-color:#2b303b;color:#c0c5ce;"> lines </span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">lines </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">action add </span><span style="background-color:#2b303b;color:#c0c5ce;">=&gt;</span><span style="background-color:#2b303b;color:#c0c5ce;"> lines </span><span style="background-color:#2b303b;color:#c0c5ce;">+</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Hello!&lt;br /&gt;</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">component greeter </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">p </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Message: &lt;br /&gt;</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">p </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">class</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">actions</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">        </span><span style="background-color:#2b303b;color:#c0c5ce;">a </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">href</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">#add</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> click </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> dispatch decrement</span><span style="background-color:#2b303b;color:#c0c5ce;">;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">Say Hello</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">    </span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">greeter </span><span style="background-color:#2b303b;color:#c0c5ce;">(</span><span style="background-color:#2b303b;color:#c0c5ce;">x</span><span style="background-color:#2b303b;color:#c0c5ce;">=</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#a3be8c;">lines</span><span style="background-color:#2b303b;color:#c0c5ce;">&quot;</span><span style="background-color:#2b303b;color:#c0c5ce;">)</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#c0c5ce;">{</span><span style="background-color:#2b303b;color:#c0c5ce;">}</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre><iframe src="/isymtope/assets/demos/test_output4.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
+<p><a href="/isymtope/assets/demos/test_output4.html" target="_blank">Open demo in new tab</a>.</p>
+
+      </div>
+    </div>
+  </section>
+  
+
+  
+  <section id="04-running">
+    <div class="container"><h2 class="title">See it for yourself.</h2><div class="content">
+        <h3>Getting the code</h3>
+<p>Currently you will need to clone this repository to get the source, it hasn't been submitted to <a href="https://crates.io">crates.io</a> yet.</p>
+<pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#b48ead;">git</span><span style="background-color:#2b303b;color:#c0c5ce;"> clone https://github.com/tmzt/isymtope
+</span><span style="background-color:#2b303b;color:#b48ead;">cd</span><span style="background-color:#2b303b;color:#c0c5ce;"> isymtope
+</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span><span style="background-color:#2b303b;color:#c0c5ce;">cargo build
+</span><span style="background-color:#2b303b;color:#c0c5ce;">cargo </span><span style="background-color:#2b303b;color:#b48ead;">test</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre>
+<p>Currently the examples are run as cargo tests.</p>
+<h3>Running the examples</h3>
+<p>If you want to build the examples yourself, you can run:</p>
 <pre style="background-color:#2b303b">
 <span style="background-color:#2b303b;color:#c0c5ce;">cargo build
 </span><span style="background-color:#2b303b;color:#c0c5ce;">cargo </span><span style="background-color:#2b303b;color:#b48ead;">test</span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span></pre>
-<p>Of course you will need Rust first, if you don't have it.</p>
+<p>You will need to install Rust if you haven't already.</p>
 <pre style="background-color:#2b303b">
 <span style="background-color:#2b303b;color:#c0c5ce;">curl https://</span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">.rustup.rs -sSf </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span></pre>
-<p>Then you will find the html pages, including the counter demo, generated in <code>output/test_output3.html</code>.</p>
-<p>Remember, this is only a test.</p>
-<h2>Demo time.</h2>
-<p>Here it is:</p>
-<iframe src="/isymtope/assets/demos/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
-<p><a href="/isymtope/assets/demos/test_output3.html" target="_blank">Open demo in new tab</a>.</p>
+<p>Then you will find the html pages with the demos in the <code>output</code> folder of your checked out repository.</p>
 
       </div>
     </div>
