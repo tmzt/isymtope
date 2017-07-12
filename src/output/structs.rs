@@ -65,6 +65,7 @@ pub enum VarType {
 
 pub type OpsVec = Vec<ElementOp>;
 pub type ComponentMap<'inp> = HashMap<&'inp str, Component<'inp>>;
+pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone)]
@@ -73,4 +74,12 @@ pub struct Component<'input> {
     pub ops: Option<OpsVec>,
     pub uses: Option<Vec<&'input str>>,
     pub child_map: Option<ComponentMap<'input>>,
+}
+
+#[derive(Debug)]
+pub struct DocumentState<'doc, 'inp: 'doc> {
+    pub ops_vec: &'doc OpsVec,
+    pub comp_map: &'doc ComponentMap<'inp>,
+    pub reducer_key_data: &'doc ReducerKeyData,
+    pub default_state_map: &'doc DefaultStateMap<'inp>
 }
