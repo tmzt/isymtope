@@ -21,10 +21,10 @@ pub fn write_html_ops_content<'input>(
                                 w: &mut io::Write,
                                 ops: Iter<ElementOp>,
                                 events_vec: &mut EventsVec,
-                                comp_map: &ComponentMap<'input>,
                                 keys_vec: &mut Vec<String>,
-                                key_prefix: Option<&str>,
-                                default_scope: Option<&str>)
+                                processing: &DocumentState,
+                                resolve: &ResolveVars,
+                                key_prefix: Option<&str>)
                                 -> Result {
     for ref op in ops {
         let mut is_void = false;
@@ -95,7 +95,7 @@ pub fn write_html_ops_content<'input>(
                         let event_params = event_params.as_ref().map(Clone::clone);
                         let action_ops = action_ops.as_ref().map(Clone::clone);
                         let event_name = event_name.as_ref().map(Clone::clone);
-                        let default_scope = default_scope.as_ref().map(|s| format!("{}", s));
+                        let default_scope = resolve.default_scope.as_ref().map(|s| format!("{}", s));
                         events_vec.push((element_key.clone(),
                                             event_name,
                                             event_params,
@@ -122,7 +122,7 @@ pub fn write_html_ops_content<'input>(
                                             ref props,
                                             ref lens) => {
                 // Try to locate a matching component
-                if let Some(ref comp) = comp_map.get(component_ty.as_str()) {
+                if let Some(ref comp) = processing.comp_map.get(component_ty.as_str()) {
                     // Render a component
 
                     let element_key = format!("{}{}",
@@ -138,10 +138,10 @@ pub fn write_html_ops_content<'input>(
                         write_html_ops_content(w,
                                                     component_ops.iter(),
                                                     events_vec,
-                                                    comp_map,
                                                     keys_vec,
-                                                    Some(&element_key),
-                                                    default_scope.as_ref().map(String::as_str))?;
+                                                    processing,
+                                                    resolve,
+                                                    Some(format!("{}_", element_key).as_str()))?;
                     };
 
                     write!(w, "</div>")?;

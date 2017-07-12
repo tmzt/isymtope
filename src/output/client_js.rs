@@ -15,11 +15,21 @@ use super::client_html::*;
 use super::client_misc::*;
 
 #[inline]
-pub fn write_js_expr_var_reference(w: &mut io::Write,
-                                   var_name: &str,
-                                   var_prefix: Option<&str>)
+pub fn write_js_expr_default_var_reference(w: &mut io::Write,
+                                   resolve: &ResolveVars)
                                    -> Result {
-    if let Some(ref prefix) = var_prefix {
+    let var_prefix = resolve.var_prefix.as_ref().map_or("", |s| s);
+    let default_var = resolve.default_var.as_ref().map_or("value", |s| s);
+    write!(w, "{}{}", var_prefix, default_var)?;
+    Ok(())
+}
+
+#[inline]
+pub fn write_js_expr_var_reference(w: &mut io::Write,
+                                   resolve: &ResolveVars,
+                                   var_name: &str)
+                                   -> Result {
+    if let Some(ref prefix) = resolve.var_prefix {
         write!(w, "{}{}", prefix, var_name)?;
     } else {
         write!(w, "{}", var_name)?;
@@ -30,10 +40,8 @@ pub fn write_js_expr_var_reference(w: &mut io::Write,
 #[inline]
 pub fn write_js_expr_value<'input>(w: &mut io::Write,
                                    node: &ExprValue,
-                                   default_state_map: &DefaultStateMap<'input>,
-                                   var_prefix: Option<&str>,
-                                   default_var: Option<&str>,
-                                   action_prefix: Option<&str>)
+                                   processing: &DocumentState,
+                                   resolve: &ResolveVars)
                                    -> Result {
     match node {
         // TODO: Handle the case where quotes appear in the string
@@ -48,97 +56,68 @@ pub fn write_js_expr_value<'input>(w: &mut io::Write,
             if let &Some(ref items) = items {
                 write!(w, "[")?;
                 for ref item in items {
-                    write_js_expr_value(w,
-                                        item,
-                                        default_state_map,
-                                        var_prefix,
-                                        default_var,
-                                        action_prefix)
-                        ?;
+                    write_js_expr_value(w, item, processing, resolve)?;
                 }
                 write!(w, "]")?;
             };
         }
 
         &ExprValue::DefaultVariableReference => {
-            write!(w, "{}", default_var.unwrap_or("value".into()))?;
+            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
+            if let Some(_) = processing.default_state_map.get(format!("{}.__DEFAULT", cur_scope).as_str()) {
+                let state_scope = ResolveVars::for_get_state(resolve);
+                write_js_expr_default_var_reference(w, &state_scope)?;
+            } else {
+                write_js_expr_default_var_reference(w, resolve)?;
+            }
         }
 
         &ExprValue::VariableReference(ref var_name) => {
-            if let Some(_) = default_state_map.get(var_name.as_str()) {
-                // let store_prefix = format!("store.getState(){}", default_scope.as_ref().map_or("", |s| format!("{}.", s)));
-                write_js_expr_var_reference(w, var_name, Some("store.getState()."))?; // FIXME
+            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
+            if let Some(_) = processing.default_state_map.get(format!("{}.{}", cur_scope, var_name).as_str()) {
+                let state_scope = ResolveVars::for_get_state_var(resolve, var_name);
+                write_js_expr_var_reference(w, &state_scope, var_name)?;
             } else {
-                write_js_expr_var_reference(w, var_name, None)?;
+                write_js_expr_var_reference(w, resolve, var_name)?;
             }
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-            let state_var_name = "lines".into(); // FIXME
-            let var_name = "store.getState().lines".into();
-            if let Some(entry) = default_state_map.get(state_var_name) {
+            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
+            if let Some(entry) = processing.default_state_map.get(format!("{}.__DEFAULT", cur_scope).as_str()) {
                 if let Some(VarType::ArrayVar(..)) = entry.0 {
                     write!(w, "((")?;
-                    write_js_expr_var_reference(w, var_name, var_prefix)?;
+                    write_js_expr_default_var_reference(w, resolve)?;
                     write!(w, ").concat(")?;
-                    write_js_expr_value(w,
-                                        r,
-                                        default_state_map,
-                                        var_prefix,
-                                        default_var,
-                                        action_prefix)
-                        ?;
+                    write_js_expr_value(w, r, processing, resolve)?;
                     write!(w, "))")?;
                 } else {
-                    write_js_expr_var_reference(w, var_name, var_prefix)?;
+                    write_js_expr_default_var_reference(w, resolve)?;
                     write!(w, " + ")?;
-                    write_js_expr_value(w,
-                                        r,
-                                        default_state_map,
-                                        var_prefix,
-                                        default_var,
-                                        action_prefix)
-                        ?;
+                    write_js_expr_value(w, r, processing, resolve)?;
                 }
             }
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-            if let Some(entry) = default_state_map.get(var_name.as_str()) {
+            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
+            if let Some(entry) = processing.default_state_map.get(format!("{}.{}", cur_scope, var_name).as_str()) {
                 if let Some(VarType::ArrayVar(..)) = entry.0 {
                     write!(w, "((")?;
-                    write_js_expr_var_reference(w, var_name, var_prefix)?;
+                    write_js_expr_var_reference(w, resolve, var_name)?;
                     write!(w, ").concat(")?;
-                    write_js_expr_value(w,
-                                        r,
-                                        default_state_map,
-                                        var_prefix,
-                                        default_var,
-                                        action_prefix)
-                        ?;
+                    write_js_expr_value(w, r, processing, resolve)?;
                     write!(w, "))")?;
                 } else {
-                    write_js_expr_var_reference(w, var_name, var_prefix)?;
+                    write_js_expr_var_reference(w, resolve, var_name)?;
                     write!(w, " + ")?;
-                    write_js_expr_value(w,
-                                        r,
-                                        default_state_map,
-                                        var_prefix,
-                                        default_var,
-                                        action_prefix)
-                        ?;
+                    write_js_expr_value(w, r, processing, resolve)?;
                 }
             }
         }
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
-            write_js_expr_value(w,
-                                l,
-                                default_state_map,
-                                var_prefix,
-                                default_var,
-                                action_prefix)
-                ?;
+            write_js_expr_value(w, l, processing, resolve)?;
             match sym {
                 &ExprOp::Add => {
                     write!(w, " + ")?;
@@ -153,13 +132,7 @@ pub fn write_js_expr_value<'input>(w: &mut io::Write,
                     write!(w, " / ")?;
                 }
             }
-            write_js_expr_value(w,
-                                r,
-                                default_state_map,
-                                var_prefix,
-                                default_var,
-                                action_prefix)
-                ?;
+            write_js_expr_value(w, r, processing, resolve)?;
         }
 
         &ExprValue::ContentNode(..) => {}
@@ -188,10 +161,8 @@ pub fn write_js_action(w: &mut io::Write, act_iter: Iter<ActionOpNode>) -> Resul
 #[allow(unused_variables)]
 fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
                                       attrs: &Vec<Prop>,
-                                      default_state_map: &DefaultStateMap<'input>,
-                                      var_prefix: Option<&str>,
-                                      default_var: Option<&str>,
-                                      action_prefix: Option<&str>)
+                                      processing: &DocumentState,
+                                      resolve: &ResolveVars)
                                       -> Result {
     let mut wrote_first = false;
     for &(ref key, ref expr) in attrs {
@@ -219,13 +190,7 @@ fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
             };
 
             write!(w, "\"{}\", ", key)?;
-            write_js_expr_value(w,
-                                &expr,
-                                default_state_map,
-                                var_prefix,
-                                default_var,
-                                action_prefix)
-                ?;
+            write_js_expr_value(w, expr, processing, resolve)?;
         } else {
             write!(w, "\"{}\", ", key)?;
             write!(w, "undefined")?;
@@ -237,11 +202,9 @@ fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
 #[inline]
 #[allow(unused_variables)]
 fn write_js_props_object<'input>(w: &mut io::Write,
-                         props: &Vec<Prop>,
-                         default_state_map: &DefaultStateMap<'input>,
-                         var_prefix: Option<&str>,
-                         default_var: Option<&str>,
-                         default_scope: Option<&str>)
+                                 props: &Vec<Prop>,
+                                 processing: &DocumentState,
+                                 resolve: &ResolveVars)
                          -> Result {
     write!(w, "{{")?;
     let mut wrote_first = false;
@@ -276,11 +239,9 @@ fn write_js_props_object<'input>(w: &mut io::Write,
 
             write_js_expr_value(w,
                                 &expr,
-                                default_state_map,
-                                var_prefix,
-                                default_var,
-                                default_scope)
-                ?;
+                                processing,
+                                resolve)?;
+
         } else {
             write!(w, "undefined")?;
         }
@@ -293,13 +254,10 @@ fn write_js_props_object<'input>(w: &mut io::Write,
 #[allow(unused_variables)]
 pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                            ops: Iter<ElementOp>,
-                                           default_state_map: &DefaultStateMap,
-                                           var_prefix: Option<&str>,
-                                           default_var: Option<&str>,
+                                           processing: &DocumentState,
+                                           resolve: &ResolveVars,
                                            key_prefix: Option<&str>,
-                                           default_scope: Option<&str>,
-                                           key_var_prefix: Option<&str>,
-                                           comp_map: &ComponentMap<'input>)
+                                           key_var_prefix: Option<&str>)
                                            -> Result {
     for ref op in ops {
         let mut is_void = false;
@@ -336,13 +294,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
 
                 // Static attrs
                 if let &Some(ref attrs) = attrs {
-                    write_js_incdom_attr_array(w,
-                                               attrs,
-                                               default_state_map,
-                                               var_prefix,
-                                               default_var,
-                                               default_scope)
-                        ?;
+                    write_js_incdom_attr_array(w, attrs, processing, resolve)?;
                 };
 
                 // TODO: Dynamic attributes
@@ -360,13 +312,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                          element_key)
                     ?;
                 write!(w, "IncrementalDOM.text(")?;
-                write_js_expr_value(w,
-                                    expr,
-                                    default_state_map,
-                                    var_prefix,
-                                    default_var,
-                                    default_scope)
-                    ?;
+                write_js_expr_value(w, expr, processing, resolve)?;
                 writeln!(w, ");")?;
                 writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
             }
@@ -374,7 +320,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                           ref component_key,
                                           ref props,
                                           ref lens) => {
-                let comp = comp_map.get(component_ty.as_str());
+                let comp = processing.comp_map.get(component_ty.as_str());
                 if comp.is_some() {
                     let component_key = component_key.as_ref().map_or("null", |s| s);
                     writeln!(w,
@@ -390,13 +336,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                         let var_prefix = lens.as_ref().map(|s| format!("store.getState().{}.", s));
                         let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
                         let default_scope = lens.as_ref().map(|s| s.as_str());
-                        write_js_props_object(w,
-                                              props,
-                                              default_state_map,
-                                              var_prefix.as_ref().map(String::as_str),
-                                              default_var.as_ref().map(String::as_str),
-                                              default_scope)
-                            ?;
+                        write_js_props_object(w, props, processing, resolve)?;
                     }
                     writeln!(w, ");")?;
                     writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
@@ -419,6 +359,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                 let forvar_prefix =
                     &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
 
+                /*
                 write_js_expr_value(w,
                                     coll_expr,
                                     default_state_map,
@@ -426,6 +367,11 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                     Some(forvar_default),
                                     default_scope)
                     ?;
+                */
+
+                let for_block_scope = ResolveVars::for_block_scope(false, block_id, ele.as_ref().map(String::as_str), resolve);
+                write_js_expr_value(w, coll_expr, processing, resolve)?;
+
                 writeln!(w, ").map(__{});", block_id)?;
             }
         }
@@ -439,28 +385,16 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
 pub fn write_js_incdom_component<'input>(w: &mut io::Write,
                                          component_ty: &'input str,
                                          ops: Iter<ElementOp>,
-                                         default_state_map: &DefaultStateMap,
-                                         var_prefix: Option<&str>,
-                                         default_var: Option<&str>,
-                                         key_prefix: Option<&str>,
-                                         default_scope: Option<&str>,
-                                         comp_map: &ComponentMap<'input>)
+                                         processing: &DocumentState,
+                                         resolve: &ResolveVars,
+                                         key_prefix: Option<&str>)
                                          -> Result {
 
     writeln!(w,
              "  function component_{}(key_prefix, store, props) {{",
              component_ty)
         ?;
-    write_js_incdom_ops_content(w,
-                                ops,
-                                default_state_map,
-                                var_prefix,
-                                default_var,
-                                key_prefix,
-                                default_scope,
-                                Some("key_prefix"),
-                                comp_map)
-        ?;
+    write_js_incdom_ops_content(w, ops, processing, resolve, key_prefix, Some("key_prefix"))?;
     writeln!(w, "  }};")?;
     writeln!(w, "")?;
     Ok(())

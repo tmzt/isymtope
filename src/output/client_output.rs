@@ -20,13 +20,13 @@ impl<'input> FormatHtml<'input> {
 
     pub fn write_js_store(&self,
                           w: &mut io::Write,
-                          reducer_key_data: &HashMap<&'input str, ReducerKeyData>,
-                          default_state_map: &DefaultStateMap<'input>)
+                          processing: &DocumentState,
+                          resolve: &ResolveVars)
                           -> Result {
         // TODO: Implement default scope?
 
         // Generate script
-        for (ref reducer_key, ref reducer_data) in reducer_key_data.iter() {
+        for (ref reducer_key, ref reducer_data) in processing.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
             if let Some(ref actions) = reducer_data.actions {
@@ -38,14 +38,13 @@ impl<'input> FormatHtml<'input> {
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
+                            let action_scope = ResolveVars::for_action_result();
                             writeln!(w, "if ('undefined' !== typeof action && '{}' == \
                                       action.type) {{ return ", action_type)?;
                             write_js_expr_value(w,
                                                 simple_expr,
-                                                default_state_map,
-                                                None,
-                                                Some("state".into()),
-                                                None)?;
+                                                processing,
+                                                &action_scope)?;
                             writeln!(w, "; }}")?;
                         }
                         _ => {}
@@ -56,7 +55,7 @@ impl<'input> FormatHtml<'input> {
             // Default expression used to initialize state
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
-                write_js_expr_value(w, default_expr, default_state_map, None, None, None)?;
+                write_js_expr_value(w, default_expr, &self.doc, &resolve)?;
             } else {
                 write!(w, "null")?;
             }
@@ -66,7 +65,7 @@ impl<'input> FormatHtml<'input> {
         }
 
         writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
-        for (ref reducer_key, _) in reducer_key_data.iter() {
+        for (ref reducer_key, _) in processing.reducer_key_data.iter() {
             writeln!(w, "    {}: {}Reducer,", &reducer_key, &reducer_key)?;
         }
         writeln!(w, "  }});")?;
@@ -130,17 +129,16 @@ impl<'input> FormatHtml<'input> {
                 <div id="root">
         "#))?;
 
-        // Fix this
-        let default_scope = Some("counter".into());
+        // FIXME
+        let resolve = ResolveVars::default_resolver("counter");
 
         write_html_ops_content(w,
                                self.doc.root_block.ops_vec.iter(),
                                &mut events_vec,
-                               &self.doc.comp_map,
                                &mut keys_vec,
-                               None,
-                               default_scope)
-            ?;
+                               &self.doc,
+                               &resolve,
+                               None)?;
 
         write!(w,
                "{}",
@@ -157,13 +155,9 @@ impl<'input> FormatHtml<'input> {
                 write_js_incdom_component(w,
                                           component_ty,
                                           ops.iter(),
-                                          &self.doc.default_state_map,
-                                          Some("store.getState()."),
-                                          Some("store.getState()"),
-                                          None,
-                                          default_scope,
-                                          &self.doc.comp_map)
-                    ?;
+                                          &self.doc,
+                                          &resolve,
+                                          None)?;
             };
         }
 
@@ -173,16 +167,12 @@ impl<'input> FormatHtml<'input> {
         writeln!(w, "function render(store) {{")?;
 
         // Render content nodes as incdom calls
-        write_js_incdom_ops_content(w,
+        write_js_incdom_ops_content(w, 
                                     self.doc.root_block.ops_vec.iter(),
-                                    &self.doc.default_state_map,
-                                    Some("store.getState()."),
-                                    Some("store.getState()"),
+                                    &self.doc,
+                                    &resolve,
                                     None,
-                                    default_scope,
-                                    None,
-                                    &self.doc.comp_map)
-            ?;
+                                    None)?;
 
         writeln!(w, "}}")?;
 
@@ -201,7 +191,7 @@ impl<'input> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.write_js_store(w, &self.doc.reducer_key_data, &self.doc.default_state_map)?;
+        self.write_js_store(w, &self.doc, &resolve)?;
 
         write!(w,
                "{}",

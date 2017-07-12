@@ -70,7 +70,7 @@ pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone, Default)]
-pub struct ResolveVars { var_prefix: Option<String>, default_var: Option<String>, default_scope: Option<String> }
+pub struct ResolveVars { pub var_prefix: Option<String>, pub default_var: Option<String>, pub default_scope: Option<String> }
 
 impl ResolveVars {
     pub fn for_block_scope<'inp>(is_state_varref: bool, block_id: &str, forvar: Option<&'inp str>, parent_scope: &ResolveVars) -> ResolveVars {
@@ -95,6 +95,58 @@ impl ResolveVars {
                 default_var: Some(forvar_default),
                 default_scope: None,
             }
+        }
+    }
+
+    pub fn default_resolver(default_state_key: &str) -> ResolveVars {
+        ResolveVars {
+            var_prefix: Some("store.getState().".into()),
+            default_var: Some(format!("store.getState().{}", default_state_key)),
+            default_scope: Some(format!("{}", default_state_key))
+        }
+    }
+
+    pub fn for_action_result() -> ResolveVars {
+        ResolveVars {
+            var_prefix: Some("state.".into()),
+            default_var: Some("state".into()),
+            default_scope: Some("".into())
+        }
+    }
+
+    pub fn for_get_state<'inp>(parent_scope: &ResolveVars) -> ResolveVars {
+        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
+        let scoped_default = format!("{}", default_scope);
+        let scoped_prefix = format!("{}.", scoped_default);
+
+        ResolveVars {
+            var_prefix: Some(scoped_prefix),
+            default_var: Some(scoped_default),
+            default_scope: Some(default_scope)
+        }
+    }
+
+    pub fn for_get_state_var<'inp>(parent_scope: &ResolveVars, var_name: &str) -> ResolveVars {
+        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
+        let scoped_default = format!("{}", default_scope);
+        let scoped_prefix = format!("{}.", scoped_default);
+
+        ResolveVars {
+            var_prefix: Some(scoped_prefix),
+            default_var: Some(scoped_default),
+            default_scope: Some(default_scope)
+        }
+    }
+
+    pub fn for_store_scope_var<'inp>(parent_scope: &ResolveVars, key: &str) -> ResolveVars {
+        let default_scope = format!("{}.{}", parent_scope.default_scope.as_ref().map_or("", |s| s), key);
+        let scoped_default = format!("{}", default_scope);
+        let scoped_prefix = format!("{}.", scoped_default);
+
+        ResolveVars {
+            var_prefix: Some(scoped_prefix),
+            default_var: Some(scoped_default),
+            default_scope: Some(default_scope),
         }
     }
 }
