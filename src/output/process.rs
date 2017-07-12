@@ -166,7 +166,7 @@ impl<'input> ProcessDocument<'input> {
     fn process_expr(&mut self,
                     expr: &'input ExprValue,
                     block: &mut BlockProcessingState,
-                    resolve: &'input ResolveVars)
+                    resolve: &ResolveVars<'input>)
                     -> fmt::Result {
         match expr {
             &ExprValue::Expr(ExprOp::Add,
@@ -294,7 +294,7 @@ impl<'input> ProcessDocument<'input> {
             }
             &ContentNodeType::ExpressionValueNode(ref expr) => {
                 // FIXME
-                // self.process_expr(expr, block, resolve)?
+                self.process_expr(expr, block, resolve)?
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 let block_id = allocate_element_key().replace("-", "_");
