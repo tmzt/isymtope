@@ -3,7 +3,7 @@ use std::collections::hash_map::HashMap;
 use parser::ast::*;
 use parser::store::*;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ReducerKeyData {
     pub reducer_key: String,
     pub default_expr: Option<ExprValue>,
@@ -74,6 +74,25 @@ pub struct Component<'input> {
     pub ops: Option<OpsVec>,
     pub uses: Option<Vec<&'input str>>,
     pub child_map: Option<ComponentMap<'input>>,
+}
+
+#[derive(Debug)]
+pub struct DocumentProcessingState<'inp> {
+    pub ops_vec: OpsVec,
+    pub comp_map: ComponentMap<'inp>,
+    pub reducer_key_data: ReducerKeyData,
+    pub default_state_map: DefaultStateMap<'inp>
+}
+
+impl<'inp> Default for DocumentProcessingState<'inp> {
+    fn default() -> DocumentProcessingState<'inp> {
+        DocumentProcessingState {
+            ops_vec: Default::default(),
+            comp_map: Default::default(),
+            reducer_key_data: Default::default(),
+            default_state_map: Default::default()
+        }
+    }
 }
 
 #[derive(Debug)]

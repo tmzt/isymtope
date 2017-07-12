@@ -20,11 +20,15 @@ mod format_html {
 
     pub struct FormatHtml<'input> {
         ast: &'input Template,
+        processing: DocumentProcessingState<'input>
     }
 
     impl<'input> FormatHtml<'input> {
-        pub fn from_template<'inp>(ast: &'inp Template) -> FormatHtml<'inp> {
-            FormatHtml { ast: ast }
+        pub fn from_template<'inp>(ast: &'inp Template, processing: DocumentProcessingState<'inp>) -> FormatHtml<'inp> {
+            FormatHtml {
+                ast: ast,
+                processing: processing
+            }
         }
 
         pub fn collect_js_store_child_scope(&self,
@@ -689,6 +693,7 @@ mod format_html {
 }
 
 use self::format_html::FormatHtml;
+use super::structs::*;
 
 pub type Result = io::Result<fmt::Result>;
 
@@ -696,13 +701,14 @@ pub struct ClientOutput<'input> {
     ast: &'input Template,
 }
 
-impl<'input> ClientOutput<'input> {
+impl<'input, 'doc: 'input> ClientOutput<'input> {
     pub fn from_template(ast: &'input Template) -> ClientOutput {
         ClientOutput { ast: ast }
     }
 
     pub fn write_html(&self, w: &mut io::Write) -> Result {
-        let format = FormatHtml::from_template(self.ast);
+        let processing: DocumentProcessingState<'input> = Default::default();
+        let format = FormatHtml::from_template(self.ast, processing);
         let mut doc_str = String::new();
 
         if let Err(e) = format.write_html_document(&mut doc_str) {
