@@ -177,7 +177,7 @@ impl<'input> ProcessDocument<'input> {
     fn process_expr(&mut self,
                     expr: &'input ExprValue,
                     block: &mut BlockProcessingState,
-                    resolve: &ResolveVars<'input>)
+                    resolve: &ResolveVars)
                     -> fmt::Result {
         match expr {
             &ExprValue::Expr(ExprOp::Add,
@@ -233,7 +233,7 @@ impl<'input> ProcessDocument<'input> {
     fn process_content_node(&mut self,
                             node: &'input ContentNodeType,
                             block: &mut BlockProcessingState,
-                            resolve: &ResolveVars<'input>)
+                            resolve: &ResolveVars)
                             -> fmt::Result {
 
         match node {
@@ -309,13 +309,14 @@ impl<'input> ProcessDocument<'input> {
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
                 let forvar_default = &format!("__forvar_{}", block_id);
-                let forvar_prefix =
-                    &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
+                let forvar_prefix = &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
+
+                let forvar_resolve = ResolveVars::for_block_scope(false, &block_id, ele.as_ref().map(String::as_str), resolve);
 
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
                         // FIXME: forvar resolve
-                        self.process_content_node(node, block, resolve)?;
+                        self.process_content_node(node, block, &forvar_resolve)?;
                     }
                 };
 
@@ -361,7 +362,7 @@ impl<'input> ProcessDocument<'input> {
     }
 
     pub fn process_nodes(&mut self,
-                         resolve: &ResolveVars<'input>,
+                         resolve: &ResolveVars,
                          block: &mut BlockProcessingState)
                          -> fmt::Result {
         let mut processed_store = false;

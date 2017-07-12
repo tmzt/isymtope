@@ -69,7 +69,34 @@ pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone, Default)]
-pub struct ResolveVars<'inp> { var_prefix: Option<&'inp str>, default_var: Option<&'inp str>, default_scope: Option<&'inp str> }
+pub struct ResolveVars { var_prefix: Option<String>, default_var: Option<String>, default_scope: Option<String> }
+
+impl ResolveVars {
+    pub fn for_block_scope<'inp>(is_state_varref: bool, block_id: &str, forvar: Option<&'inp str>, parent_scope: &ResolveVars) -> ResolveVars {
+        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
+
+        let scoped_default = format!("{}{}", default_scope, forvar.as_ref().map_or("".into(), |s| format!(".{}", s)));
+        let scoped_prefix = format!("{}.", scoped_default);
+
+        let forvar_prefix = format!("__forvar_{}", block_id);
+        let forvar_default = format!("__forvar_{}{}", block_id, forvar.as_ref().map_or("", |s| s));
+
+        if is_state_varref {
+            ResolveVars {
+                var_prefix: Some(scoped_prefix),
+                default_var: Some(scoped_default),
+                default_scope: Some(default_scope),
+            }
+        } else {
+            // Assume this is a for block parameter for now
+            ResolveVars {
+                var_prefix: Some(forvar_prefix),
+                default_var: Some(forvar_default),
+                default_scope: None,
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Component<'input> {
