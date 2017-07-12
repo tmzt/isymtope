@@ -4,6 +4,7 @@ extern crate itertools;
 
 pub mod process;
 pub mod client;
+pub mod client_output;
 pub mod client_html;
 pub mod client_js;
 pub mod client_misc;
