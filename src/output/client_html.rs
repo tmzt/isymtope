@@ -18,14 +18,14 @@ use super::client_misc::*;
 #[inline]
 #[allow(unused_variables)]
 pub fn write_html_ops_content<'input>(
-                                w: &mut fmt::Write,
+                                w: &mut io::Write,
                                 ops: Iter<ElementOp>,
                                 events_vec: &mut EventsVec,
                                 comp_map: &ComponentMap<'input>,
                                 keys_vec: &mut Vec<String>,
                                 key_prefix: Option<&str>,
                                 default_scope: Option<&str>)
-                                -> fmt::Result {
+                                -> Result {
     for ref op in ops {
         let mut is_void = false;
 

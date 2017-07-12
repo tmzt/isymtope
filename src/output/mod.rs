@@ -10,10 +10,13 @@ pub mod client_js;
 pub mod client_misc;
 pub mod structs;
 
+pub use self::structs::Result;
+
 use std::io;
+use std::fmt;
 use parser::ast::*;
 
-use self::client::{ClientOutput, Result};
+use self::client::ClientOutput;
 
 #[allow(dead_code)]
 pub fn write_client_html<'input>(w: &mut io::Write, template: &'input Template) -> Result {

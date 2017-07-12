@@ -1,4 +1,5 @@
 
+use std::result;
 use std::collections::hash_map::HashMap;
 use parser::ast::*;
 use parser::store::*;
@@ -105,6 +106,27 @@ pub struct Component<'input> {
     pub uses: Option<Vec<&'input str>>,
     pub child_map: Option<ComponentMap<'input>>,
 }
+
+// Processing
+
+use parser::token::Error as ParsingError;
+use std::io;
+use std::fmt;
+
+#[derive(Debug)]
+pub enum DocumentProcessingError {
+    UnexpectedError { pos: usize },
+    ParsingError(ParsingError),
+    IOError(io::Error),
+    FormatError(fmt::Error)
+}
+
+pub type DocumentProcessingResult<T> = result::Result<T, DocumentProcessingError>;
+pub type Result = DocumentProcessingResult<()>;
+
+impl From<ParsingError> for DocumentProcessingError { fn from(err: ParsingError) -> Self { DocumentProcessingError::ParsingError(err) } }
+impl From<fmt::Error> for DocumentProcessingError { fn from(err: fmt::Error) -> Self { DocumentProcessingError::FormatError(err) } }
+impl From<io::Error> for DocumentProcessingError { fn from(err: io::Error) -> Self { DocumentProcessingError::IOError(err) } }
 
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {

@@ -15,10 +15,10 @@ use super::client_html::*;
 use super::client_misc::*;
 
 #[inline]
-pub fn write_js_expr_var_reference(w: &mut fmt::Write,
+pub fn write_js_expr_var_reference(w: &mut io::Write,
                                    var_name: &str,
                                    var_prefix: Option<&str>)
-                                   -> fmt::Result {
+                                   -> Result {
     if let Some(ref prefix) = var_prefix {
         write!(w, "{}{}", prefix, var_name)?;
     } else {
@@ -28,13 +28,13 @@ pub fn write_js_expr_var_reference(w: &mut fmt::Write,
 }
 
 #[inline]
-pub fn write_js_expr_value<'input>(w: &mut fmt::Write,
+pub fn write_js_expr_value<'input>(w: &mut io::Write,
                                    node: &ExprValue,
                                    default_state_map: &DefaultStateMap<'input>,
                                    var_prefix: Option<&str>,
                                    default_var: Option<&str>,
                                    action_prefix: Option<&str>)
-                                   -> fmt::Result {
+                                   -> Result {
     match node {
         // TODO: Handle the case where quotes appear in the string
         &ExprValue::LiteralString(ref s) => {
@@ -171,7 +171,7 @@ pub fn write_js_expr_value<'input>(w: &mut fmt::Write,
 
 #[inline]
 #[allow(unused_variables)]
-pub fn write_js_action(w: &mut fmt::Write, act_iter: Iter<ActionOpNode>) -> fmt::Result {
+pub fn write_js_action(w: &mut io::Write, act_iter: Iter<ActionOpNode>) -> Result {
     write!(w, "function(event) {{")?;
     for ref act_op in act_iter {
         match *act_op {
@@ -186,13 +186,13 @@ pub fn write_js_action(w: &mut fmt::Write, act_iter: Iter<ActionOpNode>) -> fmt:
 
 #[inline]
 #[allow(unused_variables)]
-fn write_js_incdom_attr_array<'input>(w: &mut fmt::Write,
+fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
                                       attrs: &Vec<Prop>,
                                       default_state_map: &DefaultStateMap<'input>,
                                       var_prefix: Option<&str>,
                                       default_var: Option<&str>,
                                       action_prefix: Option<&str>)
-                                      -> fmt::Result {
+                                      -> Result {
     let mut wrote_first = false;
     for &(ref key, ref expr) in attrs {
         if let &Some(ref expr) = expr {
@@ -236,13 +236,13 @@ fn write_js_incdom_attr_array<'input>(w: &mut fmt::Write,
 
 #[inline]
 #[allow(unused_variables)]
-fn write_js_props_object<'input>(w: &mut fmt::Write,
+fn write_js_props_object<'input>(w: &mut io::Write,
                          props: &Vec<Prop>,
                          default_state_map: &DefaultStateMap<'input>,
                          var_prefix: Option<&str>,
                          default_var: Option<&str>,
                          default_scope: Option<&str>)
-                         -> fmt::Result {
+                         -> Result {
     write!(w, "{{")?;
     let mut wrote_first = false;
     for &(ref key, ref expr) in props {
@@ -291,7 +291,7 @@ fn write_js_props_object<'input>(w: &mut fmt::Write,
 
 #[inline]
 #[allow(unused_variables)]
-pub fn write_js_incdom_ops_content<'input>(w: &mut fmt::Write,
+pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                            ops: Iter<ElementOp>,
                                            default_state_map: &DefaultStateMap,
                                            var_prefix: Option<&str>,
@@ -300,7 +300,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut fmt::Write,
                                            default_scope: Option<&str>,
                                            key_var_prefix: Option<&str>,
                                            comp_map: &ComponentMap<'input>)
-                                           -> fmt::Result {
+                                           -> Result {
     for ref op in ops {
         let mut is_void = false;
         if let &ElementOp::ElementVoid(..) = *op {
@@ -436,7 +436,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut fmt::Write,
 
 #[inline]
 #[allow(dead_code)]
-pub fn write_js_incdom_component<'input>(w: &mut fmt::Write,
+pub fn write_js_incdom_component<'input>(w: &mut io::Write,
                                          component_ty: &'input str,
                                          ops: Iter<ElementOp>,
                                          default_state_map: &DefaultStateMap,
@@ -445,7 +445,7 @@ pub fn write_js_incdom_component<'input>(w: &mut fmt::Write,
                                          key_prefix: Option<&str>,
                                          default_scope: Option<&str>,
                                          comp_map: &ComponentMap<'input>)
-                                         -> fmt::Result {
+                                         -> Result {
 
     writeln!(w,
              "  function component_{}(key_prefix, store, props) {{",

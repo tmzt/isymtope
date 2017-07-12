@@ -1,4 +1,5 @@
 
+use std::io;
 use std::fmt;
 use std::collections::hash_map::HashMap;
 use parser::ast::*;
@@ -18,10 +19,10 @@ impl<'input> FormatHtml<'input> {
     }
 
     pub fn write_js_store(&self,
-                          w: &mut fmt::Write,
+                          w: &mut io::Write,
                           reducer_key_data: &HashMap<&'input str, ReducerKeyData>,
                           default_state_map: &DefaultStateMap<'input>)
-                          -> fmt::Result {
+                          -> Result {
         // TODO: Implement default scope?
 
         // Generate script
@@ -37,19 +38,15 @@ impl<'input> FormatHtml<'input> {
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
-                            write_js_expr_value(&mut state_expr_str,
+                            writeln!(w, "if ('undefined' !== typeof action && '{}' == \
+                                      action.type) {{ return ", action_type)?;
+                            write_js_expr_value(w,
                                                 simple_expr,
                                                 default_state_map,
                                                 None,
                                                 Some("state".into()),
-                                                None)
-                                ?;
-                            writeln!(w,
-                                     "    if ('undefined' !== typeof action && '{}' == \
-                                      action.type) {{ return {}; }}",
-                                     action_type,
-                                     state_expr_str)
-                                ?;
+                                                None)?;
+                            writeln!(w, "; }}")?;
                         }
                         _ => {}
                     }
@@ -81,10 +78,10 @@ impl<'input> FormatHtml<'input> {
 
     #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
-                                   w: &mut fmt::Write,
+                                   w: &mut io::Write,
                                    events_vec: &EventsVec,
                                    action_prefix: Option<&str>)
-                                   -> fmt::Result {
+                                   -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref scope) in
             events_vec {
@@ -116,7 +113,7 @@ impl<'input> FormatHtml<'input> {
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    pub fn write_html_document(&self, w: &mut fmt::Write) -> fmt::Result {
+    pub fn write_html_document(&self, w: &mut io::Write) -> Result {
         // Output state
         let mut events_vec: EventsVec = Default::default();
         let mut keys_vec: Vec<String> = Default::default();

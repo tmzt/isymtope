@@ -3,6 +3,7 @@ use std::clone::Clone;
 use std::slice::Iter;
 use std::fmt;
 use std::collections::hash_map::HashMap;
+use std::result;
 use parser::ast::*;
 use parser::store::*;
 use parser::api::*;
@@ -48,7 +49,7 @@ impl<'input> ProcessDocument<'input> {
                                         reducer_key: &'input str,
                                         nodes: &'input Vec<ScopeNodeType>,
                                         reducer_key_prefix: Option<&str>)
-                                        -> fmt::Result {
+                                        -> DocumentProcessingResult<()> {
         //let ref reducer_key_data = self.processing.reducer_key_data;
 
         for ref node in nodes {
@@ -98,7 +99,7 @@ impl<'input> ProcessDocument<'input> {
     pub fn collect_js_store_api_scope(&mut self,
                                       scope_name: &'input str,
                                       nodes: &'input Vec<ApiNodeType>)
-                                      -> fmt::Result {
+                                      -> DocumentProcessingResult<()> {
         for ref node in nodes {
             match *node {
                 &ApiNodeType::ResourceNode(ref resource_data) => {
@@ -140,7 +141,7 @@ impl<'input> ProcessDocument<'input> {
 
     pub fn collect_js_store_default_scope(&mut self,
                                           nodes: &'input Vec<DefaultScopeNodeType>)
-                                          -> fmt::Result {
+                                          -> DocumentProcessingResult<()> {
         for ref node in nodes {
             match *node {
                 &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
@@ -178,7 +179,7 @@ impl<'input> ProcessDocument<'input> {
                     expr: &'input ExprValue,
                     block: &mut BlockProcessingState,
                     resolve: &ResolveVars)
-                    -> fmt::Result {
+                    -> DocumentProcessingResult<()> {
         match expr {
             &ExprValue::Expr(ExprOp::Add,
                              box ExprValue::ContentNode(ref l),
@@ -234,7 +235,7 @@ impl<'input> ProcessDocument<'input> {
                             node: &'input ContentNodeType,
                             block: &mut BlockProcessingState,
                             resolve: &ResolveVars)
-                            -> fmt::Result {
+                            -> DocumentProcessingResult<()> {
 
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {
@@ -332,7 +333,7 @@ impl<'input> ProcessDocument<'input> {
     #[allow(dead_code)]
     pub fn process_component_definition(&mut self,
                                         component_data: &'input ComponentDefinitionType)
-                                        -> fmt::Result {
+                                        -> DocumentProcessingResult<()> {
         let name: &'input str = component_data.name.as_str();
         let mut block = BlockProcessingState::default();
         let resolve = ResolveVars::default();
@@ -348,10 +349,9 @@ impl<'input> ProcessDocument<'input> {
             }
         }
 
-        let ops: OpsVec = Default::default();
         let comp = Component {
             name: name,
-            ops: Some(ops),
+            ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
         };
@@ -364,7 +364,7 @@ impl<'input> ProcessDocument<'input> {
     pub fn process_nodes(&mut self,
                          resolve: &ResolveVars,
                          block: &mut BlockProcessingState)
-                         -> fmt::Result {
+                         -> Result {
         let mut processed_store = false;
 
         for ref loc in self.ast.children.iter() {
@@ -388,48 +388,14 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
-    #[allow(unused_variables)]
-    pub fn write_js_event_bindings(&self,
-                                   w: &mut fmt::Write,
-                                   events_vec: &EventsVec,
-                                   action_prefix: Option<&str>)
-                                   -> fmt::Result {
-        writeln!(w, "      // Bind actions")?;
-        for &(ref element_key, ref event_name, ref params, ref action_ops, ref scope) in
-            events_vec {
-            let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
-            writeln!(w,
-                     "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
-                      function(event) {{",
-                     element_key,
-                     event_name)
-                ?;
-            if let &Some(ref action_ops) = action_ops {
-                for ref action_op in action_ops {
-                    match *action_op {
-                        &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            // TODO: Fix type
-                            let action_prefix = scope.as_ref()
-                                .map_or("".into(), |s| s.to_uppercase());
-                            let action_ty =
-                                format!("{}.{}", action_prefix, action_key.to_uppercase());
-                            writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
-                        }
-                    }
-                }
-            }
-            writeln!(w, "  }});")?;
-        }
-        Ok(())
-    }
-
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    pub fn process_document(&mut self) -> fmt::Result {
+    pub fn process_document(&mut self) -> DocumentProcessingResult<()> {
         let mut root_block = BlockProcessingState::default();
         let resolve = ResolveVars::default();
 
         self.process_nodes(&resolve, &mut root_block)?;
+        self.root_block = root_block;
         Ok(())
     }
 }
