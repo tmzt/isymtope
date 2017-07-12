@@ -68,6 +68,9 @@ pub type ComponentMap<'inp> = HashMap<&'inp str, Component<'inp>>;
 pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
+#[derive(Debug, Clone, Default)]
+pub struct ResolveVars<'inp> { var_prefix: Option<&'inp str>, default_var: Option<&'inp str>, default_scope: Option<&'inp str> }
+
 #[derive(Debug, Clone)]
 pub struct Component<'input> {
     pub name: &'input str,
@@ -76,29 +79,36 @@ pub struct Component<'input> {
     pub child_map: Option<ComponentMap<'input>>,
 }
 
-#[derive(Debug)]
-pub struct DocumentProcessingState<'inp> {
+#[derive(Debug, Default)]
+pub struct BlockProcessingState {
     pub ops_vec: OpsVec,
+    pub events_vec: EventsVec,
+}
+
+#[derive(Debug, Default)]
+pub struct DocumentProcessingState<'inp> {
+    pub keys_vec: Vec<String>,
     pub comp_map: ComponentMap<'inp>,
-    pub reducer_key_data: ReducerKeyData,
+    pub reducer_key_data: ReducerKeyMap<'inp>,
     pub default_state_map: DefaultStateMap<'inp>
 }
 
+/*
 impl<'inp> Default for DocumentProcessingState<'inp> {
     fn default() -> DocumentProcessingState<'inp> {
         DocumentProcessingState {
-            ops_vec: Default::default(),
+            keys_vec: Default::default(),
             comp_map: Default::default(),
             reducer_key_data: Default::default(),
             default_state_map: Default::default()
         }
     }
-}
+}*/
 
 #[derive(Debug)]
 pub struct DocumentState<'doc, 'inp: 'doc> {
     pub ops_vec: &'doc OpsVec,
     pub comp_map: &'doc ComponentMap<'inp>,
-    pub reducer_key_data: &'doc ReducerKeyData,
+    pub reducer_key_data: &'doc ReducerKeyMap<'inp>,
     pub default_state_map: &'doc DefaultStateMap<'inp>
 }
