@@ -15,15 +15,31 @@ use super::client_misc::*;
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
+    root_block: BlockProcessingState,
     processing: DocumentProcessingState<'input>,
 }
 
+impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
+    fn into(self) -> DocumentState<'inp> {
+        DocumentState {
+            ast: self.ast,
+            root_block: self.root_block,
+            comp_map: self.processing.comp_map,
+            reducer_key_data: self.processing.reducer_key_data,
+            default_state_map: self.processing.default_state_map
+        }
+
+    }
+}
+
 impl<'input> ProcessDocument<'input> {
-    pub fn from_template<'inp>(ast: &'inp Template,
-                               processing: DocumentProcessingState<'inp>)
-                               -> ProcessDocument<'inp> {
+    pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
+        let processing = DocumentProcessingState::default();
+        let root_block = BlockProcessingState::default();
+
         ProcessDocument {
             ast: ast,
+            root_block: root_block,
             processing: processing,
         }
     }
@@ -83,8 +99,6 @@ impl<'input> ProcessDocument<'input> {
                                       scope_name: &'input str,
                                       nodes: &'input Vec<ApiNodeType>)
                                       -> fmt::Result {
-        //let ref reducer_key_data = self.processing.reducer_key_data;
-
         for ref node in nodes {
             match *node {
                 &ApiNodeType::ResourceNode(ref resource_data) => {
@@ -127,9 +141,6 @@ impl<'input> ProcessDocument<'input> {
     pub fn collect_js_store_default_scope(&mut self,
                                           nodes: &'input Vec<DefaultScopeNodeType>)
                                           -> fmt::Result {
-        //let ref reducer_key_data = self.processing.reducer_key_data;
-        //let ref default_state_map = self.processing.default_state_map;
-
         for ref node in nodes {
             match *node {
                 &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
@@ -224,9 +235,6 @@ impl<'input> ProcessDocument<'input> {
                             block: &mut BlockProcessingState,
                             resolve: &ResolveVars<'input>)
                             -> fmt::Result {
-        //let ref mut ops_vec = block.ops_vec;
-        //let ref mut events_vec = block.events_vec;
-        //let ref mut comp_map = self.processing.comp_map;
 
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {

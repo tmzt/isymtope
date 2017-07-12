@@ -87,6 +87,7 @@ pub struct BlockProcessingState {
 
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState<'inp> {
+    root_block: BlockProcessingState,
     pub keys_vec: Vec<String>,
     pub comp_map: ComponentMap<'inp>,
     pub reducer_key_data: ReducerKeyMap<'inp>,
@@ -106,9 +107,10 @@ impl<'inp> Default for DocumentProcessingState<'inp> {
 }*/
 
 #[derive(Debug)]
-pub struct DocumentState<'doc, 'inp: 'doc> {
-    pub ops_vec: &'doc OpsVec,
-    pub comp_map: &'doc ComponentMap<'inp>,
-    pub reducer_key_data: &'doc ReducerKeyMap<'inp>,
-    pub default_state_map: &'doc DefaultStateMap<'inp>
+pub struct DocumentState<'inp> {
+    pub ast: &'inp Template,
+    pub root_block: BlockProcessingState,
+    pub comp_map: ComponentMap<'inp>,
+    pub reducer_key_data: ReducerKeyMap<'inp>,
+    pub default_state_map: DefaultStateMap<'inp>
 }
