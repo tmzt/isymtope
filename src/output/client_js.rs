@@ -15,25 +15,15 @@ use super::client_html::*;
 use super::client_misc::*;
 
 #[inline]
-pub fn write_js_expr_default_var_reference(w: &mut io::Write,
-                                   resolve: &ResolveVars)
-                                   -> Result {
-    let var_prefix = resolve.var_prefix.as_ref().map_or("", |s| s);
-    let default_var = resolve.default_var.as_ref().map_or("value", |s| s);
-    write!(w, "{}{}", var_prefix, default_var)?;
-    Ok(())
-}
-
-#[inline]
-pub fn write_js_expr_var_reference(w: &mut io::Write,
-                                   resolve: &ResolveVars,
-                                   var_name: &str)
-                                   -> Result {
-    if let Some(ref prefix) = resolve.var_prefix {
-        write!(w, "{}{}", prefix, var_name)?;
-    } else {
-        write!(w, "{}", var_name)?;
-    };
+pub fn write_js_var_reference(w: &mut io::Write,
+                                    var_name: Option<&str>,
+                                    processing: &DocumentState,
+                                    resolve: &ResolveVars)
+                                    -> Result {
+    let scope_key = resolve.scope_key(var_name);
+    let is_scope_key = processing.default_state_map.contains_key(scope_key.as_str());
+    let var_reference = resolve.var_reference(is_scope_key, var_name);
+    write!(w, "{}", var_reference)?;
     Ok(())
 }
 
@@ -63,55 +53,47 @@ pub fn write_js_expr_value<'input>(w: &mut io::Write,
         }
 
         &ExprValue::DefaultVariableReference => {
-            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
-            if let Some(_) = processing.default_state_map.get(format!("{}.__DEFAULT", cur_scope).as_str()) {
-                let state_scope = ResolveVars::for_get_state(resolve);
-                write_js_expr_default_var_reference(w, &state_scope)?;
-            } else {
-                write_js_expr_default_var_reference(w, resolve)?;
-            }
+            write_js_var_reference(w, None, processing, resolve)?;
         }
 
         &ExprValue::VariableReference(ref var_name) => {
-            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
-            if let Some(_) = processing.default_state_map.get(format!("{}.{}", cur_scope, var_name).as_str()) {
-                let state_scope = ResolveVars::for_get_state_var(resolve, var_name);
-                write_js_expr_var_reference(w, &state_scope, var_name)?;
-            } else {
-                write_js_expr_var_reference(w, resolve, var_name)?;
-            }
+            write_js_var_reference(w, Some(var_name.as_str()), processing, resolve)?;
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
-            if let Some(entry) = processing.default_state_map.get(format!("{}.__DEFAULT", cur_scope).as_str()) {
+            let scope_key = resolve.scope_key(None);
+            if let Some(entry) = processing.default_state_map.get(scope_key.as_str()) {
                 if let Some(VarType::ArrayVar(..)) = entry.0 {
                     write!(w, "((")?;
-                    write_js_expr_default_var_reference(w, resolve)?;
+                    write_js_var_reference(w, None, processing, resolve)?;
                     write!(w, ").concat(")?;
                     write_js_expr_value(w, r, processing, resolve)?;
                     write!(w, "))")?;
                 } else {
-                    write_js_expr_default_var_reference(w, resolve)?;
-                    write!(w, " + ")?;
+                    write!(w, "((")?;
+                    write_js_var_reference(w, None, processing, resolve)?;
+                    write!(w, ") + (")?;
                     write_js_expr_value(w, r, processing, resolve)?;
+                    write!(w, "))")?;
                 }
             }
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-            let cur_scope = resolve.default_scope.as_ref().map_or("", |s| s);
-            if let Some(entry) = processing.default_state_map.get(format!("{}.{}", cur_scope, var_name).as_str()) {
+            let scope_key = resolve.scope_key(Some(var_name));
+            if let Some(entry) = processing.default_state_map.get(scope_key.as_str()) {
                 if let Some(VarType::ArrayVar(..)) = entry.0 {
                     write!(w, "((")?;
-                    write_js_expr_var_reference(w, resolve, var_name)?;
+                    write_js_var_reference(w, Some(var_name.as_str()), processing, resolve)?;
                     write!(w, ").concat(")?;
                     write_js_expr_value(w, r, processing, resolve)?;
                     write!(w, "))")?;
                 } else {
-                    write_js_expr_var_reference(w, resolve, var_name)?;
-                    write!(w, " + ")?;
+                    write!(w, "((")?;
+                    write_js_var_reference(w, Some(var_name.as_str()), processing, resolve)?;
+                    write!(w, ") + (")?;
                     write_js_expr_value(w, r, processing, resolve)?;
+                    write!(w, "))")?;
                 }
             }
         }
@@ -149,6 +131,7 @@ pub fn write_js_action(w: &mut io::Write, act_iter: Iter<ActionOpNode>) -> Resul
     for ref act_op in act_iter {
         match *act_op {
             &ActionOpNode::DispatchAction(ref action, ref params) => {
+                //let action_type = resolve.action_type(Some(action));
                 write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
             }
         }
@@ -320,6 +303,9 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                           ref component_key,
                                           ref props,
                                           ref lens) => {
+                let component_scope = lens.as_ref().map(|lens| resolve.with_scope(lens));
+                let resolve = component_scope.as_ref().map_or(resolve, |r| r);
+
                 let comp = processing.comp_map.get(component_ty.as_str());
                 if comp.is_some() {
                     let component_key = component_key.as_ref().map_or("null", |s| s);
@@ -369,8 +355,9 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                     ?;
                 */
 
-                let for_block_scope = ResolveVars::for_block_scope(false, block_id, ele.as_ref().map(String::as_str), resolve);
-                write_js_expr_value(w, coll_expr, processing, resolve)?;
+                //let block_scope = resolve.block_scope(block_id, ele.as_ref().map(String::as_str));
+                let block_scope = resolve.block_scope(block_id, None);
+                write_js_expr_value(w, coll_expr, processing, &block_scope)?;
 
                 writeln!(w, ").map(__{});", block_id)?;
             }

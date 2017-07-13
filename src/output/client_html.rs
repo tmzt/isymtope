@@ -95,12 +95,13 @@ pub fn write_html_ops_content<'input>(
                         let event_params = event_params.as_ref().map(Clone::clone);
                         let action_ops = action_ops.as_ref().map(Clone::clone);
                         let event_name = event_name.as_ref().map(Clone::clone);
-                        let default_scope = resolve.default_scope.as_ref().map(|s| format!("{}", s));
+                        let cur_scope = resolve.scope_key(None);
+                        //let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
                         events_vec.push((element_key.clone(),
                                             event_name,
                                             event_params,
                                             action_ops,
-                                            default_scope));
+                                            Some(cur_scope)));
                     }
                 }
 
@@ -124,6 +125,8 @@ pub fn write_html_ops_content<'input>(
                 // Try to locate a matching component
                 if let Some(ref comp) = processing.comp_map.get(component_ty.as_str()) {
                     // Render a component
+                    let component_scope = lens.as_ref().map(|lens| resolve.with_scope(lens));
+                    let resolve = component_scope.as_ref().map_or(resolve, |r| r);
 
                     let element_key = format!("{}{}",
                         key_prefix.as_ref().map_or("".into(), |s| format!("{}_", s)),

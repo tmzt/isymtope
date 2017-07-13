@@ -25,15 +25,20 @@ impl ReducerKeyData {
 pub struct ReducerActionData {
     pub action_type: String,
     pub state_expr: Option<ActionStateExprType>,
+    pub state_ty: Option<VarType>,
+    pub default_scope_key: Option<String>
 }
 
 impl ReducerActionData {
-    pub fn from_name(action_name: &str) -> ReducerActionData {
+    pub fn from_name(action_name: &str, default_scope_key: Option<&str>) -> ReducerActionData {
         let action_type = action_name.to_uppercase();
+        let default_scope_key = default_scope_key.map(String::from);
 
         ReducerActionData {
             action_type: String::from(action_type),
             state_expr: None,
+            state_ty: None,
+            default_scope_key: default_scope_key
         }
     }
 }
@@ -70,85 +75,121 @@ pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
 pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone, Default)]
-pub struct ResolveVars { pub var_prefix: Option<String>, pub default_var: Option<String>, pub default_scope: Option<String> }
+pub struct ResolveVars {
+    pub expr_context: ExpressionContext,
+    pub cur_block_id: Option<String>,
+    pub cur_scope: Option<String>,
+    pub default_var: Option<String>
+}
 
+#[derive(Debug, Clone)]
+pub enum ExpressionContext {
+    Normal,
+    ActionResult
+}
+impl Default for ExpressionContext { fn default() -> Self { ExpressionContext::Normal } }
+
+//#[allow(dead_code)]
 impl ResolveVars {
-    pub fn for_block_scope<'inp>(is_state_varref: bool, block_id: &str, forvar: Option<&'inp str>, parent_scope: &ResolveVars) -> ResolveVars {
-        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
 
-        let scoped_default = format!("{}{}", default_scope, forvar.as_ref().map_or("".into(), |s| format!(".{}", s)));
-        let scoped_prefix = format!("{}.", scoped_default);
+    pub fn default_resolver() -> ResolveVars {
+        ResolveVars {
+            expr_context: ExpressionContext::Normal,
+            cur_block_id: None,
+            cur_scope: None,
+            default_var: None
+        }
+    }
 
-        let forvar_prefix = format!("__forvar_{}", block_id);
-        let forvar_default = format!("__forvar_{}{}", block_id, forvar.as_ref().map_or("", |s| s));
+    pub fn with_scope(&self, scope: &str) -> ResolveVars {
+        ResolveVars {
+            expr_context: self.expr_context.clone(),
+            cur_block_id: self.cur_block_id.clone(),
+            cur_scope: Some(String::from(scope)),
+            default_var: self.default_var.clone()
+        }
+    }
 
-        if is_state_varref {
-            ResolveVars {
-                var_prefix: Some(scoped_prefix),
-                default_var: Some(scoped_default),
-                default_scope: Some(default_scope),
-            }
+    pub fn action_result(&self, state_key: &str) -> ResolveVars {
+        ResolveVars {
+            expr_context: ExpressionContext::ActionResult,
+            cur_block_id: None,
+            cur_scope: Some(String::from(state_key)),
+            default_var: None
+        }
+    }
+
+    pub fn block_scope(&self, block_id: &str, default_var: Option<&str>) -> ResolveVars {
+        ResolveVars {
+            expr_context: ExpressionContext::Normal,
+            cur_block_id: Some(String::from(block_id)),
+            cur_scope: None,
+            default_var: default_var.map(String::from)
+        }
+    }
+
+    #[inline]
+    pub fn maybe_scope_key(&self, var_name: Option<&str>) -> Option<String> {
+        let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}", s));
+        let var_part = var_name.map_or("".into(), |s| format!("{}", s));
+        if self.cur_scope.is_some() && var_name.is_some() {
+            Some(format!("{}.{}", scope_part, var_part))
+        } else if self.cur_scope.is_some() || var_name.is_some() {
+            Some(format!("{}{}", scope_part, var_part))
         } else {
-            // Assume this is a for block parameter for now
-            ResolveVars {
-                var_prefix: Some(forvar_prefix),
-                default_var: Some(forvar_default),
-                default_scope: None,
-            }
+            None
         }
     }
 
-    pub fn default_resolver(default_state_key: &str) -> ResolveVars {
-        ResolveVars {
-            var_prefix: Some("store.getState().".into()),
-            default_var: Some(format!("store.getState().{}", default_state_key)),
-            default_scope: Some(format!("{}", default_state_key))
+    #[inline]
+    pub fn scope_key(&self, var_name: Option<&str>) -> String {
+        self.maybe_scope_key(var_name).map_or("".into(), |s| s)
+    }
+
+    #[inline]
+    pub fn action_type(&self, action_name: Option<&str>) -> String {
+        self.scope_key(action_name).to_uppercase()
+    }
+
+    #[inline]
+    pub fn var_reference(&self, is_scope_var: bool, var_name: Option<&str>) -> String {
+        let scope_key = self.maybe_scope_key(var_name);
+        let prefix = match self.expr_context {
+            ExpressionContext::ActionResult => Some("state"),
+            _ if is_scope_var => Some("store.getState()"),
+            _ => None
+        };
+        // FIXME
+        // TODO: Split cur_scope and cur_state_key, leave off cur_state_key when in ActionResult context
+        if let ExpressionContext::ActionResult = self.expr_context {
+            return format!("{}", prefix.unwrap_or(""));
+        };
+        
+        if scope_key.is_some() && prefix.is_some() {
+            format!("{}.{}", prefix.unwrap_or(""), scope_key.as_ref().map_or("", |s| s))
+        } else {
+            format!("{}{}", prefix.unwrap_or(""), scope_key.as_ref().map_or("", |s| s))
         }
     }
 
-    pub fn for_action_result() -> ResolveVars {
-        ResolveVars {
-            var_prefix: Some("state.".into()),
-            default_var: Some("state".into()),
-            default_scope: Some("".into())
-        }
-    }
-
-    pub fn for_get_state<'inp>(parent_scope: &ResolveVars) -> ResolveVars {
-        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
-        let scoped_default = format!("{}", default_scope);
-        let scoped_prefix = format!("{}.", scoped_default);
-
-        ResolveVars {
-            var_prefix: Some(scoped_prefix),
-            default_var: Some(scoped_default),
-            default_scope: Some(default_scope)
-        }
-    }
-
-    pub fn for_get_state_var<'inp>(parent_scope: &ResolveVars, var_name: &str) -> ResolveVars {
-        let default_scope = format!("{}", parent_scope.default_scope.as_ref().map_or("", |s| s));
-        let scoped_default = format!("{}", default_scope);
-        let scoped_prefix = format!("{}.", scoped_default);
-
-        ResolveVars {
-            var_prefix: Some(scoped_prefix),
-            default_var: Some(scoped_default),
-            default_scope: Some(default_scope)
-        }
-    }
-
-    pub fn for_store_scope_var<'inp>(parent_scope: &ResolveVars, key: &str) -> ResolveVars {
-        let default_scope = format!("{}.{}", parent_scope.default_scope.as_ref().map_or("", |s| s), key);
-        let scoped_default = format!("{}", default_scope);
-        let scoped_prefix = format!("{}.", scoped_default);
-
-        ResolveVars {
-            var_prefix: Some(scoped_prefix),
-            default_var: Some(scoped_default),
-            default_scope: Some(default_scope),
-        }
-    }
+    // pub fn var_reference(&self, is_scope_var: bool, var_name: Option<&str>) -> String {
+    //     match self.expr_context {
+    //         ExpressionContext::ActionResult => {
+    //             let var_part = var_name.map_or("".into(), |s| format!(".{}", s));
+    //             format!("state{}", var_part)
+    //         },
+    //         _ if is_scope_var => {
+    //             let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!(".{}", s));
+    //             let var_part = var_name.map_or("".into(), |s| format!(".{}", s));
+    //             format!("store.getState(){}{}", scope_part, var_part)
+    //         },
+    //         _ => {
+    //             let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}.", s));
+    //             let var_part = var_name.map_or("".into(), |s| format!("{}", s));
+    //             format!("{}{}", scope_part, var_part)
+    //         }
+    //     }
+    // }
 }
 
 #[derive(Debug, Clone)]
@@ -164,6 +205,7 @@ pub struct Component<'input> {
 use parser::token::Error as ParsingError;
 use std::io;
 use std::fmt;
+use std::cell::Cell;
 
 #[derive(Debug)]
 pub enum DocumentProcessingError {
@@ -192,7 +234,9 @@ pub struct DocumentProcessingState<'inp> {
     pub keys_vec: Vec<String>,
     pub comp_map: ComponentMap<'inp>,
     pub reducer_key_data: ReducerKeyMap<'inp>,
-    pub default_state_map: DefaultStateMap<'inp>
+    pub default_state_map: DefaultStateMap<'inp>,
+    pub has_default_state_key: bool,
+    pub default_state_key: Cell<Option<&'inp str>>
 }
 
 /*

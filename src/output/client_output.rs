@@ -29,23 +29,29 @@ impl<'input> FormatHtml<'input> {
         for (ref reducer_key, ref reducer_data) in processing.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
+            let reducer_scope = resolve.with_scope(reducer_key);
+
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
-                    let mut state_expr_str = String::new();
-
+                    /*
                     let action_type =
                         format!("{}.{}", reducer_key.to_uppercase(), action_data.action_type);
+                    */
+                    let action_ty = reducer_scope.action_type(Some(&action_data.action_type));
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
-                            let action_scope = ResolveVars::for_action_result();
-                            writeln!(w, "if ('undefined' !== typeof action && '{}' == \
-                                      action.type) {{ return ", action_type)?;
+                            let action_scope = reducer_scope.action_result(reducer_key);
+                            writeln!(w, "if ('undefined' !== typeof action && '{}' == action.type) {{", action_ty)?;
+                            write!(w,   "  return ")?;
+                            // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
                             write_js_expr_value(w,
                                                 simple_expr,
                                                 processing,
                                                 &action_scope)?;
-                            writeln!(w, "; }}")?;
+                            writeln!(w, ";")?;
+                            // writeln!(w, "}})")?;
+                            writeln!(w, "}}")?;
                         }
                         _ => {}
                     }
@@ -55,7 +61,9 @@ impl<'input> FormatHtml<'input> {
             // Default expression used to initialize state
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
+                //write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
                 write_js_expr_value(w, default_expr, &self.doc, &resolve)?;
+                //write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
             }
@@ -79,10 +87,10 @@ impl<'input> FormatHtml<'input> {
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_vec: &EventsVec,
-                                   action_prefix: Option<&str>)
+                                   resolve: &ResolveVars)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
-        for &(ref element_key, ref event_name, ref params, ref action_ops, ref scope) in
+        for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
             events_vec {
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,
@@ -91,15 +99,24 @@ impl<'input> FormatHtml<'input> {
                      element_key,
                      event_name)
                 ?;
+
+            let resolve = resolve;
+
             if let &Some(ref action_ops) = action_ops {
+                let action_scope = event_scope.as_ref().map(|event_scope| resolve.with_scope(event_scope));
+                let resolve = action_scope.as_ref().map_or(resolve, |r| r);
+
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                            let action_ty = resolve.action_type(Some(action_key.as_str()));
+                            /*
                             // TODO: Fix type
                             let action_prefix = scope.as_ref()
                                 .map_or("".into(), |s| s.to_uppercase());
                             let action_ty =
                                 format!("{}.{}", action_prefix, action_key.to_uppercase());
+                            */
                             writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                         }
                     }
@@ -130,7 +147,8 @@ impl<'input> FormatHtml<'input> {
         "#))?;
 
         // FIXME
-        let resolve = ResolveVars::default_resolver("counter");
+        //let resolve = ResolveVars::default_resolver("counter");
+        let resolve = ResolveVars::default_resolver();
 
         write_html_ops_content(w,
                                self.doc.root_block.ops_vec.iter(),
@@ -217,7 +235,7 @@ impl<'input> FormatHtml<'input> {
         }
 
         // Event handlers
-        self.write_js_event_bindings(w, &events_vec, Some("counter"))?;
+        self.write_js_event_bindings(w, &events_vec, &resolve)?;
 
         write!(w,
                "{}",

@@ -1,5 +1,6 @@
 
 use std::clone::Clone;
+use std::cell::Cell;
 use std::slice::Iter;
 use std::fmt;
 use std::collections::hash_map::HashMap;
@@ -41,7 +42,7 @@ impl<'input> ProcessDocument<'input> {
         ProcessDocument {
             ast: ast,
             root_block: root_block,
-            processing: processing,
+            processing: processing
         }
     }
 
@@ -52,14 +53,27 @@ impl<'input> ProcessDocument<'input> {
                                         -> DocumentProcessingResult<()> {
         //let ref reducer_key_data = self.processing.reducer_key_data;
 
+        //let scope_resolve = ResolveVars::default_resolver(reducer_key);
+
         for ref node in nodes {
             match *node {
                 &ScopeNodeType::LetNode(ref var_name, ref expr) => {
+                    if !self.processing.has_default_state_key {
+                        self.processing.default_state_key.replace(Some(var_name));
+                        self.processing.has_default_state_key = true;
+                    }
+
                     let reducer_entry = self.processing.reducer_key_data.entry(var_name)
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
+
+                        self.processing.default_state_map.entry(var_name)
+                            .or_insert_with(|| {
+                                let var_ty = Self::peek_var_ty(expr);
+                                (var_ty, Some(expr.clone()))
+                            });
                     };
                 }
                 &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
@@ -76,8 +90,11 @@ impl<'input> ProcessDocument<'input> {
                                                   .unwrap_or_default(),
                                               action_name);
 
-                    let mut action = ReducerActionData::from_name(&action_path);
+                    let mut action = ReducerActionData::from_name(&action_path, Some(reducer_key));
                     if let &Some(ref simple_expr) = simple_expr {
+                        let ActionStateExprType::SimpleReducerKeyExpr(ref expr) = *simple_expr;
+                        action.state_ty = Self::peek_var_ty(expr);
+
                         action.state_expr = Some(simple_expr.clone());
                     };
                     if let Some(ref mut actions) = reducer_entry.actions {
@@ -177,30 +194,29 @@ impl<'input> ProcessDocument<'input> {
     #[inline]
     fn process_expr(&mut self,
                     expr: &'input ExprValue,
-                    block: &mut BlockProcessingState,
-                    resolve: &ResolveVars)
+                    block: &mut BlockProcessingState)
                     -> DocumentProcessingResult<()> {
         match expr {
             &ExprValue::Expr(ExprOp::Add,
                              box ExprValue::ContentNode(ref l),
                              box ExprValue::ContentNode(ref r)) => {
-                self.process_content_node(l, block, resolve)?;
-                self.process_content_node(r, block, resolve)?;
+                self.process_content_node(l, block)?;
+                self.process_content_node(r, block)?;
             }
 
             &ExprValue::Expr(ExprOp::Add, box ExprValue::ContentNode(ref l), box ref r) => {
-                self.process_content_node(l, block, resolve)?;
-                self.process_expr(r, block, resolve)?;
+                self.process_content_node(l, block)?;
+                self.process_expr(r, block)?;
             }
 
             &ExprValue::Expr(ExprOp::Add, box ref l, box ExprValue::ContentNode(ref r)) => {
-                self.process_expr(l, block, resolve)?;
-                self.process_content_node(r, block, resolve)?;
+                self.process_expr(l, block)?;
+                self.process_content_node(r, block)?;
             }
 
             &ExprValue::Expr(ref op, ref l, ref r) => {
                 // Write left expression
-                self.process_expr(l, block, resolve)?;
+                self.process_expr(l, block)?;
 
                 // Write operator
                 let expr_str = match op {
@@ -214,11 +230,11 @@ impl<'input> ProcessDocument<'input> {
                                                 Some(allocate_element_key())));
 
                 // Write right expression
-                self.process_expr(r, block, resolve)?;
+                self.process_expr(r, block)?;
             }
 
             &ExprValue::ContentNode(ref node) => {
-                self.process_content_node(node, block, resolve)?
+                self.process_content_node(node, block)?
             }
 
             _ => {
@@ -233,8 +249,7 @@ impl<'input> ProcessDocument<'input> {
     #[inline]
     fn process_content_node(&mut self,
                             node: &'input ContentNodeType,
-                            block: &mut BlockProcessingState,
-                            resolve: &ResolveVars)
+                            block: &mut BlockProcessingState)
                             -> DocumentProcessingResult<()> {
 
         match node {
@@ -286,9 +301,7 @@ impl<'input> ProcessDocument<'input> {
 
                         // Iterate over children
                         for ref child in children {
-                            self.process_content_node(child,
-                                                      block,
-                                                      resolve)?;
+                            self.process_content_node(child, block)?;
                         }
 
                         // Push element close
@@ -303,21 +316,21 @@ impl<'input> ProcessDocument<'input> {
             }
             &ContentNodeType::ExpressionValueNode(ref expr) => {
                 // FIXME
-                self.process_expr(expr, block, resolve)?
+                self.process_expr(expr, block)?
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
-                let forvar_default = &format!("__forvar_{}", block_id);
-                let forvar_prefix = &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
+                //let forvar_default = &format!("__forvar_{}", block_id);
+                //let forvar_prefix = &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
 
-                let forvar_resolve = ResolveVars::for_block_scope(false, &block_id, ele.as_ref().map(String::as_str), resolve);
+                //let forvar_resolve = ResolveVars::for_block_scope(false, &block_id, ele.as_ref().map(String::as_str), resolve);
 
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
                         // FIXME: forvar resolve
-                        self.process_content_node(node, block, &forvar_resolve)?;
+                        self.process_content_node(node, block)?;
                     }
                 };
 
@@ -342,7 +355,7 @@ impl<'input> ProcessDocument<'input> {
             for ref child in children {
                 match *child {
                     &NodeType::ContentNode(ref content) => {
-                        self.process_content_node(content, &mut block, &resolve)?;
+                        self.process_content_node(content, &mut block)?;
                     }
                     _ => {}
                 }
@@ -380,7 +393,7 @@ impl<'input> ProcessDocument<'input> {
                     self.process_component_definition(component_data)?;
                 }
                 &NodeType::ContentNode(ref content) => {
-                    self.process_content_node(content, block, resolve)?;
+                    self.process_content_node(content, block)?;
                 }
                 _ => {}
             }
