@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 #[derive(Debug)]
 pub enum Error {
@@ -7,6 +6,7 @@ pub enum Error {
     InvalidNumber { start: usize },
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     UseKeyword,

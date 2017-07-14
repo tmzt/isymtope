@@ -13,7 +13,6 @@ pub mod structs;
 pub use self::structs::Result;
 
 use std::io;
-use std::fmt;
 use parser::ast::*;
 
 use self::client::ClientOutput;

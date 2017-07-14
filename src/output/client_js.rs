@@ -329,17 +329,6 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                 let forvar_prefix =
                     &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
 
-                /*
-                write_js_expr_value(w,
-                                    coll_expr,
-                                    default_state_map,
-                                    Some(forvar_prefix),
-                                    Some(forvar_default),
-                                    default_scope)
-                    ?;
-                */
-
-                //let block_scope = resolve.block_scope(block_id, ele.as_ref().map(String::as_str));
                 let block_scope = resolve.block_scope(block_id, None);
                 write_js_expr_value(w, coll_expr, processing, &block_scope)?;
 
@@ -352,7 +341,6 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
 }
 
 #[inline]
-#[allow(dead_code)]
 pub fn write_js_incdom_component<'input>(w: &mut io::Write,
                                          component_ty: &'input str,
                                          ops: Iter<ElementOp>,

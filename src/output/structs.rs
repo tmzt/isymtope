@@ -55,7 +55,6 @@ pub enum ElementOp {
     MapCollection(String, Option<String>, ExprValue),
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum PrimitiveVarType {
     StringVar,
@@ -94,7 +93,6 @@ impl Default for ExpressionContext {
     }
 }
 
-// #[allow(dead_code)]
 impl ResolveVars {
     pub fn default_resolver() -> ResolveVars {
         ResolveVars {
@@ -152,14 +150,12 @@ impl ResolveVars {
         }
     }
 
-    #[allow(dead_code)]
     #[inline]
     pub fn state_lookup_key(&self, var_name: Option<&str>) -> Option<String> {
         // (cur_state_key.cur_scope | cur_state_key | cur_scope) | var_name
         self.state_key_only().or_else(|| var_name.map(String::from))
     }
 
-    #[allow(dead_code)]
     #[inline]
     pub fn var_key(&self, var_name: Option<&str>) -> Option<String> {
         let state_key_only = self.state_key_only();
