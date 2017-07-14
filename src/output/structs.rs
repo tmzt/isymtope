@@ -78,6 +78,7 @@ pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<Exp
 pub struct ResolveVars {
     pub expr_context: ExpressionContext,
     pub cur_block_id: Option<String>,
+    pub cur_state_key: Option<String>,
     pub cur_scope: Option<String>,
     pub default_var: Option<String>
 }
@@ -96,16 +97,18 @@ impl ResolveVars {
         ResolveVars {
             expr_context: ExpressionContext::Normal,
             cur_block_id: None,
+            cur_state_key: None,
             cur_scope: None,
             default_var: None
         }
     }
 
-    pub fn with_scope(&self, scope: &str) -> ResolveVars {
+    pub fn with_state_key(&self, scope: &str) -> ResolveVars {
         ResolveVars {
             expr_context: self.expr_context.clone(),
             cur_block_id: self.cur_block_id.clone(),
-            cur_scope: Some(String::from(scope)),
+            cur_state_key: Some(String::from(scope)),
+            cur_scope: self.cur_scope.clone(),
             default_var: self.default_var.clone()
         }
     }
@@ -114,7 +117,8 @@ impl ResolveVars {
         ResolveVars {
             expr_context: ExpressionContext::ActionResult,
             cur_block_id: None,
-            cur_scope: Some(String::from(state_key)),
+            cur_state_key: Some(String::from(state_key)),
+            cur_scope: None,
             default_var: None
         }
     }
@@ -123,73 +127,87 @@ impl ResolveVars {
         ResolveVars {
             expr_context: ExpressionContext::Normal,
             cur_block_id: Some(String::from(block_id)),
-            cur_scope: None,
+            cur_state_key: self.cur_state_key.clone(),
+            cur_scope: self.cur_scope.clone(),
             default_var: default_var.map(String::from)
         }
     }
 
+    #[allow(dead_code)]
     #[inline]
-    pub fn maybe_scope_key(&self, var_name: Option<&str>) -> Option<String> {
+    pub fn state_key_only(&self) -> Option<String> {
+        let state_key_part = self.cur_state_key.as_ref().map_or("".into(), |s| format!("{}", s));
         let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}", s));
-        let var_part = var_name.map_or("".into(), |s| format!("{}", s));
-        if self.cur_scope.is_some() && var_name.is_some() {
-            Some(format!("{}.{}", scope_part, var_part))
-        } else if self.cur_scope.is_some() || var_name.is_some() {
-            Some(format!("{}{}", scope_part, var_part))
+
+        // (cur_state_key.cur_scope | cur_state_key | cur_scope)
+        if self.cur_state_key.is_some() && self.cur_scope.is_some() {
+            Some(format!("{}.{}", state_key_part, scope_part))
+        } else if self.cur_state_key.is_some() || self.cur_scope.is_some() {
+            Some(format!("{}{}", state_key_part, scope_part))
         } else {
             None
         }
     }
 
+    #[allow(dead_code)]
     #[inline]
-    pub fn scope_key(&self, var_name: Option<&str>) -> String {
-        self.maybe_scope_key(var_name).map_or("".into(), |s| s)
+    pub fn state_lookup_key(&self, var_name: Option<&str>) -> Option<String> {
+        // (cur_state_key.cur_scope | cur_state_key | cur_scope) | var_name
+        self.state_key_only().or_else(|| var_name.map(String::from))
     }
 
+    #[allow(dead_code)]
     #[inline]
-    pub fn action_type(&self, action_name: Option<&str>) -> String {
-        self.scope_key(action_name).to_uppercase()
+    pub fn var_key(&self, var_name: Option<&str>) -> Option<String> {
+        let state_key_only = self.state_key_only();
+        if let (Some(ref state_key_part), Some(var_part)) = (state_key_only, var_name) {
+            Some(format!("{}.{}", state_key_part, var_part))
+        } else {
+            var_name.map(String::from)
+        }
+    }
+
+    // #[inline]
+    // pub fn maybe_key(&self, var_name: Option<&str>) -> Option<String> {
+    //     let state_key_part = self.cur_state_key.as_ref().map_or("".into(), |s| format!("{}", s));
+    //     let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}", s));
+    //     let var_part = var_name.map_or("".into(), |s| format!("{}", s));
+    //     if self.cur_state_key.is_some() && self.cur_scope.is_some() && var_name.is_some() {
+    //         Some(format!("{}.{}.{}", state_key_part, scope_part, var_part))
+    //     } else if self.cur_scope.is_some() && var_name.is_some() {
+    //         Some(format!("{}.{}", scope_part, var_part))
+    //     } else if self.cur_scope.is_some() || var_name.is_some() {
+    //         Some(format!("{}{}", scope_part, var_part))
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    #[inline]
+    pub fn action_type(&self, action_name: &str) -> String {
+        self.var_key(Some(action_name)).map(|s| s.to_uppercase()).map_or("".into(), |s| s)
+        //format!("{}{}", state_key.map_or("".into(), |s| format!("{}.", s.to_uppercase())), action_name)
     }
 
     #[inline]
     pub fn var_reference(&self, is_scope_var: bool, var_name: Option<&str>) -> String {
-        let scope_key = self.maybe_scope_key(var_name);
-        let prefix = match self.expr_context {
+        let var_key = self.var_key(var_name);
+
+        let scope_prefix = match self.expr_context {
             ExpressionContext::ActionResult => Some("state"),
             _ if is_scope_var => Some("store.getState()"),
             _ => None
         };
-        // FIXME
-        // TODO: Split cur_scope and cur_state_key, leave off cur_state_key when in ActionResult context
-        if let ExpressionContext::ActionResult = self.expr_context {
-            return format!("{}", prefix.unwrap_or(""));
-        };
-        
-        if scope_key.is_some() && prefix.is_some() {
-            format!("{}.{}", prefix.unwrap_or(""), scope_key.as_ref().map_or("", |s| s))
+
+        let scope_part = scope_prefix.map_or("", |s| s);
+        let var_part = var_key.as_ref().map_or("", |s| s);
+
+        if scope_prefix.is_some() && var_key.is_some() {
+            format!("{}.{}", scope_part, var_part)
         } else {
-            format!("{}{}", prefix.unwrap_or(""), scope_key.as_ref().map_or("", |s| s))
+            format!("{}{}", scope_part, var_part)
         }
     }
-
-    // pub fn var_reference(&self, is_scope_var: bool, var_name: Option<&str>) -> String {
-    //     match self.expr_context {
-    //         ExpressionContext::ActionResult => {
-    //             let var_part = var_name.map_or("".into(), |s| format!(".{}", s));
-    //             format!("state{}", var_part)
-    //         },
-    //         _ if is_scope_var => {
-    //             let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!(".{}", s));
-    //             let var_part = var_name.map_or("".into(), |s| format!(".{}", s));
-    //             format!("store.getState(){}{}", scope_part, var_part)
-    //         },
-    //         _ => {
-    //             let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}.", s));
-    //             let var_part = var_name.map_or("".into(), |s| format!("{}", s));
-    //             format!("{}{}", scope_part, var_part)
-    //         }
-    //     }
-    // }
 }
 
 #[derive(Debug, Clone)]

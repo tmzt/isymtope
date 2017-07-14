@@ -29,7 +29,7 @@ impl<'input> FormatHtml<'input> {
         for (ref reducer_key, ref reducer_data) in processing.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
-            let reducer_scope = resolve.with_scope(reducer_key);
+            let reducer_scope = resolve.with_state_key(reducer_key);
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
@@ -37,7 +37,7 @@ impl<'input> FormatHtml<'input> {
                     let action_type =
                         format!("{}.{}", reducer_key.to_uppercase(), action_data.action_type);
                     */
-                    let action_ty = reducer_scope.action_type(Some(&action_data.action_type));
+                    let action_ty = reducer_scope.action_type(&action_data.action_type);
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
@@ -103,13 +103,13 @@ impl<'input> FormatHtml<'input> {
             let resolve = resolve;
 
             if let &Some(ref action_ops) = action_ops {
-                let action_scope = event_scope.as_ref().map(|event_scope| resolve.with_scope(event_scope));
+                let action_scope = event_scope.as_ref().map(|event_scope| resolve.with_state_key(event_scope));
                 let resolve = action_scope.as_ref().map_or(resolve, |r| r);
 
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            let action_ty = resolve.action_type(Some(action_key.as_str()));
+                            let action_ty = resolve.action_type(action_key.as_str());
                             /*
                             // TODO: Fix type
                             let action_prefix = scope.as_ref()

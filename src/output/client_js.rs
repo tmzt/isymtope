@@ -20,8 +20,8 @@ pub fn write_js_var_reference(w: &mut io::Write,
                                     processing: &DocumentState,
                                     resolve: &ResolveVars)
                                     -> Result {
-    let scope_key = resolve.scope_key(var_name);
-    let is_scope_key = processing.default_state_map.contains_key(scope_key.as_str());
+    let state_key = resolve.state_lookup_key(var_name);
+    let is_scope_key = state_key.map_or(false, |s| processing.default_state_map.contains_key(s.as_str()));
     let var_reference = resolve.var_reference(is_scope_key, var_name);
     write!(w, "{}", var_reference)?;
     Ok(())
@@ -61,41 +61,34 @@ pub fn write_js_expr_value<'input>(w: &mut io::Write,
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-            let scope_key = resolve.scope_key(None);
-            if let Some(entry) = processing.default_state_map.get(scope_key.as_str()) {
-                if let Some(VarType::ArrayVar(..)) = entry.0 {
-                    write!(w, "((")?;
-                    write_js_var_reference(w, None, processing, resolve)?;
-                    write!(w, ").concat(")?;
-                    write_js_expr_value(w, r, processing, resolve)?;
-                    write!(w, "))")?;
-                } else {
-                    write!(w, "((")?;
-                    write_js_var_reference(w, None, processing, resolve)?;
-                    write!(w, ") + (")?;
-                    write_js_expr_value(w, r, processing, resolve)?;
-                    write!(w, "))")?;
-                }
+            let state_key = resolve.state_lookup_key(None);
+            let state_ty = state_key.as_ref()
+                .map_or(None, |s| processing.default_state_map.get(s.as_str()));
+
+            write!(w, "(")?;
+            write_js_var_reference(w, None, processing, resolve)?;
+            if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
+                write!(w, ").concat(")?;
+            } else {
+                write!(w, "+ (")?;
             }
+            write_js_expr_value(w, r, processing, resolve)?;
+            write!(w, ")")?;
         }
 
         &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-            let scope_key = resolve.scope_key(Some(var_name));
-            if let Some(entry) = processing.default_state_map.get(scope_key.as_str()) {
-                if let Some(VarType::ArrayVar(..)) = entry.0 {
-                    write!(w, "((")?;
-                    write_js_var_reference(w, Some(var_name.as_str()), processing, resolve)?;
-                    write!(w, ").concat(")?;
-                    write_js_expr_value(w, r, processing, resolve)?;
-                    write!(w, "))")?;
-                } else {
-                    write!(w, "((")?;
-                    write_js_var_reference(w, Some(var_name.as_str()), processing, resolve)?;
-                    write!(w, ") + (")?;
-                    write_js_expr_value(w, r, processing, resolve)?;
-                    write!(w, "))")?;
-                }
+            let state_ty = resolve.state_lookup_key(Some(var_name.as_str())).as_ref()
+                .map_or(None, |s| processing.default_state_map.get(s.as_str()));
+
+            write!(w, "(")?;
+            write_js_var_reference(w, None, processing, resolve)?;
+            if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
+                write!(w, ").concat(")?;
+            } else {
+                write!(w, "+ (")?;
             }
+            write_js_expr_value(w, r, processing, resolve)?;
+            write!(w, ")")?;
         }
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
@@ -303,7 +296,7 @@ pub fn write_js_incdom_ops_content<'input>(w: &mut io::Write,
                                           ref component_key,
                                           ref props,
                                           ref lens) => {
-                let component_scope = lens.as_ref().map(|lens| resolve.with_scope(lens));
+                let component_scope = lens.as_ref().map(|lens| resolve.with_state_key(lens));
                 let resolve = component_scope.as_ref().map_or(resolve, |r| r);
 
                 let comp = processing.comp_map.get(component_ty.as_str());
