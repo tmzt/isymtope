@@ -10,8 +10,6 @@ use output::client_js::*;
 
 pub struct FormatHtml<'input> {
     doc: &'input DocumentState<'input>,
-    events_vec: EventsVec,
-    keys_vec: Vec<String>,
     output_html: WriteHtmlOpsContent<'input>
 }
 
@@ -19,8 +17,6 @@ impl<'input> FormatHtml<'input> {
     pub fn with_doc<'inp>(doc: &'inp DocumentState<'inp>) -> FormatHtml<'inp> {
         FormatHtml {
             doc: doc,
-            events_vec: Default::default(),
-            keys_vec: Default::default(),
             output_html: WriteHtmlOpsContent::with_doc(doc)
         }
     }
