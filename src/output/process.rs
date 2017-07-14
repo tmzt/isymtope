@@ -22,7 +22,6 @@ impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
             reducer_key_data: self.processing.reducer_key_data,
             default_state_map: self.processing.default_state_map
         }
-
     }
 }
 

@@ -1,5 +1,6 @@
 
 use std::io;
+use std::slice::Iter;
 
 use parser::ast::*;
 use parser::store::*;
@@ -8,23 +9,30 @@ use output::client_html::*;
 use output::client_js::*;
 
 pub struct FormatHtml<'input> {
-    doc: DocumentState<'input>,
+    doc: &'input DocumentState<'input>,
+    events_vec: EventsVec,
+    keys_vec: Vec<String>,
+    output_html: WriteHtmlOpsContent<'input>
 }
 
 impl<'input> FormatHtml<'input> {
-    pub fn from_state<'inp>(doc: DocumentState<'inp>) -> FormatHtml<'inp> {
-        FormatHtml { doc: doc }
+    pub fn with_doc<'inp>(doc: &'inp DocumentState<'inp>) -> FormatHtml<'inp> {
+        FormatHtml {
+            doc: doc,
+            events_vec: Default::default(),
+            keys_vec: Default::default(),
+            output_html: WriteHtmlOpsContent::with_doc(doc)
+        }
     }
 
-    pub fn write_js_store(&self,
+    pub fn write_js_store(&mut self,
                           w: &mut io::Write,
-                          processing: &DocumentState,
                           resolve: &ResolveVars)
                           -> Result {
         // TODO: Implement default scope?
 
         // Generate script
-        for (ref reducer_key, ref reducer_data) in processing.reducer_key_data.iter() {
+        for (ref reducer_key, ref reducer_data) in self.doc.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
             let reducer_scope = resolve.with_state_key(reducer_key);
@@ -43,7 +51,7 @@ impl<'input> FormatHtml<'input> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            write_js_expr_value(w, simple_expr, processing, &action_scope)?;
+                            write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -57,7 +65,7 @@ impl<'input> FormatHtml<'input> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                write_js_expr_value(w, default_expr, &self.doc, &resolve)?;
+                write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -68,7 +76,7 @@ impl<'input> FormatHtml<'input> {
         }
 
         writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
-        for (ref reducer_key, _) in processing.reducer_key_data.iter() {
+        for (ref reducer_key, _) in self.doc.reducer_key_data.iter() {
             writeln!(w, "    {}: {}Reducer,", &reducer_key, &reducer_key)?;
         }
         writeln!(w, "  }});")?;
@@ -81,12 +89,12 @@ impl<'input> FormatHtml<'input> {
     #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
-                                   events_vec: &EventsVec,
+                                   events_iter: Iter<EventsItem>,
                                    resolve: &ResolveVars)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
-            events_vec {
+            events_iter {
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,
                      "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
@@ -125,10 +133,10 @@ impl<'input> FormatHtml<'input> {
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    pub fn write_html_document(&self, w: &mut io::Write) -> Result {
+    pub fn write_html_document(&mut self, w: &mut io::Write) -> Result {
         // Output state
-        let mut events_vec: EventsVec = Default::default();
-        let mut keys_vec: Vec<String> = Default::default();
+        // let mut events_vec: EventsVec = Default::default();
+        // let mut keys_vec: Vec<String> = Default::default();
 
         // Output
         write!(w, "{}", indoc!(r#"
@@ -146,14 +154,9 @@ impl<'input> FormatHtml<'input> {
         // let resolve = ResolveVars::default_resolver("counter");
         let resolve = ResolveVars::default_resolver();
 
-        write_html_ops_content(w,
-                               self.doc.root_block.ops_vec.iter(),
-                               &mut events_vec,
-                               &mut keys_vec,
-                               &self.doc,
-                               &resolve,
-                               None)
-            ?;
+        let ops_iter = self.doc.root_block.ops_vec.iter();
+
+        self.output_html.write_html_ops_content(w, ops_iter, &resolve, None)?;
 
         write!(w,
                "{}",
@@ -167,7 +170,7 @@ impl<'input> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                write_js_incdom_component(w, component_ty, ops.iter(), &self.doc, &resolve, None)?;
+                write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &resolve, None)?;
             };
         }
 
@@ -179,7 +182,7 @@ impl<'input> FormatHtml<'input> {
         // Render content nodes as incdom calls
         write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
-                                    &self.doc,
+                                    &mut self.doc,
                                     &resolve,
                                     None,
                                     None)
@@ -202,7 +205,7 @@ impl<'input> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.write_js_store(w, &self.doc, &resolve)?;
+        self.write_js_store(w, &resolve)?;
 
         write!(w,
                "{}",
@@ -220,7 +223,8 @@ impl<'input> FormatHtml<'input> {
             ?;
 
         // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
-        for key in keys_vec.iter() {
+        let keys_iter = self.output_html.keys_vec.iter();
+        for key in keys_iter {
             writeln!(w,
                      "    markExisting(document.querySelector(\"[key='{}']\"));",
                      key)
@@ -228,7 +232,8 @@ impl<'input> FormatHtml<'input> {
         }
 
         // Event handlers
-        self.write_js_event_bindings(w, &events_vec, &resolve)?;
+        let events_iter = self.output_html.events_vec.iter();
+        self.write_js_event_bindings(w, events_iter, &resolve)?;
 
         write!(w,
                "{}",

@@ -3,7 +3,7 @@
 use parser::store::DefaultScopeNodeType;
 use parser::loc::Loc;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Template {
     pub children: Vec<Loc<NodeType, (usize, usize)>>
 }
@@ -83,7 +83,8 @@ pub struct ComponentDefinitionType {
 pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
-pub type EventsVec = Vec<(String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>,Option<String>)>;
+pub type EventsItem = (String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>,Option<String>);
+pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;
 
 pub type Lens = (String);

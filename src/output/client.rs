@@ -21,15 +21,8 @@ impl<'input, 'doc: 'input> ClientOutput<'input> {
         processing.process_document()?;
 
         let doc: DocumentState<'input> = processing.into();
-        let format = FormatHtml::from_state(doc);
+        let mut format = FormatHtml::with_doc(&doc);
 
-        /*
-        let mut doc_str = String::new();
-        format.write_html_document(&mut doc_str)?;
-
-        w.write_fmt(format_args!("{}", doc_str))?;
-        Ok(())
-        */
         format.write_html_document(w)
     }
 }

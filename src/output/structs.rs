@@ -244,7 +244,6 @@ pub struct BlockProcessingState {
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState<'inp> {
     root_block: BlockProcessingState,
-    pub keys_vec: Vec<String>,
     pub comp_map: ComponentMap<'inp>,
     pub reducer_key_data: ReducerKeyMap<'inp>,
     pub default_state_map: DefaultStateMap<'inp>,
