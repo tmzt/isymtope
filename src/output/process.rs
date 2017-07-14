@@ -1,19 +1,11 @@
 
 use std::clone::Clone;
-use std::cell::Cell;
-use std::slice::Iter;
-use std::fmt;
-use std::collections::hash_map::HashMap;
-use std::result;
+
 use parser::ast::*;
 use parser::store::*;
 use parser::api::*;
 use parser::util::allocate_element_key;
 use output::structs::*;
-
-use super::client_html::*;
-use super::client_js::*;
-use super::client_misc::*;
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
@@ -51,9 +43,6 @@ impl<'input> ProcessDocument<'input> {
                                         nodes: &'input Vec<ScopeNodeType>,
                                         reducer_key_prefix: Option<&str>)
                                         -> DocumentProcessingResult<()> {
-        //let ref reducer_key_data = self.processing.reducer_key_data;
-
-        //let scope_resolve = ResolveVars::default_resolver(reducer_key);
 
         for ref node in nodes {
             match *node {
@@ -322,11 +311,6 @@ impl<'input> ProcessDocument<'input> {
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
-                //let forvar_default = &format!("__forvar_{}", block_id);
-                //let forvar_prefix = &format!("__forvar_{}{}", block_id, ele.as_ref().map_or("", |s| s));
-
-                //let forvar_resolve = ResolveVars::for_block_scope(false, &block_id, ele.as_ref().map(String::as_str), resolve);
-
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
                         // FIXME: forvar resolve
@@ -349,7 +333,6 @@ impl<'input> ProcessDocument<'input> {
                                         -> DocumentProcessingResult<()> {
         let name: &'input str = component_data.name.as_str();
         let mut block = BlockProcessingState::default();
-        let resolve = ResolveVars::default();
 
         if let Some(ref children) = component_data.children {
             for ref child in children {
@@ -401,7 +384,6 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
-    #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn process_document(&mut self) -> DocumentProcessingResult<()> {
         let mut root_block = BlockProcessingState::default();

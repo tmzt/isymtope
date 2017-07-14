@@ -26,7 +26,7 @@ pub struct ReducerActionData {
     pub action_type: String,
     pub state_expr: Option<ActionStateExprType>,
     pub state_ty: Option<VarType>,
-    pub default_scope_key: Option<String>
+    pub default_scope_key: Option<String>,
 }
 
 impl ReducerActionData {
@@ -38,7 +38,7 @@ impl ReducerActionData {
             action_type: String::from(action_type),
             state_expr: None,
             state_ty: None,
-            default_scope_key: default_scope_key
+            default_scope_key: default_scope_key,
         }
     }
 }
@@ -52,7 +52,7 @@ pub enum ElementOp {
     InstanceComponent(String, Option<String>, Option<Vec<Prop>>, Option<String>),
     StartBlock(String),
     EndBlock(String),
-    MapCollection(String, Option<String>, ExprValue)
+    MapCollection(String, Option<String>, ExprValue),
 }
 
 #[allow(dead_code)]
@@ -60,13 +60,13 @@ pub enum ElementOp {
 pub enum PrimitiveVarType {
     StringVar,
     Number,
-    Expr
+    Expr,
 }
 
 #[derive(Debug, Clone)]
 pub enum VarType {
     ArrayVar(Option<Box<VarType>>),
-    Primitive(PrimitiveVarType)
+    Primitive(PrimitiveVarType),
 }
 
 pub type OpsVec = Vec<ElementOp>;
@@ -80,26 +80,29 @@ pub struct ResolveVars {
     pub cur_block_id: Option<String>,
     pub cur_state_key: Option<String>,
     pub cur_scope: Option<String>,
-    pub default_var: Option<String>
+    pub default_var: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub enum ExpressionContext {
     Normal,
-    ActionResult
+    ActionResult,
 }
-impl Default for ExpressionContext { fn default() -> Self { ExpressionContext::Normal } }
+impl Default for ExpressionContext {
+    fn default() -> Self {
+        ExpressionContext::Normal
+    }
+}
 
-//#[allow(dead_code)]
+// #[allow(dead_code)]
 impl ResolveVars {
-
     pub fn default_resolver() -> ResolveVars {
         ResolveVars {
             expr_context: ExpressionContext::Normal,
             cur_block_id: None,
             cur_state_key: None,
             cur_scope: None,
-            default_var: None
+            default_var: None,
         }
     }
 
@@ -109,7 +112,7 @@ impl ResolveVars {
             cur_block_id: self.cur_block_id.clone(),
             cur_state_key: Some(String::from(scope)),
             cur_scope: self.cur_scope.clone(),
-            default_var: self.default_var.clone()
+            default_var: self.default_var.clone(),
         }
     }
 
@@ -119,7 +122,7 @@ impl ResolveVars {
             cur_block_id: None,
             cur_state_key: Some(String::from(state_key)),
             cur_scope: None,
-            default_var: None
+            default_var: None,
         }
     }
 
@@ -129,7 +132,7 @@ impl ResolveVars {
             cur_block_id: Some(String::from(block_id)),
             cur_state_key: self.cur_state_key.clone(),
             cur_scope: self.cur_scope.clone(),
-            default_var: default_var.map(String::from)
+            default_var: default_var.map(String::from),
         }
     }
 
@@ -160,6 +163,8 @@ impl ResolveVars {
     #[inline]
     pub fn var_key(&self, var_name: Option<&str>) -> Option<String> {
         let state_key_only = self.state_key_only();
+
+        // state_key_only.var_name | var_name
         if let (Some(ref state_key_part), Some(var_part)) = (state_key_only, var_name) {
             Some(format!("{}.{}", state_key_part, var_part))
         } else {
@@ -167,26 +172,9 @@ impl ResolveVars {
         }
     }
 
-    // #[inline]
-    // pub fn maybe_key(&self, var_name: Option<&str>) -> Option<String> {
-    //     let state_key_part = self.cur_state_key.as_ref().map_or("".into(), |s| format!("{}", s));
-    //     let scope_part = self.cur_scope.as_ref().map_or("".into(), |s| format!("{}", s));
-    //     let var_part = var_name.map_or("".into(), |s| format!("{}", s));
-    //     if self.cur_state_key.is_some() && self.cur_scope.is_some() && var_name.is_some() {
-    //         Some(format!("{}.{}.{}", state_key_part, scope_part, var_part))
-    //     } else if self.cur_scope.is_some() && var_name.is_some() {
-    //         Some(format!("{}.{}", scope_part, var_part))
-    //     } else if self.cur_scope.is_some() || var_name.is_some() {
-    //         Some(format!("{}{}", scope_part, var_part))
-    //     } else {
-    //         None
-    //     }
-    // }
-
     #[inline]
     pub fn action_type(&self, action_name: &str) -> String {
         self.var_key(Some(action_name)).map(|s| s.to_uppercase()).map_or("".into(), |s| s)
-        //format!("{}{}", state_key.map_or("".into(), |s| format!("{}.", s.to_uppercase())), action_name)
     }
 
     #[inline]
@@ -196,7 +184,7 @@ impl ResolveVars {
         let scope_prefix = match self.expr_context {
             ExpressionContext::ActionResult => Some("state"),
             _ if is_scope_var => Some("store.getState()"),
-            _ => None
+            _ => None,
         };
 
         let scope_part = scope_prefix.map_or("", |s| s);
@@ -227,18 +215,29 @@ use std::cell::Cell;
 
 #[derive(Debug)]
 pub enum DocumentProcessingError {
-    UnexpectedError { pos: usize },
     ParsingError(ParsingError),
     IOError(io::Error),
-    FormatError(fmt::Error)
+    FormatError(fmt::Error),
 }
 
 pub type DocumentProcessingResult<T> = result::Result<T, DocumentProcessingError>;
 pub type Result = DocumentProcessingResult<()>;
 
-impl From<ParsingError> for DocumentProcessingError { fn from(err: ParsingError) -> Self { DocumentProcessingError::ParsingError(err) } }
-impl From<fmt::Error> for DocumentProcessingError { fn from(err: fmt::Error) -> Self { DocumentProcessingError::FormatError(err) } }
-impl From<io::Error> for DocumentProcessingError { fn from(err: io::Error) -> Self { DocumentProcessingError::IOError(err) } }
+impl From<ParsingError> for DocumentProcessingError {
+    fn from(err: ParsingError) -> Self {
+        DocumentProcessingError::ParsingError(err)
+    }
+}
+impl From<fmt::Error> for DocumentProcessingError {
+    fn from(err: fmt::Error) -> Self {
+        DocumentProcessingError::FormatError(err)
+    }
+}
+impl From<io::Error> for DocumentProcessingError {
+    fn from(err: io::Error) -> Self {
+        DocumentProcessingError::IOError(err)
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {
@@ -254,20 +253,8 @@ pub struct DocumentProcessingState<'inp> {
     pub reducer_key_data: ReducerKeyMap<'inp>,
     pub default_state_map: DefaultStateMap<'inp>,
     pub has_default_state_key: bool,
-    pub default_state_key: Cell<Option<&'inp str>>
+    pub default_state_key: Cell<Option<&'inp str>>,
 }
-
-/*
-impl<'inp> Default for DocumentProcessingState<'inp> {
-    fn default() -> DocumentProcessingState<'inp> {
-        DocumentProcessingState {
-            keys_vec: Default::default(),
-            comp_map: Default::default(),
-            reducer_key_data: Default::default(),
-            default_state_map: Default::default()
-        }
-    }
-}*/
 
 #[derive(Debug)]
 pub struct DocumentState<'inp> {
@@ -275,5 +262,5 @@ pub struct DocumentState<'inp> {
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap<'inp>,
     pub reducer_key_data: ReducerKeyMap<'inp>,
-    pub default_state_map: DefaultStateMap<'inp>
+    pub default_state_map: DefaultStateMap<'inp>,
 }

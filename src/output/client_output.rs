@@ -1,13 +1,11 @@
 
 use std::io;
-use std::fmt;
-use std::collections::hash_map::HashMap;
+
 use parser::ast::*;
 use parser::store::*;
-
-use super::structs::*;
-use super::client_html::*;
-use super::client_js::*;
+use output::structs::*;
+use output::client_html::*;
+use output::client_js::*;
 
 pub struct FormatHtml<'input> {
     doc: DocumentState<'input>,
@@ -33,22 +31,19 @@ impl<'input> FormatHtml<'input> {
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
-                    /*
-                    let action_type =
-                        format!("{}.{}", reducer_key.to_uppercase(), action_data.action_type);
-                    */
                     let action_ty = reducer_scope.action_type(&action_data.action_type);
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
                             let action_scope = reducer_scope.action_result(reducer_key);
-                            writeln!(w, "if ('undefined' !== typeof action && '{}' == action.type) {{", action_ty)?;
-                            write!(w,   "  return ")?;
+                            writeln!(w,
+                                     "if ('undefined' !== typeof action && '{}' == action.type) \
+                                      {{",
+                                     action_ty)
+                                ?;
+                            write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            write_js_expr_value(w,
-                                                simple_expr,
-                                                processing,
-                                                &action_scope)?;
+                            write_js_expr_value(w, simple_expr, processing, &action_scope)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -61,9 +56,9 @@ impl<'input> FormatHtml<'input> {
             // Default expression used to initialize state
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
-                //write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
+                // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
                 write_js_expr_value(w, default_expr, &self.doc, &resolve)?;
-                //write!(w, "}})")?;
+                // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
             }
@@ -103,7 +98,8 @@ impl<'input> FormatHtml<'input> {
             let resolve = resolve;
 
             if let &Some(ref action_ops) = action_ops {
-                let action_scope = event_scope.as_ref().map(|event_scope| resolve.with_state_key(event_scope));
+                let action_scope = event_scope.as_ref()
+                    .map(|event_scope| resolve.with_state_key(event_scope));
                 let resolve = action_scope.as_ref().map_or(resolve, |r| r);
 
                 for ref action_op in action_ops {
@@ -147,7 +143,7 @@ impl<'input> FormatHtml<'input> {
         "#))?;
 
         // FIXME
-        //let resolve = ResolveVars::default_resolver("counter");
+        // let resolve = ResolveVars::default_resolver("counter");
         let resolve = ResolveVars::default_resolver();
 
         write_html_ops_content(w,
@@ -156,7 +152,8 @@ impl<'input> FormatHtml<'input> {
                                &mut keys_vec,
                                &self.doc,
                                &resolve,
-                               None)?;
+                               None)
+            ?;
 
         write!(w,
                "{}",
@@ -170,12 +167,7 @@ impl<'input> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                write_js_incdom_component(w,
-                                          component_ty,
-                                          ops.iter(),
-                                          &self.doc,
-                                          &resolve,
-                                          None)?;
+                write_js_incdom_component(w, component_ty, ops.iter(), &self.doc, &resolve, None)?;
             };
         }
 
@@ -185,12 +177,13 @@ impl<'input> FormatHtml<'input> {
         writeln!(w, "function render(store) {{")?;
 
         // Render content nodes as incdom calls
-        write_js_incdom_ops_content(w, 
+        write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &self.doc,
                                     &resolve,
                                     None,
-                                    None)?;
+                                    None)
+            ?;
 
         writeln!(w, "}}")?;
 

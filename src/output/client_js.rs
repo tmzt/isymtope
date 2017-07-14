@@ -1,18 +1,9 @@
 
 use std::io;
-use std::fmt;
-
-use std::clone::Clone;
 use std::slice::Iter;
-use std::collections::hash_map::HashMap;
-use parser::ast::*;
-use parser::store::*;
-use parser::api::*;
-use parser::util::allocate_element_key;
-use output::structs::*;
 
-use super::client_html::*;
-use super::client_misc::*;
+use parser::ast::*;
+use output::structs::*;
 
 #[inline]
 pub fn write_js_var_reference(w: &mut io::Write,
