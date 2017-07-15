@@ -10,14 +10,16 @@ use output::client_js::*;
 
 pub struct FormatHtml<'input> {
     doc: &'input DocumentState<'input>,
-    output_html: WriteHtmlOpsContent<'input>
+    output_html: WriteHtmlOpsContent<'input>,
+    output_js: WriteJsOps<'input>,
 }
 
 impl<'input> FormatHtml<'input> {
     pub fn with_doc<'inp>(doc: &'inp DocumentState<'inp>) -> FormatHtml<'inp> {
         FormatHtml {
             doc: doc,
-            output_html: WriteHtmlOpsContent::with_doc(doc)
+            output_html: WriteHtmlOpsContent::with_doc(doc),
+            output_js: WriteJsOps::with_doc(doc),
         }
     }
 
@@ -47,13 +49,14 @@ impl<'input> FormatHtml<'input> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
+                            self.output_js.write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
                         }
                         _ => {}
                     }
+             
                 }
             }
 
@@ -61,7 +64,7 @@ impl<'input> FormatHtml<'input> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
+                self.output_js.write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -93,7 +96,7 @@ impl<'input> FormatHtml<'input> {
             events_iter {
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,
-                     "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
+                     "  document.querySelector(\"[data-id='{}']\").addEventListener(\"{}\", \
                       function(event) {{",
                      element_key,
                      event_name)
@@ -152,7 +155,7 @@ impl<'input> FormatHtml<'input> {
 
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
-        self.output_html.write_html_ops_content(w, ops_iter, &resolve, None)?;
+        self.output_html.write_html_ops_content(w, ops_iter, &resolve)?;
 
         write!(w,
                "{}",
@@ -166,7 +169,7 @@ impl<'input> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &resolve, None)?;
+                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &resolve, None)?;
             };
         }
 
@@ -176,12 +179,10 @@ impl<'input> FormatHtml<'input> {
         writeln!(w, "function render(store) {{")?;
 
         // Render content nodes as incdom calls
-        write_js_incdom_ops_content(w,
+        self.output_js.write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &mut self.doc,
-                                    &resolve,
-                                    None,
-                                    None)
+                                    &resolve)
             ?;
 
         writeln!(w, "}}")?;
@@ -222,7 +223,7 @@ impl<'input> FormatHtml<'input> {
         let keys_iter = self.output_html.keys_vec.iter();
         for key in keys_iter {
             writeln!(w,
-                     "    markExisting(document.querySelector(\"[key='{}']\"));",
+                     "    markExisting(document.querySelector(\"[data-id='{}']\"));",
                      key)
                 ?;
         }

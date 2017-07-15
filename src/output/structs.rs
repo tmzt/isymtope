@@ -80,6 +80,10 @@ pub struct ResolveVars {
     pub cur_state_key: Option<String>,
     pub cur_scope: Option<String>,
     pub default_var: Option<String>,
+    pub element_key_prefix: Option<String>,
+    pub element_key_suffix: Option<String>,
+    pub element_key_var_prefix: Option<String>,
+    pub element_key_var_suffix: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +105,10 @@ impl ResolveVars {
             cur_state_key: None,
             cur_scope: None,
             default_var: None,
+            element_key_prefix: None,
+            element_key_suffix: None,
+            element_key_var_prefix: None,
+            element_key_var_suffix: None,
         }
     }
 
@@ -111,6 +119,10 @@ impl ResolveVars {
             cur_state_key: Some(String::from(scope)),
             cur_scope: self.cur_scope.clone(),
             default_var: self.default_var.clone(),
+            element_key_prefix: None,
+            element_key_suffix: None,
+            element_key_var_prefix: None,
+            element_key_var_suffix: None,
         }
     }
 
@@ -121,6 +133,10 @@ impl ResolveVars {
             cur_state_key: Some(String::from(state_key)),
             cur_scope: None,
             default_var: None,
+            element_key_prefix: None,
+            element_key_suffix: None,
+            element_key_var_prefix: None,
+            element_key_var_suffix: None,
         }
     }
 
@@ -131,6 +147,10 @@ impl ResolveVars {
             cur_state_key: self.cur_state_key.clone(),
             cur_scope: self.cur_scope.clone(),
             default_var: default_var.map(String::from),
+            element_key_prefix: self.element_key_prefix.clone(),
+            element_key_suffix: self.element_key_suffix.clone(),
+            element_key_var_prefix: self.element_key_prefix.clone(),
+            element_key_var_suffix: Some(format!("__foridx_{}", block_id)),
         }
     }
 
@@ -192,6 +212,38 @@ impl ResolveVars {
             format!("{}{}", scope_part, var_part)
         }
     }
+
+    #[inline]
+    pub fn element_key_var_prefix(&self) -> Option<&str> {
+        self.element_key_var_prefix.as_ref().map(|s| s.as_str())
+    }
+
+    #[inline]
+    pub fn element_key_var_suffix(&self) -> Option<&str> {
+        self.element_key_var_suffix.as_ref().map(|s| s.as_str())
+    }
+
+    pub fn base_element_key<S: AsRef<str>>(&self, key: S) -> String {
+        let element_key_prefix = self.element_key_prefix.as_ref().map_or("".into(), |s| format!("{}_", s));
+        let element_key_suffix = self.element_key_suffix.as_ref().map_or("".into(), |s| format!("__{}", s));
+
+        let element_key = format!("{}{}{}",
+                                element_key_prefix,
+                                key.as_ref(),
+                                element_key_suffix);
+
+        element_key
+    }
+
+    pub fn element_key_expr<S: AsRef<str>>(&self, key: S) -> String {
+        let base_key = self.base_element_key(key);
+
+        let key_var_prefix = self.element_key_var_prefix().map_or("".into(), |s| format!(" ({} + \"__\") + ", s));
+        let key_var_suffix = self.element_key_var_suffix().map_or("".into(), |s| format!("+ (\"__\" + {})", s));
+
+        format!("{}\"{}\"{}", key_var_prefix, base_key, key_var_suffix)
+    }
+
 }
 
 #[derive(Debug, Clone)]
