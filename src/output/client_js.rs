@@ -24,9 +24,27 @@ impl<'input> WriteJsOps<'input> {
         }
     }
 
+    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
+        match scope_prefix {
+            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+                format!("{}.{}", prefix, key)
+            },
+            _ => format!("{}", key)
+        }
+    }
+
+    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
+        match scope_prefix {
+            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+            },
+            _ => format!("{}", key.to_uppercase())
+        }
+    }
+
     pub fn write_js_store(&mut self,
                           w: &mut io::Write,
-                          resolve: &ResolveVars)
+                          scope_prefix: Option<&ScopePrefixType>)
                           -> Result {
         // TODO: Implement default scope?
 
@@ -34,15 +52,15 @@ impl<'input> WriteJsOps<'input> {
         for (ref reducer_key, ref reducer_data) in self.doc.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
-            let reducer_scope = resolve.with_state_key(reducer_key);
+            let reducer_scope_key = self.scope_prefix(scope_prefix, reducer_key);
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
-                    let action_ty = reducer_scope.action_type(&action_data.action_type);
+                    let action_ty = format!("{}.{}", reducer_scope_key, &action_data.action_type);
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
-                            let action_scope = reducer_scope.action_result(reducer_key);
+
                             writeln!(w,
                                      "if ('undefined' !== typeof action && '{}' == action.type) \
                                       {{",

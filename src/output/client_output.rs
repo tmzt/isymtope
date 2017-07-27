@@ -140,7 +140,7 @@ impl<'input> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.output_js.write_js_store(w, &resolve)?;
+        self.output_js.write_js_store(w, None)?;
 
         write!(w,
                "{}",
