@@ -23,68 +23,6 @@ impl<'input> FormatHtml<'input> {
         }
     }
 
-    pub fn write_js_store(&mut self,
-                          w: &mut io::Write,
-                          resolve: &ResolveVars)
-                          -> Result {
-        // TODO: Implement default scope?
-
-        // Generate script
-        for (ref reducer_key, ref reducer_data) in self.doc.reducer_key_data.iter() {
-            writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
-
-            let reducer_scope = resolve.with_state_key(reducer_key);
-
-            if let Some(ref actions) = reducer_data.actions {
-                for ref action_data in actions {
-                    let action_ty = reducer_scope.action_type(&action_data.action_type);
-
-                    match &action_data.state_expr {
-                        &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
-                            let action_scope = reducer_scope.action_result(reducer_key);
-                            writeln!(w,
-                                     "if ('undefined' !== typeof action && '{}' == action.type) \
-                                      {{",
-                                     action_ty)
-                                ?;
-                            write!(w, "  return ")?;
-                            // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            // self.output_js.write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
-                            writeln!(w, ";")?;
-                            // writeln!(w, "}})")?;
-                            writeln!(w, "}}")?;
-                        }
-                        _ => {}
-                    }
-             
-                }
-            }
-
-            // Default expression used to initialize state
-            write!(w, "    return state || ")?;
-            if let Some(ref default_expr) = reducer_data.default_expr {
-                // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                // self.output_js.write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
-                // write!(w, "}})")?;
-            } else {
-                write!(w, "null")?;
-            }
-            writeln!(w, ";")?;
-
-            writeln!(w, "  }}")?;
-        }
-
-        writeln!(w, "  var rootReducer = Redux.combineReducers({{")?;
-        for (ref reducer_key, _) in self.doc.reducer_key_data.iter() {
-            writeln!(w, "    {}: {}Reducer,", &reducer_key, &reducer_key)?;
-        }
-        writeln!(w, "  }});")?;
-
-        writeln!(w, "  var store = Redux.createStore(rootReducer, {{}});")?;
-
-        Ok(())
-    }
-
     #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
@@ -202,7 +140,7 @@ impl<'input> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.write_js_store(w, &resolve)?;
+        self.output_js.write_js_store(w, &resolve)?;
 
         write!(w,
                "{}",
