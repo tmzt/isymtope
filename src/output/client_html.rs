@@ -11,7 +11,7 @@ use output::client_misc::*;
 use output::client_output::*;
 use output::client_ops_writer::*;
 use output::client_ops_stream_writer::*;
-use output::client_ops_js_stream_writer::*;
+use output::client_ops_html_stream_writer::*;
 
 
 pub struct WriteHtmlOpsContent<'input> {
@@ -54,7 +54,7 @@ impl<'input> WriteHtmlOpsContent<'input> {
                                   ops: Iter<ElementOp>,
                                   resolve: &ResolveVars)
                                   -> Result {
-        let mut stream_writer = ElementOpsJsStreamWriter {};
+        let mut stream_writer = ElementOpsHtmlStreamWriter::new();
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
 
         ops_writer.write_ops_content(w, ops, &self.doc, None)?;
