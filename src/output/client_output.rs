@@ -7,19 +7,24 @@ use parser::store::*;
 use output::structs::*;
 use output::client_html::*;
 use output::client_js::*;
+use output::client_ops_js_stream_writer::*;
 
-pub struct FormatHtml<'input> {
+
+pub struct FormatHtml<'input: 'scope, 'scope> {
     doc: &'input DocumentState<'input>,
     output_html: WriteHtmlOpsContent<'input>,
-    output_js: WriteJsOps<'input>,
+    output_js: WriteJsOps<'input, 'scope>,
 }
 
-impl<'input> FormatHtml<'input> {
-    pub fn with_doc<'inp>(doc: &'inp DocumentState<'inp>) -> FormatHtml<'inp> {
+impl<'input: 'scope, 'scope> FormatHtml<'input, 'scope> {
+    pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
+        let js_value_writer = CommonJsValueStreamWriter::new();
+        let mut js_stream_writer = ElementOpsJsStreamWriter::with_value_writer(&js_value_writer);
+
         FormatHtml {
             doc: doc,
             output_html: WriteHtmlOpsContent::with_doc(doc),
-            output_js: WriteJsOps::with_doc(doc),
+            output_js: WriteJsOps::with_doc(doc, &mut js_stream_writer, &js_value_writer),
         }
     }
 

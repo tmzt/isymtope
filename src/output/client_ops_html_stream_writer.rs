@@ -11,6 +11,7 @@ use output::structs::*;
 use output::client_misc::*;
 use output::client_output::*;
 use output::client_ops_writer::*;
+use output::client_ops_stream_writer::*;
 
 
 #[derive(Debug, Default)]
@@ -92,7 +93,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
 
         if let Some(attrs) = attrs {
             for &(ref key, ref expr) in attrs {
-                // Ignore empty attributes
+                // Ignore empty attributes// 
                 if let &Some(ref expr) = expr {
                     self.write_element_attribute_expr_value(w, key, expr)?;
                 };

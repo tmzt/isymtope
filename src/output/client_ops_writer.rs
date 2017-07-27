@@ -16,6 +16,7 @@ use output::structs::*;
 // use output::client_js::*;
 use output::client_misc::*;
 use output::client_output::*;
+use output::client_ops_stream_writer::*;
 
 
 pub enum ScopeType {
@@ -30,15 +31,17 @@ pub enum ScopePrefixType {
 pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub doc: &'input DocumentState<'input>,
     pub stream_writer: &'scope mut ElementOpsStreamWriter<'input>,
+    pub value_writer: &'scope JsValueStreamWriter<'input>,
     // pub scope_keys: LinkedHashMap<String, ()>
 }
 
 impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
-    pub fn with_doc(doc: &'input DocumentState<'input>, stream_writer: &'scope mut ElementOpsStreamWriter<'input>) -> Self {
+    pub fn with_doc(doc: &'input DocumentState<'input>, stream_writer: &'scope mut ElementOpsStreamWriter<'input>, value_writer: &'scope JsValueStreamWriter<'input>) -> Self {
         ElementOpsWriter {
             doc: doc,
             stream_writer: stream_writer,
+            value_writer: value_writer,
             // scope_keys: Default::default()
         }
     }
@@ -129,22 +132,11 @@ pub trait ReducerActionStreamWriter<'input> {
     fn write_reducer_action(&mut self, w: &mut io::Write, reducer_key: &'input str, reducer_data: &'input ReducerKeyData, action_data: &'input ReducerActionData, action_ty: Option<&str>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result;
 }
 
-pub trait JsValuesStreamWriter<'input> {
+pub trait JsValueStreamWriter<'input> {
     fn write_js_var_reference(&mut self, w: &mut io::Write, var_name: Option<&str>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result;
     fn write_js_expr_value(&mut self, w: &mut io::Write, node: &ExprValue, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result;
-    fn write_js_props_object(&mut self, w: &mut io::Write, props: &Iter<'input, Prop>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>)-> Result;
-    fn write_js_incdom_attr_array(&mut self, w: &mut io::Write, attrs: &Iter<'input, Prop>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, base_key: Option<&str>) -> Result;
-}
-
-pub trait ElementOpsStreamWriter<'input> {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result;
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_tag: &'input str) -> Result;
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, expr: &ExprValue, value_key: &'input str) -> Result;
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result;
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result;
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, coll_expr: &'input ExprValue, block_id: &str) -> Result;
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &'input str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result;
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &'input str, component_id: &str) -> Result;
+    fn write_js_props_object(&mut self, w: &mut io::Write, props: Option<Iter<'input, Prop>>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>)-> Result;
+    fn write_js_incdom_attr_array(&mut self, w: &mut io::Write, attrs: Option<Iter<'input, Prop>>, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, base_key: Option<&str>) -> Result;
 }
 
 // impl<'input: 'scope, 'scope, T, S> WriteOpsContent for S where S: ElementOpsWriter<'input, Output = T> where T: ContentWriter {

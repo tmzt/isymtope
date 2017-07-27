@@ -38,8 +38,9 @@ impl<'input> WriteHtmlOpsContent<'input> {
                                   ops: Iter<ElementOp>,
                                   resolve: &ResolveVars)
                                   -> Result {
+        let value_writer = CommonJsValueWriter::new();
         let mut stream_writer = ElementOpsHtmlStreamWriter::new();
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer, &value_writer);
 
         ops_writer.write_ops_content(w, ops, &self.doc, None)?;
 

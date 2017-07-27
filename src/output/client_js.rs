@@ -13,14 +13,19 @@ use output::client_ops_writer::*;
 use output::client_ops_stream_writer::*;
 use output::client_ops_js_stream_writer::*;
 
-pub struct WriteJsOps<'input> {
+pub struct WriteJsOps<'input: 'scope, 'scope> {
     pub doc: &'input DocumentState<'input>,
+    pub stream_writer: &'scope mut ElementOpsStreamWriter<'input>,
+    pub value_writer: &'scope JsValueStreamWriter<'input>
 }
 
-impl<'input> WriteJsOps<'input> {
-    pub fn with_doc(doc: &'input DocumentState<'input>) -> WriteJsOps<'input> {
+impl<'input: 'scope, 'scope> WriteJsOps<'input, 'scope> {
+
+    pub fn with_doc(doc: &'input DocumentState<'input>, stream_writer: &'scope mut ElementOpsStreamWriter<'input>, value_writer: &'scope JsValueStreamWriter) -> Self {
         WriteJsOps {
             doc: doc,
+            stream_writer: stream_writer,
+            value_writer: value_writer
         }
     }
 
@@ -68,7 +73,8 @@ impl<'input> WriteJsOps<'input> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            // self.output_js.write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
+                            let scope_prefix = ScopePrefixType::ScopePrefix(format!("{}.", action_ty));
+                            self.value_writer.write_js_expr_value(w, simple_expr, &self.doc, Some(&scope_prefix))?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -83,7 +89,7 @@ impl<'input> WriteJsOps<'input> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                // self.output_js.write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
+                self.value_writer.write_js_expr_value(w, default_expr, &self.doc, None)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -112,8 +118,9 @@ impl<'input> WriteJsOps<'input> {
                                             processing: &DocumentState,
                                             resolve: &ResolveVars)
                                             -> Result {
-        let mut stream_writer = ElementOpsJsStreamWriter {};
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
+        // let mut stream_writer = ElementOpsJsStreamWriter {};
+        let value_writer = CommonJsValueStreamWriter::new();
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, self.stream_writer, &value_writer);
 
         ops_writer.write_ops_content(w, ops, &self.doc, None)?;
 

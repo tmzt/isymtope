@@ -14,6 +14,7 @@ use super::client_misc::*;
 // use super::client_misc_html::*;
 use super::client_output::*;
 use super::client_ops_writer::*;
+use super::client_ops_stream_writer::*;
 use super::structs::*;
 
 // pub trait JsWriter {}
@@ -21,130 +22,18 @@ use super::structs::*;
 // impl JsWriter for WriteElementOpsJsStream {}
 
 
-pub struct ElementOpsJsStreamWriter {}
-
-impl<'input> ElementOpsStreamWriter<'input> for ElementOpsJsStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
-
-        let idx = 0;
-        let base_key = self.scope_prefix(scope_prefix, element_key);
-        let element_key = format!("{}_{}", base_key, idx);
-        let key_expr = format!("\"{}\" + idx", base_key);
-
-        // let attrs = attrs.as_ref().map(|attrs| attrs.iter().cloned().collect());
-        // attrs.push(("data-id", element_key));
-
-        if !is_void {
-            write!(w,
-                "IncrementalDOM.elementOpen(\"{}\", {}, [",
-                element_tag,
-                key_expr)
-                ?;
-        } else {
-            write!(w,
-                "IncrementalDOM.elementVoid(\"{}\", {}, [",
-                element_tag,
-                key_expr)
-                ?;
-        }
-
-        // Static attrs
-        if attrs.is_some() {
-            self.write_js_incdom_attr_array(w, attrs, doc, scope_prefix, Some(&base_key))?;
-        };
-
-        // TODO: Dynamic attributes
-
-        writeln!(w, "]);")?;
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_tag: &'input str) -> Result {
-        write!(w, "</{}>", element_tag)?;
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, expr: &ExprValue, value_key: &'input str) -> Result {
-        // let base_key = scope.base_element_key(value_key);
-        // let key_expr = scope.element_key_expr(value_key);
-
-        writeln!(w,
-                "IncrementalDOM.elementOpen(\"span\", \"{}\", [\"key\", \"{}\", \"data-id\", \"{}\"]);",
-                value_key,
-                value_key,
-                value_key)
-            ?;
-        write!(w, "IncrementalDOM.text(")?;
-        self.write_js_expr_value(w, expr, doc, scope_prefix)?;
-        writeln!(w, ");")?;
-        writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
-
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
-        let foridx = &format!("__foridx_{}", block_id);
-        writeln!(w, "var __{} = function __{}_(line, {}){{", block_id, block_id, foridx)?; //FIXME
-
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
-        writeln!(w, "}};")?;
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, coll_expr: &'input ExprValue, block_id: &str) -> Result {
-
-        // let forvar_default = &format!("__forvar_{}", block_id);
-
-        write!(w, "(")?;
-        self.write_js_expr_value(w, coll_expr, doc, scope_prefix)?;
-        writeln!(w, ").map(__{});", block_id)?;
-
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
-        let base_key = self.scope_prefix(scope_prefix, component_key);
-        let component_ty = comp.name;
-
-        writeln!(w,
-                "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
-                component_key)
-            ?;
-        write!(w,
-            "component_{}(\"{}_\", store, ",
-            component_ty,
-            component_key)
-            ?;
-        if attrs.is_some() {
-            let var_prefix = lens.as_ref().map(|s| format!("store.getState().{}.", s));
-            let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
-            let default_scope = lens.as_ref().map(|s| s);
-
-            self.write_js_props_object(w, attrs, doc, scope_prefix)?;
-        }
-
-        Ok(())
-    }
-
-    #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &'input str, component_id: &str) -> Result {
-        writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
-        Ok(())
-    }
-
+pub struct ElementOpsJsStreamWriter<'input: 'scope, 'scope> {
+    value_writer: &'scope JsValueStreamWriter<'input>
 }
 
+impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
 
-impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
+    pub fn with_value_writer(value_writer: &'scope JsValueStreamWriter<'input>) -> Self {
+        ElementOpsJsStreamWriter {
+            value_writer: value_writer
+        }
+    }
+
     #[allow(unused_variables)]
     fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
@@ -247,7 +136,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                self.value_writer.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -299,7 +188,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            self.write_js_expr_value(w, simple_expr, doc, scope_prefix)?;
+                            self.value_writer.write_js_expr_value(w, simple_expr, doc, scope_prefix)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -314,7 +203,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                self.value_writer.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -334,6 +223,138 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
         Ok(())
     }
+}
+
+
+impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStreamWriter<'input, 'scope> {
+    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+
+        let idx = 0;
+        let base_key = self.scope_prefix(scope_prefix, element_key);
+        let element_key = format!("{}_{}", base_key, idx);
+        let key_expr = format!("\"{}\" + idx", base_key);
+
+        // let attrs = attrs.as_ref().map(|attrs| attrs.iter().cloned().collect());
+        // attrs.push(("data-id", element_key));
+
+        if !is_void {
+            write!(w,
+                "IncrementalDOM.elementOpen(\"{}\", {}, [",
+                element_tag,
+                key_expr)
+                ?;
+        } else {
+            write!(w,
+                "IncrementalDOM.elementVoid(\"{}\", {}, [",
+                element_tag,
+                key_expr)
+                ?;
+        }
+
+        // Static attrs
+        if attrs.is_some() {
+            self.value_writer.write_js_incdom_attr_array(w, attrs, doc, scope_prefix, Some(&base_key))?;
+        };
+
+        // TODO: Dynamic attributes
+
+        writeln!(w, "]);")?;
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_tag: &'input str) -> Result {
+        write!(w, "</{}>", element_tag)?;
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, expr: &ExprValue, value_key: &'input str) -> Result {
+        // let base_key = scope.base_element_key(value_key);
+        // let key_expr = scope.element_key_expr(value_key);
+
+        writeln!(w,
+                "IncrementalDOM.elementOpen(\"span\", \"{}\", [\"key\", \"{}\", \"data-id\", \"{}\"]);",
+                value_key,
+                value_key,
+                value_key)
+            ?;
+        write!(w, "IncrementalDOM.text(")?;
+        self.value_writer.write_js_expr_value(w, expr, doc, scope_prefix)?;
+        writeln!(w, ");")?;
+        writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
+
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+        let foridx = &format!("__foridx_{}", block_id);
+        writeln!(w, "var __{} = function __{}_(line, {}){{", block_id, block_id, foridx)?; //FIXME
+
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+        writeln!(w, "}};")?;
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, coll_expr: &'input ExprValue, block_id: &str) -> Result {
+
+        // let forvar_default = &format!("__forvar_{}", block_id);
+
+        write!(w, "(")?;
+        self.value_writer.write_js_expr_value(w, coll_expr, doc, scope_prefix)?;
+        writeln!(w, ").map(__{});", block_id)?;
+
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
+        let base_key = self.scope_prefix(scope_prefix, component_key);
+        let component_ty = comp.name;
+
+        writeln!(w,
+                "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
+                component_key)
+            ?;
+        write!(w,
+            "component_{}(\"{}_\", store, ",
+            component_ty,
+            component_key)
+            ?;
+        if attrs.is_some() {
+            let var_prefix = lens.as_ref().map(|s| format!("store.getState().{}.", s));
+            let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
+            let default_scope = lens.as_ref().map(|s| s);
+
+            self.value_writer.write_js_props_object(w, attrs, doc, scope_prefix)?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &'input str, component_id: &str) -> Result {
+        writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
+        Ok(())
+    }
+
+}
+
+
+#[derive(Debug, Default)]
+pub struct CommonJsValueStreamWriter { }
+
+impl CommonJsValueStreamWriter {
+    pub fn new() -> Self { Default::default() }
+}
+
+impl<'input: 'scope, 'scope> JsValueStreamWriter<'input> for CommonJsValueStreamWriter {
 
     #[inline]
     fn write_js_var_reference(&mut self,
