@@ -80,9 +80,10 @@ pub struct ComponentDefinitionType {
     pub children: Option<Vec<NodeType>>
 }
 
+pub type EventHandler = (Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>);
 pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
-pub type EventHandlersVec = Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>;
+pub type EventHandlersVec = Vec<EventHandler>;
 pub type EventsItem = (String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>,Option<String>);
 pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;

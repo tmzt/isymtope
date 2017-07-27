@@ -9,6 +9,9 @@ use output::structs::*;
 use output::client_js::*;
 use output::client_misc::*;
 use output::client_output::*;
+use output::client_ops_writer::*;
+use output::client_ops_stream_writer::*;
+use output::client_ops_js_stream_writer::*;
 
 
 pub struct WriteHtmlOpsContent<'input> {
@@ -47,6 +50,21 @@ impl<'input> WriteHtmlOpsContent<'input> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_html_ops_content(&mut self,
+                                  w: &mut io::Write,
+                                  ops: Iter<ElementOp>,
+                                  resolve: &ResolveVars)
+                                  -> Result {
+        let mut stream_writer = ElementOpsJsStreamWriter {};
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
+
+        ops_writer.write_ops_content(w, ops, &self.doc, None)?;
+
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
+    pub fn write_html_ops_content_(&mut self,
                                   w: &mut io::Write,
                                   ops: Iter<ElementOp>,
                                   resolve: &ResolveVars)

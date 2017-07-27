@@ -7,6 +7,7 @@
 extern crate wren;
 extern crate uuid;
 extern crate itertools;
+extern crate linked_hash_map;
 
 mod parser;
 mod output;
