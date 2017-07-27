@@ -49,7 +49,7 @@ impl<'input> FormatHtml<'input> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            self.output_js.write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
+                            // self.output_js.write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -64,7 +64,7 @@ impl<'input> FormatHtml<'input> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.output_js.write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
+                // self.output_js.write_js_expr_value(w, default_expr, &mut self.doc, &resolve)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
