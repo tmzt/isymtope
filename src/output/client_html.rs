@@ -16,7 +16,6 @@ use output::client_ops_html_stream_writer::*;
 
 pub struct WriteHtmlOpsContent<'input> {
     doc: &'input DocumentState<'input>,
-    //format_html: &'input FormatHtml<'input>,
     pub events_vec: EventsVec,
     pub keys_vec: Vec<String>,
 }
@@ -25,7 +24,6 @@ impl<'input> WriteHtmlOpsContent<'input> {
     pub fn with_doc(doc: &'input DocumentState<'input>) -> WriteHtmlOpsContent<'input> {
         WriteHtmlOpsContent {
             doc: doc,
-            //format_html: format_html,
             events_vec: Default::default(),
             keys_vec: Default::default(),
         }
@@ -38,9 +36,8 @@ impl<'input> WriteHtmlOpsContent<'input> {
                                   ops: Iter<ElementOp>,
                                   resolve: &ResolveVars)
                                   -> Result {
-        let value_writer = CommonJsValueWriter::new();
         let mut stream_writer = ElementOpsHtmlStreamWriter::new();
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer, &value_writer);
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
 
         ops_writer.write_ops_content(w, ops, &self.doc, None)?;
 

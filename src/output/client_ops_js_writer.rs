@@ -13,6 +13,7 @@ use super::structs::*;
 use super::client_misc::*;
 // use super::client_misc_html::*;
 use super::client_output::*;
+use output::client_js_value_writer::*;
 use super::client_ops_writer::*;
 // use super::client_scopes::*;
 use super::structs::*;
@@ -118,7 +119,7 @@ impl<'input: 'scope, 'scope> ComponentStreamWriter<'input> for ComponentJsStream
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.value_writer.write_js_expr_value(w, default_expr, doc, scope)?;
+                write_js_expr_value(w, default_expr, doc, scope)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -171,7 +172,7 @@ impl<'input: 'scope, 'scope> ComponentStreamWriter<'input> for ComponentJsStream
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.value_writer.write_js_expr_value(w, default_expr, doc, scope)?;
+                write_js_expr_value(w, default_expr, doc, scope)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -208,7 +209,7 @@ impl<'input> ReducerActionStreamWriter<'input> for ComponentJsStreamWriter {
                     ?;
                 write!(w, "  return ")?;
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.value_writer.write_js_expr_value(w, simple_expr, doc, scope)?;
+                write_js_expr_value(w, simple_expr, doc, scope)?;
                 writeln!(w, ";")?;
                 // writeln!(w, "}})")?;
                 writeln!(w, "}}")?;
@@ -458,7 +459,7 @@ impl<'input> ElementOpsStreamWriter<'input> for ComponentJsStreamWriter {
 
         // Static attrs
         if let Some(ref attrs) = attrs {
-            self.value_writer.write_js_incdom_attr_array(w, attrs, doc, scope, Some(&base_key))?;
+            write_js_incdom_attr_array(w, attrs, doc, scope, Some(&base_key))?;
         };
 
         // TODO: Dynamic attributes
@@ -485,7 +486,7 @@ impl<'input> ElementOpsStreamWriter<'input> for ComponentJsStreamWriter {
                 value_key)
             ?;
         write!(w, "IncrementalDOM.text(")?;
-        self.value_writer.write_js_expr_value(w, expr, doc, scope)?;
+        write_js_expr_value(w, expr, doc, scope)?;
         writeln!(w, ");")?;
         writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
 
@@ -512,7 +513,7 @@ impl<'input> ElementOpsStreamWriter<'input> for ComponentJsStreamWriter {
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
-        self.value_writer.write_js_expr_value(w, coll_expr, doc, scope)?;
+        write_js_expr_value(w, coll_expr, doc, scope)?;
         writeln!(w, ").map(__{});", block_id)?;
 
         Ok(())
@@ -538,7 +539,7 @@ impl<'input> ElementOpsStreamWriter<'input> for ComponentJsStreamWriter {
             let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
             let default_scope = lens.as_ref().map(|s| s);
 
-            self.value_writer.write_js_props_object(w, attrs, doc, scope)?;
+            write_js_props_object(w, attrs, doc, scope)?;
         }
 
         Ok(())

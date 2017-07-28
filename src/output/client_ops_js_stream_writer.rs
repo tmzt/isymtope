@@ -13,6 +13,7 @@ use super::structs::*;
 use super::client_misc::*;
 // use super::client_misc_html::*;
 use super::client_output::*;
+use output::client_js_value_writer::*;
 use super::client_ops_writer::*;
 use super::client_ops_stream_writer::*;
 use super::structs::*;
@@ -22,16 +23,13 @@ use super::structs::*;
 // impl JsWriter for WriteElementOpsJsStream {}
 
 
-pub struct ElementOpsJsStreamWriter<'input: 'scope, 'scope> {
-    value_writer: &'scope JsValueStreamWriter<'input>
-}
+#[derive(Debug, Default)]
+pub struct ElementOpsJsStreamWriter{ }
 
-impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
+impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
-    pub fn with_value_writer(value_writer: &'scope JsValueStreamWriter<'input>) -> Self {
-        ElementOpsJsStreamWriter {
-            value_writer: value_writer
-        }
+    pub fn new() -> Self {
+        ElementOpsJsStreamWriter { }
     }
 
     #[allow(unused_variables)]
@@ -136,7 +134,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.value_writer.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                write_js_expr_value(w, default_expr, doc, scope_prefix)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -188,7 +186,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            self.value_writer.write_js_expr_value(w, simple_expr, doc, scope_prefix)?;
+                            write_js_expr_value(w, simple_expr, doc, scope_prefix)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -203,7 +201,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                self.value_writer.write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                write_js_expr_value(w, default_expr, doc, scope_prefix)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -226,7 +224,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter<'input, 'scope> {
 }
 
 
-impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStreamWriter<'input, 'scope> {
+impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStreamWriter {
     fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
 
         let idx = 0;
@@ -253,7 +251,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
 
         // Static attrs
         if attrs.is_some() {
-            self.value_writer.write_js_incdom_attr_array(w, attrs, doc, scope_prefix, Some(&base_key))?;
+            write_js_incdom_attr_array(w, attrs, doc, scope_prefix, Some(&base_key))?;
         };
 
         // TODO: Dynamic attributes
@@ -280,7 +278,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
                 value_key)
             ?;
         write!(w, "IncrementalDOM.text(")?;
-        self.value_writer.write_js_expr_value(w, expr, doc, scope_prefix)?;
+        write_js_expr_value(w, expr, doc, scope_prefix)?;
         writeln!(w, ");")?;
         writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
 
@@ -307,7 +305,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
-        self.value_writer.write_js_expr_value(w, coll_expr, doc, scope_prefix)?;
+        write_js_expr_value(w, coll_expr, doc, scope_prefix)?;
         writeln!(w, ").map(__{});", block_id)?;
 
         Ok(())
@@ -332,7 +330,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
             let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
             let default_scope = lens.as_ref().map(|s| s);
 
-            self.value_writer.write_js_props_object(w, attrs, doc, scope_prefix)?;
+            write_js_props_object(w, attrs, doc, scope_prefix)?;
         }
 
         Ok(())
@@ -344,225 +342,4 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         Ok(())
     }
 
-}
-
-
-#[derive(Debug, Default)]
-pub struct CommonJsValueStreamWriter { }
-
-impl CommonJsValueStreamWriter {
-    pub fn new() -> Self { Default::default() }
-}
-
-impl<'input: 'scope, 'scope> JsValueStreamWriter<'input> for CommonJsValueStreamWriter {
-
-    #[inline]
-    fn write_js_var_reference(&mut self,
-                                        w: &mut io::Write,
-                                        var_name: Option<&str>,
-                                        doc: &DocumentState,
-                                        scope_prefix: Option<&ScopePrefixType>)
-                                        -> Result {
-        // let state_key = "".to_owned();
-        // let state_key = scope.state_lookup_key(var_name);
-        // let is_scope_key = state_key.map_or(false, |s| doc.default_state_map.contains_key(s.as_str()));
-        // let var_reference = scope.var_reference(is_scope_key, var_name);
-        // write!(w, "{}", var_reference)?;
-        Ok(())
-    }
-
-    #[inline]
-    fn write_js_expr_value(&mut self,
-                                    w: &mut io::Write,
-                                    node: &ExprValue,
-                                    doc: &DocumentState,
-                                    scope_prefix: Option<&ScopePrefixType>)
-                                    -> Result {
-        match node {
-            // TODO: Handle the case where quotes appear in the string
-            &ExprValue::LiteralString(ref s) => {
-                write!(w, "\"{}\"", s)?;
-            }
-            &ExprValue::LiteralNumber(ref n) => {
-                write!(w, "{}", n)?;
-            }
-
-            &ExprValue::LiteralArray(ref items) => {
-                if let &Some(ref items) = items {
-                    write!(w, "[")?;
-                    for ref item in items {
-                        self.write_js_expr_value(w, item, doc, scope_prefix)?;
-                    }
-                    write!(w, "]")?;
-                };
-            }
-
-            &ExprValue::DefaultVariableReference => {
-                self.write_js_var_reference(w, None, doc, scope_prefix)?;
-            }
-
-            &ExprValue::VariableReference(ref var_name) => {
-                self.write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefix)?;
-            }
-
-            &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-                // let state_ty = self.scope().unwrap().state_lookup_key(None);
-                // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
-
-                // write!(w, "(")?;
-                // self.write_js_var_reference(w, None, doc, scope)?;
-                // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-                //     write!(w, ").concat(")?;
-                // } else {
-                //     write!(w, "+ (")?;
-                // }
-                // self.write_js_expr_value(w, r, doc, scope)?;
-                // write!(w, ")")?;
-            }
-
-            &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-                // let state_ty = scope.state_lookup_key(Some(var_name.as_str())).as_ref()
-                //     .map_or(None, |s| doc.default_state_map.get(s.as_str()));
-
-                // write!(w, "(")?;
-                // self.write_js_var_reference(w, None, doc, scope)?;
-                // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-                //     write!(w, ").concat(")?;
-                // } else {
-                //     write!(w, "+ (")?;
-                // }
-                // self.write_js_expr_value(w, r, doc, scope)?;
-                // write!(w, ")")?;
-            }
-
-            &ExprValue::Expr(ref sym, ref l, ref r) => {
-                self.write_js_expr_value(w, l, doc, scope_prefix)?;
-                match sym {
-                    &ExprOp::Add => {
-                        write!(w, " + ")?;
-                    }
-                    &ExprOp::Sub => {
-                        write!(w, " - ")?;
-                    }
-                    &ExprOp::Mul => {
-                        write!(w, " * ")?;
-                    }
-                    &ExprOp::Div => {
-                        write!(w, " / ")?;
-                    }
-                }
-                self.write_js_expr_value(w, r, doc, scope_prefix)?;
-            }
-
-            &ExprValue::ContentNode(..) => {}
-            &ExprValue::DefaultAction(..) => {}
-            &ExprValue::Action(..) => {}
-        }
-        Ok(())
-    }
-
-    #[inline]
-    #[allow(unused_variables)]
-    fn write_js_props_object(&mut self,
-                                    w: &mut io::Write,
-                                    props: Option<Iter<'input, Prop>>,
-                                    doc: &DocumentState,
-                                    scope_prefix: Option<&ScopePrefixType>)
-                            -> Result {
-        write!(w, "{{")?;
-        let mut wrote_first = false;
-        if let Some(props) = props {
-            for &(ref key, ref expr) in props {
-                if wrote_first {
-                    write!(w, ", ")?
-                } else {
-                    wrote_first = true;
-                }
-
-                // Write the property name
-                write!(w, "\"{}\": ", key)?;
-
-                // Write the property value or undefined for None
-                if let &Some(ref expr) = expr {
-
-                    if let &ExprValue::DefaultAction(ref params, ref act_ops) = expr {
-                        write!(w, "\"{}\", ", key)?;
-                        write!(w, "function(event) {{")?;
-                        if let &Some(ref act_ops) = act_ops {
-                            for ref act_op in act_ops {
-                                match *act_op {
-                                    &ActionOpNode::DispatchAction(ref action, ref params) => {
-                                        write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
-                                    }
-                                }
-                            }
-                        }
-                        write!(w, "}}")?;
-                        continue;
-                    };
-
-                    self.write_js_expr_value(w,
-                                        &expr,
-                                        doc,
-                                        scope_prefix)?;
-
-                } else {
-                    write!(w, "undefined")?;
-                }
-            }
-        };
-        write!(w, "}}")?;
-        Ok(())
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    #[allow(unused_variables)]
-    fn write_js_incdom_attr_array(&mut self,
-                                        w: &mut io::Write,
-                                        attrs: Option<Iter<'scope, Prop>>,
-                                        doc: &DocumentState,
-                                        scope_prefix: Option<&ScopePrefixType>,
-                                        base_key: Option<&str>)
-                                        -> Result {
-        let mut wrote_first = false;
-        if let Some(base_key) = base_key {
-            write!(w, "\"data-id\", \"{}\", ", base_key)?;
-        };
-
-        if let Some(attrs) = attrs {
-            for &(ref key, ref expr) in attrs {
-                if let &Some(ref expr) = expr {
-                    if wrote_first {
-                        write!(w, ", ")?
-                    } else {
-                        wrote_first = true;
-                    }
-
-                    if let &ExprValue::DefaultAction(ref params, ref act_ops) = expr {
-                        write!(w, "\"{}\", ", key)?;
-                        write!(w, "function(event) {{")?;
-                        if let &Some(ref act_ops) = act_ops {
-                            for ref act_op in act_ops {
-                                match *act_op {
-                                    &ActionOpNode::DispatchAction(ref action, ref params) => {
-                                        write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
-                                    }
-                                }
-                            }
-                        }
-                        write!(w, "}}")?;
-                        continue;
-                    };
-
-                    write!(w, "\"{}\", ", key)?;
-                    self.write_js_expr_value(w, expr, doc, scope_prefix)?;
-                } else {
-                    write!(w, "\"{}\", ", key)?;
-                    write!(w, "undefined")?;
-                }
-            }
-        };
-        Ok(())
-    }
 }

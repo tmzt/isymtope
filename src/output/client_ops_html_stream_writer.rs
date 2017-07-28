@@ -10,6 +10,7 @@ use output::structs::*;
 // use output::client_js::*;
 use output::client_misc::*;
 use output::client_output::*;
+use output::client_js_value_writer::*;
 use output::client_ops_writer::*;
 use output::client_ops_stream_writer::*;
 
