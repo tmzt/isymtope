@@ -11,7 +11,6 @@ pub mod client_js_value_writer;
 pub mod client_misc;
 pub mod client_ops_writer;
 pub mod client_ops_stream_writer;
-// pub mod client_ops_js_writer;
 pub mod client_ops_js_stream_writer;
 pub mod client_ops_html_stream_writer;
 pub mod structs;

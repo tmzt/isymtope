@@ -6,6 +6,7 @@ use parser::store::*;
 use parser::api::*;
 use parser::util::allocate_element_key;
 use output::structs::*;
+use output::client_ops_writer::*;
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
@@ -357,7 +358,7 @@ impl<'input> ProcessDocument<'input> {
     }
 
     pub fn process_nodes(&mut self,
-                         resolve: &ResolveVars,
+                         scope_prefix: Option<&ScopePrefixType>,
                          block: &mut BlockProcessingState)
                          -> Result {
         let mut processed_store = false;
@@ -386,9 +387,8 @@ impl<'input> ProcessDocument<'input> {
     #[allow(unused_variables)]
     pub fn process_document(&mut self) -> DocumentProcessingResult<()> {
         let mut root_block = BlockProcessingState::default();
-        let resolve = ResolveVars::default();
 
-        self.process_nodes(&resolve, &mut root_block)?;
+        self.process_nodes(None, &mut root_block)?;
         self.root_block = root_block;
         Ok(())
     }
