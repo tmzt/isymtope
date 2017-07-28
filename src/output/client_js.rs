@@ -116,7 +116,7 @@ impl<'input> WriteJsOps<'input> {
                                             w: &mut io::Write,
                                             ops: Iter<'input, ElementOp>,
                                             processing: &DocumentState,
-                                            resolve: &ResolveVars)
+                                            scope_prefix: Option<&ScopePrefixType>)
                                             -> Result {
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
         ops_writer.write_ops_content(w, ops, &self.doc, None)?;
@@ -130,7 +130,7 @@ impl<'input> WriteJsOps<'input> {
                                             component_ty: &'input str,
                                             ops: Iter<'input, ElementOp>,
                                             processing: &DocumentState,
-                                            resolve: &ResolveVars,
+                                            scope_prefix: Option<&ScopePrefixType>,
                                             key_prefix: Option<&str>)
                                             -> Result {
 
@@ -138,7 +138,7 @@ impl<'input> WriteJsOps<'input> {
                 "  function component_{}(key_prefix, store, props) {{",
                 component_ty)
             ?;
-        self.write_js_incdom_ops_content(w, ops, processing, resolve)?;
+        self.write_js_incdom_ops_content(w, ops, processing, scope_prefix)?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
         Ok(())

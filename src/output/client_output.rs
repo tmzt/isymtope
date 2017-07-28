@@ -7,6 +7,7 @@ use parser::store::*;
 use output::structs::*;
 use output::client_html::*;
 use output::client_js::*;
+use output::client_ops_writer::*;
 use output::client_ops_js_stream_writer::*;
 
 
@@ -25,11 +26,29 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         }
     }
 
+    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
+        match scope_prefix {
+            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+                format!("{}.{}", prefix, key)
+            },
+            _ => format!("{}", key)
+        }
+    }
+
+    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
+        match scope_prefix {
+            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+            },
+            _ => format!("{}", key.to_uppercase())
+        }
+    }
+
     #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_iter: Iter<EventsItem>,
-                                   resolve: &ResolveVars)
+                                   scope_prefix: Option<&ScopePrefixType>)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
@@ -42,17 +61,16 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                      event_name)
                 ?;
 
-            let resolve = resolve;
-
             if let &Some(ref action_ops) = action_ops {
-                let action_scope = event_scope.as_ref()
-                    .map(|event_scope| resolve.with_state_key(event_scope));
-                let resolve = action_scope.as_ref().map_or(resolve, |r| r);
+                // let action_scope = event_scope.as_ref()
+                //     .map(|event_scope| resolve.with_state_key(event_scope));
+                // let resolve = action_scope.as_ref().map_or(resolve, |r| r);
 
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            let action_ty = resolve.action_type(action_key.as_str());
+                            // let action_ty = resolve.action_type(action_key.as_str());
+                            let action_ty = self.scope_prefix(scope_prefix, action_key);
                             /*
                             // TODO: Fix type
                             let action_prefix = scope.as_ref()
@@ -89,13 +107,9 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                 <div id="root">
         "#))?;
 
-        // FIXME
-        // let resolve = ResolveVars::default_resolver("counter");
-        let resolve = ResolveVars::default_resolver();
-
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
-        self.output_html.write_html_ops_content(w, ops_iter, &resolve)?;
+        self.output_html.write_html_ops_content(w, ops_iter, None)?;
 
         write!(w,
                "{}",
@@ -109,7 +123,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &resolve, None)?;
+                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, None, None)?;
             };
         }
 
@@ -122,7 +136,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         self.output_js.write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &mut self.doc,
-                                    &resolve)
+                                    None)
             ?;
 
         writeln!(w, "}}")?;
@@ -170,7 +184,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         // Event handlers
         let events_iter = self.output_html.events_vec.iter();
-        self.write_js_event_bindings(w, events_iter, &resolve)?;
+        self.write_js_event_bindings(w, events_iter, None)?;
 
         write!(w,
                "{}",

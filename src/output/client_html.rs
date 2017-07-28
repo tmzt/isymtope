@@ -34,7 +34,7 @@ impl<'input> WriteHtmlOpsContent<'input> {
     pub fn write_html_ops_content(&mut self,
                                   w: &mut io::Write,
                                   ops: Iter<ElementOp>,
-                                  resolve: &ResolveVars)
+                                  scope_prefix: Option<ScopePrefixType>)
                                   -> Result {
         let mut stream_writer = ElementOpsHtmlStreamWriter::new();
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut stream_writer);
