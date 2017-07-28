@@ -212,7 +212,8 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         let idx = 0;
         let base_key = scope_prefixes.key_prefix(element_key);
         let element_key = format!("{}_{}", base_key, idx);
-        let key_expr = format!("\"{}\" + idx", base_key);
+        // let key_expr = format!("\"{}\" + idx", base_key);
+        let key_expr = format!("\"{}\"", base_key);
 
         // let attrs = attrs.as_ref().map(|attrs| attrs.iter().cloned().collect());
         // attrs.push(("data-id", element_key));
@@ -244,7 +245,9 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
 
     #[inline]
     fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, element_tag: &'input str) -> Result {
-        write!(w, "</{}>", element_tag)?;
+        writeln!(w,
+            "IncrementalDOM.elementClose(\"{}\");",
+            element_tag)?;
         Ok(())
     }
 
@@ -287,8 +290,9 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
-        write_js_expr_value(w, coll_expr, doc, scope_prefixes)?;
-        writeln!(w, ").map(__{});", block_id)?;
+        let scope_prefixes = prepend_var_prefix(scope_prefixes, "store.getState()");
+        write_js_expr_value(w, coll_expr, doc, &scope_prefixes)?;
+        writeln!(w, ").forEach(__{});", block_id)?;
 
         Ok(())
     }
@@ -314,6 +318,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
 
             write_js_props_object(w, attrs, doc, scope_prefixes)?;
         }
+        writeln!(w, ");")?;
 
         Ok(())
     }

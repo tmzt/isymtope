@@ -29,38 +29,64 @@ pub enum ScopePrefixType {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ElementKeyPrefixType {
     ScopeElementKeyPrefix(String)
 }
 pub type KeyPrefix = Option<ElementKeyPrefixType>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ActionPrefixType {
     ScopeActionPrefix(String)
 }
 pub type ActionPrefix = Option<ActionPrefixType>;
 
+#[derive(Debug, Clone)]
+pub enum VarPrefixType {
+    ScopeVarPrefix(String)
+}
+pub type VarPrefix = Option<VarPrefixType>;
+
 #[derive(Debug, Default)]
-pub struct ScopePrefixes (KeyPrefix, ActionPrefix);
+pub struct ScopePrefixes (KeyPrefix, ActionPrefix, VarPrefix);
 
 pub trait ScopePrefixOperations {
     fn key_prefix(&self, key: &str) -> String;    
+    fn prepend_key_prefix(&self, key: &str) -> String;
+    fn prepend_var_prefix(&self, key: &str) -> String;
     fn action_prefix(&self, key: &str) -> String;
+    fn var_prefix(&self, key: &str) -> String;
 }
 
-impl ScopePrefixes {
-    pub fn add_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
-        let key_prefix = base.key_prefix(key);
-        ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), None)
-    }
+pub fn add_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
+    let key_prefix = base.key_prefix(key);
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), None, None)
+}
+
+pub fn prepend_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
+    let key_prefix = base.prepend_key_prefix(key);
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), None, None)
+}
+
+pub fn prepend_var_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
+    let key_prefix = base.prepend_var_prefix(key);
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)))
 }
 
 impl ScopePrefixOperations for ScopePrefixes {
     fn key_prefix(&self, key: &str) -> String {
         match self.0 {
             Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => {
-                format!("{}_{}", prefix, key)
+                format!("{}.{}", prefix, key)
+            },
+            _ => format!("{}", key)
+        }
+    }
+
+    fn prepend_key_prefix(&self, key: &str) -> String {
+        match self.0 {
+            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => {
+                format!("{}.{}", key, prefix)
             },
             _ => format!("{}", key)
         }
@@ -75,6 +101,23 @@ impl ScopePrefixOperations for ScopePrefixes {
         }
     }
 
+    fn var_prefix(&self, key: &str) -> String {
+        match self.2 {
+            Some(VarPrefixType::ScopeVarPrefix(ref prefix)) => {
+                format!("{}.{}", prefix, key)
+            },
+            _ => format!("{}", key)
+        }
+    }
+
+    fn prepend_var_prefix(&self, key: &str) -> String {
+        match self.2 {
+            Some(VarPrefixType::ScopeVarPrefix(ref prefix)) => {
+                format!("{}.{}", key, prefix)
+            },
+            _ => format!("{}", key)
+        }
+    }
 }
 
 pub struct ElementOpsWriter<'input: 'scope, 'scope> {

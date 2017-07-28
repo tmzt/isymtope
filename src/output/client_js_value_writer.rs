@@ -13,11 +13,15 @@ pub fn write_js_var_reference(w: &mut io::Write,
                                     doc: &DocumentState,
                                     scope_prefixes: &ScopePrefixes)
                                     -> Result {
+    let var_name = var_name.unwrap_or("default");
+    let var_key = scope_prefixes.var_prefix(var_name);
+
     // let state_key = "".to_owned();
     // let state_key = scope.state_lookup_key(var_name);
     // let is_scope_key = state_key.map_or(false, |s| doc.default_state_map.contains_key(s.as_str()));
     // let var_reference = scope.var_reference(is_scope_key, var_name);
     // write!(w, "{}", var_reference)?;
+    write!(w, "{}", var_key)?;
     Ok(())
 }
 
