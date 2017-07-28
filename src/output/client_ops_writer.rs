@@ -91,6 +91,10 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         // OpenS
                         self.stream_writer.write_op_element_instance_component_open(w, op, doc, scope_prefix, &comp, component_key, component_id.as_str(), lens_props, lens)?;
 
+                        if let Some(ref ops) = comp.ops {
+                            self.write_ops_content(w, ops.iter(), doc, scope_prefix)?;
+                        };
+
                         // Close
                         self.stream_writer.write_op_element_instance_component_close(w, op, doc, scope_prefix, &comp, component_key, component_id.as_str())?;
                     }

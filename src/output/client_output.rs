@@ -174,7 +174,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
-        let keys_iter = self.output_html.keys_vec.iter();
+        let keys_iter = self.output_html.keys_iter();
         for key in keys_iter {
             writeln!(w,
                      "    markExisting(document.querySelector(\"[data-id='{}']\"));",
@@ -183,7 +183,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         }
 
         // Event handlers
-        let events_iter = self.output_html.events_vec.iter();
+        let events_iter = self.output_html.events_iter();
         self.write_js_event_bindings(w, events_iter, None)?;
 
         write!(w,

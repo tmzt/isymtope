@@ -82,6 +82,14 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
         };
         Ok(())
     }
+
+    pub fn events_iter(&self) -> Iter<EventsItem> {
+        self.events_vec.iter()
+    }
+
+    pub fn keys_iter(&self) -> Iter<String> {
+        self.keys_vec.iter()
+    }
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlStreamWriter {
@@ -96,6 +104,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
             for &(ref key, ref expr) in attrs {
                 // Ignore empty attributes// 
                 if let &Some(ref expr) = expr {
+                    write!(w, " {}=", key)?;
                     self.write_element_attribute_expr_value(w, key, expr)?;
                 };
             }
