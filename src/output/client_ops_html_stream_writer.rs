@@ -25,24 +25,6 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 
     pub fn new() -> Self { Default::default() }
 
-    // fn scope_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
-    //     match scope_prefix {
-    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-    //             format!("{}_{}", prefix, key)
-    //         },
-    //         _ => format!("{}", key)
-    //     }
-    // }
-
-    // fn scope_action_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
-    //     match scope_prefix {
-    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-    //             format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-    //         },
-    //         _ => format!("{}", key.to_uppercase())
-    //     }
-    // }
-
     #[inline]
     #[allow(unused_variables)]
     fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>) -> Result {
