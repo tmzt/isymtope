@@ -66,6 +66,10 @@ impl<'input> WriteJsOps<'input> {
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
 
+                            //  TODO: Support other than default variable
+                            // let action_scope = add_var_prefix(scope_prefixes, &reducer_scope_key);
+                            let action_scope = with_default_var(scope_prefixes, "state");
+
                             writeln!(w,
                                      "if ('undefined' !== typeof action && '{}' == action.type) \
                                       {{",
@@ -74,7 +78,7 @@ impl<'input> WriteJsOps<'input> {
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
                             // let scope_prefix = ScopePrefixType::ScopePrefix(format!("{}.", action_ty));
-                            write_js_expr_value(w, simple_expr, &self.doc, scope_prefixes)?;
+                            write_js_expr_value(w, simple_expr, &self.doc, &action_scope)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;

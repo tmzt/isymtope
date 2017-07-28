@@ -13,15 +13,25 @@ pub fn write_js_var_reference(w: &mut io::Write,
                                     doc: &DocumentState,
                                     scope_prefixes: &ScopePrefixes)
                                     -> Result {
-    let var_name = var_name.unwrap_or("default");
-    let var_key = scope_prefixes.var_prefix(var_name);
+    let default_var_scope = scope_prefixes.default_var_scope();
+    if let Some(ref var_name) = var_name {
+        let var_key = scope_prefixes.var_prefix(var_name);
+        write!(w, "{}", var_key)?;
+    } else {
+        let default_var_scope = scope_prefixes.default_var_scope();
+        let default_var = scope_prefixes.default_var();
+        let var_key = default_var_scope
+            .or_else(|| default_var)    
+            .unwrap_or("default".to_owned());
+        write!(w, "{}", var_key)?;
+    };
 
     // let state_key = "".to_owned();
     // let state_key = scope.state_lookup_key(var_name);
     // let is_scope_key = state_key.map_or(false, |s| doc.default_state_map.contains_key(s.as_str()));
     // let var_reference = scope.var_reference(is_scope_key, var_name);
     // write!(w, "{}", var_reference)?;
-    write!(w, "{}", var_key)?;
+    // write!(w, "{}", var_key)?;
     Ok(())
 }
 
@@ -58,41 +68,57 @@ pub fn write_js_expr_value(w: &mut io::Write,
             write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
         }
 
-        &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-            // let state_ty = scope().unwrap().state_lookup_key(None);
-            // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
+        // &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
+        //     // let state_ty = scope().unwrap().state_lookup_key(None);
+        //     // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
 
-            // write!(w, "(")?;
-            // write_js_var_reference(w, None, doc, scope)?;
-            // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-            //     write!(w, ").concat(")?;
-            // } else {
-            //     write!(w, "+ (")?;
-            // }
-            // write_js_expr_value(w, r, doc, scope)?;
-            // write!(w, ")")?;
-        }
+        //     // write!(w, "(")?;
+        //     // write_js_var_reference(w, None, doc, scope)?;
+        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
+        //     //     write!(w, ").concat(")?;
+        //     // } else {
+        //     //     write!(w, "+ (")?;
+        //     // }
+        //     // write_js_expr_value(w, r, doc, scope)?;
+        //     // write!(w, ")")?;
 
-        &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-            // let state_ty = scope.state_lookup_key(Some(var_name.as_str())).as_ref()
-            //     .map_or(None, |s| doc.default_state_map.get(s.as_str()));
+        //     // let state_ty = scope().unwrap().state_lookup_key(None);
+        //     // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
+        //     write!(w, "(")?;
+        //     let 
+        //     write_js_expr_value(w, ExprValue::DefaultVariableReference, doc, scope_prefixes)?;
+        //     // write_js_var_reference(w, None, doc, scope_prefixes)?;
+        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
+        //         write!(w, ").concat(")?;
+        //     // } else {
+        //         // write!(w, "+ (")?;
+        //     // }
+        //     write_js_expr_value(w, r, doc, scope_prefixes)?;
+        //     write!(w, ")")?;
+        // }
 
-            // write!(w, "(")?;
-            // write_js_var_reference(w, None, doc, scope)?;
-            // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-            //     write!(w, ").concat(")?;
-            // } else {
-            //     write!(w, "+ (")?;
-            // }
-            // write_js_expr_value(w, r, doc, scope)?;
-            // write!(w, ")")?;
-        }
+        // &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
+        //     // let state_ty = scope.state_lookup_key(Some(var_name.as_str())).as_ref()
+        //     //     .map_or(None, |s| doc.default_state_map.get(s.as_str()));
+
+        //     // write!(w, "(")?;
+        //     // write_js_var_reference(w, None, doc, scope)?;
+        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
+        //     //     write!(w, ").concat(")?;
+        //     // } else {
+        //     //     write!(w, "+ (")?;
+        //     // }
+        //     // write_js_expr_value(w, r, doc, scope)?;
+        //     // write!(w, ")")?;
+        // }
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
+            write!(w, "(")?;
             write_js_expr_value(w, l, doc, scope_prefixes)?;
             match sym {
                 &ExprOp::Add => {
-                    write!(w, " + ")?;
+                    write!(w, ").concat(")?;
+                    // write!(w, " + ")?;
                 }
                 &ExprOp::Sub => {
                     write!(w, " - ")?;
@@ -105,6 +131,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
                 }
             }
             write_js_expr_value(w, r, doc, scope_prefixes)?;
+            write!(w, ")")?;
         }
 
         &ExprValue::ContentNode(..) => {}

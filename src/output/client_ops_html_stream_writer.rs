@@ -27,13 +27,14 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 
     #[inline]
     #[allow(unused_variables)]
-    fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>) -> Result {
+    fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>, scope_prefixes: &ScopePrefixes) -> Result {
         write!(w, "function(event) {{")?;
         for ref act_op in act_iter {
             match *act_op {
                 &ActionOpNode::DispatchAction(ref action, ref params) => {
+                    let action_ty = scope_prefixes.action_prefix(action);
                     //let action_type = resolve.action_type(Some(action));
-                    write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action)?;
+                    write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                 }
             }
         }
@@ -42,18 +43,18 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
     }
 
     #[inline]
-    fn write_element_attribute_expr_value(&mut self, w: &mut io::Write, key: &str, expr: &'input ExprValue) -> Result {
+    fn write_element_attribute_expr_value(&mut self, w: &mut io::Write, key: &str, expr: &'input ExprValue, scope_prefixes: &ScopePrefixes) -> Result {
         match expr {
             &ExprValue::Expr(ExprOp::Add, ref l, ref r) => {}
 
             &ExprValue::DefaultAction(ref params, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
-                    self.write_html_js_action(w, act_ops.iter())?;
+                    self.write_html_js_action(w, act_ops.iter(), scope_prefixes)?;
                 };
             }
             &ExprValue::Action(ref event_name, ref params, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
-                    self.write_html_js_action(w, act_ops.iter())?;
+                    self.write_html_js_action(w, act_ops.iter(), scope_prefixes)?;
                 };
             }
             _ => {
@@ -87,7 +88,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
                 // Ignore empty attributes// 
                 if let &Some(ref expr) = expr {
                     write!(w, " {}=", key)?;
-                    self.write_element_attribute_expr_value(w, key, expr)?;
+                    self.write_element_attribute_expr_value(w, key, expr, scope_prefixes)?;
                 };
             }
         };
@@ -106,13 +107,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
                 let event_name = event_name.as_ref().map(Clone::clone);
 
                 // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
+                let default_action_scope = scope_prefixes.default_action_scope();
                 self.events_vec.push((base_key.clone(),
                                         event_name,
                                         event_params,
                                         action_ops,
-                                        Some(base_key.clone())));
+                                        default_action_scope));
             }
-        }
+        };
 
         self.keys_vec.push(base_key);
         Ok(())

@@ -26,29 +26,11 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         }
     }
 
-    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix, key)
-            },
-            _ => format!("{}", key)
-        }
-    }
-
-    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-            },
-            _ => format!("{}", key.to_uppercase())
-        }
-    }
-
     #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_iter: Iter<EventsItem>,
-                                   scope_prefix: Option<&ScopePrefixType>)
+                                   scope_prefixes: &ScopePrefixes)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
@@ -70,7 +52,9 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
                             // let action_ty = resolve.action_type(action_key.as_str());
-                            let action_ty = self.scope_prefix(scope_prefix, action_key);
+                            let event_scope = event_scope.as_ref().map(|s| s.to_owned()).unwrap_or("".to_owned());
+                            let action_scope = add_action_prefix(scope_prefixes, &event_scope);
+                            let action_ty = action_scope.action_prefix(action_key);
                             /*
                             // TODO: Fix type
                             let action_prefix = scope.as_ref()
@@ -109,7 +93,12 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
-        let base_scope: ScopePrefixes = Default::default();
+
+        let mut base_scope: ScopePrefixes = Default::default();
+        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
+            base_scope = add_action_prefix(&base_scope, default_reducer_key);
+        };
+
         self.output_html.write_html_ops_content(w, ops_iter, &base_scope)?;
 
         write!(w,
@@ -187,7 +176,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         // Event handlers
         let events_iter = self.output_html.events_iter();
-        self.write_js_event_bindings(w, events_iter, None)?;
+        self.write_js_event_bindings(w, events_iter, &base_scope)?;
 
         write!(w,
                "{}",

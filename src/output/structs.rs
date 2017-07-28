@@ -148,4 +148,5 @@ pub struct DocumentState<'inp> {
     pub comp_map: ComponentMap<'inp>,
     pub reducer_key_data: ReducerKeyMap<'inp>,
     pub default_state_map: DefaultStateMap<'inp>,
+    pub default_reducer_key: Option<&'inp str>
 }

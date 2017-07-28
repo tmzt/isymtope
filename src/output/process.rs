@@ -16,12 +16,15 @@ pub struct ProcessDocument<'input> {
 
 impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
     fn into(self) -> DocumentState<'inp> {
+        let default_reducer_key = if self.processing.has_default_state_key { self.processing.default_state_key.get() } else { None };
+
         DocumentState {
             ast: self.ast,
             root_block: self.root_block,
             comp_map: self.processing.comp_map,
             reducer_key_data: self.processing.reducer_key_data,
-            default_state_map: self.processing.default_state_map
+            default_state_map: self.processing.default_state_map,
+            default_reducer_key: default_reducer_key
         }
     }
 }
@@ -154,6 +157,11 @@ impl<'input> ProcessDocument<'input> {
                     // Within the default scope let defines a new scope and it's default expression
                     let reducer_entry = self.processing.reducer_key_data.entry(var_name)
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
+
+                    if !self.processing.has_default_state_key {
+                        self.processing.default_state_key.replace(Some(var_name));
+                        self.processing.has_default_state_key = true;
+                    };
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
