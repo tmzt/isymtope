@@ -25,23 +25,23 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 
     pub fn new() -> Self { Default::default() }
 
-    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}_{}", prefix, key)
-            },
-            _ => format!("{}", key)
-        }
-    }
+    // fn scope_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}_{}", prefix, key)
+    //         },
+    //         _ => format!("{}", key)
+    //     }
+    // }
 
-    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-            },
-            _ => format!("{}", key.to_uppercase())
-        }
-    }
+    // fn scope_action_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+    //         },
+    //         _ => format!("{}", key.to_uppercase())
+    //     }
+    // }
 
     #[inline]
     #[allow(unused_variables)]
@@ -93,8 +93,8 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
-        let base_key = self.scope_prefix(scope_prefix, element_key);
+    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, element_key: &str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+        let base_key = scope_prefixes.key_prefix(element_key);
 
         write!(w, "<{}", element_tag)?;
         write!(w, " data-id=\"{}\"", base_key)?;
@@ -137,14 +137,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
     }
 
     #[inline]
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_tag: &'input str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, element_tag: &str) -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, expr: &ExprValue, value_key: &'input str) -> Result {
-        let element_key = self.scope_prefix(scope_prefix, value_key);
+    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr: &ExprValue, value_key: &str) -> Result {
+        let element_key = scope_prefixes.key_prefix(value_key);
 
         write!(w, "<span key=\"{}\" data-id=\"{}\">", element_key, element_key)?;
         write_computed_expr_value(w, expr, None, None)?;
@@ -155,26 +155,26 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
     }
 
     #[inline]
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, coll_expr: &'input ExprValue, block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, coll_expr: &'input ExprValue, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
-        let base_key = self.scope_prefix(scope_prefix, component_key);
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
+        let base_key = scope_prefixes.key_prefix(component_key);
 
         write!(w, "<div key=\"{}\" data-id=\"{}\" >", &base_key, &base_key)?;
         self.keys_vec.push(base_key);
@@ -182,7 +182,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsHtmlSt
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str) -> Result {
         write!(w, "</div>")?;
         Ok(())
     }

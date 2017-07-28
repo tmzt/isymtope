@@ -28,6 +28,55 @@ pub enum ScopePrefixType {
     ScopePrefix(String)
 }
 
+
+#[derive(Debug)]
+pub enum ElementKeyPrefixType {
+    ScopeElementKeyPrefix(String)
+}
+pub type KeyPrefix = Option<ElementKeyPrefixType>;
+
+#[derive(Debug)]
+pub enum ActionPrefixType {
+    ScopeActionPrefix(String)
+}
+pub type ActionPrefix = Option<ActionPrefixType>;
+
+#[derive(Debug, Default)]
+pub struct ScopePrefixes (KeyPrefix, ActionPrefix);
+
+pub trait ScopePrefixOperations {
+    fn key_prefix(&self, key: &str) -> String;    
+    fn action_prefix(&self, key: &str) -> String;
+}
+
+impl ScopePrefixes {
+    pub fn add_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
+        let key_prefix = base.key_prefix(key);
+        ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), None)
+    }
+}
+
+impl ScopePrefixOperations for ScopePrefixes {
+    fn key_prefix(&self, key: &str) -> String {
+        match self.0 {
+            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => {
+                format!("{}_{}", prefix, key)
+            },
+            _ => format!("{}", key)
+        }
+    }
+
+    fn action_prefix(&self, key: &str) -> String {
+        match self.1 {
+            Some(ActionPrefixType::ScopeActionPrefix(ref prefix)) => {
+                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+            },
+            _ => format!("{}", key.to_uppercase())
+        }
+    }
+
+}
+
 pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub doc: &'input DocumentState<'input>,
     pub stream_writer: &'scope mut ElementOpsStreamWriter<'input>,
@@ -46,7 +95,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_ops_content(&mut self, w: &mut io::Write, ops: Iter<'input, ElementOp>, doc: &'input DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result {
+    pub fn write_ops_content(&mut self, w: &mut io::Write, ops: Iter<'input, ElementOp>, doc: &'input DocumentState, scope_prefixes: &ScopePrefixes) -> Result {
         for ref op in ops {
             let is_void = if let &ElementOp::ElementVoid(..) = *op { true } else { false };
 
@@ -61,16 +110,18 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     let attrs = attrs.as_ref().map(|attrs| attrs.iter());
                     let events = events.as_ref().map(|events| events.iter());
-                    self.stream_writer.write_op_element(w, op, doc, scope_prefix, element_key, element_tag, is_void, attrs, events)?;
+                    
+                    let element_key = format!("{}", scope_prefixes.key_prefix(element_key));
+                    self.stream_writer.write_op_element(w, op, doc, scope_prefixes, &element_key, element_tag, is_void, attrs, events)?;
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
-                    self.stream_writer.write_op_element_close(w, op, doc, scope_prefix, element_tag)?;
+                    self.stream_writer.write_op_element_close(w, op, doc, scope_prefixes, element_tag)?;
                 }
                 &ElementOp::WriteValue(ref expr, ref value_key) => {
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
                     let value_key = value_key.as_ref().map_or("null", |s| s);
-                    self.stream_writer.write_op_element_value(w, op, doc, scope_prefix, expr, value_key)?;
+                    self.stream_writer.write_op_element_value(w, op, doc, scope_prefixes, expr, value_key)?;
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
@@ -89,23 +140,23 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let lens_props = props.as_ref().map(|p| p.iter());
 
                         // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, scope_prefix, &comp, component_key, component_id.as_str(), lens_props, lens)?;
+                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, scope_prefixes, &comp, component_key, component_id.as_str(), lens_props, lens)?;
 
                         if let Some(ref ops) = comp.ops {
-                            self.write_ops_content(w, ops.iter(), doc, scope_prefix)?;
+                            self.write_ops_content(w, ops.iter(), doc, scope_prefixes)?;
                         };
 
                         // Close
-                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, scope_prefix, &comp, component_key, component_id.as_str())?;
+                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, scope_prefixes, &comp, component_key, component_id.as_str())?;
                     }
                 }
 
                 &ElementOp::StartBlock(ref block_id) => {
-                    self.stream_writer.write_op_element_start_block(w, op, doc, scope_prefix, block_id);
+                    self.stream_writer.write_op_element_start_block(w, op, doc, scope_prefixes, block_id);
                 }
 
                 &ElementOp::EndBlock(ref block_id) => {
-                    self.stream_writer.write_op_element_end_block(w, op, doc, scope_prefix, block_id);
+                    self.stream_writer.write_op_element_end_block(w, op, doc, scope_prefixes, block_id);
                 }
 
                 &ElementOp::MapCollection(ref block_id, ref ele, ref coll_expr) => {
@@ -113,7 +164,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let scope_id = format!("{}_map", block_id);
 
                     // Map to block
-                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, scope_prefix, coll_expr, block_id);
+                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, scope_prefixes, coll_expr, block_id);
                 }
             }
         }

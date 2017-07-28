@@ -29,27 +29,27 @@ impl<'input> WriteJsOps<'input> {
         }
     }
 
-    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix, key)
-            },
-            _ => format!("{}", key)
-        }
-    }
+    // fn scope_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}.{}", prefix, key)
+    //         },
+    //         _ => format!("{}", key)
+    //     }
+    // }
 
-    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-            },
-            _ => format!("{}", key.to_uppercase())
-        }
-    }
+    // fn scope_action_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+    //         },
+    //         _ => format!("{}", key.to_uppercase())
+    //     }
+    // }
 
     pub fn write_js_store(&mut self,
                           w: &mut io::Write,
-                          scope_prefix: Option<&ScopePrefixType>)
+                          scope_prefixes: &ScopePrefixes)
                           -> Result {
         // TODO: Implement default scope?
 
@@ -57,7 +57,7 @@ impl<'input> WriteJsOps<'input> {
         for (ref reducer_key, ref reducer_data) in self.doc.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
-            let reducer_scope_key = self.scope_prefix(scope_prefix, reducer_key);
+            let reducer_scope_key = scope_prefixes.action_prefix(reducer_key);
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
@@ -73,8 +73,8 @@ impl<'input> WriteJsOps<'input> {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            let scope_prefix = ScopePrefixType::ScopePrefix(format!("{}.", action_ty));
-                            write_js_expr_value(w, simple_expr, &self.doc, Some(&scope_prefix))?;
+                            // let scope_prefix = ScopePrefixType::ScopePrefix(format!("{}.", action_ty));
+                            write_js_expr_value(w, simple_expr, &self.doc, scope_prefixes)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -89,7 +89,7 @@ impl<'input> WriteJsOps<'input> {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                write_js_expr_value(w, default_expr, &self.doc, None)?;
+                write_js_expr_value(w, default_expr, &self.doc, scope_prefixes)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -116,10 +116,10 @@ impl<'input> WriteJsOps<'input> {
                                             w: &mut io::Write,
                                             ops: Iter<'input, ElementOp>,
                                             processing: &DocumentState,
-                                            scope_prefix: Option<&ScopePrefixType>)
+                                            scope_prefixes: &ScopePrefixes)
                                             -> Result {
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
-        ops_writer.write_ops_content(w, ops, &self.doc, None)?;
+        ops_writer.write_ops_content(w, ops, &self.doc, scope_prefixes)?;
 
         Ok(())
     }
@@ -130,7 +130,7 @@ impl<'input> WriteJsOps<'input> {
                                             component_ty: &'input str,
                                             ops: Iter<'input, ElementOp>,
                                             processing: &DocumentState,
-                                            scope_prefix: Option<&ScopePrefixType>,
+                                            scope_prefixes: &ScopePrefixes,
                                             key_prefix: Option<&str>)
                                             -> Result {
 
@@ -138,7 +138,7 @@ impl<'input> WriteJsOps<'input> {
                 "  function component_{}(key_prefix, store, props) {{",
                 component_ty)
             ?;
-        self.write_js_incdom_ops_content(w, ops, processing, scope_prefix)?;
+        self.write_js_incdom_ops_content(w, ops, processing, scope_prefixes)?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
         Ok(())

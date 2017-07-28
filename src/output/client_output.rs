@@ -109,7 +109,8 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
-        self.output_html.write_html_ops_content(w, ops_iter, None)?;
+        let base_scope: ScopePrefixes = Default::default();
+        self.output_html.write_html_ops_content(w, ops_iter, &base_scope)?;
 
         write!(w,
                "{}",
@@ -120,10 +121,12 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         "#))
             ?;
 
+        let base_scope: ScopePrefixes = Default::default();
+
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, None, None)?;
+                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope, None)?;
             };
         }
 
@@ -136,7 +139,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         self.output_js.write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &mut self.doc,
-                                    None)
+                                    &base_scope)
             ?;
 
         writeln!(w, "}}")?;
@@ -156,7 +159,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.output_js.write_js_store(w, None)?;
+        self.output_js.write_js_store(w, &base_scope)?;
 
         write!(w,
                "{}",

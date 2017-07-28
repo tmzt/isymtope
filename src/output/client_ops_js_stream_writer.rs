@@ -36,7 +36,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
     fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_iter: Iter<EventsItem>,
-                                   scope_prefix: Option<&ScopePrefixType>)
+                                   scope_prefixes: &ScopePrefixes)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
@@ -61,7 +61,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            let action_ty = self.scope_action_prefix(scope_prefix, action_key);
+                            let action_ty = scope_prefixes.action_prefix(action_key);
 
                             // let action_ty = scope.action_type(action_key.as_str());
                             /*
@@ -81,25 +81,25 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
         Ok(())
     }
 
-    fn scope_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}_{}", prefix, key)
-            },
-            _ => format!("{}", key)
-        }
-    }
+    // fn scope_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}_{}", prefix, key)
+    //         },
+    //         _ => format!("{}", key)
+    //     }
+    // }
 
-    fn scope_action_prefix(&self, scope_prefix: Option<&ScopePrefixType>, key: &str) -> String {
-        match scope_prefix {
-            Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-                format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-            },
-            _ => format!("{}", key.to_uppercase())
-        }
-    }
+    // fn scope_action_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
+    //     match scope_prefix {
+    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
+    //             format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
+    //         },
+    //         _ => format!("{}", key.to_uppercase())
+    //     }
+    // }
 
-    fn write_store_definition(&mut self, w: &mut io::Write, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result {
+    fn write_store_definition(&mut self, w: &mut io::Write, doc: &DocumentState, scope_prefixes: &ScopePrefixes) -> Result {
         // TODO: Implement default scope?
 
         // Generate script
@@ -108,7 +108,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
-                    let action_ty = self.scope_action_prefix(scope_prefix, reducer_key);
+                    let action_ty = scope_prefixes.action_prefix(reducer_key);
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
@@ -134,7 +134,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                write_js_expr_value(w, default_expr, doc, scope_prefixes)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -155,7 +155,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
         Ok(())
     }
 
-    fn write_component_definition(&mut self, w: &mut io::Write, comp: &Component, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>) -> Result {
+    fn write_component_definition(&mut self, w: &mut io::Write, comp: &Component, doc: &DocumentState, scope_prefixes: &ScopePrefixes) -> Result {
         // TODO: Implement default scope?
 
         // Generate script
@@ -186,7 +186,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
                                 ?;
                             write!(w, "  return ")?;
                             // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            write_js_expr_value(w, simple_expr, doc, scope_prefix)?;
+                            write_js_expr_value(w, simple_expr, doc, scope_prefixes)?;
                             writeln!(w, ";")?;
                             // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
@@ -201,7 +201,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
             write!(w, "    return state || ")?;
             if let Some(ref default_expr) = reducer_data.default_expr {
                 // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                write_js_expr_value(w, default_expr, doc, scope_prefix)?;
+                write_js_expr_value(w, default_expr, doc, scope_prefixes)?;
                 // write!(w, "}})")?;
             } else {
                 write!(w, "null")?;
@@ -225,10 +225,10 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_key: &'input str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+    fn write_op_element(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, element_key: &str, element_tag: &'input str, is_void: bool, attrs: Option<Iter<'input, Prop>>, events: Option<Iter<EventHandler>>) -> Result {
 
         let idx = 0;
-        let base_key = self.scope_prefix(scope_prefix, element_key);
+        let base_key = scope_prefixes.key_prefix(element_key);
         let element_key = format!("{}_{}", base_key, idx);
         let key_expr = format!("\"{}\" + idx", base_key);
 
@@ -251,7 +251,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
 
         // Static attrs
         if attrs.is_some() {
-            write_js_incdom_attr_array(w, attrs, doc, scope_prefix, Some(&base_key))?;
+            write_js_incdom_attr_array(w, attrs, doc, scope_prefixes, Some(&base_key))?;
         };
 
         // TODO: Dynamic attributes
@@ -261,13 +261,13 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
     }
 
     #[inline]
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, element_tag: &'input str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, element_tag: &'input str) -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, expr: &ExprValue, value_key: &'input str) -> Result {
+    fn write_op_element_value(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr: &ExprValue, value_key: &str) -> Result {
         // let base_key = scope.base_element_key(value_key);
         // let key_expr = scope.element_key_expr(value_key);
 
@@ -278,7 +278,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
                 value_key)
             ?;
         write!(w, "IncrementalDOM.text(")?;
-        write_js_expr_value(w, expr, doc, scope_prefix)?;
+        write_js_expr_value(w, expr, doc, scope_prefixes)?;
         writeln!(w, ");")?;
         writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
 
@@ -286,7 +286,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
     }
 
     #[inline]
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, block_id: &str) -> Result {
         let foridx = &format!("__foridx_{}", block_id);
         writeln!(w, "var __{} = function __{}_(line, {}){{", block_id, block_id, foridx)?; //FIXME
 
@@ -294,26 +294,26 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
     }
 
     #[inline]
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, block_id: &str) -> Result {
         writeln!(w, "}};")?;
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, coll_expr: &'input ExprValue, block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, coll_expr: &'input ExprValue, block_id: &str) -> Result {
 
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
-        write_js_expr_value(w, coll_expr, doc, scope_prefix)?;
+        write_js_expr_value(w, coll_expr, doc, scope_prefixes)?;
         writeln!(w, ").map(__{});", block_id)?;
 
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
-        let base_key = self.scope_prefix(scope_prefix, component_key);
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
+        let base_key = scope_prefixes.key_prefix(component_key);
         let component_ty = comp.name;
 
         writeln!(w,
@@ -330,14 +330,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
             let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
             let default_scope = lens.as_ref().map(|s| s);
 
-            write_js_props_object(w, attrs, doc, scope_prefix)?;
+            write_js_props_object(w, attrs, doc, scope_prefixes)?;
         }
 
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefix: Option<&ScopePrefixType>, comp: &'input Component<'input>, component_key: &'input str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str) -> Result {
         writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         Ok(())
     }
