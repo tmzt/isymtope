@@ -69,6 +69,29 @@ pub fn write_js_expr_value(w: &mut io::Write,
             write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
         }
 
+        &ExprValue::SymbolReference(ref sym) => {
+            match sym {
+                &(Some(ref sym), _) => {
+                    match sym {
+                        &SymbolReferenceType::LocalVarReference(ref var_name) => {
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
+                        }
+
+                        &SymbolReferenceType::ParameterReference(ref param_key) => {
+                            write_js_var_reference(w, Some(param_key.as_str()), doc, scope_prefixes)?;
+                        }
+
+                        &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
+                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, scope_prefixes)?;
+                        }
+
+                        _ => {}
+                    };
+                }
+                _ => {}
+            };
+        }
+
         // &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
         //     // let state_ty = scope().unwrap().state_lookup_key(None);
         //     // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));

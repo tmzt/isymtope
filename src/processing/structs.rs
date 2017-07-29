@@ -59,18 +59,18 @@ pub enum ElementOp {
     MapCollection(String, Option<String>, ExprValue),
 }
 
-#[derive(Debug, Clone)]
-pub enum PrimitiveVarType {
-    StringVar,
-    Number,
-    Expr,
-}
+// #[derive(Debug, Clone)]
+// pub enum PrimitiveVarType {
+//     StringVar,
+//     Number,
+//     Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub enum VarType {
-    ArrayVar(Option<Box<VarType>>),
-    Primitive(PrimitiveVarType),
-}
+// #[derive(Debug, Clone)]
+// pub enum VarType {
+//     ArrayVar(Option<Box<VarType>>),
+//     Primitive(PrimitiveVarType),
+// }
 
 pub type OpsVec = Vec<ElementOp>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
@@ -129,15 +129,15 @@ impl From<io::Error> for DocumentProcessingError {
     }
 }
 
-#[derive(Debug)]
-pub enum SymbolReferenceType {
-    ReducerKeyReference(String),
-    ParameterReference(String),
-    LocalVarReference(String)
-}
-pub type SymbolRefType = Option<SymbolReferenceType>;
+// #[derive(Debug)]
+// pub enum SymbolReferenceType {
+//     ReducerKeyReference(String),
+//     ParameterReference(String),
+//     LocalVarReference(String)
+// }
+// pub type SymbolRefType = Option<SymbolReferenceType>;
 
-pub type Symbol = (SymbolRefType, Option<VarType>);
+// pub type Symbol = (SymbolRefType, Option<VarType>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 
 pub type ProcessingScope = (Option<String>, Option<String>, SymbolRefType);

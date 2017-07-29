@@ -398,18 +398,22 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 .map(|s| format!("{}.{}", s, given))
                 .unwrap_or("".to_owned());
 
-            let has_symbol = expr_scope.symbol_map.contains_key(given);
-            if !has_symbol {
-                if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
-                    expr_scope.symbol_map.insert(given.to_owned(), (
-                        Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
-                        None
-                    ));
-                    return ExprValue::VariableReference(as_reducer_key);
-                };
+            if let Some(sym) = expr_scope.symbol_map.get(given) {
+                return ExprValue::SymbolReference(sym.clone());
             };
 
-            ExprValue::VariableReference(given.to_owned())
+            // Try to resolve and cache the symbol as a reducer key reference
+            if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
+                let ty = &reducer_data.ty;
+                expr_scope.symbol_map.insert(given.to_owned(), (
+                    Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
+                    ty.as_ref().map(Clone::clone)
+                ));
+                return ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key)), ty.as_ref().map(Clone::clone)));
+            };
+
+            // Default to local variable
+            ExprValue::SymbolReference((Some(SymbolReferenceType::LocalVarReference(given.clone())), None))
         }
 
         &ExprValue::DefaultVariableReference => {
@@ -420,7 +424,7 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
             if processing_scope.2.is_some() {
                 match processing_scope.2 {
                     Some(SymbolReferenceType::ParameterReference(ref param_key)) => {
-                        return ExprValue::VariableReference(param_key.to_owned());
+                        return ExprValue::SymbolReference((Some(SymbolReferenceType::ParameterReference(param_key.to_owned())), None));
                     },
                     _ => {}
                 };

@@ -43,6 +43,28 @@ pub enum ExprType {
 }
 */
 
+#[derive(Debug, Clone)]
+pub enum PrimitiveVarType {
+    StringVar,
+    Number,
+    Expr,
+}
+
+#[derive(Debug, Clone)]
+pub enum VarType {
+    ArrayVar(Option<Box<VarType>>),
+    Primitive(PrimitiveVarType),
+}
+
+#[derive(Debug, Clone)]
+pub enum SymbolReferenceType {
+    ReducerKeyReference(String),
+    ParameterReference(String),
+    LocalVarReference(String)
+}
+pub type SymbolRefType = Option<SymbolReferenceType>;
+pub type Symbol = (SymbolRefType, Option<VarType>);
+
 /// Simple expression (parameter value)
 #[derive(Debug, Clone)]
 pub enum ExprValue {
@@ -51,6 +73,7 @@ pub enum ExprValue {
     LiteralArray(Option<Vec<ExprValue>>),
     VariableReference(String),
     DefaultVariableReference,
+    SymbolReference(Symbol),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),

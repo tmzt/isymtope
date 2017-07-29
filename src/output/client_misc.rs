@@ -41,6 +41,29 @@ pub fn write_computed_expr_value(w: &mut io::Write,
             }
         }
 
+        &ExprValue::SymbolReference(ref sym) => {
+            match sym {
+                &(Some(ref sym), _) => {
+                    match sym {
+                        &SymbolReferenceType::LocalVarReference(ref var_name) => {
+                            write!(w, "{}", var_name)?;
+                        }
+
+                        &SymbolReferenceType::ParameterReference(ref param_key) => {
+                            write!(w, "{}", param_key)?;
+                        }
+
+                        &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
+                            write!(w, "{}", as_reducer_key)?;
+                        }
+
+                        _ => {}
+                    };
+                }
+                _ => {}
+            };
+        }
+
         &ExprValue::Expr(ref sym, ref l, ref r) => {
             // write!(w, "{:?} {:?} {:?}", l, sym, r)?;
             write_computed_expr_value(w, l, var_prefix, default_var)?;
