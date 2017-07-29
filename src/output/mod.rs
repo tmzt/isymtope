@@ -2,7 +2,6 @@
 extern crate uuid;
 extern crate itertools;
 
-pub mod process;
 pub mod client;
 pub mod client_output;
 pub mod client_html;
@@ -14,9 +13,8 @@ pub mod client_ops_stream_writer;
 pub mod client_ops_js_stream_writer;
 pub mod client_ops_html_stream_writer;
 pub mod scope;
-pub mod structs;
 
-pub use self::structs::Result;
+pub use processing::structs::Result;
 
 use std::io;
 use parser::ast::*;

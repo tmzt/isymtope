@@ -5,7 +5,7 @@ use std::slice::Iter;
 
 use parser::ast::*;
 use parser::util::allocate_element_key;
-use output::structs::*;
+use processing::structs::*;
 use output::scope::*;
 use output::client_js::*;
 use output::client_misc::*;

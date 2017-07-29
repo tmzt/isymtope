@@ -7,7 +7,7 @@ use std::collections::hash_map::HashMap;
 use parser::ast::*;
 use parser::util::allocate_element_key;
 use parser::store::*;
-use output::structs::*;
+use processing::structs::*;
 use output::scope::*;
 use output::client_misc::*;
 use output::client_output::*;

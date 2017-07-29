@@ -2,7 +2,7 @@
 use std::io;
 
 use parser::ast::*;
-use output::structs::*;
+use processing::structs::*;
 
 pub fn write_computed_expr_value(w: &mut io::Write,
                                  node: &ExprValue,

@@ -2,10 +2,10 @@
 use std::io;
 use std::fmt;
 use parser::ast::*;
-use super::process::ProcessDocument;
+use processing::process::*;
 
 use super::client_output::*;
-use super::structs::*;
+use processing::structs::*;
 
 pub struct ClientOutput<'input> {
     ast: &'input Template,

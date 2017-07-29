@@ -3,7 +3,7 @@ use std::io;
 use std::slice::Iter;
 
 use parser::ast::*;
-use output::structs::*;
+use processing::structs::*;
 use output::scope::*;
 use output::client_ops_writer::*;
 

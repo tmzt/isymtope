@@ -11,7 +11,7 @@ use linked_hash_map::LinkedHashMap;
 use parser::ast::*;
 use parser::util::allocate_element_key;
 use parser::store::*;
-use output::structs::*;
+use processing::structs::*;
 use output::scope::*;
 use output::client_misc::*;
 use output::client_output::*;

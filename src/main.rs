@@ -10,6 +10,7 @@ extern crate itertools;
 extern crate linked_hash_map;
 
 mod parser;
+mod processing;
 mod output;
 
 use wren::{VM, Configuration};
