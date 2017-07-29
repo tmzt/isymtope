@@ -71,8 +71,8 @@ impl<'input> ProcessDocument<'input> {
                     };
                 }
                 &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
-                    let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
+                    // let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
+                    //     .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
 
                     let action_path = format!("{}{}",
                                               reducer_key_prefix.and_then(|prefix| {
@@ -92,10 +92,13 @@ impl<'input> ProcessDocument<'input> {
                         // Create a new block and processing scope for the expression
                         let mut action_block: BlockProcessingState = Default::default();
                         let processing_scope: ProcessingScope = Default::default();
-                        self.process_expr(expr, &mut action_block, &processing_scope)?;
+                        process_expr(expr, &mut action_block, &self.processing, &processing_scope)?;
 
                         action.state_expr = Some(simple_expr.clone());
                     };
+                    let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
+                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
+
                     if let Some(ref mut actions) = reducer_entry.actions {
                         actions.push(action);
                     };
@@ -195,212 +198,6 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
-    #[inline]
-    fn process_expr(&mut self,
-                    expr: &'input ExprValue,
-                    block: &mut BlockProcessingState,
-                    processing_scope: &ProcessingScope)
-                    -> DocumentProcessingResult<()> {
-        match expr {
-            &ExprValue::Expr(ExprOp::Add,
-                             box ExprValue::ContentNode(ref l),
-                             box ExprValue::ContentNode(ref r)) => {
-                self.process_content_node(l, block)?;
-                self.process_content_node(r, block)?;
-            }
-
-            &ExprValue::Expr(ExprOp::Add, box ExprValue::ContentNode(ref l), box ref r) => {
-                self.process_content_node(l, block)?;
-                self.process_expr(r, block, processing_scope)?;
-            }
-
-            &ExprValue::Expr(ExprOp::Add, box ref l, box ExprValue::ContentNode(ref r)) => {
-                self.process_expr(l, block, processing_scope)?;
-                self.process_content_node(r, block)?;
-            }
-
-            &ExprValue::Expr(ref op, ref l, ref r) => {
-                // Write left expression
-                self.process_expr(l, block, processing_scope)?;
-
-                // Write operator
-                let expr_str = match op {
-                    &ExprOp::Add => "+",
-                    &ExprOp::Sub => "-",
-                    &ExprOp::Mul => "*",
-                    &ExprOp::Div => "/",
-                };
-                // self.write_computed_expr_value(&mut expr_str, op, var_prefix, default_var)?;
-                block.ops_vec.push(ElementOp::WriteValue(ExprValue::LiteralString(String::from(expr_str)),
-                                                Some(allocate_element_key())));
-
-                // Write right expression
-                self.process_expr(r, block, processing_scope)?;
-            }
-
-            &ExprValue::ContentNode(ref node) => {
-                self.process_content_node(node, block)?
-            }
-
-            &ExprValue::VariableReference(ref given) => {
-                let as_reducer_key = processing_scope.0.as_ref()
-                    .map(|s| format!("{}.{}", s, given))
-                    .unwrap_or("".to_owned());
-
-                let has_symbol = block.symbol_map.contains_key(given);
-                if !has_symbol {
-                    if let Some(ref reducer_data) = self.processing.reducer_key_data.get(&as_reducer_key) {
-                        block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(as_reducer_key.to_owned()), Some(allocate_element_key())));
-                        block.symbol_map.insert(given.to_owned(), (
-                            Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
-                            None
-                        ));
-                        return Ok(());
-                    };
-                };
-
-                block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(given.to_owned()), Some(allocate_element_key())));
-
-                // match blocks.symbol_map.get(given.to_owned()) {
-                //     Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)) => {                        
-                //         match self.processing.reducer_data.get(reducer_key) { 
-                //             Some(ref reducer_data) => {
-                //                 let ref_key = format!("")
-                //                 ExprValue::VariableReference
-                //             }
-                //         }
-
-                //     }
-                // }
-            }
-
-            &ExprValue::DefaultVariableReference => {
-
-                // If we have a valid default var in the scope, expand the DefaultVariableReference into a VariableReference
-                // and attach known type information for the default variable.
-
-                if processing_scope.2.is_some() {
-                    match processing_scope.2 {
-                        Some(SymbolReferenceType::ParameterReference(ref param_key)) => {
-                            block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(param_key.to_owned()), Some(allocate_element_key())));
-                            return Ok(());
-                        },
-                        _ => {}
-                    };
-                };
-                block.ops_vec.push(ElementOp::WriteValue(ExprValue::DefaultVariableReference, Some(allocate_element_key())));
-            }
-
-            _ => {
-                block.ops_vec.push(ElementOp::WriteValue(expr.clone(), Some(allocate_element_key())));
-
-            }
-        };
-        // ops_vec.push(ElementOp::WriteValue(expr.clone(), Some(allocate_element_key())));
-        Ok(())
-    }
-
-    #[inline]
-    fn process_content_node(&mut self,
-                            node: &'input ContentNodeType,
-                            block: &mut BlockProcessingState)
-                            -> DocumentProcessingResult<()> {
-
-        match node {
-            &ContentNodeType::ElementNode(ref element_data) => {
-                let element_tag = element_data.element_ty.to_lowercase();
-                let element_key =
-                    element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
-
-                let attrs = element_data.attrs.as_ref().map(Clone::clone);
-                let lens = element_data.lens.as_ref().map(Clone::clone);
-
-                let events = element_data.events
-                    .as_ref()
-                    .map(|attrs| attrs.iter().map(Clone::clone).collect());
-
-                // Try to locate a matching component
-                if let Some(..) = self.processing.comp_map.get(element_data.element_ty.as_str()) {
-
-                    // Render a component during render
-                    block.ops_vec.push(ElementOp::InstanceComponent(element_tag,
-                                                              Some(element_key),
-                                                              attrs,
-                                                              lens));
-
-                } else {
-                    // Treat this as an HTML element
-                    // TODO: Support imported elements
-
-                    // Process events
-                    if let Some(ref events) = element_data.events {
-                        for &(ref event_name, ref event_params, ref action_ops) in events {
-                            let event_name = event_name.as_ref().map(Clone::clone);
-                            let event_params = event_params.as_ref().map(Clone::clone);
-                            let action_ops = action_ops.as_ref().map(Clone::clone);
-                            block.events_vec.push((element_key.clone(),
-                                             event_name,
-                                             event_params,
-                                             action_ops,
-                                             None));
-                        }
-                    }
-
-                    if let Some(ref children) = element_data.children {
-                        // Push element open
-                        block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
-                                                            Some(element_key),
-                                                            attrs,
-                                                            events));
-
-                        // Iterate over children
-                        for ref child in children {
-                            self.process_content_node(child, block)?;
-                        }
-
-                        // Push element close
-                        block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
-                    } else {
-                        block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
-                                                            Some(element_key),
-                                                            attrs,
-                                                            events));
-                    }
-                }
-            }
-            &ContentNodeType::ExpressionValueNode(ref expr) => {
-                // FIXME
-                let processing_scope: ProcessingScope = Default::default();
-                self.process_expr(expr, block, &processing_scope)?
-            }
-            &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
-                let block_id = allocate_element_key().replace("-", "_");
-                block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
-
-                // Add forvar as a parameter in the symbol map
-                if let &Some(ref ele_key) = ele {
-                    block.symbol_map.insert(ele_key.to_owned(), (
-                        Some(SymbolReferenceType::ParameterReference(ele_key.to_owned())),
-                        None
-                    ));
-                }
-
-                if let &Some(ref nodes) = nodes {
-                    for ref node in nodes {
-                        // FIXME: forvar resolve
-                        self.process_content_node(node, block)?;
-                    }
-                };
-
-                block.ops_vec.push(ElementOp::EndBlock(block_id.clone()));
-                block.ops_vec.push(ElementOp::MapCollection(block_id.clone(),
-                                                      ele.as_ref().map(Clone::clone),
-                                                      coll_expr.clone()));
-            }
-        }
-        (Ok(()))
-    }
-
     #[allow(dead_code)]
     pub fn process_component_definition(&mut self,
                                         component_data: &'input ComponentDefinitionType)
@@ -412,7 +209,7 @@ impl<'input> ProcessDocument<'input> {
             for ref child in children {
                 match *child {
                     &NodeType::ContentNode(ref content) => {
-                        self.process_content_node(content, &mut block)?;
+                        process_content_node(content, &self.processing, &mut block)?;
                     }
                     _ => {}
                 }
@@ -450,7 +247,7 @@ impl<'input> ProcessDocument<'input> {
                     self.process_component_definition(component_data)?;
                 }
                 &NodeType::ContentNode(ref content) => {
-                    self.process_content_node(content, block)?;
+                    process_content_node(content, &self.processing, block)?;
                 }
                 _ => {}
             }
@@ -467,4 +264,211 @@ impl<'input> ProcessDocument<'input> {
         self.root_block = root_block;
         Ok(())
     }
+}
+
+#[inline]
+pub fn process_expr<'input>(expr: &'input ExprValue,
+                block: &mut BlockProcessingState,
+                processing: &DocumentProcessingState,
+                processing_scope: &ProcessingScope)
+                -> DocumentProcessingResult<()> {
+    match expr {
+        &ExprValue::Expr(ExprOp::Add,
+                            box ExprValue::ContentNode(ref l),
+                            box ExprValue::ContentNode(ref r)) => {
+            process_content_node(l, processing, block)?;
+            process_content_node(r, processing, block)?;
+        }
+
+        &ExprValue::Expr(ExprOp::Add, box ExprValue::ContentNode(ref l), box ref r) => {
+            process_content_node(l, processing, block)?;
+            process_expr(r, block, processing, processing_scope)?;
+        }
+
+        &ExprValue::Expr(ExprOp::Add, box ref l, box ExprValue::ContentNode(ref r)) => {
+            process_expr(l, block, processing, processing_scope)?;
+            process_content_node(r, processing, block)?;
+        }
+
+        &ExprValue::Expr(ref op, ref l, ref r) => {
+            // Write left expression
+            process_expr(l, block, processing, processing_scope)?;
+
+            // Write operator
+            let expr_str = match op {
+                &ExprOp::Add => "+",
+                &ExprOp::Sub => "-",
+                &ExprOp::Mul => "*",
+                &ExprOp::Div => "/",
+            };
+            // self.write_computed_expr_value(&mut expr_str, op, var_prefix, default_var)?;
+            block.ops_vec.push(ElementOp::WriteValue(ExprValue::LiteralString(String::from(expr_str)),
+                                            Some(allocate_element_key())));
+
+            // Write right expression
+            process_expr(r, block, processing, processing_scope)?;
+        }
+
+        &ExprValue::ContentNode(ref node) => {
+            process_content_node(node, processing, block)?
+        }
+
+        &ExprValue::VariableReference(ref given) => {
+            let as_reducer_key = processing_scope.0.as_ref()
+                .map(|s| format!("{}.{}", s, given))
+                .unwrap_or("".to_owned());
+
+            let has_symbol = block.symbol_map.contains_key(given);
+            if !has_symbol {
+                if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
+                    block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(as_reducer_key.to_owned()), Some(allocate_element_key())));
+                    block.symbol_map.insert(given.to_owned(), (
+                        Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
+                        None
+                    ));
+                    return Ok(());
+                };
+            };
+
+            block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(given.to_owned()), Some(allocate_element_key())));
+
+            // match blocks.symbol_map.get(given.to_owned()) {
+            //     Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)) => {                        
+            //         match self.processing.reducer_data.get(reducer_key) { 
+            //             Some(ref reducer_data) => {
+            //                 let ref_key = format!("")
+            //                 ExprValue::VariableReference
+            //             }
+            //         }
+
+            //     }
+            // }
+        }
+
+        &ExprValue::DefaultVariableReference => {
+
+            // If we have a valid default var in the scope, expand the DefaultVariableReference into a VariableReference
+            // and attach known type information for the default variable.
+
+            if processing_scope.2.is_some() {
+                match processing_scope.2 {
+                    Some(SymbolReferenceType::ParameterReference(ref param_key)) => {
+                        block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(param_key.to_owned()), Some(allocate_element_key())));
+                        return Ok(());
+                    },
+                    _ => {}
+                };
+            };
+            block.ops_vec.push(ElementOp::WriteValue(ExprValue::DefaultVariableReference, Some(allocate_element_key())));
+        }
+
+        _ => {
+            block.ops_vec.push(ElementOp::WriteValue(expr.clone(), Some(allocate_element_key())));
+
+        }
+    };
+    // ops_vec.push(ElementOp::WriteValue(expr.clone(), Some(allocate_element_key())));
+    Ok(())
+}
+
+#[inline]
+pub fn process_content_node<'input>(
+                        node: &'input ContentNodeType,
+                        processing: &DocumentProcessingState,
+                        block: &mut BlockProcessingState)
+                        -> DocumentProcessingResult<()> {
+
+    match node {
+        &ContentNodeType::ElementNode(ref element_data) => {
+            let element_tag = element_data.element_ty.to_lowercase();
+            let element_key =
+                element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
+
+            let attrs = element_data.attrs.as_ref().map(Clone::clone);
+            let lens = element_data.lens.as_ref().map(Clone::clone);
+
+            let events = element_data.events
+                .as_ref()
+                .map(|attrs| attrs.iter().map(Clone::clone).collect());
+
+            // Try to locate a matching component
+            if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
+
+                // Render a component during render
+                block.ops_vec.push(ElementOp::InstanceComponent(element_tag,
+                                                            Some(element_key),
+                                                            attrs,
+                                                            lens));
+
+            } else {
+                // Treat this as an HTML element
+                // TODO: Support imported elements
+
+                // Process events
+                if let Some(ref events) = element_data.events {
+                    for &(ref event_name, ref event_params, ref action_ops) in events {
+                        let event_name = event_name.as_ref().map(Clone::clone);
+                        let event_params = event_params.as_ref().map(Clone::clone);
+                        let action_ops = action_ops.as_ref().map(Clone::clone);
+                        block.events_vec.push((element_key.clone(),
+                                            event_name,
+                                            event_params,
+                                            action_ops,
+                                            None));
+                    }
+                }
+
+                if let Some(ref children) = element_data.children {
+                    // Push element open
+                    block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
+                                                        Some(element_key),
+                                                        attrs,
+                                                        events));
+
+                    // Iterate over children
+                    for ref child in children {
+                        process_content_node(child, processing, block)?;
+                    }
+
+                    // Push element close
+                    block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
+                } else {
+                    block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
+                                                        Some(element_key),
+                                                        attrs,
+                                                        events));
+                }
+            }
+        }
+        &ContentNodeType::ExpressionValueNode(ref expr) => {
+            // FIXME
+            let processing_scope: ProcessingScope = Default::default();
+            process_expr(expr, block, processing, &processing_scope)?
+        }
+        &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
+            let block_id = allocate_element_key().replace("-", "_");
+            block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
+
+            // Add forvar as a parameter in the symbol map
+            if let &Some(ref ele_key) = ele {
+                block.symbol_map.insert(ele_key.to_owned(), (
+                    Some(SymbolReferenceType::ParameterReference(ele_key.to_owned())),
+                    None
+                ));
+            }
+
+            if let &Some(ref nodes) = nodes {
+                for ref node in nodes {
+                    // FIXME: forvar resolve
+                    process_content_node(node, processing, block)?;
+                }
+            };
+
+            block.ops_vec.push(ElementOp::EndBlock(block_id.clone()));
+            block.ops_vec.push(ElementOp::MapCollection(block_id.clone(),
+                                                    ele.as_ref().map(Clone::clone),
+                                                    coll_expr.clone()));
+        }
+    }
+    (Ok(()))
 }
