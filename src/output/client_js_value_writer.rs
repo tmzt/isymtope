@@ -4,6 +4,7 @@ use std::slice::Iter;
 
 use parser::ast::*;
 use output::structs::*;
+use output::scope::*;
 use output::client_ops_writer::*;
 
 

@@ -13,6 +13,7 @@ pub mod client_ops_writer;
 pub mod client_ops_stream_writer;
 pub mod client_ops_js_stream_writer;
 pub mod client_ops_html_stream_writer;
+pub mod scope;
 pub mod structs;
 
 pub use self::structs::Result;

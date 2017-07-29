@@ -5,6 +5,7 @@ use std::slice::Iter;
 use parser::ast::*;
 use parser::store::*;
 use output::structs::*;
+use output::scope::*;
 use output::client_html::*;
 use output::client_js::*;
 use output::client_ops_writer::*;

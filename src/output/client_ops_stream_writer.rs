@@ -12,6 +12,7 @@ use parser::ast::*;
 use parser::util::allocate_element_key;
 use parser::store::*;
 use output::structs::*;
+use output::scope::*;
 use output::client_misc::*;
 use output::client_output::*;
 use output::client_ops_writer::*;
