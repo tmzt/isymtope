@@ -49,8 +49,10 @@ pub type VarPrefix = Option<VarPrefixType>;
 
 pub type VarDefault = Option<String>;
 
-#[derive(Debug, Default)]
-pub struct ScopePrefixes (KeyPrefix, ActionPrefix, VarPrefix, VarDefault);
+pub type ExprPrefix = Option<ExprValue>;
+
+#[derive(Debug, Clone, Default)]
+pub struct ScopePrefixes (KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix);
 
 pub trait ScopePrefixOperations {
     fn key_prefix(&self, key: &str) -> String;    
@@ -61,35 +63,40 @@ pub trait ScopePrefixOperations {
     fn default_var(&self) -> Option<String>;
     fn default_action_scope(&self) -> Option<String>;
     fn var_prefix(&self, key: &str) -> String;
+    fn key_expr_prefix(&self, key: &str) -> Option<ExprValue>;
 }
 
 pub fn add_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.key_prefix(key);
-    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone))
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
 }
 
 pub fn add_var_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.var_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
 }
 
 pub fn add_action_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.action_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), Some(ActionPrefixType::ScopeActionPrefix(key_prefix)), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), Some(ActionPrefixType::ScopeActionPrefix(key_prefix)), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
 }
 
 pub fn prepend_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.prepend_key_prefix(key);
-    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone))
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
 }
 
 pub fn prepend_var_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.prepend_var_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
 }
 
 pub fn with_default_var(base: &ScopePrefixes, default_var: &str) -> ScopePrefixes {
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), Some(default_var.to_owned()))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), Some(default_var.to_owned()), base.4.as_ref().map(Clone::clone))
+}
+
+pub fn with_key_expr_prefix(base: &ScopePrefixes, expr: ExprValue) -> ScopePrefixes {
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), Some(expr))
 }
 
 impl ScopePrefixOperations for ScopePrefixes {
@@ -164,12 +171,17 @@ impl ScopePrefixOperations for ScopePrefixes {
             _ => format!("{}", key)
         }
     }
+
+    fn key_expr_prefix(&self, key: &str) -> Option<ExprValue> {
+        self.4.as_ref().map(Clone::clone)
+    }
 }
 
 pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub doc: &'input DocumentState<'input>,
     pub stream_writer: &'scope mut ElementOpsStreamWriter<'input>,
-    // pub scope_keys: LinkedHashMap<String, ()>
+    pub scope_keys: LinkedHashMap<String, ()>,
+    pub scopes: LinkedHashMap<String, ScopePrefixes>
 }
 
 impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
@@ -178,19 +190,22 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         ElementOpsWriter {
             doc: doc,
             stream_writer: stream_writer,
-            // scope_keys: Default::default()
+            scope_keys: Default::default(),
+            scopes: Default::default()
         }
     }
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_ops_content(&mut self, w: &mut io::Write, ops: Iter<'input, ElementOp>, doc: &'input DocumentState, scope_prefixes: &ScopePrefixes) -> Result {
+    pub fn write_ops_content(&mut self, w: &mut io::Write, ops: Iter<'input, ElementOp>, doc: &'input DocumentState, scope_prefixes: &ScopePrefixes, output_component_contents: bool) -> Result {
         for ref op in ops {
             let is_void = if let &ElementOp::ElementVoid(..) = *op { true } else { false };
 
             match *op {
                 &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs, ref events) |
                 &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events) => {
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
+
                     // let attrs = attrs.as_ref().map(|attrs| attrs.clone().iter());
                     // let events = events.as_ref().map(|events| events.clone().iter());
 
@@ -201,21 +216,26 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let events = events.as_ref().map(|events| events.iter());
                     
                     let element_key = format!("{}", scope_prefixes.key_prefix(element_key));
-                    self.stream_writer.write_op_element(w, op, doc, scope_prefixes, &element_key, element_tag, is_void, attrs, events)?;
+                    self.stream_writer.write_op_element(w, op, doc, &scope_prefixes, &element_key, element_tag, is_void, attrs, events)?;
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
+
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
-                    self.stream_writer.write_op_element_close(w, op, doc, scope_prefixes, element_tag)?;
+                    self.stream_writer.write_op_element_close(w, op, doc, &scope_prefixes, element_tag)?;
                 }
                 &ElementOp::WriteValue(ref expr, ref value_key) => {
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
+
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
                     let value_key = value_key.as_ref().map_or("null", |s| s);
-                    self.stream_writer.write_op_element_value(w, op, doc, scope_prefixes, expr, value_key)?;
+                    self.stream_writer.write_op_element_value(w, op, doc, &scope_prefixes, expr, value_key)?;
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
                                             ref props,
                                             ref lens) => {
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
@@ -229,23 +249,34 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let lens_props = props.as_ref().map(|p| p.iter());
 
                         // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, scope_prefixes, &comp, component_key, component_id.as_str(), lens_props, lens)?;
+                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope_prefixes, &comp, component_key, component_id.as_str(), lens_props, lens)?;
 
-                        if let Some(ref ops) = comp.ops {
-                            self.write_ops_content(w, ops.iter(), doc, scope_prefixes)?;
+                        if output_component_contents {
+                            if let Some(ref ops) = comp.ops {
+                                self.write_ops_content(w, ops.iter(), doc, &scope_prefixes, output_component_contents)?;
+                            };
                         };
 
                         // Close
-                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, scope_prefixes, &comp, component_key, component_id.as_str())?;
+                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope_prefixes, &comp, component_key, component_id.as_str())?;
                     }
                 }
 
                 &ElementOp::StartBlock(ref block_id) => {
-                    self.stream_writer.write_op_element_start_block(w, op, doc, scope_prefixes, block_id);
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
+                    let foridx = &format!("__foridx_{}", block_id);
+                    let scope_prefixes = with_key_expr_prefix(&scope_prefixes, ExprValue::VariableReference(foridx.clone()));
+                    let scope_id = scope_prefixes.key_prefix(block_id);
+                    self.scopes.insert(scope_id, scope_prefixes.clone());
+
+                    self.stream_writer.write_op_element_start_block(w, op, doc, &scope_prefixes, block_id)?;
                 }
 
                 &ElementOp::EndBlock(ref block_id) => {
-                    self.stream_writer.write_op_element_end_block(w, op, doc, scope_prefixes, block_id);
+                    self.scopes.pop_back();
+                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
+
+                    self.stream_writer.write_op_element_end_block(w, op, doc, &scope_prefixes, block_id)?;
                 }
 
                 &ElementOp::MapCollection(ref block_id, ref ele, ref coll_expr) => {
@@ -253,7 +284,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let scope_id = format!("{}_map", block_id);
 
                     // Map to block
-                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, scope_prefixes, coll_expr, block_id);
+                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, &scope_prefixes, coll_expr, block_id)?;
                 }
             }
         }

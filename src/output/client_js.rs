@@ -123,7 +123,7 @@ impl<'input> WriteJsOps<'input> {
                                             scope_prefixes: &ScopePrefixes)
                                             -> Result {
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
-        ops_writer.write_ops_content(w, ops, &self.doc, scope_prefixes)?;
+        ops_writer.write_ops_content(w, ops, &self.doc, scope_prefixes, false)?;
 
         Ok(())
     }

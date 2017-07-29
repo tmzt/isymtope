@@ -24,7 +24,7 @@ use super::structs::*;
 
 
 #[derive(Debug, Default)]
-pub struct ElementOpsJsStreamWriter{ }
+pub struct ElementOpsJsStreamWriter { }
 
 impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
@@ -211,6 +211,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
 
         let idx = 0;
         let base_key = scope_prefixes.key_prefix(element_key);
+        let base_expr = scope_prefixes.key_expr_prefix(&base_key);
         let element_key = format!("{}_{}", base_key, idx);
         // let key_expr = format!("\"{}\" + idx", base_key);
         let key_expr = format!("\"{}\"", base_key);
@@ -219,18 +220,17 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         // attrs.push(("data-id", element_key));
 
         if !is_void {
-            write!(w,
-                "IncrementalDOM.elementOpen(\"{}\", {}, [",
-                element_tag,
-                key_expr)
-                ?;
+            write!(w, "IncrementalDOM.elementOpen(\"{}\", ", element_tag)?;
         } else {
-            write!(w,
-                "IncrementalDOM.elementVoid(\"{}\", {}, [",
-                element_tag,
-                key_expr)
-                ?;
-        }
+            write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
+        };
+
+        write!(w, "\"{}\"", base_key)?;
+        if let Some(ref expr_prefix) = base_expr {
+            write!(w, " + ")?;
+            write_js_expr_value(w, expr_prefix, doc, scope_prefixes)?;
+        };
+        write!(w, ", [")?;
 
         // Static attrs
         if attrs.is_some() {
@@ -256,15 +256,18 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         // let base_key = scope.base_element_key(value_key);
         // let key_expr = scope.element_key_expr(value_key);
 
-        writeln!(w,
-                "IncrementalDOM.elementOpen(\"span\", \"{}\", [\"key\", \"{}\", \"data-id\", \"{}\"]);",
-                value_key,
-                value_key,
-                value_key)
-            ?;
+        write!(w, "IncrementalDOM.elementOpen(\"span\", ")?;
+        write!(w, "\"{}\"", value_key)?;
+        if let Some(ref expr_prefix) = scope_prefixes.key_expr_prefix(value_key) {
+            write!(w, " + ")?;
+            write_js_expr_value(w, expr_prefix, doc, scope_prefixes)?;
+        };
+        writeln!(w, ", [\"key\", \"{}\", \"data-id\", \"{}\"]);", value_key, value_key)?;
+
         write!(w, "IncrementalDOM.text(")?;
         write_js_expr_value(w, expr, doc, scope_prefixes)?;
         writeln!(w, ");")?;
+
         writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
 
         Ok(())
@@ -290,7 +293,10 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
-        let scope_prefixes = prepend_var_prefix(scope_prefixes, "store.getState()");
+
+        let foridx = &format!("__foridx_{}", block_id);
+        let scope_prefixes = with_key_expr_prefix(scope_prefixes, ExprValue::VariableReference(foridx.clone()));
+        let scope_prefixes = prepend_var_prefix(&scope_prefixes, "store.getState()");
         write_js_expr_value(w, coll_expr, doc, &scope_prefixes)?;
         writeln!(w, ").forEach(__{});", block_id)?;
 
