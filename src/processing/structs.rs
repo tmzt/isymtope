@@ -1,6 +1,8 @@
 
 use std::result;
-use std::collections::hash_map::HashMap;
+
+use linked_hash_map::LinkedHashMap;
+
 use parser::ast::*;
 use parser::store::*;
 
@@ -69,9 +71,9 @@ pub enum VarType {
 }
 
 pub type OpsVec = Vec<ElementOp>;
-pub type ComponentMap<'inp> = HashMap<&'inp str, Component<'inp>>;
-pub type ReducerKeyMap<'inp> = HashMap<&'inp str, ReducerKeyData>;
-pub type DefaultStateMap<'inp> = HashMap<&'inp str, (Option<VarType>, Option<ExprValue>)>;
+pub type ComponentMap = LinkedHashMap<String, Component>;
+pub type ReducerKeyMap<'inp> = LinkedHashMap<String, ReducerKeyData>;
+pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone)]
 pub enum ExpressionContext {
@@ -85,11 +87,11 @@ impl Default for ExpressionContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct Component<'input> {
-    pub name: &'input str,
+pub struct Component {
+    pub name: String,
     pub ops: Option<OpsVec>,
-    pub uses: Option<Vec<&'input str>>,
-    pub child_map: Option<ComponentMap<'input>>,
+    pub uses: Option<Vec<String>>,
+    pub child_map: Option<ComponentMap>,
 }
 
 // Processing
@@ -125,8 +127,20 @@ impl From<io::Error> for DocumentProcessingError {
     }
 }
 
+#[derive(Debug)]
+pub enum SymbolReferenceType {
+    ReducerKeyReference(String),
+    ParameterReference(String),
+    LocalVarReference(String)
+}
+pub type SymbolRefType = Option<SymbolReferenceType>;
+
+pub type Symbol = (SymbolRefType, Option<VarType>);
+pub type SymbolMap = LinkedHashMap<String, Symbol>;
+
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {
+    // pub symbol_map: SymbolMap, 
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }
@@ -134,9 +148,9 @@ pub struct BlockProcessingState {
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState<'inp> {
     root_block: BlockProcessingState,
-    pub comp_map: ComponentMap<'inp>,
+    pub comp_map: ComponentMap,
     pub reducer_key_data: ReducerKeyMap<'inp>,
-    pub default_state_map: DefaultStateMap<'inp>,
+    pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
     pub default_state_key: Cell<Option<&'inp str>>,
 }
@@ -145,8 +159,8 @@ pub struct DocumentProcessingState<'inp> {
 pub struct DocumentState<'inp> {
     pub ast: &'inp Template,
     pub root_block: BlockProcessingState,
-    pub comp_map: ComponentMap<'inp>,
+    pub comp_map: ComponentMap,
     pub reducer_key_data: ReducerKeyMap<'inp>,
-    pub default_state_map: DefaultStateMap<'inp>,
+    pub default_state_map: DefaultStateMap,
     pub default_reducer_key: Option<&'inp str>
 }

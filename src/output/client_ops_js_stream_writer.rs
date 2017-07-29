@@ -297,9 +297,9 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component, component_key: &str, component_id: &str, attrs: Option<Iter<'input, Prop>>, lens: Option<&str>) -> Result {
         let base_key = scope_prefixes.key_prefix(component_key);
-        let component_ty = comp.name;
+        let component_ty = &comp.name;
 
         writeln!(w,
                 "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
@@ -323,7 +323,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter<'input> for ElementOpsJsStre
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component<'input>, component_key: &str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &'input ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, comp: &'input Component, component_key: &str, component_id: &str) -> Result {
         writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         Ok(())
     }

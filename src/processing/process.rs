@@ -57,13 +57,13 @@ impl<'input> ProcessDocument<'input> {
                         self.processing.has_default_state_key = true;
                     }
 
-                    let reducer_entry = self.processing.reducer_key_data.entry(var_name)
+                    let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
 
-                        self.processing.default_state_map.entry(var_name)
+                        self.processing.default_state_map.entry(var_name.to_owned())
                             .or_insert_with(|| {
                                 let var_ty = Self::peek_var_ty(expr);
                                 (var_ty, Some(expr.clone()))
@@ -71,7 +71,7 @@ impl<'input> ProcessDocument<'input> {
                     };
                 }
                 &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
-                    let reducer_entry = self.processing.reducer_key_data.entry(reducer_key)
+                    let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
 
                     let action_path = format!("{}{}",
@@ -116,7 +116,7 @@ impl<'input> ProcessDocument<'input> {
                 &ApiNodeType::ResourceNode(ref resource_data) => {
                     let reducer_name: &'input str = &resource_data.resource_name;
 
-                    self.processing.reducer_key_data.entry(scope_name)
+                    self.processing.reducer_key_data.entry(scope_name.to_owned())
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", scope_name)));
                 }
                 _ => {}
@@ -157,7 +157,7 @@ impl<'input> ProcessDocument<'input> {
             match *node {
                 &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
                     // Within the default scope let defines a new scope and it's default expression
-                    let reducer_entry = self.processing.reducer_key_data.entry(var_name)
+                    let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
 
                     if !self.processing.has_default_state_key {
@@ -171,7 +171,7 @@ impl<'input> ProcessDocument<'input> {
                         let var_ty = Self::peek_var_ty(expr);
 
                         if var_ty.is_some() {
-                            self.processing.default_state_map.entry(var_name)
+                            self.processing.default_state_map.entry(var_name.to_owned())
                                 .or_insert_with(|| (var_ty.clone(), Some(expr.clone())));
                         }
                     };
@@ -356,13 +356,13 @@ impl<'input> ProcessDocument<'input> {
         }
 
         let comp = Component {
-            name: name,
+            name: name.to_owned(),
             ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
         };
 
-        self.processing.comp_map.insert(name, comp);
+        self.processing.comp_map.insert(name.to_owned(), comp);
 
         Ok(())
     }
