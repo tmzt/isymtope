@@ -143,7 +143,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
             };
 
             match op {
-                &ExprOp::Add if is_array => write!(w, ").concat("),
+                &ExprOp::Add if is_array => write!(w, ".concat("),
                 &ExprOp::Add => write!(w, " + "),
                 &ExprOp::Sub => write!(w, " - "), 
                 &ExprOp::Mul => write!(w, " * "),
@@ -157,12 +157,10 @@ pub fn write_js_expr_value(w: &mut io::Write,
         }
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
-            write!(w, "(")?;
             write_js_expr_value(w, l, doc, scope_prefixes)?;
             match sym {
                 &ExprOp::Add => {
-                    write!(w, ").concat(")?;
-                    // write!(w, " + ")?;
+                    write!(w, " + ")?;
                 }
                 &ExprOp::Sub => {
                     write!(w, " - ")?;
@@ -175,7 +173,6 @@ pub fn write_js_expr_value(w: &mut io::Write,
                 }
             }
             write_js_expr_value(w, r, doc, scope_prefixes)?;
-            write!(w, ")")?;
         }
 
         &ExprValue::ContentNode(..) => {}
