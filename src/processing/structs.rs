@@ -10,14 +10,16 @@ use parser::store::*;
 pub struct ReducerKeyData {
     pub reducer_key: String,
     pub default_expr: Option<ExprValue>,
+    pub ty: Option<VarType>,
     pub actions: Option<Vec<ReducerActionData>>,
 }
 
 impl ReducerKeyData {
-    pub fn from_name(reducer_key: &str) -> ReducerKeyData {
+    pub fn from_name(reducer_key: &str, ty: Option<VarType>) -> ReducerKeyData {
         ReducerKeyData {
             reducer_key: String::from(reducer_key),
             default_expr: None,
+            ty: ty,
             actions: Some(Vec::new()),
         }
     }
@@ -145,6 +147,11 @@ pub struct BlockProcessingState {
     pub symbol_map: SymbolMap, 
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
+}
+
+#[derive(Debug, Default)]
+pub struct ExprScopeProcessingState {
+    pub symbol_map: SymbolMap
 }
 
 #[derive(Debug, Default)]

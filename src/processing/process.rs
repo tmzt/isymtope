@@ -58,7 +58,7 @@ impl<'input> ProcessDocument<'input> {
                     }
 
                     let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
+                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name), None));
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
@@ -97,7 +97,7 @@ impl<'input> ProcessDocument<'input> {
                         action.state_expr = Some(simple_expr.clone());
                     };
                     let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
+                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key), None));
 
                     if let Some(ref mut actions) = reducer_entry.actions {
                         actions.push(action);
@@ -125,7 +125,7 @@ impl<'input> ProcessDocument<'input> {
                     let reducer_name: &'input str = &resource_data.resource_name;
 
                     self.processing.reducer_key_data.entry(scope_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", scope_name)));
+                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", scope_name), None));
                 }
                 _ => {}
             }
@@ -166,7 +166,7 @@ impl<'input> ProcessDocument<'input> {
                 &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
                     // Within the default scope let defines a new scope and it's default expression
                     let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name)));
+                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name), None));
 
                     if !self.processing.has_default_state_key {
                         self.processing.default_state_key.replace(Some(var_name));
@@ -174,9 +174,10 @@ impl<'input> ProcessDocument<'input> {
                     };
 
                     if let &Some(ref expr) = expr {
-                        reducer_entry.default_expr = Some(expr.clone());
-
                         let var_ty = Self::peek_var_ty(expr);
+
+                        reducer_entry.default_expr = Some(expr.clone());
+                        reducer_entry.ty = var_ty.as_ref().map(Clone::clone);
 
                         if var_ty.is_some() {
                             self.processing.default_state_map.entry(var_name.to_owned())
@@ -371,6 +372,67 @@ pub fn process_expr<'input>(expr: &'input ExprValue,
     Ok(())
 }
 
+
+#[inline]
+pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
+                processing: &DocumentProcessingState,
+                expr_scope: &mut ExprScopeProcessingState,
+                processing_scope: &ProcessingScope)
+                -> ExprValue {
+    match expr {
+        &ExprValue::ContentNode(ref content) => {
+            // Pass content through
+            ExprValue::ContentNode(content.clone())
+        }
+
+        &ExprValue::Expr(ref op, ref l, ref r) => {
+
+            let left_expr = Box::new(map_expr_using_scope(l, processing, expr_scope, processing_scope));
+            let right_expr = Box::new(map_expr_using_scope(r, processing, expr_scope, processing_scope));
+
+            ExprValue::Expr(op.clone(), left_expr, right_expr)
+        }
+
+        &ExprValue::VariableReference(ref given) => {
+            let as_reducer_key = processing_scope.0.as_ref()
+                .map(|s| format!("{}.{}", s, given))
+                .unwrap_or("".to_owned());
+
+            let has_symbol = expr_scope.symbol_map.contains_key(given);
+            if !has_symbol {
+                if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
+                    expr_scope.symbol_map.insert(given.to_owned(), (
+                        Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
+                        None
+                    ));
+                    return ExprValue::VariableReference(as_reducer_key);
+                };
+            };
+
+            ExprValue::VariableReference(given.to_owned())
+        }
+
+        &ExprValue::DefaultVariableReference => {
+
+            // If we have a valid default var in the scope, expand the DefaultVariableReference into a VariableReference
+            // and attach known type information for the default variable.
+
+            if processing_scope.2.is_some() {
+                match processing_scope.2 {
+                    Some(SymbolReferenceType::ParameterReference(ref param_key)) => {
+                        return ExprValue::VariableReference(param_key.to_owned());
+                    },
+                    _ => {}
+                };
+            };
+            ExprValue::DefaultVariableReference
+        }
+
+        _ => expr.clone()
+    }
+}
+
+
 #[inline]
 pub fn process_content_node<'input>(
                         node: &'input ContentNodeType,
@@ -443,7 +505,9 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ExpressionValueNode(ref expr) => {
             // FIXME
             let processing_scope: ProcessingScope = Default::default();
-            process_expr(expr, block, processing, &processing_scope)?
+            let mut expr_scope: ExprScopeProcessingState = Default::default();
+            let expr = map_expr_using_scope(expr, processing, &mut expr_scope, &processing_scope);
+            block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
         }
         &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
             let block_id = allocate_element_key().replace("-", "_");
