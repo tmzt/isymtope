@@ -89,6 +89,11 @@ impl<'input> ProcessDocument<'input> {
                         let ActionStateExprType::SimpleReducerKeyExpr(ref expr) = *simple_expr;
                         action.state_ty = Self::peek_var_ty(expr);
 
+                        // Create a new block and processing scope for the expression
+                        let mut action_block: BlockProcessingState = Default::default();
+                        let processing_scope: ProcessingScope = Default::default();
+                        self.process_expr(expr, &mut action_block, &processing_scope)?;
+
                         action.state_expr = Some(simple_expr.clone());
                     };
                     if let Some(ref mut actions) = reducer_entry.actions {
@@ -193,7 +198,8 @@ impl<'input> ProcessDocument<'input> {
     #[inline]
     fn process_expr(&mut self,
                     expr: &'input ExprValue,
-                    block: &mut BlockProcessingState)
+                    block: &mut BlockProcessingState,
+                    processing_scope: &ProcessingScope)
                     -> DocumentProcessingResult<()> {
         match expr {
             &ExprValue::Expr(ExprOp::Add,
@@ -205,17 +211,17 @@ impl<'input> ProcessDocument<'input> {
 
             &ExprValue::Expr(ExprOp::Add, box ExprValue::ContentNode(ref l), box ref r) => {
                 self.process_content_node(l, block)?;
-                self.process_expr(r, block)?;
+                self.process_expr(r, block, processing_scope)?;
             }
 
             &ExprValue::Expr(ExprOp::Add, box ref l, box ExprValue::ContentNode(ref r)) => {
-                self.process_expr(l, block)?;
+                self.process_expr(l, block, processing_scope)?;
                 self.process_content_node(r, block)?;
             }
 
             &ExprValue::Expr(ref op, ref l, ref r) => {
                 // Write left expression
-                self.process_expr(l, block)?;
+                self.process_expr(l, block, processing_scope)?;
 
                 // Write operator
                 let expr_str = match op {
@@ -229,11 +235,60 @@ impl<'input> ProcessDocument<'input> {
                                                 Some(allocate_element_key())));
 
                 // Write right expression
-                self.process_expr(r, block)?;
+                self.process_expr(r, block, processing_scope)?;
             }
 
             &ExprValue::ContentNode(ref node) => {
                 self.process_content_node(node, block)?
+            }
+
+            &ExprValue::VariableReference(ref given) => {
+                let as_reducer_key = processing_scope.0.as_ref()
+                    .map(|s| format!("{}.{}", s, given))
+                    .unwrap_or("".to_owned());
+
+                let has_symbol = block.symbol_map.contains_key(given);
+                if !has_symbol {
+                    if let Some(ref reducer_data) = self.processing.reducer_key_data.get(&as_reducer_key) {
+                        block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(as_reducer_key.to_owned()), Some(allocate_element_key())));
+                        block.symbol_map.insert(given.to_owned(), (
+                            Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
+                            None
+                        ));
+                        return Ok(());
+                    };
+                };
+
+                block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(given.to_owned()), Some(allocate_element_key())));
+
+                // match blocks.symbol_map.get(given.to_owned()) {
+                //     Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)) => {                        
+                //         match self.processing.reducer_data.get(reducer_key) { 
+                //             Some(ref reducer_data) => {
+                //                 let ref_key = format!("")
+                //                 ExprValue::VariableReference
+                //             }
+                //         }
+
+                //     }
+                // }
+            }
+
+            &ExprValue::DefaultVariableReference => {
+
+                // If we have a valid default var in the scope, expand the DefaultVariableReference into a VariableReference
+                // and attach known type information for the default variable.
+
+                if processing_scope.2.is_some() {
+                    match processing_scope.2 {
+                        Some(SymbolReferenceType::ParameterReference(ref param_key)) => {
+                            block.ops_vec.push(ElementOp::WriteValue(ExprValue::VariableReference(param_key.to_owned()), Some(allocate_element_key())));
+                            return Ok(());
+                        },
+                        _ => {}
+                    };
+                };
+                block.ops_vec.push(ElementOp::WriteValue(ExprValue::DefaultVariableReference, Some(allocate_element_key())));
             }
 
             _ => {
@@ -315,11 +370,20 @@ impl<'input> ProcessDocument<'input> {
             }
             &ContentNodeType::ExpressionValueNode(ref expr) => {
                 // FIXME
-                self.process_expr(expr, block)?
+                let processing_scope: ProcessingScope = Default::default();
+                self.process_expr(expr, block, &processing_scope)?
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
+
+                // Add forvar as a parameter in the symbol map
+                if let &Some(ref ele_key) = ele {
+                    block.symbol_map.insert(ele_key.to_owned(), (
+                        Some(SymbolReferenceType::ParameterReference(ele_key.to_owned())),
+                        None
+                    ));
+                }
 
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {

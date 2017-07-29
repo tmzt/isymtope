@@ -138,9 +138,11 @@ pub type SymbolRefType = Option<SymbolReferenceType>;
 pub type Symbol = (SymbolRefType, Option<VarType>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 
+pub type ProcessingScope = (Option<String>, Option<String>, SymbolRefType);
+
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {
-    // pub symbol_map: SymbolMap, 
+    pub symbol_map: SymbolMap, 
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }
