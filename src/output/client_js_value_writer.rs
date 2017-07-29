@@ -136,6 +136,26 @@ pub fn write_js_expr_value(w: &mut io::Write,
         //     // write!(w, ")")?;
         // }
 
+        &ExprValue::Expr(ref op, box ExprValue::SymbolReference(ref l_sym), ref r) => {
+            let is_array = match l_sym {
+                &(Some(_), Some(VarType::ArrayVar(_))) => true,
+                _ => false
+            };
+
+            match op {
+                &ExprOp::Add if is_array => write!(w, ").concat("),
+                &ExprOp::Add => write!(w, " + "),
+                &ExprOp::Sub => write!(w, " - "), 
+                &ExprOp::Mul => write!(w, " * "),
+                &ExprOp::Div => write!(w, " / ")
+            }?;
+
+            write_js_expr_value(w, r, doc, scope_prefixes)?;
+            if is_array {
+                write!(w, ")")?;
+            };
+        }
+
         &ExprValue::Expr(ref sym, ref l, ref r) => {
             write!(w, "(")?;
             write_js_expr_value(w, l, doc, scope_prefixes)?;
