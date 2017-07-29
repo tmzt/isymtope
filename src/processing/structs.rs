@@ -74,7 +74,7 @@ pub enum ElementOp {
 
 pub type OpsVec = Vec<ElementOp>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
-pub type ReducerKeyMap<'inp> = LinkedHashMap<String, ReducerKeyData>;
+pub type ReducerKeyMap = LinkedHashMap<String, ReducerKeyData>;
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
 
 #[derive(Debug, Clone)]
@@ -140,11 +140,11 @@ impl From<io::Error> for DocumentProcessingError {
 // pub type Symbol = (SymbolRefType, Option<VarType>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 
-pub type ProcessingScope = (Option<String>, Option<String>, SymbolRefType);
+pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
 
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {
-    pub symbol_map: SymbolMap, 
+    pub expr_scope: ExprScopeProcessingState,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }
@@ -155,13 +155,14 @@ pub struct ExprScopeProcessingState {
 }
 
 #[derive(Debug, Default)]
-pub struct DocumentProcessingState<'inp> {
+pub struct DocumentProcessingState {
     root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
-    pub reducer_key_data: ReducerKeyMap<'inp>,
+    pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
-    pub default_state_key: Cell<Option<&'inp str>>,
+    pub default_state_symbol: Option<Symbol>,
+    pub default_reducer_key: Option<String>
 }
 
 #[derive(Debug)]
@@ -169,7 +170,8 @@ pub struct DocumentState<'inp> {
     pub ast: &'inp Template,
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
-    pub reducer_key_data: ReducerKeyMap<'inp>,
+    pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
-    pub default_reducer_key: Option<&'inp str>
+    pub default_state_symbol: Option<Symbol>,
+    pub default_reducer_key: Option<String>
 }

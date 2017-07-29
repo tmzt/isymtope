@@ -85,6 +85,10 @@ pub fn write_js_expr_value(w: &mut io::Write,
                             write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, scope_prefixes)?;
                         }
 
+                        &SymbolReferenceType::ActionStateReference(ref ty) => {
+                            write_js_var_reference(w, Some("state"), doc, scope_prefixes)?;
+                        }
+
                         _ => {}
                     };
                 }
@@ -137,6 +141,9 @@ pub fn write_js_expr_value(w: &mut io::Write,
         // }
 
         &ExprValue::Expr(ref op, box ExprValue::SymbolReference(ref l_sym), ref r) => {
+            let l_expr = ExprValue::SymbolReference(l_sym.clone());
+            write_js_expr_value(w, &l_expr, doc, scope_prefixes)?;
+
             let is_array = match l_sym {
                 &(Some(_), Some(VarType::ArrayVar(_))) => true,
                 _ => false
