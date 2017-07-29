@@ -398,6 +398,7 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 .map(|s| format!("{}.{}", s, given))
                 .unwrap_or("".to_owned());
 
+            // Use cached resolution if it exists
             if let Some(sym) = expr_scope.symbol_map.get(given) {
                 return ExprValue::SymbolReference(sym.clone());
             };
