@@ -1,21 +1,14 @@
 
 use std::io;
 use std::clone::Clone;
-use std::borrow::Borrow;
 use std::slice::Iter;
-use std::marker::PhantomData;
-use std::collections::hash_map::HashMap;
 
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
-use parser::util::allocate_element_key;
-use parser::store::*;
 use processing::structs::*;
-use output::scope::*;
-use output::client_misc::*;
-use output::client_output::*;
 use output::client_ops_stream_writer::*;
+use output::scope::*;
 
 
 #[derive(Debug)]
@@ -45,6 +38,30 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             blocks: Default::default(),
             cur_block_id: None
         }
+    }
+
+    fn write_loop_item(&mut self, w: &mut io::Write, doc: &'input DocumentState, item_expr: &ExprValue, scope: &ElementOpScope, ele: Option<&str>, element_ty: Option<&VarType>, block_id: &str, output_component_contents: bool) -> Result {
+        let mut loop_scope = scope.clone();
+
+        if let Some(ele_key) = ele {
+            loop_scope.1.symbol_map.insert(ele_key.to_owned(), (Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())), None));
+            loop_scope = loop_scope
+                .with_var(ele_key,
+                    SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
+                    element_ty.as_ref().map(Clone::clone),
+                    Some(SymbolValueType::ConstantValue(item_expr.clone()))
+                );
+        };
+
+        let block_ops = self.blocks.get(block_id)
+            .map(|block| block.ops.clone());
+
+        if let Some(ref block_ops) = block_ops {
+            // Output ops
+            self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
+
+        };
+        Ok(())
     }
 
     #[inline]
@@ -164,86 +181,19 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     if output_component_contents {
                         let has_block = self.blocks.contains_key(block_id);
                         if has_block {
-                            // let symbol_map = scope.1.symbol_map.clone();
-                            // let mut loop_expr_scope = ExprScopeProcessingState { symbol_map: symbol_map };
-
-                            // let mut loop_scope = scope.clone();
-                            // if !loop_scope.1.is_some() {
-                            //     loop_scope.1 = Some(Default::default());
-                            // }
-
-                            // let expr_scope = loop_scope.1.map_or_else(|| Default::default(), |s| s.clone());
-
-                            // // Insert forvar into symbol map
-                            // if let &Some(ref ele_key) = ele {
-                            //     expr_scope.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
-                            // };
-
-                            // loop_scope.1 = Some(expr_scope);
-
-                            let mut loop_scope = scope.clone();
+                            let ele = ele.as_ref().map(|e| e.as_str());
 
                             if let &ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)), _)) = coll_expr {
                                 if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
-                                    if let Some(VarType::ArrayVar(Some(ref element_ty))) = reducer_data.ty {
+                                    if let Some(VarType::ArrayVar(Some(box ref element_ty))) = reducer_data.ty {
                                         if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {
                                             for item_expr in items {
-                                                let mut loop_scope = scope.clone();
-
-                                                if let &Some(ref ele_key) = ele {
-                                                    loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
-                                                    loop_scope = loop_scope
-                                                        .with_var(ele_key,
-                                                            SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
-                                                            Some(*element_ty.clone()),
-                                                            Some(SymbolValueType::ConstantValue(item_expr.clone()))
-                                                        );
-                                                };
-
-                                                let block_ops = self.blocks.get(block_id)
-                                                    .map(|block| block.ops.clone());
-
-                                                if let Some(ref block_ops) = block_ops {
-                                                    // Output ops
-                                                    self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
-
-                                                };
+                                                self.write_loop_item(w, doc, item_expr, scope, ele, Some(element_ty), block_id, output_component_contents)?;
                                             };
                                             continue;
                                         };
-                                        
-                                        if let &Some(ref ele_key) = ele {
-                                            loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
-                                            loop_scope = loop_scope
-                                                .with_var(ele_key,
-                                                    SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
-                                                    Some(VarType::Primitive(PrimitiveVarType::StringVar)),
-                                                    Some(SymbolValueType::ConstantValue(ExprValue::LiteralString("test".to_owned())))
-                                                );
-                                        };
-
-
-
                                     };
                                 };
-                            };
-
-                            if let &Some(ref ele_key) = ele {
-                                loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
-                                loop_scope = loop_scope
-                                    .with_var(ele_key,
-                                        SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
-                                        Some(VarType::Primitive(PrimitiveVarType::StringVar)),
-                                        Some(SymbolValueType::ConstantValue(ExprValue::LiteralString("test".to_owned())))
-                                    );
-                            };
-
-                            let block_ops = self.blocks.get(block_id)
-                                .map(|block| block.ops.clone());
-
-                            if let Some(ref block_ops) = block_ops {
-                                // Output ops
-                                self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
                             };
                         };
                     } else {

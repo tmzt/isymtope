@@ -26,13 +26,13 @@ pub struct ElementOpScope(pub ScopePrefixes, pub ExprScopeProcessingState, pub O
 impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default(), None) } }
 
 impl ElementOpScope {
-    pub fn with_var(self, var_name: &str, symbol: SymbolReferenceType, ty: Option<VarType>, value: Option<SymbolValueType>) -> Self {
+    pub fn with_var(self, var_name: &str, symbol: SymbolReferenceType, ty: Option<&VarType>, value: Option<SymbolValueType>) -> Self {
         let mut expr_scope = self.1.clone();
-        expr_scope.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.as_ref().map(Clone::clone)));
+        expr_scope.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.map(Clone::clone)));
 
         if let Some(ref value) = value {
             let mut expr_eval = self.2.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-            expr_eval.symbol_values.insert(var_name.to_owned(), (value.clone(), ty.as_ref().map(Clone::clone)));
+            expr_eval.symbol_values.insert(var_name.to_owned(), (value.clone(), ty.map(Clone::clone)));
 
             return ElementOpScope(self.0.clone(), expr_scope, Some(expr_eval));
         };
