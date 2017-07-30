@@ -308,6 +308,25 @@ pub fn resolve_symbol(expr_scope: &ExprScopeProcessingState, given: &str) -> Opt
 }
 
 #[inline]
+pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
+                processing: &DocumentProcessingState,
+                expr_scope: &mut ExprScopeProcessingState,
+                processing_scope: &ProcessingScope)
+                -> Option<LensExprType> {
+    match lens {
+        Some(&LensExprType::ForLens(ref ele_key, ref coll_expr)) => {
+            let coll_expr = map_expr_using_scope(coll_expr, processing, expr_scope, processing_scope);
+            Some(LensExprType::ForLens(ele_key.as_ref().map(|s| s.clone()), coll_expr))
+        }
+        Some(&LensExprType::GetLens(ref expr)) => {
+            let expr = map_expr_using_scope(expr, processing, expr_scope, processing_scope);
+            Some(LensExprType::GetLens(expr))
+        }
+        _ => None
+    }
+}
+
+#[inline]
 pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 processing: &DocumentProcessingState,
                 expr_scope: &mut ExprScopeProcessingState,
@@ -386,6 +405,11 @@ pub fn process_content_node<'input>(
 
             // Try to locate a matching component
             if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
+
+                // Attempt to map lens values
+                // FIXME
+                let processing_scope: ProcessingScope = Default::default();
+                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.expr_scope, &processing_scope);
 
                 // Render a component during render
                 block.ops_vec.push(ElementOp::InstanceComponent(element_tag,

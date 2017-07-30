@@ -115,7 +115,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
-                        let lens = lens.as_ref().map(|s| s.as_str());
+                        let lens = lens.as_ref().map(|s| s.clone());
 
                         let component_key = component_key.as_ref().map_or("null", |s| s);
                         let component_id = format!("{}_1", component_key);
@@ -123,7 +123,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let lens_props = props.as_ref().map(|p| p.iter());
 
                         // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), lens_props, lens)?;
+                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), lens_props, lens.as_ref())?;
 
                         if output_component_contents {
                             if let Some(ref ops) = comp.ops {

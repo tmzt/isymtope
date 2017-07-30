@@ -158,7 +158,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let base_key = scope.0.key_prefix(component_key);
 
         write!(w, "<div key=\"{}\" data-id=\"{}\" >", &base_key, &base_key)?;

@@ -302,7 +302,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let scope_prefixes = &scope.0;
         let base_key = scope_prefixes.key_prefix(component_key);
         let component_ty = &comp.name;
@@ -317,10 +317,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             component_key)
             ?;
         if attrs.is_some() {
-            let var_prefix = lens.as_ref().map(|s| format!("store.getState().{}.", s));
-            let default_var = lens.as_ref().map(|s| format!("store.getState.{}", s));
-            let default_scope = lens.as_ref().map(|s| s);
-
+            // TODO: Fix lens support
             write_js_props_object(w, attrs, doc, scope)?;
         }
         writeln!(w, ");")?;

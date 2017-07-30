@@ -5,6 +5,16 @@ use parser::ast::*;
 use processing::structs::*;
 use output::scope::*;
 
+
+pub fn reduce_expr_to_string(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> String {
+    match expr {
+        &ExprValue::LiteralString(ref s) => format!("{}", s),
+        &ExprValue::LiteralNumber(ref n) => format!("{}", n),
+        &ExprValue::LiteralArray(..) => format!("[array]"),
+        _ => format!("[invalid]")
+    }
+}
+
 pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> Option<ExprValue> {
     match expr {
         &ExprValue::LiteralString(..) => Some(expr.clone()),
@@ -17,13 +27,20 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
 
             match op {
                 &ExprOp::Add => {
-                    match (&l_expr, &r_expr) {
-                        (&Some(ExprValue::LiteralString(ref l_str)), &Some(ExprValue::LiteralString(ref r_str))) => {
+                    match (l_expr, r_expr) {
+                        // (&Some(ExprValue::LiteralString(ref l_str)), _) => {
+                        //     let r_str = reduce_expr_to_string(r_expr, doc, scope);
+                        //     return Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)));
+                        // },
+                        // (_, &Some(ExprValue::LiteralString(ref r_str))) => {
+                        //     let l_str = reduce_expr_to_string(r_expr, doc, scope);
+                        //     return Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)));
+                        // },
+                        (Some(ref l_val), Some(ref r_val)) => {
+                            let l_str = reduce_expr_to_string(l_val, doc, scope);
+                            let r_str = reduce_expr_to_string(r_val, doc, scope);
                             return Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)));
-                        },
-                        (&Some(ExprValue::LiteralNumber(ref l_num)), &Some(ExprValue::LiteralNumber(ref r_num))) => {
-                            return Some(ExprValue::LiteralNumber(l_num + r_num));
-                        },
+                        }
                         _ => {}
                     };
                 }

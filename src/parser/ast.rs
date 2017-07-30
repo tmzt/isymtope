@@ -89,6 +89,12 @@ pub enum ElementExpr {
 }
 
 #[derive(Debug, Clone)]
+pub enum LensExprType {
+    ForLens(Option<String>, ExprValue),
+    GetLens(ExprValue)
+}
+
+#[derive(Debug, Clone)]
 pub enum ActionOpNode {
     DispatchAction(String, Option<Vec<(String, ExprValue)>>)
 }
@@ -113,7 +119,6 @@ pub type EventsItem = (String,Option<String>,Option<EventHandlerParams>,Option<E
 pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;
 
-pub type Lens = (String);
 pub type Prop = (String,Option<ExprValue>);
 
 #[derive(Debug, Clone)]
@@ -121,7 +126,7 @@ pub struct ElementType {
     pub element_ty: String,
     pub element_key: Option<String>,
     pub attrs: Option<PropVec>,
-    pub lens: Option<Lens>,
+    pub lens: Option<LensExprType>,
     pub children: Option<Vec<ContentNodeType>>,
     pub events: Option<Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>>
 }

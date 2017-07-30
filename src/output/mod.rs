@@ -62,7 +62,7 @@ mod tests {
         assert!(self::test_write_html("test2.ism", "test_output2.html").is_ok());
     }
 
-    #[allow(dead_code)]
+    #[test]
     pub fn test_output3() {
         assert!(self::test_write_html("test3.ism", "test_output3.html").is_ok());
     }

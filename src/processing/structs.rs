@@ -53,7 +53,7 @@ pub enum ElementOp {
     ElementVoid(String, Option<String>, Option<Vec<Prop>>, Option<EventHandlersVec>),
     ElementClose(String),
     WriteValue(ExprValue, Option<String>),
-    InstanceComponent(String, Option<String>, Option<Vec<Prop>>, Option<String>),
+    InstanceComponent(String, Option<String>, Option<Vec<Prop>>, Option<LensExprType>),
     StartBlock(String),
     EndBlock(String),
     MapCollection(String, Option<String>, ExprValue),
