@@ -207,9 +207,9 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                                     // Output ops
                                                     self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
 
-                                                    return Ok(());
                                                 };
                                             };
+                                            continue;
                                         };
                                         
                                         if let &Some(ref ele_key) = ele {
@@ -244,17 +244,15 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                             if let Some(ref block_ops) = block_ops {
                                 // Output ops
                                 self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
-
-                                return Ok(());
                             };
                         };
+                    } else {
+                        let forvar_default = &format!("__forvar_{}", block_id);
+                        let scope_id = format!("{}_map", block_id);
+
+                        // Map to block
+                        self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, &scope, coll_expr, block_id)?;
                     };
-
-                    let forvar_default = &format!("__forvar_{}", block_id);
-                    let scope_id = format!("{}_map", block_id);
-
-                    // Map to block
-                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, &scope, coll_expr, block_id)?;
                 }
             }
         }
