@@ -28,9 +28,9 @@ pub type BlockMap = LinkedHashMap<String, BlockDefinition>;
 pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub doc: &'input DocumentState<'input>,
     pub stream_writer: &'scope mut ElementOpsStreamWriter,
-    pub scope_keys: LinkedHashMap<String, ()>,
-    pub scopes: LinkedHashMap<String, ScopePrefixes>,
-    pub expr_scopes: LinkedHashMap<String, ExprScopeProcessingState>,
+    pub scopes: LinkedHashMap<String, ElementOpScope>,
+    // pub scopes: LinkedHashMap<String, ScopePrefixes>,
+    // pub expr_scopes: LinkedHashMap<String, ExprScopeProcessingState>,
     pub blocks: BlockMap,
     pub cur_block_id: Option<String>
 }
@@ -41,9 +41,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         ElementOpsWriter {
             doc: doc,
             stream_writer: stream_writer,
-            scope_keys: Default::default(),
             scopes: Default::default(),
-            expr_scopes: Default::default(),
             blocks: Default::default(),
             cur_block_id: None
         }
@@ -51,7 +49,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_ops_content<'op>(&mut self, w: &mut io::Write, ops: Iter<'op, ElementOp>, doc: &'input DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, output_component_contents: bool) -> Result {
+    pub fn write_ops_content<'op>(&mut self, w: &mut io::Write, ops: Iter<'op, ElementOp>, doc: &'input DocumentState, scope: &ElementOpScope, output_component_contents: bool) -> Result {
         for op in ops {
             if output_component_contents {
                 if let &ElementOp::EndBlock(..) = op {
@@ -73,8 +71,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             match op {
                 &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs, ref events) |
                 &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events) => {
-                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                    let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     // let attrs = attrs.as_ref().map(|attrs| attrs.clone().iter());
                     // let events = events.as_ref().map(|events| events.clone().iter());
@@ -85,30 +82,28 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let attrs = attrs.as_ref().map(|attrs| attrs.iter());
                     let events = events.as_ref().map(|events| events.iter());
                     
-                    let element_key = format!("{}", scope_prefixes.key_prefix(element_key));
-                    self.stream_writer.write_op_element(w, op, doc, &scope_prefixes, &expr_scope, &element_key, element_tag, is_void, attrs, events)?;
+                    let element_key = format!("{}", scope.0.key_prefix(element_key));
+                    self.stream_writer.write_op_element(w, op, doc, &scope, &element_key, element_tag, is_void, attrs, events)?;
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
-                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                    let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
-                    self.stream_writer.write_op_element_close(w, op, doc, &scope_prefixes, &expr_scope, element_tag)?;
+                    self.stream_writer.write_op_element_close(w, op, doc, &scope, element_tag)?;
                 }
                 &ElementOp::WriteValue(ref expr, ref value_key) => {
-                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                    let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     // let scope = self.scopes.scope().unwrap_or(containing_scope);
                     let value_key = value_key.as_ref().map_or("null", |s| s);
-                    self.stream_writer.write_op_element_value(w, op, doc, &scope_prefixes, &expr_scope, expr, value_key)?;
+                    self.stream_writer.write_op_element_value(w, op, doc, &scope, expr, value_key)?;
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
                                             ref props,
                                             ref lens) => {
-                    let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                    let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
+                    // let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
@@ -122,16 +117,16 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let lens_props = props.as_ref().map(|p| p.iter());
 
                         // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope_prefixes, &expr_scope, &comp, component_key, component_id.as_str(), lens_props, lens)?;
+                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), lens_props, lens)?;
 
                         if output_component_contents {
                             if let Some(ref ops) = comp.ops {
-                                self.write_ops_content(w, ops.iter(), doc, &scope_prefixes, &expr_scope, output_component_contents)?;
+                                self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
                             };
                         };
 
                         // Close
-                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope_prefixes, &expr_scope, &comp, component_key, component_id.as_str())?;
+                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, component_key, component_id.as_str())?;
                     }
                 }
 
@@ -141,15 +136,15 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         self.cur_block_id = Some(block_id.to_owned());
                     } else {
                         // Write function header
-                        let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                        let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                        let mut scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                         let foridx = &format!("__foridx_{}", block_id);
-                        let scope_prefixes = with_key_expr_prefix(&scope_prefixes, ExprValue::VariableReference(foridx.clone()));
+                        let scope_prefixes = with_key_expr_prefix(&scope.0, ExprValue::VariableReference(foridx.clone()));
                         let scope_id = scope_prefixes.key_prefix(block_id);
-                        self.scopes.insert(scope_id, scope_prefixes.clone());
+                        scope.0 = scope_prefixes;
+                        self.scopes.insert(scope_id, scope.clone());
 
-                        self.stream_writer.write_op_element_start_block(w, op, doc, &scope_prefixes, &expr_scope, block_id)?;
+                        self.stream_writer.write_op_element_start_block(w, op, doc, &scope, block_id)?;
                     };
                 }
 
@@ -159,10 +154,9 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         self.cur_block_id = None;
                     } else {
                         self.scopes.pop_back();
-                        let scope_prefixes = self.scopes.back().map_or(scope_prefixes.clone(), |s| s.1.clone());
-                        let expr_scope = self.expr_scopes.back().map_or(expr_scope.clone(), |s| s.1.clone());
+                        let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
-                        self.stream_writer.write_op_element_end_block(w, op, doc, &scope_prefixes, &expr_scope, block_id)?;
+                        self.stream_writer.write_op_element_end_block(w, op, doc, &scope, block_id)?;
                     };
                 }
 
@@ -171,12 +165,33 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let block_id = block_id.to_owned();
 
                         if self.blocks.contains_key(&block_id) {
-                            let symbol_map = expr_scope.symbol_map.clone();
-                            let mut loop_expr_scope = ExprScopeProcessingState { symbol_map: symbol_map };
+                            // let symbol_map = scope.1.symbol_map.clone();
+                            // let mut loop_expr_scope = ExprScopeProcessingState { symbol_map: symbol_map };
 
-                            // Insert forvar into symbol map
+                            // let mut loop_scope = scope.clone();
+                            // if !loop_scope.1.is_some() {
+                            //     loop_scope.1 = Some(Default::default());
+                            // }
+
+                            // let expr_scope = loop_scope.1.map_or_else(|| Default::default(), |s| s.clone());
+
+                            // // Insert forvar into symbol map
+                            // if let &Some(ref ele_key) = ele {
+                            //     expr_scope.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
+                            // };
+
+                            // loop_scope.1 = Some(expr_scope);
+
+                            let mut loop_scope = scope.clone();
+
                             if let &Some(ref ele_key) = ele {
-                                loop_expr_scope.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
+                                loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
+                                loop_scope = loop_scope
+                                    .with_var(ele_key,
+                                        SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
+                                        Some(VarType::Primitive(PrimitiveVarType::StringVar)),
+                                        Some(SymbolValueType::ConstantValue(ExprValue::LiteralString("test".to_owned())))
+                                    );
                             };
 
                             let block_ops = self.blocks.get(&block_id)
@@ -184,7 +199,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                             if let Some(ref block_ops) = block_ops {
                                 // Output ops
-                                self.write_ops_content(w, block_ops.iter(), doc, scope_prefixes, &loop_expr_scope, output_component_contents)?;
+                                self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
 
                                 return Ok(());
                             };
@@ -195,7 +210,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let scope_id = format!("{}_map", block_id);
 
                     // Map to block
-                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, &scope_prefixes, &expr_scope, coll_expr, block_id)?;
+                    self.stream_writer.write_op_element_map_collection_to_block(w, op, doc, &scope, coll_expr, block_id)?;
                 }
             }
         }

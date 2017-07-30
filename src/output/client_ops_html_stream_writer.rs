@@ -28,12 +28,12 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 
     #[inline]
     #[allow(unused_variables)]
-    fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>, scope_prefixes: &ScopePrefixes) -> Result {
+    fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>, scope: &ElementOpScope) -> Result {
         write!(w, "function(event) {{")?;
         for ref act_op in act_iter {
             match *act_op {
                 &ActionOpNode::DispatchAction(ref action, ref params) => {
-                    let action_ty = scope_prefixes.action_prefix(action);
+                    let action_ty = scope.0.action_prefix(action);
                     //let action_type = resolve.action_type(Some(action));
                     write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                 }
@@ -44,23 +44,23 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
     }
 
     #[inline]
-    fn write_element_attribute_expr_value(&mut self, w: &mut io::Write, key: &str, expr: &ExprValue, doc: &DocumentState, scope_prefixes: &ScopePrefixes) -> Result {
+    fn write_element_attribute_expr_value(&mut self, w: &mut io::Write, key: &str, expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> Result {
         match expr {
             &ExprValue::Expr(ExprOp::Add, ref l, ref r) => {}
 
             &ExprValue::DefaultAction(ref params, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
-                    self.write_html_js_action(w, act_ops.iter(), scope_prefixes)?;
+                    self.write_html_js_action(w, act_ops.iter(), scope)?;
                 };
             }
             &ExprValue::Action(ref event_name, ref params, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
-                    self.write_html_js_action(w, act_ops.iter(), scope_prefixes)?;
+                    self.write_html_js_action(w, act_ops.iter(), scope)?;
                 };
             }
             _ => {
                 write!(w, "\"")?;
-                write_computed_expr_value(w, expr, doc, scope_prefixes)?;
+                write_computed_expr_value(w, expr, doc, scope)?;
                 write!(w, "\"")?;
             }
         };
@@ -77,8 +77,8 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
-        let base_key = scope_prefixes.key_prefix(element_key);
+    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+        let base_key = scope.0.key_prefix(element_key);
 
         write!(w, "<{}", element_tag)?;
         write!(w, " data-id=\"{}\"", base_key)?;
@@ -89,7 +89,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
                 // Ignore empty attributes// 
                 if let &Some(ref expr) = expr {
                     write!(w, " {}=", key)?;
-                    self.write_element_attribute_expr_value(w, key, expr, doc, scope_prefixes)?;
+                    self.write_element_attribute_expr_value(w, key, expr, doc, scope)?;
                 };
             }
         };
@@ -108,7 +108,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
                 let event_name = event_name.as_ref().map(Clone::clone);
 
                 // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
-                let default_action_scope = scope_prefixes.default_action_scope();
+                let default_action_scope = scope.0.default_action_scope();
                 self.events_vec.push((base_key.clone(),
                                         event_name,
                                         event_params,
@@ -122,17 +122,17 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, element_tag: &str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_tag: &str) -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, expr: &ExprValue, value_key: &str) -> Result {
-        let element_key = scope_prefixes.key_prefix(value_key);
+    fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, value_key: &str) -> Result {
+        let element_key = scope.0.key_prefix(value_key);
 
         write!(w, "<span key=\"{}\" data-id=\"{}\">", element_key, element_key)?;
-        write_computed_expr_value(w, expr, doc, scope_prefixes)?;
+        write_computed_expr_value(w, expr, doc, scope)?;
         write!(w, "</span>")?;
 
         self.keys_vec.push(element_key);
@@ -140,26 +140,26 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, block_id: &str) -> Result {
+    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, coll_expr: &ExprValue, block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, coll_expr: &ExprValue, block_id: &str) -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
-        let base_key = scope_prefixes.key_prefix(component_key);
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&str>) -> Result {
+        let base_key = scope.0.key_prefix(component_key);
 
         write!(w, "<div key=\"{}\" data-id=\"{}\" >", &base_key, &base_key)?;
         self.keys_vec.push(base_key);
@@ -167,7 +167,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope_prefixes: &ScopePrefixes, expr_scope: &ExprScopeProcessingState, comp: &Component, component_key: &str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str) -> Result {
         write!(w, "</div>")?;
         Ok(())
     }

@@ -8,7 +8,7 @@ use output::scope::*;
 pub fn write_computed_expr_value(w: &mut io::Write,
                                  node: &ExprValue,
                                  doc: &DocumentState,
-                                 scope_prefixes: &ScopePrefixes)
+                                 scope: &ElementOpScope)
                                  -> Result {
     match node {
         &ExprValue::LiteralString(ref s) => {
@@ -21,18 +21,18 @@ pub fn write_computed_expr_value(w: &mut io::Write,
         &ExprValue::LiteralArray(ref items) => {
             if let &Some(ref items) = items {
                 for ref item in items {
-                    write_computed_expr_value(w, item, doc, scope_prefixes)?;
+                    write_computed_expr_value(w, item, doc, scope)?;
                 }
             };
         }
 
         &ExprValue::DefaultVariableReference => {
-            let default_var = scope_prefixes.default_var().unwrap_or("value".to_owned());
+            let default_var = scope.0.default_var().unwrap_or("value".to_owned());
             write!(w, "{}", default_var)?;
         }
 
         &ExprValue::VariableReference(ref var_name) => {
-            let var_key = scope_prefixes.var_prefix(var_name);
+            let var_key = scope.0.var_prefix(var_name);
             write!(w, "{}", var_key)?;
         }
 
@@ -51,12 +51,16 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                         &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
                             if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
                                 if let Some(ref default_expr) = reducer_data.default_expr {
-                                    write_computed_expr_value(w, default_expr, doc, scope_prefixes)?;
+                                    write_computed_expr_value(w, default_expr, doc, scope)?;
                                     return Ok(());
                                 };
                             };
 
                             write!(w, "{}", as_reducer_key)?;
+                        }
+
+                        &SymbolReferenceType::LoopVarReference(ref var_name) => {
+                            write!(w, "{}", var_name)?;
                         }
 
                         _ => {}
@@ -68,7 +72,7 @@ pub fn write_computed_expr_value(w: &mut io::Write,
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
             // write!(w, "{:?} {:?} {:?}", l, sym, r)?;
-            write_computed_expr_value(w, l, doc, scope_prefixes)?;
+            write_computed_expr_value(w, l, doc, scope)?;
             match sym {
                 &ExprOp::Add => {
                     write!(w, " + ")?;
@@ -83,7 +87,7 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                     write!(w, " / ")?;
                 }
             }
-            write_computed_expr_value(w, r, doc, scope_prefixes)?;
+            write_computed_expr_value(w, r, doc, scope)?;
         }
 
         &ExprValue::ContentNode(..) => {}

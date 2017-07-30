@@ -12,15 +12,15 @@ use output::client_ops_writer::*;
 pub fn write_js_var_reference(w: &mut io::Write,
                                     var_name: Option<&str>,
                                     doc: &DocumentState,
-                                    scope_prefixes: &ScopePrefixes)
+                                    scope: &ElementOpScope)
                                     -> Result {
-    let default_var_scope = scope_prefixes.default_var_scope();
+    let default_var_scope = scope.0.default_var_scope();
     if let Some(ref var_name) = var_name {
-        let var_key = scope_prefixes.var_prefix(var_name);
+        let var_key = scope.0.var_prefix(var_name);
         write!(w, "{}", var_key)?;
     } else {
-        let default_var_scope = scope_prefixes.default_var_scope();
-        let default_var = scope_prefixes.default_var();
+        // let default_var_scope = scope.0.default_var_scope();
+        let default_var = scope.0.default_var();
         let var_key = default_var_scope
             .or_else(|| default_var)    
             .unwrap_or("default".to_owned());
@@ -40,7 +40,7 @@ pub fn write_js_var_reference(w: &mut io::Write,
 pub fn write_js_expr_value(w: &mut io::Write,
                                 node: &ExprValue,
                                 doc: &DocumentState,
-                                scope_prefixes: &ScopePrefixes)
+                                scope: &ElementOpScope)
                                 -> Result {
     match node {
         // TODO: Handle the case where quotes appear in the string
@@ -55,18 +55,18 @@ pub fn write_js_expr_value(w: &mut io::Write,
             if let &Some(ref items) = items {
                 write!(w, "[")?;
                 for ref item in items {
-                    write_js_expr_value(w, item, doc, scope_prefixes)?;
+                    write_js_expr_value(w, item, doc, scope)?;
                 }
                 write!(w, "]")?;
             };
         }
 
         &ExprValue::DefaultVariableReference => {
-            write_js_var_reference(w, None, doc, scope_prefixes)?;
+            write_js_var_reference(w, None, doc, scope)?;
         }
 
         &ExprValue::VariableReference(ref var_name) => {
-            write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
+            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
         }
 
         &ExprValue::SymbolReference(ref sym) => {
@@ -74,23 +74,23 @@ pub fn write_js_expr_value(w: &mut io::Write,
                 &(Some(ref sym), _) => {
                     match sym {
                         &SymbolReferenceType::LocalVarReference(ref var_name) => {
-                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
                         }
 
                         &SymbolReferenceType::ParameterReference(ref param_key) => {
-                            write_js_var_reference(w, Some(param_key.as_str()), doc, scope_prefixes)?;
+                            write_js_var_reference(w, Some(param_key.as_str()), doc, scope)?;
                         }
 
                         &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, scope_prefixes)?;
+                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, scope)?;
                         }
 
                         &SymbolReferenceType::ActionStateReference(ref ty) => {
-                            write_js_var_reference(w, Some("state"), doc, scope_prefixes)?;
+                            write_js_var_reference(w, Some("state"), doc, scope)?;
                         }
 
                         &SymbolReferenceType::LoopVarReference(ref var_name) => {
-                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
                         }
 
                         _ => {}
@@ -146,7 +146,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
 
         &ExprValue::Expr(ref op, box ExprValue::SymbolReference(ref l_sym), ref r) => {
             let l_expr = ExprValue::SymbolReference(l_sym.clone());
-            write_js_expr_value(w, &l_expr, doc, scope_prefixes)?;
+            write_js_expr_value(w, &l_expr, doc, scope)?;
 
             let is_array = match l_sym {
                 &(Some(_), Some(VarType::ArrayVar(_))) => true,
@@ -161,14 +161,14 @@ pub fn write_js_expr_value(w: &mut io::Write,
                 &ExprOp::Div => write!(w, " / ")
             }?;
 
-            write_js_expr_value(w, r, doc, scope_prefixes)?;
+            write_js_expr_value(w, r, doc, scope)?;
             if is_array {
                 write!(w, ")")?;
             };
         }
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
-            write_js_expr_value(w, l, doc, scope_prefixes)?;
+            write_js_expr_value(w, l, doc, scope)?;
             match sym {
                 &ExprOp::Add => {
                     write!(w, " + ")?;
@@ -183,7 +183,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
                     write!(w, " / ")?;
                 }
             }
-            write_js_expr_value(w, r, doc, scope_prefixes)?;
+            write_js_expr_value(w, r, doc, scope)?;
         }
 
         &ExprValue::ContentNode(..) => {}
@@ -198,7 +198,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
 pub fn write_js_props_object<'input>(w: &mut io::Write,
                                 props: Option<Iter<'input, Prop>>,
                                 doc: &DocumentState,
-                                scope_prefixes: &ScopePrefixes)
+                                scope: &ElementOpScope)
                         -> Result {
     write!(w, "{{")?;
     let mut wrote_first = false;
@@ -235,7 +235,7 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
                 write_js_expr_value(w,
                                     &expr,
                                     doc,
-                                    scope_prefixes)?;
+                                    scope)?;
 
             } else {
                 write!(w, "undefined")?;
@@ -252,7 +252,7 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
 pub fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
                                     attrs: Option<Iter<'input, Prop>>,
                                     doc: &DocumentState,
-                                    scope_prefixes: &ScopePrefixes,
+                                    scope: &ElementOpScope,
                                     base_key: Option<&str>)
                                     -> Result {
     let mut wrote_first = false;
@@ -286,7 +286,7 @@ pub fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
                 };
 
                 write!(w, "\"{}\", ", key)?;
-                write_js_expr_value(w, expr, doc, scope_prefixes)?;
+                write_js_expr_value(w, expr, doc, scope)?;
             } else {
                 write!(w, "\"{}\", ", key)?;
                 write!(w, "undefined")?;

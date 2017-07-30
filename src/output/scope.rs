@@ -1,7 +1,45 @@
 
 use std::clone::Clone;
+
+use linked_hash_map::LinkedHashMap;
+
+use processing::structs::*;
 use parser::ast::*;
 
+
+#[derive(Debug, Clone)]
+pub enum SymbolValueType {
+    Empty,
+    UnresolvedReference(SymbolReferenceType),
+    ConstantValue(ExprValue)
+}
+pub type SymbolVal = (SymbolValueType, Option<VarType>);
+pub type SymbolValMap = LinkedHashMap<String, SymbolVal>;
+
+#[derive(Debug, Clone, Default)]
+pub struct ExprEvalScope {
+    pub symbol_values: SymbolValMap
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementOpScope(pub ScopePrefixes, pub ExprScopeProcessingState, pub Option<ExprEvalScope>);
+impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default(), None) } }
+
+impl ElementOpScope {
+    pub fn with_var(self, var_name: &str, symbol: SymbolReferenceType, ty: Option<VarType>, value: Option<SymbolValueType>) -> Self {
+        let mut expr_scope = self.1.clone();
+        expr_scope.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.as_ref().map(Clone::clone)));
+
+        if let Some(ref value) = value {
+            let mut expr_eval = self.2.as_ref().map_or_else(|| Default::default(), |s| s.clone());
+            expr_eval.symbol_values.insert(var_name.to_owned(), (value.clone(), ty.as_ref().map(Clone::clone)));
+
+            return ElementOpScope(self.0.clone(), expr_scope, Some(expr_eval));
+        };
+
+        ElementOpScope(self.0.clone(), expr_scope, self.2.as_ref().map(Clone::clone))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum ElementKeyPrefixType {

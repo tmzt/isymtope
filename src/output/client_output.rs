@@ -31,7 +31,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_iter: Iter<EventsItem>,
-                                   scope_prefixes: &ScopePrefixes)
+                                   scope: &ElementOpScope)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
@@ -54,7 +54,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
                             // let action_ty = resolve.action_type(action_key.as_str());
                             let event_scope = event_scope.as_ref().map(|s| s.to_owned()).unwrap_or("".to_owned());
-                            let action_scope = add_action_prefix(scope_prefixes, &event_scope);
+                            let action_scope = add_action_prefix(&scope.0, &event_scope);
                             let action_ty = action_scope.action_prefix(action_key);
                             /*
                             // TODO: Fix type
@@ -95,14 +95,14 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
 
-        let mut base_scope: ScopePrefixes = Default::default();
+        let mut base_scope: ElementOpScope = Default::default();
         if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            base_scope = add_action_prefix(&base_scope, default_reducer_key);
+            base_scope.0 = add_action_prefix(&base_scope.0, default_reducer_key);
         };
 
         let base_expr_scope: ExprScopeProcessingState = Default::default();
 
-        self.output_html.write_html_ops_content(w, ops_iter, &base_scope, &base_expr_scope)?;
+        self.output_html.write_html_ops_content(w, ops_iter, &base_scope)?;
 
         write!(w,
                "{}",
@@ -113,13 +113,15 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         "#))
             ?;
 
-        let base_scope: ScopePrefixes = Default::default();
-        let base_expr_scope: ExprScopeProcessingState = Default::default();
+        let base_scope: ElementOpScope = Default::default();
+
+        // let base_scope: ScopePrefixes = Default::default();
+        // let base_expr_scope: ExprScopeProcessingState = Default::default();
 
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope, &base_expr_scope)?;
+                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope)?;
             };
         }
 
@@ -132,8 +134,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         self.output_js.write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &mut self.doc,
-                                    &base_scope,
-                                    &base_expr_scope)
+                                    &base_scope)
             ?;
 
         writeln!(w, "}}")?;
