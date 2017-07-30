@@ -60,6 +60,15 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                         }
 
                         &SymbolReferenceType::LoopVarReference(ref var_name) => {
+                            if let Some(ref eval_scope) = scope.2 {
+                                if let Some(ref value) = eval_scope.symbol_values.get(var_name) {
+                                    if let SymbolValueType::ConstantValue(ref expr) = value.0 {
+                                        write_computed_expr_value(w, expr, doc, scope)?;
+                                        return Ok(());
+                                    }
+                                }
+
+                            }
                             write!(w, "{}", var_name)?;
                         }
 
