@@ -61,7 +61,8 @@ pub enum SymbolReferenceType {
     ReducerKeyReference(String),
     ParameterReference(String),
     LocalVarReference(String),
-    ActionStateReference(Option<VarType>)
+    ActionStateReference(Option<VarType>),
+    LoopVarReference(String)
 }
 pub type SymbolRefType = Option<SymbolReferenceType>;
 pub type Symbol = (SymbolRefType, Option<VarType>);

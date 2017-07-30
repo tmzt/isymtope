@@ -33,10 +33,11 @@ impl<'input> WriteHtmlOpsContent<'input> {
     pub fn write_html_ops_content(&mut self,
                                   w: &mut io::Write,
                                   ops: Iter<ElementOp>,
-                                  scope_prefixes: &ScopePrefixes)
+                                  scope_prefixes: &ScopePrefixes,
+                                  expr_scope: &ExprScopeProcessingState)
                                   -> Result {
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
-        ops_writer.write_ops_content(w, ops, &self.doc, scope_prefixes, true)?;
+        ops_writer.write_ops_content(w, ops, &self.doc, scope_prefixes, expr_scope, true)?;
 
         Ok(())
     }

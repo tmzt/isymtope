@@ -100,7 +100,9 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             base_scope = add_action_prefix(&base_scope, default_reducer_key);
         };
 
-        self.output_html.write_html_ops_content(w, ops_iter, &base_scope)?;
+        let base_expr_scope: ExprScopeProcessingState = Default::default();
+
+        self.output_html.write_html_ops_content(w, ops_iter, &base_scope, &base_expr_scope)?;
 
         write!(w,
                "{}",
@@ -112,11 +114,12 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         let base_scope: ScopePrefixes = Default::default();
+        let base_expr_scope: ExprScopeProcessingState = Default::default();
 
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope, None)?;
+                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope, &base_expr_scope)?;
             };
         }
 
@@ -129,7 +132,8 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         self.output_js.write_js_incdom_ops_content(w,
                                     self.doc.root_block.ops_vec.iter(),
                                     &mut self.doc,
-                                    &base_scope)
+                                    &base_scope,
+                                    &base_expr_scope)
             ?;
 
         writeln!(w, "}}")?;

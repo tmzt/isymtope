@@ -149,7 +149,7 @@ pub struct BlockProcessingState {
     pub events_vec: EventsVec,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ExprScopeProcessingState {
     pub symbol_map: SymbolMap
 }

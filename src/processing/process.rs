@@ -296,6 +296,18 @@ impl<'input> ProcessDocument<'input> {
 }
 
 #[inline]
+#[allow(dead_code)]
+pub fn resolve_symbol(expr_scope: &ExprScopeProcessingState, given: &str) -> Option<Symbol> {
+    if let Some(sym) = expr_scope.symbol_map.get(given) {
+        match sym {
+            &(Some(_), _) => { return Some(sym.clone()) },
+            _ => {}
+        };
+    };
+    None
+}
+
+#[inline]
 pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 processing: &DocumentProcessingState,
                 expr_scope: &mut ExprScopeProcessingState,
@@ -320,8 +332,8 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 .map(|s| format!("{}.{}", s, given))
                 .unwrap_or("".to_owned());
 
-            // Use cached resolution if it exists
-            if let Some(sym) = expr_scope.symbol_map.get(given) {
+            // Try to resolve the symbol in the scope, including parameters and loop_vars
+            if let Some(ref sym) = resolve_symbol(expr_scope, given) {
                 return ExprValue::SymbolReference(sym.clone());
             };
 
@@ -351,7 +363,6 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
         _ => expr.clone()
     }
 }
-
 
 #[inline]
 pub fn process_content_node<'input>(
@@ -425,8 +436,7 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ExpressionValueNode(ref expr) => {
             // FIXME
             let processing_scope: ProcessingScope = Default::default();
-            let mut expr_scope: ExprScopeProcessingState = Default::default();
-            let expr = map_expr_using_scope(expr, processing, &mut expr_scope, &processing_scope);
+            let expr = map_expr_using_scope(expr, processing, &mut block.expr_scope, &processing_scope);
             block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
         }
         &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
@@ -436,7 +446,7 @@ pub fn process_content_node<'input>(
             // Add forvar as a parameter in the symbol map
             if let &Some(ref ele_key) = ele {
                 block.expr_scope.symbol_map.insert(ele_key.to_owned(), (
-                    Some(SymbolReferenceType::ParameterReference(ele_key.to_owned())),
+                    Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())),
                     None
                 ));
             }

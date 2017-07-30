@@ -89,6 +89,10 @@ pub fn write_js_expr_value(w: &mut io::Write,
                             write_js_var_reference(w, Some("state"), doc, scope_prefixes)?;
                         }
 
+                        &SymbolReferenceType::LoopVarReference(ref var_name) => {
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope_prefixes)?;
+                        }
+
                         _ => {}
                     };
                 }

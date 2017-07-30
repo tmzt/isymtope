@@ -3,11 +3,12 @@ use std::io;
 
 use parser::ast::*;
 use processing::structs::*;
+use output::scope::*;
 
 pub fn write_computed_expr_value(w: &mut io::Write,
                                  node: &ExprValue,
-                                 var_prefix: Option<&str>,
-                                 default_var: Option<&str>)
+                                 doc: &DocumentState,
+                                 scope_prefixes: &ScopePrefixes)
                                  -> Result {
     match node {
         &ExprValue::LiteralString(ref s) => {
@@ -20,25 +21,19 @@ pub fn write_computed_expr_value(w: &mut io::Write,
         &ExprValue::LiteralArray(ref items) => {
             if let &Some(ref items) = items {
                 for ref item in items {
-                    write_computed_expr_value(w, item, var_prefix, default_var)?;
+                    write_computed_expr_value(w, item, doc, scope_prefixes)?;
                 }
             };
         }
 
         &ExprValue::DefaultVariableReference => {
-            if let Some(ref prefix) = var_prefix {
-                write!(w, "{}", prefix)?;
-            } else {
-                write!(w, "value")?;
-            }
+            let default_var = scope_prefixes.default_var().unwrap_or("value".to_owned());
+            write!(w, "{}", default_var)?;
         }
 
-        &ExprValue::VariableReference(ref s) => {
-            if let Some(ref prefix) = var_prefix {
-                write!(w, "{}{}", prefix, s)?;
-            } else {
-                write!(w, "{}", s)?;
-            }
+        &ExprValue::VariableReference(ref var_name) => {
+            let var_key = scope_prefixes.var_prefix(var_name);
+            write!(w, "{}", var_key)?;
         }
 
         &ExprValue::SymbolReference(ref sym) => {
@@ -54,6 +49,13 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                         }
 
                         &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
+                            if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
+                                if let Some(ref default_expr) = reducer_data.default_expr {
+                                    write_computed_expr_value(w, default_expr, doc, scope_prefixes)?;
+                                    return Ok(());
+                                };
+                            };
+
                             write!(w, "{}", as_reducer_key)?;
                         }
 
@@ -66,7 +68,7 @@ pub fn write_computed_expr_value(w: &mut io::Write,
 
         &ExprValue::Expr(ref sym, ref l, ref r) => {
             // write!(w, "{:?} {:?} {:?}", l, sym, r)?;
-            write_computed_expr_value(w, l, var_prefix, default_var)?;
+            write_computed_expr_value(w, l, doc, scope_prefixes)?;
             match sym {
                 &ExprOp::Add => {
                     write!(w, " + ")?;
@@ -81,7 +83,7 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                     write!(w, " / ")?;
                 }
             }
-            write_computed_expr_value(w, r, var_prefix, default_var)?;
+            write_computed_expr_value(w, r, doc, scope_prefixes)?;
         }
 
         &ExprValue::ContentNode(..) => {}

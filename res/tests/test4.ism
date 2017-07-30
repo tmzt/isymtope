@@ -1,7 +1,7 @@
 use html;
 
 store {
-    let lines = [];
+    let lines = ["The first hello."];
 
     lines {
         action add => value + "Hello!";
