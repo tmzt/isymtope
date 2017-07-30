@@ -330,7 +330,7 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
         &ExprValue::VariableReference(ref given) => {
             let as_reducer_key = processing_scope.0.as_ref()
                 .map(|s| format!("{}.{}", s, given))
-                .unwrap_or("".to_owned());
+                .unwrap_or(given.to_owned());
 
             // Try to resolve the symbol in the scope, including parameters and loop_vars
             if let Some(ref sym) = resolve_symbol(expr_scope, given) {
@@ -442,6 +442,9 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
             let block_id = allocate_element_key().replace("-", "_");
             block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
+
+            let processing_scope: ProcessingScope = Default::default();
+            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope);
 
             // Add forvar as a parameter in the symbol map
             if let &Some(ref ele_key) = ele {

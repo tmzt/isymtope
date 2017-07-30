@@ -162,9 +162,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                 &ElementOp::MapCollection(ref block_id, ref ele, ref coll_expr) => {
                     if output_component_contents {
-                        let block_id = block_id.to_owned();
-
-                        if self.blocks.contains_key(&block_id) {
+                        let has_block = self.blocks.contains_key(block_id);
+                        if has_block {
                             // let symbol_map = scope.1.symbol_map.clone();
                             // let mut loop_expr_scope = ExprScopeProcessingState { symbol_map: symbol_map };
 
@@ -184,6 +183,51 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                             let mut loop_scope = scope.clone();
 
+                            if let &ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)), _)) = coll_expr {
+                                if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
+                                    if let Some(VarType::ArrayVar(Some(ref element_ty))) = reducer_data.ty {
+                                        if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {
+                                            for item_expr in items {
+                                                let mut loop_scope = scope.clone();
+
+                                                if let &Some(ref ele_key) = ele {
+                                                    loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
+                                                    loop_scope = loop_scope
+                                                        .with_var(ele_key,
+                                                            SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
+                                                            Some(*element_ty.clone()),
+                                                            Some(SymbolValueType::ConstantValue(item_expr.clone()))
+                                                        );
+                                                };
+
+                                                let block_ops = self.blocks.get(block_id)
+                                                    .map(|block| block.ops.clone());
+
+                                                if let Some(ref block_ops) = block_ops {
+                                                    // Output ops
+                                                    self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
+
+                                                    return Ok(());
+                                                };
+                                            };
+                                        };
+                                        
+                                        if let &Some(ref ele_key) = ele {
+                                            loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
+                                            loop_scope = loop_scope
+                                                .with_var(ele_key,
+                                                    SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
+                                                    Some(VarType::Primitive(PrimitiveVarType::StringVar)),
+                                                    Some(SymbolValueType::ConstantValue(ExprValue::LiteralString("test".to_owned())))
+                                                );
+                                        };
+
+
+
+                                    };
+                                };
+                            };
+
                             if let &Some(ref ele_key) = ele {
                                 loop_scope.1.symbol_map.insert(ele_key.clone(), (Some(SymbolReferenceType::LoopVarReference(ele_key.clone())), None));
                                 loop_scope = loop_scope
@@ -194,7 +238,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                     );
                             };
 
-                            let block_ops = self.blocks.get(&block_id)
+                            let block_ops = self.blocks.get(block_id)
                                 .map(|block| block.ops.clone());
 
                             if let Some(ref block_ops) = block_ops {
