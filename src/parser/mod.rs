@@ -129,7 +129,7 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    #[test]
+    #[allow(dead_code)]
     fn test_lexer_file2() {
         let res = super::parse_file(::std::path::Path::new("./res/tests/test2.ism"));
         println!("Result for lexer test file2: {:?}", res);
@@ -143,4 +143,10 @@ mod tests {
         assert!(res.is_ok());
     }
 
+    #[test]
+    fn test_lexer_file4() {
+        let res = super::parse_file(::std::path::Path::new("./res/tests/test4.ism"));
+        println!("Result for lexer test file4: {:?}", res);
+        assert!(res.is_ok());
+    }
 }

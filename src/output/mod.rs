@@ -32,58 +32,43 @@ mod tests {
     use std::io;
     use std::fs;
     use std::path::Path;
+    use super::Result;
+    use ::broadcast::BroadcastWriter;
+
+    fn test_write_html<'input>(src_file: &str, html_file: &str) -> Result {
+        let source_path = format!("./res/tests/{}", src_file);
+        let output_path = format!("./output/{}", html_file);
+
+        let template = ::parser::parse_file(Path::new(&source_path))?;
+
+        let stdout = io::stdout();
+        fs::create_dir_all("./output").ok().unwrap();
+        let file = fs::File::create(Path::new(&output_path))?;
+        let stdout = stdout.lock();
+
+        let mut stream = BroadcastWriter::new(file, stdout);
+        super::write_client_html(&mut stream, &template)
+    }
 
     // #[test]
     // Disable as api is not currently supported in default scope
     #[allow(dead_code)]
     pub fn test_output1() {
-        let template = ::parser::parse_file(Path::new("./res/tests/test1.ism")).ok().unwrap();
-        let stdout = io::stdout();
-        let mut stream = stdout.lock();
-
-        assert!(super::write_client_html(&mut stream, &template).is_ok());
-
-        fs::create_dir_all("./output").ok().unwrap();
-        let mut file = fs::File::create(Path::new("./output/test_output1.html")).ok().unwrap();
-        assert!(super::write_client_html(&mut file, &template).is_ok());
+        assert!(self::test_write_html("test1.ism", "test_output1.html").is_ok());
     }
 
-    #[test]
+    #[allow(dead_code)]
     pub fn test_output2() {
-        let template = ::parser::parse_file(Path::new("./res/tests/test2.ism")).ok().unwrap();
-        let stdout = io::stdout();
-        let mut stream = stdout.lock();
-
-        assert!(super::write_client_html(&mut stream, &template).is_ok());
-
-        fs::create_dir_all("./output").ok().unwrap();
-        let mut file = fs::File::create(Path::new("./output/test_output2.html")).ok().unwrap();
-        assert!(super::write_client_html(&mut file, &template).is_ok());
+        assert!(self::test_write_html("test2.ism", "test_output2.html").is_ok());
     }
 
-    #[test]
+    #[allow(dead_code)]
     pub fn test_output3() {
-        let template = ::parser::parse_file(Path::new("./res/tests/test3.ism")).ok().unwrap();
-        let stdout = io::stdout();
-        let mut stream = stdout.lock();
-
-        assert!(super::write_client_html(&mut stream, &template).is_ok());
-
-        fs::create_dir_all("./output").ok().unwrap();
-        let mut file = fs::File::create(Path::new("./output/test_output3.html")).ok().unwrap();
-        assert!(super::write_client_html(&mut file, &template).is_ok());
+        assert!(self::test_write_html("test3.ism", "test_output3.html").is_ok());
     }
 
     #[test]
     pub fn test_output4() {
-        let template = ::parser::parse_file(Path::new("./res/tests/test4.ism")).ok().unwrap();
-        let stdout = io::stdout();
-        let mut stream = stdout.lock();
-
-        assert!(super::write_client_html(&mut stream, &template).is_ok());
-
-        fs::create_dir_all("./output").ok().unwrap();
-        let mut file = fs::File::create(Path::new("./output/test_output4.html")).ok().unwrap();
-        assert!(super::write_client_html(&mut file, &template).is_ok());
+        assert!(self::test_write_html("test4.ism", "test_output4.html").is_ok());
     }
 }
