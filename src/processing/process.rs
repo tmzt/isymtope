@@ -7,7 +7,6 @@ use parser::api::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
 use output::scope::*;
-use output::client_ops_writer::*;
 
 
 pub struct ProcessDocument<'input> {
@@ -311,50 +310,6 @@ pub enum BareSymbolResolutionMode {
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_symbol(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, given: &str, mode: &BareSymbolResolutionMode) -> Option<Symbol> {
-    // Try to resolve the symbol in the scope, including parameters and loop_vars
-    // and previously cached resolutions
-    let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
-    if cached.is_some() { return cached; }
-
-    match mode {
-        &BareSymbolResolutionMode::ReducerKey => {
-            let as_reducer_key = processing_scope.0.as_ref()
-                .map(|s| format!("{}.{}", s, given))
-                .unwrap_or(given.to_owned());
-
-            // Try to resolve and cache the symbol as a reducer key reference
-            if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
-                let ty = &reducer_data.ty;
-                expr_scope.symbol_map.insert(given.to_owned(), (
-                    Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
-                    ty.as_ref().map(Clone::clone)
-                ));
-                return Some((Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key)), ty.as_ref().map(Clone::clone)));
-            };
-        }
-
-        &BareSymbolResolutionMode::Prop => {
-            return Some((Some(SymbolReferenceType::PropReference(given.to_owned())), None));
-        }
-
-        &BareSymbolResolutionMode::GlobalVar => {
-            return Some((Some(SymbolReferenceType::GlobalVarReference(given.to_owned())), None));         
-        }
-
-        &BareSymbolResolutionMode::LocalVar => {
-            return Some((Some(SymbolReferenceType::LocalVarReference(given.to_owned())), None));
-        }
-
-        // TODO: Handle ReducerKey
-        _ => {}
-    };
-
-    None
-}
-
-#[inline]
-#[allow(dead_code)]
 pub fn resolve_existing_symbol(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, given: &str, mode: &BareSymbolResolutionMode) -> Option<Symbol> {
     // Try to resolve the symbol in the scope, including parameters and loop_vars
     // and previously cached resolutions
@@ -401,55 +356,6 @@ pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
 
 #[inline]
 #[allow(dead_code)]
-pub fn map_expr_vars_using_scope<'input>(expr: &'input ExprValue,
-                processing: &DocumentProcessingState,
-                expr_scope: &mut ExprScopeProcessingState,
-                processing_scope: &ProcessingScope,
-                resolution_mode: &BareSymbolResolutionMode)
-                -> Option<ExprValue> {
-    match expr {
-        &ExprValue::ContentNode(_)
-        | &ExprValue::LiteralString(_)
-        | &ExprValue::LiteralNumber(_)
-        | &ExprValue::LiteralArray(_) => {
-            return Some(expr.clone());
-        }
-
-        &ExprValue::Expr(ref op, ref l, ref r) => {
-            let l_vars = map_expr_vars_using_scope(l, processing, expr_scope, processing_scope, resolution_mode)
-                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
-            let r_vars = map_expr_vars_using_scope(r, processing, expr_scope, processing_scope, resolution_mode)
-                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
-
-            let left_expr = Box::new(l_vars);
-            let right_expr = Box::new(r_vars);
-
-            return Some(ExprValue::Expr(op.clone(), left_expr, right_expr));
-        }
-
-        &ExprValue::VariableReference(ref given) => {
-
-            // Try to resolve the symbol in the scope, including parameters and loop_vars
-            if let Some(ref sym) = resolve_existing_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
-                return Some(ExprValue::SymbolReference(sym.clone()));
-            };
-        }
-
-        &ExprValue::DefaultVariableReference => {
-
-            // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
-            if let Some(ref sym) = processing_scope.2 {
-                return Some(ExprValue::SymbolReference(sym.clone()));
-            };
-        }
-
-        _ => {}
-    };
-
-    None
-}
-
-#[inline]
 pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 processing: &DocumentProcessingState,
                 expr_scope: &mut ExprScopeProcessingState,
@@ -457,15 +363,12 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 resolution_mode: &BareSymbolResolutionMode)
                 -> ExprValue {
     match expr {
-        &ExprValue::ContentNode(ref content) => {
-            // Pass content through
-            ExprValue::ContentNode(content.clone())
-        }
-
         &ExprValue::Expr(ref op, ref l, ref r) => {
+            let l_vars = map_expr_using_scope(l, processing, expr_scope, processing_scope, resolution_mode);
+            let r_vars = map_expr_using_scope(r, processing, expr_scope, processing_scope, resolution_mode);
 
-            let left_expr = Box::new(map_expr_using_scope(l, processing, expr_scope, processing_scope, resolution_mode));
-            let right_expr = Box::new(map_expr_using_scope(r, processing, expr_scope, processing_scope, resolution_mode));
+            let left_expr = Box::new(l_vars);
+            let right_expr = Box::new(r_vars);
 
             ExprValue::Expr(op.clone(), left_expr, right_expr)
         }
@@ -473,20 +376,20 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
         &ExprValue::VariableReference(ref given) => {
 
             // Try to resolve the symbol in the scope, including parameters and loop_vars
-            if let Some(ref sym) = resolve_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
+            if let Some(ref sym) = resolve_existing_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
                 return ExprValue::SymbolReference(sym.clone());
             };
 
-            // Default to local variable
-            ExprValue::SymbolReference((Some(SymbolReferenceType::LocalVarReference(given.clone())), None))
+            expr.clone()
         }
 
         &ExprValue::DefaultVariableReference => {
 
             // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
             if let Some(ref sym) = processing_scope.2 {
-                return ExprValue::SymbolReference(sym.clone())
+                return ExprValue::SymbolReference(sym.clone());
             };
+
             ExprValue::DefaultVariableReference
         }
 
@@ -586,8 +489,7 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ExpressionValueNode(ref expr) => {
             // FIXME
             let processing_scope: ProcessingScope = Default::default();
-            let expr = map_expr_vars_using_scope(expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode)
-                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
+            let expr = map_expr_using_scope(expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
 
             block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
         }
@@ -596,9 +498,7 @@ pub fn process_content_node<'input>(
             block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
             let processing_scope: ProcessingScope = Default::default();
-            // FIXME
-            let coll_expr = map_expr_vars_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode)
-                .unwrap_or_else(|| ExprValue::LiteralArray(None));
+            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
 
             // Add forvar as a parameter in the symbol map
             if let &Some(ref ele_key) = ele {
