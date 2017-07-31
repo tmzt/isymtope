@@ -71,6 +71,16 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
                             };
                         }
 
+                        &SymbolReferenceType::PropReference(ref var_name) => {
+                            if let Some(ref eval_scope) = scope.2 {
+                                if let Some(ref value) = eval_scope.symbol_values.get(var_name) {
+                                    if let SymbolValueType::ConstantValue(ref expr) = value.0 {
+                                        return reduce_expr(expr, doc, scope);
+                                    }
+                                };
+                            };
+                        }
+
                         _ => {}
                     };
                 }

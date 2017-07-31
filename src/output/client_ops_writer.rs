@@ -8,6 +8,7 @@ use linked_hash_map::LinkedHashMap;
 use parser::ast::*;
 use processing::structs::*;
 use output::client_ops_stream_writer::*;
+use output::client_misc::*;
 use output::scope::*;
 
 
@@ -38,6 +39,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         }
     }
 
+    #[inline]
     fn write_loop_item(&mut self, w: &mut io::Write, doc: &'input DocumentState, item_expr: &ExprValue, scope: &ElementOpScope, ele: Option<&str>, element_ty: Option<&VarType>, block_id: &str, output_component_contents: bool) -> Result {
         let mut loop_scope = scope.clone();
 
@@ -58,6 +60,30 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             // Output ops
             self.write_ops_content(w, block_ops.iter(), doc, &loop_scope, output_component_contents)?;
 
+        };
+        Ok(())
+    }
+
+    #[inline]
+    fn invoke_component_with_props(&mut self, w: &mut io::Write, doc: &'input DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, output_component_contents: bool) -> Result {
+        let mut prop_scope = scope.clone();
+
+        if let Some(props) = props {
+            for &(ref key, ref expr) in props {
+                let expr = expr.as_ref().and_then(|expr| reduce_expr(expr, doc, scope));
+                let expr_sym = expr.and_then(|s| Some(SymbolValueType::ConstantValue(s.clone())));
+
+                prop_scope = prop_scope
+                    .with_var(key,
+                        SymbolReferenceType::PropReference(key.to_owned()),
+                        None,
+                        expr_sym
+                    );
+            }
+        };
+
+        if let Some(ref ops) = comp.ops {
+            self.write_ops_content(w, ops.iter(), doc, &prop_scope, output_component_contents)?;
         };
         Ok(())
     }
@@ -115,20 +141,22 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
+                        let props = props.as_ref().map(|s| s.clone());
                         let lens = lens.as_ref().map(|s| s.clone());
 
                         let component_key = component_key.as_ref().map_or("null", |s| s);
                         let component_id = format!("{}_1", component_key);
 
-                        let lens_props = props.as_ref().map(|p| p.iter());
+                        let props_iter = props.as_ref().map(|s| s.iter());
 
                         // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), lens_props, lens.as_ref())?;
+                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), props_iter.as_ref().map(Clone::clone), lens.as_ref())?;
 
                         if output_component_contents {
-                            if let Some(ref ops) = comp.ops {
-                                self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
-                            };
+                            self.invoke_component_with_props(w, doc, &scope, comp, props_iter.as_ref().map(Clone::clone), true)?;
+                            // if let Some(ref ops) = comp.ops {
+                            //     self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
+                            // };
                         };
 
                         // Close
