@@ -354,23 +354,99 @@ pub fn resolve_symbol(processing: &DocumentProcessingState, expr_scope: &mut Exp
 }
 
 #[inline]
+#[allow(dead_code)]
+pub fn resolve_existing_symbol(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, given: &str, mode: &BareSymbolResolutionMode) -> Option<Symbol> {
+    // Try to resolve the symbol in the scope, including parameters and loop_vars
+    // and previously cached resolutions
+    let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
+    if cached.is_some() { return cached; }
+
+    let as_reducer_key = processing_scope.0.as_ref()
+        .map(|s| format!("{}.{}", s, given))
+        .unwrap_or(given.to_owned());
+
+    // Try to resolve and cache the symbol as a reducer key reference
+    if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
+        let ty = &reducer_data.ty;
+        expr_scope.symbol_map.insert(given.to_owned(), (
+            Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
+            ty.as_ref().map(Clone::clone)
+        ));
+        return Some((Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key)), ty.as_ref().map(Clone::clone)));
+    };
+
+    None
+}
+
+#[inline]
 pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
                 processing: &DocumentProcessingState,
                 expr_scope: &mut ExprScopeProcessingState,
                 processing_scope: &ProcessingScope)
                 -> Option<LensExprType> {
-    let resolution_mode = BareSymbolResolutionMode::Prop;
     match lens {
         Some(&LensExprType::ForLens(ref ele_key, ref coll_expr)) => {
+            let resolution_mode = BareSymbolResolutionMode::ReducerKey;
             let coll_expr = map_expr_using_scope(coll_expr, processing, expr_scope, processing_scope, &resolution_mode);
             Some(LensExprType::ForLens(ele_key.as_ref().map(|s| s.clone()), coll_expr))
         }
         Some(&LensExprType::GetLens(ref expr)) => {
+            let resolution_mode = BareSymbolResolutionMode::Prop;
             let expr = map_expr_using_scope(expr, processing, expr_scope, processing_scope, &resolution_mode);
             Some(LensExprType::GetLens(expr))
         }
         _ => None
     }
+}
+
+#[inline]
+#[allow(dead_code)]
+pub fn map_expr_vars_using_scope<'input>(expr: &'input ExprValue,
+                processing: &DocumentProcessingState,
+                expr_scope: &mut ExprScopeProcessingState,
+                processing_scope: &ProcessingScope,
+                resolution_mode: &BareSymbolResolutionMode)
+                -> Option<ExprValue> {
+    match expr {
+        &ExprValue::ContentNode(_)
+        | &ExprValue::LiteralString(_)
+        | &ExprValue::LiteralNumber(_)
+        | &ExprValue::LiteralArray(_) => {
+            return Some(expr.clone());
+        }
+
+        &ExprValue::Expr(ref op, ref l, ref r) => {
+            let l_vars = map_expr_vars_using_scope(l, processing, expr_scope, processing_scope, resolution_mode)
+                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
+            let r_vars = map_expr_vars_using_scope(r, processing, expr_scope, processing_scope, resolution_mode)
+                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
+
+            let left_expr = Box::new(l_vars);
+            let right_expr = Box::new(r_vars);
+
+            return Some(ExprValue::Expr(op.clone(), left_expr, right_expr));
+        }
+
+        &ExprValue::VariableReference(ref given) => {
+
+            // Try to resolve the symbol in the scope, including parameters and loop_vars
+            if let Some(ref sym) = resolve_existing_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
+                return Some(ExprValue::SymbolReference(sym.clone()));
+            };
+        }
+
+        &ExprValue::DefaultVariableReference => {
+
+            // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
+            if let Some(ref sym) = processing_scope.2 {
+                return Some(ExprValue::SymbolReference(sym.clone()));
+            };
+        }
+
+        _ => {}
+    };
+
+    None
 }
 
 #[inline]
@@ -510,7 +586,9 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ExpressionValueNode(ref expr) => {
             // FIXME
             let processing_scope: ProcessingScope = Default::default();
-            let expr = map_expr_using_scope(expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
+            let expr = map_expr_vars_using_scope(expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode)
+                .unwrap_or_else(|| ExprValue::LiteralString("[unresolved]".to_owned()));
+
             block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
         }
         &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
@@ -518,7 +596,9 @@ pub fn process_content_node<'input>(
             block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
             let processing_scope: ProcessingScope = Default::default();
-            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
+            // FIXME
+            let coll_expr = map_expr_vars_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode)
+                .unwrap_or_else(|| ExprValue::LiteralArray(None));
 
             // Add forvar as a parameter in the symbol map
             if let &Some(ref ele_key) = ele {
