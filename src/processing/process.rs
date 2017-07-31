@@ -357,16 +357,16 @@ pub fn resolve_symbol(processing: &DocumentProcessingState, expr_scope: &mut Exp
 pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
                 processing: &DocumentProcessingState,
                 expr_scope: &mut ExprScopeProcessingState,
-                processing_scope: &ProcessingScope,
-                resolution_mode: &BareSymbolResolutionMode)
+                processing_scope: &ProcessingScope)
                 -> Option<LensExprType> {
+    let resolution_mode = BareSymbolResolutionMode::Prop;
     match lens {
         Some(&LensExprType::ForLens(ref ele_key, ref coll_expr)) => {
-            let coll_expr = map_expr_using_scope(coll_expr, processing, expr_scope, processing_scope, resolution_mode);
+            let coll_expr = map_expr_using_scope(coll_expr, processing, expr_scope, processing_scope, &resolution_mode);
             Some(LensExprType::ForLens(ele_key.as_ref().map(|s| s.clone()), coll_expr))
         }
         Some(&LensExprType::GetLens(ref expr)) => {
-            let expr = map_expr_using_scope(expr, processing, expr_scope, processing_scope, resolution_mode);
+            let expr = map_expr_using_scope(expr, processing, expr_scope, processing_scope, &resolution_mode);
             Some(LensExprType::GetLens(expr))
         }
         _ => None
@@ -445,14 +445,16 @@ pub fn process_content_node<'input>(
                 // Attempt to map lens values
                 // FIXME
                 let processing_scope: ProcessingScope = Default::default();
-                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.expr_scope, &processing_scope, resolution_mode);
+                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.expr_scope, &processing_scope);
 
                 let attrs = match lens {
                     Some(LensExprType::GetLens(ExprValue::SymbolReference((Some(SymbolReferenceType::PropReference(ref lens_key)), _)))) => {
                         let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
 
+                        let sym: Symbol = (Some(SymbolReferenceType::ReducerKeyReference(lens_key.to_owned())), None);
+
                         // TODO: Make this a map
-                        attrs.push((lens_key.to_owned(), None));
+                        attrs.push((lens_key.to_owned(), Some(ExprValue::SymbolReference(sym))));
 
                         Some(attrs)
                     }
