@@ -143,6 +143,7 @@ impl<'input> WriteJsOps<'input> {
         let mut scope = scope.clone();
 
         // Merge component scope entries
+        // TODO: Convert values to props
 
         for (ref key, value) in comp.symbol_map.iter() {
             if let &(Some(ref sym), ref ty) = value {
