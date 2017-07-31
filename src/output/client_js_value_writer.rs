@@ -82,7 +82,9 @@ pub fn write_js_expr_value(w: &mut io::Write,
                         }
 
                         &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, scope)?;
+                            let mut scope = scope.clone();
+                            scope.0 = add_var_prefix(&scope.0, "store.getState()");
+                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, &scope)?;
                         }
 
                         &SymbolReferenceType::ActionStateReference(ref ty) => {

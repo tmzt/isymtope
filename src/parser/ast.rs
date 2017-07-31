@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
+use linked_hash_map::LinkedHashMap;
 use parser::store::DefaultScopeNodeType;
 use parser::loc::Loc;
+
 
 #[derive(Debug, Default)]
 pub struct Template {
@@ -68,6 +70,7 @@ pub enum SymbolReferenceType {
 }
 pub type SymbolRefType = Option<SymbolReferenceType>;
 pub type Symbol = (SymbolRefType, Option<VarType>);
+pub type SymbolMap = LinkedHashMap<String, Symbol>;
 
 /// Simple expression (parameter value)
 #[derive(Debug, Clone)]

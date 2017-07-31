@@ -94,6 +94,7 @@ pub struct Component {
     pub ops: Option<OpsVec>,
     pub uses: Option<Vec<String>>,
     pub child_map: Option<ComponentMap>,
+    pub symbol_map: SymbolMap
 }
 
 // Processing
@@ -129,17 +130,6 @@ impl From<io::Error> for DocumentProcessingError {
     }
 }
 
-// #[derive(Debug)]
-// pub enum SymbolReferenceType {
-//     ReducerKeyReference(String),
-//     ParameterReference(String),
-//     LocalVarReference(String)
-// }
-// pub type SymbolRefType = Option<SymbolReferenceType>;
-
-// pub type Symbol = (SymbolRefType, Option<VarType>);
-pub type SymbolMap = LinkedHashMap<String, Symbol>;
-
 pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
 
 #[derive(Debug, Default)]
@@ -152,6 +142,13 @@ pub struct BlockProcessingState {
 #[derive(Debug, Clone, Default)]
 pub struct ExprScopeProcessingState {
     pub symbol_map: SymbolMap
+}
+
+impl ExprScopeProcessingState {
+    pub fn with_symbol(mut self, var_name: &str, symbol: SymbolReferenceType, ty: Option<&VarType>) -> Self {
+        self.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.map(Clone::clone)));
+        self
+    }
 }
 
 #[derive(Debug, Default)]

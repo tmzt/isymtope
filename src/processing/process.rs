@@ -253,6 +253,7 @@ impl<'input> ProcessDocument<'input> {
             ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
+            symbol_map: block.expr_scope.symbol_map.clone()
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);
@@ -301,6 +302,7 @@ impl<'input> ProcessDocument<'input> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum BareSymbolResolutionMode {
     LocalVar,
     GlobalVar,
@@ -347,7 +349,27 @@ pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
         }
         Some(&LensExprType::GetLens(ref expr)) => {
             let resolution_mode = BareSymbolResolutionMode::Prop;
-            let expr = map_expr_using_scope(expr, processing, expr_scope, processing_scope, &resolution_mode);
+
+            // Resolve variable as reducer key reference first
+            // let sym = resolve_existing_symbol()
+
+            let mut lens_scope = {
+                let var_expr = map_expr_using_scope(&expr, processing, expr_scope, processing_scope, &resolution_mode);
+
+                let mut lens_scope = expr_scope.clone();
+
+                if let ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)), _)) = var_expr {
+                    lens_scope = lens_scope
+                        .with_symbol(reducer_key,
+                            SymbolReferenceType::PropReference(reducer_key.to_owned()),
+                            None
+                        );
+                };
+
+                lens_scope
+            };
+
+            let expr = map_expr_using_scope(&expr, processing, &mut lens_scope, processing_scope, &resolution_mode);
             Some(LensExprType::GetLens(expr))
         }
         _ => None
@@ -378,6 +400,14 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
             // Try to resolve the symbol in the scope, including parameters and loop_vars
             if let Some(ref sym) = resolve_existing_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
                 return ExprValue::SymbolReference(sym.clone());
+            };
+
+            if let &BareSymbolResolutionMode::Prop = resolution_mode {
+                // Collect unresolved bare symbols as props on the scope
+                expr_scope.symbol_map.insert(
+                    given.to_owned(),
+                    (Some(SymbolReferenceType::PropReference(given.to_owned())), None)
+                );
             };
 
             expr.clone()

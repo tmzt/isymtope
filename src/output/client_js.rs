@@ -135,16 +135,32 @@ impl<'input> WriteJsOps<'input> {
     pub fn write_js_incdom_component(&mut self,
                                             w: &mut io::Write,
                                             component_ty: &'input str,
+                                            comp: &Component,
                                             ops: Iter<'input, ElementOp>,
                                             processing: &DocumentState,
                                             scope: &ElementOpScope)
                                             -> Result {
+        let mut scope = scope.clone();
+
+        // Merge component scope entries
+
+        for (ref key, value) in comp.symbol_map.iter() {
+            if let &(Some(ref sym), ref ty) = value {
+                let ty = ty.as_ref().map(Clone::clone);
+
+                scope = scope.with_var(key,
+                    sym.clone(),
+                    None,
+                    None
+                );
+            };
+        }
 
         writeln!(w,
                 "  function component_{}(key_prefix, store, props) {{",
                 component_ty)
             ?;
-        self.write_js_incdom_ops_content(w, ops, processing, scope)?;
+        self.write_js_incdom_ops_content(w, ops, processing, &scope)?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
         Ok(())

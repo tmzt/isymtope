@@ -121,7 +121,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, ops.iter(), &mut self.doc, &base_scope)?;
+                self.output_js.write_js_incdom_component(w, component_ty, comp_def, ops.iter(), &mut self.doc, &base_scope)?;
             };
         }
 
