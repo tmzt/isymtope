@@ -15,4 +15,4 @@ component greeter {
     }
 }
 
-greeter (for lines) {}
+greeter (get lines) {}

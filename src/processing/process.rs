@@ -260,7 +260,8 @@ impl<'input> ProcessDocument<'input> {
             ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
-            symbol_map: block.scope.symbol_map.clone()
+            symbol_map: block.scope.symbol_map.clone(),
+            params: block.scope.props.clone()
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);
@@ -346,7 +347,7 @@ pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentPr
     // if cached.is_some() { return cached; }
 
     // Collect unresolved bare symbols as props on the scope
-    let prop = scope.symbol_map.entry(prop_key.to_owned())
+    let prop = scope.props.entry(prop_key.to_owned())
         .or_insert_with(|| Symbol::prop(prop_key));
 
     // Replace the existing symbol in this map

@@ -95,7 +95,8 @@ pub struct Component {
     pub ops: Option<OpsVec>,
     pub uses: Option<Vec<String>>,
     pub child_map: Option<ComponentMap>,
-    pub symbol_map: SymbolMap
+    pub symbol_map: SymbolMap,
+    pub params: SymbolMap
 }
 
 // Processing
