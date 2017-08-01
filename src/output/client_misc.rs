@@ -51,7 +51,7 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
 
         &ExprValue::SymbolReference(ref sym) => {
             match sym {
-                &(Some(ref sym), _) => {
+                &Symbol(ref sym, _, _) => {
                     match sym {
                         &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
                             if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
@@ -62,21 +62,17 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
                         }
 
                         &SymbolReferenceType::LoopVarReference(ref var_name) => {
-                            if let Some(ref eval_scope) = scope.2 {
-                                if let Some(ref value) = eval_scope.symbol_values.get(var_name) {
-                                    if let SymbolValueType::ConstantValue(ref expr) = value.0 {
-                                        return reduce_expr(expr, doc, scope);
-                                    }
+                            if let Some(ref reducer_data) = doc.reducer_key_data.get(var_name) {
+                                if let Some(ref default_expr) = reducer_data.default_expr {
+                                    return reduce_expr(default_expr, doc, scope);
                                 };
                             };
                         }
 
-                        &SymbolReferenceType::PropReference(ref var_name) => {
-                            if let Some(ref eval_scope) = scope.2 {
-                                if let Some(ref value) = eval_scope.symbol_values.get(var_name) {
-                                    if let SymbolValueType::ConstantValue(ref expr) = value.0 {
-                                        return reduce_expr(expr, doc, scope);
-                                    }
+                        &SymbolReferenceType::PropReference(ref prop_name) => {
+                            if let Some(ref reducer_data) = doc.reducer_key_data.get(prop_name) {
+                                if let Some(ref default_expr) = reducer_data.default_expr {
+                                    return reduce_expr(default_expr, doc, scope);
                                 };
                             };
                         }

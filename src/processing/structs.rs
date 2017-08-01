@@ -3,6 +3,7 @@ use std::result;
 
 use linked_hash_map::LinkedHashMap;
 
+use processing::scope::*;
 use parser::ast::*;
 use parser::store::*;
 
@@ -134,7 +135,7 @@ pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
 
 #[derive(Debug, Default)]
 pub struct BlockProcessingState {
-    pub expr_scope: ExprScopeProcessingState,
+    pub scope: DocumentProcessingScope,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }
@@ -145,8 +146,8 @@ pub struct ExprScopeProcessingState {
 }
 
 impl ExprScopeProcessingState {
-    pub fn with_symbol(mut self, var_name: &str, symbol: SymbolReferenceType, ty: Option<&VarType>) -> Self {
-        self.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.map(Clone::clone)));
+    pub fn with_symbol(mut self, var_name: &str, sym: SymbolReferenceType, ty: Option<&VarType>) -> Self {
+        self.symbol_map.insert(var_name.to_owned(), Symbol(sym, ty.map(Clone::clone), None));
         self
     }
 }

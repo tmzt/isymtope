@@ -145,17 +145,10 @@ impl<'input> WriteJsOps<'input> {
         // Merge component scope entries
         // TODO: Convert values to props
 
-        for (ref key, value) in comp.symbol_map.iter() {
-            if let &(Some(ref sym), ref ty) = value {
-                let ty = ty.as_ref().map(Clone::clone);
-
-                scope = scope.with_var(key,
-                    sym.clone(),
-                    None,
-                    None
-                );
-            };
-        }
+        for (ref key, ref value) in comp.symbol_map.iter() {
+            let &&Symbol(ref sym, ref ty, _) = value;
+            scope.with_symbol(key, &sym, ty.as_ref(), None);
+        };
 
         writeln!(w,
                 "  function component_{}(key_prefix, store, props) {{",

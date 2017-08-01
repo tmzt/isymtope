@@ -4,40 +4,79 @@ use std::clone::Clone;
 use linked_hash_map::LinkedHashMap;
 
 use processing::structs::*;
+use processing::scope::*;
 use parser::ast::*;
 
 
-#[derive(Debug, Clone)]
-pub enum SymbolValueType {
-    Empty,
-    UnresolvedReference(SymbolReferenceType),
-    ConstantValue(ExprValue)
-}
-pub type SymbolVal = (SymbolValueType, Option<VarType>);
-pub type SymbolValMap = LinkedHashMap<String, SymbolVal>;
+// #[derive(Debug, Clone)]
+// pub enum SymbolValueType {
+//     Empty,
+//     UnresolvedReference(SymbolReferenceType),
+//     ConstantValue(ExprValue)
+// }
+// pub type SymbolVal = (SymbolValueType, Option<VarType>);
+// pub type SymbolValMap = LinkedHashMap<String, SymbolVal>;
+
+// #[derive(Debug, Clone, Default)]
+// pub struct ExprEvalScope {
+//     pub symbol_values: SymbolValMap
+// }
+
+// #[derive(Debug, Clone)]
+// pub struct ElementOpScope(pub ScopePrefixes, pub ExprScopeProcessingState, pub Option<ExprEvalScope>);
+// impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default(), None) } }
+
+// impl ElementOpScope {
+//     pub fn with_var(self, var_name: &str, symbol: SymbolReferenceType, ty: Option<&VarType>, value: Option<SymbolValueType>) -> Self {
+//         // let mut expr_scope = self.1.clone();
+//         // expr_scope.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.map(Clone::clone)));
+
+//         self.1.symbol_map.with_var(var_name);
+
+//         if let Some(ref value) = value {
+//             let mut expr_eval = self.2.as_ref().map_or_else(|| Default::default(), |s| s.clone());
+//             expr_eval.symbol_values.insert(var_name.to_owned(), (value.clone(), ty.map(Clone::clone)));
+
+//             return ElementOpScope(self.0.clone(), expr_scope, Some(expr_eval));
+//         };
+
+//         ElementOpScope(self.0.clone(), expr_scope, self.2.as_ref().map(Clone::clone))
+//     }
+// }
 
 #[derive(Debug, Clone, Default)]
-pub struct ExprEvalScope {
-    pub symbol_values: SymbolValMap
-}
-
-#[derive(Debug, Clone)]
-pub struct ElementOpScope(pub ScopePrefixes, pub ExprScopeProcessingState, pub Option<ExprEvalScope>);
-impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default(), None) } }
+pub struct ElementOpScope(pub ScopePrefixes, pub DocumentProcessingScope);
+// impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default()) } }
 
 impl ElementOpScope {
-    pub fn with_var(self, var_name: &str, symbol: SymbolReferenceType, ty: Option<&VarType>, value: Option<SymbolValueType>) -> Self {
-        let mut expr_scope = self.1.clone();
-        expr_scope.symbol_map.insert(var_name.to_owned(), (Some(symbol), ty.map(Clone::clone)));
+    pub fn with_prop(&mut self, prop_name: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+        self.1.with_prop(prop_name, ty, value);
+        self
+    }
 
-        if let Some(ref value) = value {
-            let mut expr_eval = self.2.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-            expr_eval.symbol_values.insert(var_name.to_owned(), (value.clone(), ty.map(Clone::clone)));
+    pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
+        self.1.add_prop_with_value(prop_name, value);
+        self
+    }
 
-            return ElementOpScope(self.0.clone(), expr_scope, Some(expr_eval));
-        };
+    pub fn add_loop_var_with_value(&mut self, var_name: &str, value: &ExprValue) -> &mut Self {
+        self.1.add_loop_var_with_value(var_name, value);
+        self
+    }
 
-        ElementOpScope(self.0.clone(), expr_scope, self.2.as_ref().map(Clone::clone))
+    pub fn with_symbol(&mut self, var_name: &str, sym: &SymbolReferenceType, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+        self.1.with_symbol(var_name, sym, ty, value);
+        self
+    }
+
+    pub fn with_cached_reducer_key(&mut self, reducer_key: &str) -> &mut Self {
+        self.1.with_cached_reducer_key(reducer_key);
+        self
+    }
+
+    pub fn add_cached_reducer_key_with_value(&mut self, reducer_key: &str, value: &ExprValue) -> &mut Self {
+        self.1.add_cached_reducer_key_with_value(reducer_key, value);
+        self
     }
 }
 

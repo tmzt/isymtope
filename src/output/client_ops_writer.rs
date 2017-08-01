@@ -44,13 +44,15 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         let mut loop_scope = scope.clone();
 
         if let Some(ele_key) = ele {
-            loop_scope.1.symbol_map.insert(ele_key.to_owned(), (Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())), None));
-            loop_scope = loop_scope
-                .with_var(ele_key,
-                    SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
-                    element_ty.as_ref().map(Clone::clone),
-                    Some(SymbolValueType::ConstantValue(item_expr.clone()))
-                );
+            loop_scope.add_loop_var_with_value(ele_key, item_expr);
+
+            // loop_scope.1.symbol_map.insert(ele_key.to_owned(), (Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())), None));
+            // loop_scope = loop_scope
+            //     .with_var(ele_key,
+            //         SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
+            //         element_ty.as_ref().map(Clone::clone),
+            //         Some(SymbolValueType::ConstantValue(item_expr.clone()))
+            //     );
         };
 
         let block_ops = self.blocks.get(block_id)
@@ -70,15 +72,9 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
         if let Some(props) = props {
             for &(ref key, ref expr) in props {
-                let expr = expr.as_ref().and_then(|expr| reduce_expr(expr, doc, scope));
-                let expr_sym = expr.and_then(|s| Some(SymbolValueType::ConstantValue(s.clone())));
-
-                prop_scope = prop_scope
-                    .with_var(key,
-                        SymbolReferenceType::PropReference(key.to_owned()),
-                        None,
-                        expr_sym
-                    );
+                if let Some(ref expr) = expr.as_ref().and_then(|expr| reduce_expr(&expr, doc, scope)) {
+                    prop_scope.add_prop_with_value(key, &expr);
+                };
             }
         };
 
@@ -200,7 +196,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         if has_block {
                             let ele = ele.as_ref().map(|e| e.as_str());
 
-                            if let &ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)), _)) = coll_expr {
+                            if let &ExprValue::SymbolReference(Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, _)) = coll_expr {
                                 if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
                                     if let Some(VarType::ArrayVar(Some(box ref element_ty))) = reducer_data.ty {
                                         if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {

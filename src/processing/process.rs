@@ -6,6 +6,7 @@ use parser::store::*;
 use parser::api::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
+use processing::scope::*;
 use output::scope::*;
 
 
@@ -13,6 +14,7 @@ pub struct ProcessDocument<'input> {
     ast: &'input Template,
     root_block: BlockProcessingState,
     processing: DocumentProcessingState,
+    scope: DocumentProcessingScope
 }
 
 impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
@@ -33,19 +35,20 @@ impl<'input> ProcessDocument<'input> {
     pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
         let processing = DocumentProcessingState::default();
         let root_block = BlockProcessingState::default();
+        let scope = DocumentProcessingScope::default();
 
         ProcessDocument {
             ast: ast,
             root_block: root_block,
-            processing: processing
+            processing: processing,
+            scope: scope
         }
     }
 
     pub fn collect_js_store_child_scope(&mut self,
                                         reducer_key: &'input str,
                                         nodes: &'input Vec<ScopeNodeType>,
-                                        reducer_key_prefix: Option<&str>,
-                                        resolution_mode: &BareSymbolResolutionMode)
+                                        reducer_key_prefix: Option<&str>)
                                         -> DocumentProcessingResult<()> {
 
         for ref node in nodes {
@@ -58,8 +61,11 @@ impl<'input> ProcessDocument<'input> {
                     let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
 
                     if !has_default_sym {
-                        let sym_ref: SymbolRefType = Some(SymbolReferenceType::ReducerKeyReference(var_name.to_owned()));
-                        self.processing.default_state_symbol = Some((sym_ref, var_ty.as_ref().map(Clone::clone)));
+                        let mut sym = Symbol::reducer_key(var_name);
+                        sym.1 = var_ty.as_ref().map(Clone::clone);
+                        self.processing.default_state_symbol = Some(sym);
+                        // self.processing.default_state_symbol = Some(sym, var_ty.as_ref().map(Clone::clone));
+                        // self.processing.default_state_symbol = Some(sym, var_ty.as_ref().map(Clone::clone)));
                     }
 
                     if !has_default_reducer_key {
@@ -99,20 +105,22 @@ impl<'input> ProcessDocument<'input> {
                         action.state_ty = Self::peek_var_ty(expr);
 
                         // Create a new expression and processing scope for the expression
-                        let mut expr_scope: ExprScopeProcessingState = Default::default();
+                        // let mut expr_scope: ExprScopeProcessingState = Default::default();
                         let processing_scope: ProcessingScope =
                             match self.processing.default_state_symbol {
                                 Some(ref sym) => {
-                                    let ty = &sym.1;
-                                    let sym_ref = SymbolReferenceType::ActionStateReference(ty.as_ref().map(Clone::clone));
-                                    (None, None, Some((Some(sym_ref), ty.as_ref().map(Clone::clone))))
+                                    let mut sym = sym.clone();
+                                    let ty = sym.1.as_ref().map(Clone::clone);
+                                    sym.0 = SymbolReferenceType::ActionStateReference(ty);
+                                    (None, None, Some(sym))
                                 }
                                 _ => (None, None, None)
                             };
          
                         // process_expr(expr, &mut action_block, &self.processing, &processing_scope)?;
 
-                        let action_expr = map_expr_using_scope(expr, &self.processing, &mut expr_scope, &processing_scope, resolution_mode);
+                        let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
+                        let action_expr = map_expr_using_scope(expr, &self.processing, &mut self.scope, &resolution_mode);
                         action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(action_expr));
                     };
                     let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
@@ -125,8 +133,7 @@ impl<'input> ProcessDocument<'input> {
                 &ScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
                     self.collect_js_store_child_scope(scope_name,
                                                       scope_nodes,
-                                                      reducer_key_prefix,
-                                                      resolution_mode)?;
+                                                      reducer_key_prefix)?;
                 }
                 _ => {}
             }
@@ -194,8 +201,8 @@ impl<'input> ProcessDocument<'input> {
                     let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
 
                     if !has_default_sym {
-                        let sym_ref: SymbolRefType = Some(SymbolReferenceType::ReducerKeyReference(var_name.to_owned()));
-                        self.processing.default_state_symbol = Some((sym_ref, var_ty.as_ref().map(Clone::clone)));
+                        // TODO: Restore type
+                        self.processing.default_state_symbol = Some(Symbol::reducer_key(var_name));
                     }
 
                     if !has_default_reducer_key {
@@ -222,7 +229,7 @@ impl<'input> ProcessDocument<'input> {
                     }
                 }
                 &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                    self.collect_js_store_child_scope(scope_name, scope_nodes, None, resolution_mode)?;
+                    self.collect_js_store_child_scope(scope_name, scope_nodes, None)?;
                 }
             }
         }
@@ -253,7 +260,7 @@ impl<'input> ProcessDocument<'input> {
             ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
-            symbol_map: block.expr_scope.symbol_map.clone()
+            symbol_map: block.scope.symbol_map.clone()
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);
@@ -310,25 +317,22 @@ pub enum BareSymbolResolutionMode {
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_reducer_key(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, reducer_key: &str) -> Option<Symbol> {
+pub fn resolve_reducer_key(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, reducer_key: &str) -> Option<Symbol> {
     // Try to resolve the symbol in the scope, including parameters and loop_vars
     // and previously cached resolutions
     // FIXME: Do we need to split these by type?
     // let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
     // if cached.is_some() { return cached; }
 
-    let as_reducer_key = processing_scope.0.as_ref()
-        .map(|s| format!("{}.{}", s, reducer_key))
-        .unwrap_or(reducer_key.to_owned());
+    // let as_reducer_key = processing_scope.0.as_ref()
+    //     .map(|s| format!("{}.{}", s, reducer_key))
+    //     .unwrap_or(reducer_key.to_owned());
 
     // Try to resolve and cache the symbol as a reducer key reference
-    if let Some(ref reducer_data) = processing.reducer_key_data.get(&as_reducer_key) {
-        let ty = &reducer_data.ty;
-        expr_scope.symbol_map.insert(reducer_key.to_owned(), (
-            Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key.to_owned())),
-            ty.as_ref().map(Clone::clone)
-        ));
-        return Some((Some(SymbolReferenceType::ReducerKeyReference(as_reducer_key)), ty.as_ref().map(Clone::clone)));
+    if let Some(reducer_data) = processing.reducer_key_data.get(reducer_key) {
+        if let Some(ref default_expr) = reducer_data.default_expr {
+            scope.add_cached_reducer_key_with_value(reducer_key, default_expr);
+        }
     };
 
     None
@@ -336,19 +340,19 @@ pub fn resolve_reducer_key(processing: &DocumentProcessingState, expr_scope: &mu
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_prop(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, prop_key: &str) -> Option<Symbol> {
+pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, prop_key: &str) -> Option<Symbol> {
     // FIXME: This is causing us to resolve a reducer key instead.
     // let cached = expr_scope.symbol_map.get(prop_key).map(|s| s.clone());
     // if cached.is_some() { return cached; }
 
     // Collect unresolved bare symbols as props on the scope
-    let prop = expr_scope.symbol_map.entry(prop_key.to_owned())
-        .or_insert_with(|| (Some(SymbolReferenceType::PropReference(prop_key.to_owned())), None));
+    let prop = scope.symbol_map.entry(prop_key.to_owned())
+        .or_insert_with(|| Symbol::prop(prop_key));
 
     // Replace the existing symbol in this map
     // TODO: Remove this hack
-    prop.0 = Some(SymbolReferenceType::PropReference(prop_key.to_owned()));
-    prop.1 = None;
+    // prop.0 = Some(SymbolReferenceType::PropReference(prop_key.to_owned()));
+    // prop.1 = None;
 
     Some(prop.clone())
 
@@ -362,14 +366,14 @@ pub fn resolve_prop(processing: &DocumentProcessingState, expr_scope: &mut ExprS
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_existing_symbol(processing: &DocumentProcessingState, expr_scope: &mut ExprScopeProcessingState, processing_scope: &ProcessingScope, given: &str, resolution_mode: &BareSymbolResolutionMode) -> Option<Symbol> {
+pub fn resolve_existing_symbol(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, given: &str, resolution_mode: &BareSymbolResolutionMode) -> Option<Symbol> {
     // FIXME: Split the cache types and re-enable
     // let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
     // if cached.is_some() { return cached; }
 
     match resolution_mode {
         &BareSymbolResolutionMode::ReducerKeyThenProp => {
-            let sym = resolve_reducer_key(processing, expr_scope, processing_scope, given);
+            let sym = resolve_reducer_key(processing, scope, given);
             if sym.is_some() { return sym; }
 
             // FIXME: This overwrites the correct reducer_key entry due to the hack
@@ -378,10 +382,10 @@ pub fn resolve_existing_symbol(processing: &DocumentProcessingState, expr_scope:
         }
 
         &BareSymbolResolutionMode::PropThenReducerKey => {
-            let sym = resolve_prop(processing, expr_scope, processing_scope, given);
+            let sym = resolve_prop(processing, scope, given);
             if sym.is_some() { return sym; }
 
-            let sym = resolve_reducer_key(processing, expr_scope, processing_scope, given);
+            let sym = resolve_reducer_key(processing, scope, given);
             if sym.is_some() { return sym; }
         }
     };
@@ -392,38 +396,26 @@ pub fn resolve_existing_symbol(processing: &DocumentProcessingState, expr_scope:
 #[inline]
 pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
                 processing: &DocumentProcessingState,
-                expr_scope: &mut ExprScopeProcessingState,
-                processing_scope: &ProcessingScope)
+                scope: &mut DocumentProcessingScope)
                 -> Option<LensExprType> {
     match lens {
         Some(&LensExprType::ForLens(ref ele_key, ref coll_expr)) => {
             let resolution_mode = BareSymbolResolutionMode::ReducerKeyThenProp;
-            let coll_expr = map_expr_using_scope(coll_expr, processing, expr_scope, processing_scope, &resolution_mode);
+            let coll_expr = map_expr_using_scope(coll_expr, processing, scope, &resolution_mode);
             Some(LensExprType::ForLens(ele_key.as_ref().map(|s| s.clone()), coll_expr))
         }
-        Some(&LensExprType::GetLens(ref expr)) => {
+        Some(&LensExprType::GetLens(ref lens_expr)) => {
             let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
 
             // Resolve variable as reducer key reference first
             // let sym = resolve_existing_symbol()
 
-            let mut lens_scope = {
-                let var_expr = map_expr_using_scope(&expr, processing, expr_scope, processing_scope, &resolution_mode);
-
-                let mut lens_scope = expr_scope.clone();
-
-                if let ExprValue::SymbolReference((Some(SymbolReferenceType::ReducerKeyReference(ref reducer_key)), _)) = var_expr {
-                    lens_scope = lens_scope
-                        .with_symbol(reducer_key,
-                            SymbolReferenceType::PropReference(reducer_key.to_owned()),
-                            None
-                        );
-                };
-
-                lens_scope
+            let mut lens_scope = scope.clone();
+            if let &ExprValue::VariableReference(ref prop_key) = lens_expr {
+                lens_scope.with_prop(prop_key, None, None);
             };
 
-            let expr = map_expr_using_scope(&expr, processing, &mut lens_scope, processing_scope, &resolution_mode);
+            let expr = map_expr_using_scope(lens_expr, processing, &mut lens_scope, &resolution_mode);
             Some(LensExprType::GetLens(expr))
         }
         _ => None
@@ -434,14 +426,13 @@ pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
 #[allow(dead_code)]
 pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 processing: &DocumentProcessingState,
-                expr_scope: &mut ExprScopeProcessingState,
-                processing_scope: &ProcessingScope,
+                scope: &mut DocumentProcessingScope,
                 resolution_mode: &BareSymbolResolutionMode)
                 -> ExprValue {
     match expr {
         &ExprValue::Expr(ref op, ref l, ref r) => {
-            let l_vars = map_expr_using_scope(l, processing, expr_scope, processing_scope, resolution_mode);
-            let r_vars = map_expr_using_scope(r, processing, expr_scope, processing_scope, resolution_mode);
+            let l_vars = map_expr_using_scope(l, processing, scope, resolution_mode);
+            let r_vars = map_expr_using_scope(r, processing, scope, resolution_mode);
 
             let left_expr = Box::new(l_vars);
             let right_expr = Box::new(r_vars);
@@ -452,16 +443,13 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
         &ExprValue::VariableReference(ref given) => {
 
             // Try to resolve the symbol in the scope, including parameters and loop_vars
-            if let Some(ref sym) = resolve_existing_symbol(processing, expr_scope, processing_scope, given, resolution_mode) {
+            if let Some(ref sym) = resolve_existing_symbol(processing, scope, given, resolution_mode) {
                 return ExprValue::SymbolReference(sym.clone());
             };
 
             if let &BareSymbolResolutionMode::PropThenReducerKey = resolution_mode {
                 // Collect unresolved bare symbols as props on the scope
-                expr_scope.symbol_map.insert(
-                    given.to_owned(),
-                    (Some(SymbolReferenceType::PropReference(given.to_owned())), None)
-                );
+                scope.with_prop(given, None, None);
             };
 
             expr.clone()
@@ -469,10 +457,12 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
 
         &ExprValue::DefaultVariableReference => {
 
+            // TODO: Do we need this at all?
+
             // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
-            if let Some(ref sym) = processing_scope.2 {
-                return ExprValue::SymbolReference(sym.clone());
-            };
+            // if let Some(ref sym) = processing_scope.2 {
+            //     return ExprValue::SymbolReference(sym.clone());
+            // };
 
             ExprValue::DefaultVariableReference
         }
@@ -508,13 +498,13 @@ pub fn process_content_node<'input>(
                 // Attempt to map lens values
                 // FIXME
                 let processing_scope: ProcessingScope = Default::default();
-                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.expr_scope, &processing_scope);
+                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.scope);
 
                 let attrs = match lens {
-                    Some(LensExprType::GetLens(ExprValue::SymbolReference((Some(SymbolReferenceType::PropReference(ref lens_key)), _)))) => {
+                    Some(LensExprType::GetLens(ExprValue::SymbolReference(Symbol(SymbolReferenceType::PropReference(ref lens_key), _, _)))) => {
                         let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
 
-                        let sym: Symbol = (Some(SymbolReferenceType::ReducerKeyReference(lens_key.to_owned())), None);
+                        let sym = Symbol::reducer_key(lens_key);
 
                         // TODO: Make this a map
                         attrs.push((lens_key.to_owned(), Some(ExprValue::SymbolReference(sym))));
@@ -573,7 +563,7 @@ pub fn process_content_node<'input>(
         &ContentNodeType::ExpressionValueNode(ref expr) => {
             // FIXME
             let processing_scope: ProcessingScope = Default::default();
-            let expr = map_expr_using_scope(expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
+            let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
 
             block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
         }
@@ -582,14 +572,11 @@ pub fn process_content_node<'input>(
             block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
             let processing_scope: ProcessingScope = Default::default();
-            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.expr_scope, &processing_scope, resolution_mode);
+            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.scope, resolution_mode);
 
             // Add forvar as a parameter in the symbol map
             if let &Some(ref ele_key) = ele {
-                block.expr_scope.symbol_map.insert(ele_key.to_owned(), (
-                    Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())),
-                    None
-                ));
+                block.scope.add_loop_var(ele_key);
             }
 
             if let &Some(ref nodes) = nodes {

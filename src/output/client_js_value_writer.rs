@@ -71,7 +71,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
 
         &ExprValue::SymbolReference(ref sym) => {
             match sym {
-                &(Some(ref sym), _) => {
+                &Symbol(ref sym, _, _) => {
                     match sym {
                         &SymbolReferenceType::LocalVarReference(ref var_name) => {
                             write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
@@ -157,7 +157,7 @@ pub fn write_js_expr_value(w: &mut io::Write,
             write_js_expr_value(w, &l_expr, doc, scope)?;
 
             let is_array = match l_sym {
-                &(Some(_), Some(VarType::ArrayVar(_))) => true,
+                &Symbol(_, Some(VarType::ArrayVar(_)), _) => true,
                 _ => false
             };
 
