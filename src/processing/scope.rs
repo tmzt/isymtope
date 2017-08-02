@@ -27,11 +27,13 @@ pub struct DocumentProcessingScope {
 // impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default(), None) } }
 
 impl DocumentProcessingScope {
-    pub fn with_prop(&mut self, prop_name: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
-        let mut sym = SymbolReferenceType::PropReference(prop_name.to_owned());
-        self.props.insert(prop_name.to_owned(), Symbol(sym, ty.map(Clone::clone), value.map(|value| Box::new(value.clone()))));
-        self
-    }
+    // pub fn with_prop(&mut self, prop_name: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+    //     let sym = Symbol::prop_with_value(prop_name, value);
+    //     // let mut sym = SymbolReferenceType::PropReference(prop_name.to_owned());
+    //     self.props.insert(prop_name.to_owned(), sym);
+    //     // self.props.insert(prop_name.to_owned(), Symbol(sym, ty.map(Clone::clone), value.map(|value| Box::new(value.clone()))));
+    //     self
+    // }
 
     pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
         self.symbol_map.insert(prop_name.to_owned(), Symbol::prop_with_value(prop_name, value));
@@ -48,10 +50,10 @@ impl DocumentProcessingScope {
         self
     }
 
-    pub fn with_symbol(&mut self, var_name: &str, sym: &SymbolReferenceType, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
-        self.symbol_map.insert(var_name.to_owned(), Symbol(sym.clone(), ty.map(Clone::clone), value.map(|value| Box::new(value.clone()))));
-        self
-    }
+    // pub fn with_symbol(&mut self, var_name: &str, sym: &SymbolReferenceType, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+    //     self.symbol_map.insert(var_name.to_owned(), Symbol(sym.clone(), ty.map(Clone::clone), value.map(|value| Box::new(value.clone()))));
+    //     self
+    // }
 
     pub fn with_cached_reducer_key(&mut self, reducer_key: &str) -> &mut Self {
         self.reducer_key_cache.insert(reducer_key.to_owned(), Symbol::reducer_key(reducer_key));

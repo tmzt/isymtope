@@ -6841,7 +6841,7 @@ fn __action33<
     (_, coll, _): (usize, String, usize),
 ) -> LensExprType
 {
-    LensExprType::ForLens(None, ExprValue::VariableReference(coll.to_owned()))
+    LensExprType::ForLens(None, Symbol::unresolved(&coll))
 }
 
 fn __action34<
@@ -6850,7 +6850,7 @@ fn __action34<
     (_, prop, _): (usize, String, usize),
 ) -> LensExprType
 {
-    LensExprType::GetLens(ExprValue::VariableReference(prop.to_owned()))
+    LensExprType::GetLens(Symbol::unresolved(&prop))
 }
 
 fn __action35<

@@ -49,10 +49,10 @@ pub struct ElementOpScope(pub ScopePrefixes, pub DocumentProcessingScope);
 // impl Default for ElementOpScope { fn default() -> Self { ElementOpScope(Default::default(), Default::default()) } }
 
 impl ElementOpScope {
-    pub fn with_prop(&mut self, prop_name: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
-        self.1.with_prop(prop_name, ty, value);
-        self
-    }
+    // pub fn with_prop(&mut self, prop_name: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+    //     self.1.add_prop_with_value(prop_name, ty, value);
+    //     self
+    // }
 
     pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
         self.1.add_prop_with_value(prop_name, value);
@@ -64,10 +64,10 @@ impl ElementOpScope {
         self
     }
 
-    pub fn with_symbol(&mut self, var_name: &str, sym: &SymbolReferenceType, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
-        self.1.with_symbol(var_name, sym, ty, value);
-        self
-    }
+    // pub fn with_symbol(&mut self, var_name: &str, sym: &SymbolReferenceType, ty: Option<&VarType>, value: Option<&ExprValue>) -> &mut Self {
+    //     self.1.with_symbol(var_name, sym, ty, value);
+    //     self
+    // }
 
     pub fn with_cached_reducer_key(&mut self, reducer_key: &str) -> &mut Self {
         self.1.with_cached_reducer_key(reducer_key);

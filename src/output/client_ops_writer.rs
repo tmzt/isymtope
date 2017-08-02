@@ -71,14 +71,18 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         let mut prop_scope = scope.clone();
 
         for (key, param) in comp.props.iter() {
-            if let &Symbol(SymbolReferenceType::PropReference(ref var_name), _, _) = param {
-                if let Some(&Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, Some(box ref expr))) = scope.1.props.get(var_name) {
-                    if let Some(ref expr) = reduce_expr(&expr, doc, scope) {
-                        //let value = ExprValue::SymbolReference(sym.clone());
-                        prop_scope.add_prop_with_value(key, &expr);
-                    };
-                };
+            if let Some(ref expr) = doc.resolve_symbol_value(param) {
+                prop_scope.add_prop_with_value(key, &expr);
             };
+
+            // if let &Symbol(SymbolReferenceType::PropReference(ref var_name), _, _) = param {
+            //     if let Some(&Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, Some(box ref expr))) = scope.1.props.get(var_name) {
+            //         if let Some(ref expr) = reduce_expr(&expr, doc, scope) {
+            //             //let value = ExprValue::SymbolReference(sym.clone());
+            //             prop_scope.add_prop_with_value(key, &expr);
+            //         };
+            //     };
+            // };
         }
 
         if let Some(props) = props {
@@ -207,18 +211,28 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         if has_block {
                             let ele = ele.as_ref().map(|e| e.as_str());
 
-                            if let &ExprValue::SymbolReference(Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, _)) = coll_expr {
-                                if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
-                                    if let Some(VarType::ArrayVar(Some(box ref element_ty))) = reducer_data.ty {
-                                        if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {
-                                            for item_expr in items {
-                                                self.write_loop_item(w, doc, item_expr, scope, ele, Some(element_ty), block_id, output_component_contents)?;
-                                            };
-                                            continue;
+                            if let &ExprValue::SymbolReference(ref sym) = coll_expr {
+                                if let Some(&VarType::ArrayVar(Some(box ref element_ty))) = sym.ty() {
+                                    if let Some(ExprValue::LiteralArray(Some(ref items))) = doc.resolve_symbol_value(sym) {
+                                        for item_expr in items {
+                                            self.write_loop_item(w, doc, item_expr, scope, ele, Some(&element_ty), block_id, output_component_contents)?;
                                         };
                                     };
                                 };
                             };
+
+                            // if let &ExprValue::SymbolReference(Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, _)) = coll_expr {
+                            //     if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
+                            //         if let Some(VarType::ArrayVar(Some(box ref element_ty))) = reducer_data.ty {
+                            //             if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {
+                            //                 for item_expr in items {
+                            //                     self.write_loop_item(w, doc, item_expr, scope, ele, Some(element_ty), block_id, output_component_contents)?;
+                            //                 };
+                            //                 continue;
+                            //             };
+                            //         };
+                            //     };
+                            // };
                         };
                     } else {
                         let forvar_default = &format!("__forvar_{}", block_id);

@@ -61,6 +61,11 @@ pub enum VarType {
 #[derive(Debug, Clone)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
+    ResolvedReference(String, ResolvedSymbolType)
+}
+
+#[derive(Debug, Clone)]
+pub enum ResolvedSymbolType {
     ReducerKeyReference(String),
     ParameterReference(String),
     LocalVarReference(String),
@@ -71,8 +76,9 @@ pub enum SymbolReferenceType {
     LensPropReference(String, Box<LensExprType>)
 }
 
+
 #[derive(Debug, Clone)]
-pub struct Symbol(pub SymbolReferenceType, pub Option<VarType>, pub Option<Box<ExprValue>>);
+pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 
 impl Symbol {
@@ -81,34 +87,59 @@ impl Symbol {
     }
 
     pub fn reducer_key(key: &str) -> Symbol {
-        Symbol(SymbolReferenceType::ReducerKeyReference(key.to_owned()), None, None)
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 
     pub fn reducer_key_with_value(key: &str, value: &ExprValue) -> Symbol {
-        Symbol(SymbolReferenceType::ReducerKeyReference(key.to_owned()), None, Some(Box::new(value.clone())))
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, Some(Box::new(value.clone())))
     }
 
     pub fn loop_var(key: &str) -> Symbol {
-        Symbol(SymbolReferenceType::LoopVarReference(key.to_owned()), None, None)
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 
     pub fn loop_var_with_value(key: &str, value: &ExprValue) -> Symbol {
-        Symbol(SymbolReferenceType::LoopVarReference(key.to_owned()), None, Some(Box::new(value.clone())))
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        let value = Some(Box::new(value.clone()));
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, value)
     }
 
     pub fn prop(prop_name: &str) -> Symbol {
-        Symbol(SymbolReferenceType::PropReference(prop_name.to_owned()), None, None)
+        let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved), None, None)
     }
 
     pub fn prop_with_value(prop_name: &str, value: &ExprValue) -> Symbol {
+        let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
         let value = Some(Box::new(value.clone()));
         // TODO: peek type
-        Symbol(SymbolReferenceType::LoopVarReference(prop_name.to_owned()), None, value)
+        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved), None, value)
     }
 
-    // pub fn with_value(value: &ExprValue) -> Symbol {
-    //     Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()), None, None)
-    // }
+    pub fn action_state(ty: Option<&VarType>) -> Symbol {
+        let resolved = ResolvedSymbolType::ActionStateReference(ty.map(|ty| ty.to_owned()));
+        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved), ty.map(|ty| ty.to_owned()), None)
+    }
+
+    pub fn sym_ref(&self) -> &SymbolReferenceType {
+        &self.0
+    }
+
+    pub fn ty(&self) -> Option<&VarType> {
+        self.1.as_ref()
+        // self.1.as_ref().map(Clone::clone)
+    }
+
+    pub fn value(&self) -> Option<&ExprValue> {
+        self.2.as_ref().map(|b| b.as_ref())
+        // if let Some(box ref value) = self.2 {
+        //     return Some(value);
+        // };
+        // None
+    }
 }
 
 /// Simple expression (parameter value)
@@ -134,8 +165,8 @@ pub enum ElementExpr {
 
 #[derive(Debug, Clone)]
 pub enum LensExprType {
-    ForLens(Option<String>, ExprValue),
-    GetLens(ExprValue)
+    ForLens(Option<String>, Symbol),
+    GetLens(Symbol)
 }
 
 #[derive(Debug, Clone)]

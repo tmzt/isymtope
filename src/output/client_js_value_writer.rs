@@ -70,96 +70,51 @@ pub fn write_js_expr_value(w: &mut io::Write,
         }
 
         &ExprValue::SymbolReference(ref sym) => {
-            match sym {
-                &Symbol(ref sym, _, _) => {
-                    match sym {
-                        &SymbolReferenceType::LocalVarReference(ref var_name) => {
-                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
-                        }
+            if let &SymbolReferenceType::ResolvedReference(ref key, ref resolved) = sym.sym_ref() {
+                match resolved {
+                    &ResolvedSymbolType::LocalVarReference(ref var_name) => {
+                        write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
+                    }
 
-                        &SymbolReferenceType::ParameterReference(ref param_key) => {
-                            write_js_var_reference(w, Some(param_key.as_str()), doc, scope)?;
-                        }
+                    &ResolvedSymbolType::ParameterReference(ref param_key) => {
+                        write_js_var_reference(w, Some(param_key.as_str()), doc, scope)?;
+                    }
 
-                        &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-                            let mut scope = scope.clone();
-                            scope.0 = add_var_prefix(&scope.0, "store.getState()");
-                            write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, &scope)?;
-                        }
+                    &ResolvedSymbolType::ReducerKeyReference(ref as_reducer_key) => {
+                        let mut scope = scope.clone();
+                        scope.0 = add_var_prefix(&scope.0, "store.getState()");
+                        write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, &scope)?;
+                    }
 
-                        &SymbolReferenceType::ActionStateReference(ref ty) => {
-                            write_js_var_reference(w, Some("state"), doc, scope)?;
-                        }
+                    &ResolvedSymbolType::ActionStateReference(ref ty) => {
+                        write_js_var_reference(w, Some("state"), doc, scope)?;
+                    }
 
-                        &SymbolReferenceType::LoopVarReference(ref var_name) => {
-                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
-                        }
+                    &ResolvedSymbolType::LoopVarReference(ref var_name) => {
+                        write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
+                    }
 
-                        &SymbolReferenceType::PropReference(ref var_name) => {
-                            let mut scope = scope.clone();
-                            scope.0 = add_var_prefix(&scope.0, "props");
-                            write_js_var_reference(w, Some(var_name.as_str()), doc, &scope)?;
-                        }
+                    &ResolvedSymbolType::PropReference(ref var_name) => {
+                        let mut scope = scope.clone();
+                        scope.0 = add_var_prefix(&scope.0, "props");
+                        write_js_var_reference(w, Some(var_name.as_str()), doc, &scope)?;
+                    }
 
-                        _ => {}
-                    };
-                }
-                _ => {}
+                    _ => {}
+                };
             };
         }
-
-        // &ExprValue::Expr(ExprOp::Add, box ExprValue::DefaultVariableReference, ref r) => {
-        //     // let state_ty = scope().unwrap().state_lookup_key(None);
-        //     // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
-
-        //     // write!(w, "(")?;
-        //     // write_js_var_reference(w, None, doc, scope)?;
-        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-        //     //     write!(w, ").concat(")?;
-        //     // } else {
-        //     //     write!(w, "+ (")?;
-        //     // }
-        //     // write_js_expr_value(w, r, doc, scope)?;
-        //     // write!(w, ")")?;
-
-        //     // let state_ty = scope().unwrap().state_lookup_key(None);
-        //     // let state_ty = state_ty.map_or(None, |s| doc.default_state_map.get(s.as_str()));
-        //     write!(w, "(")?;
-        //     let 
-        //     write_js_expr_value(w, ExprValue::DefaultVariableReference, doc, scope_prefixes)?;
-        //     // write_js_var_reference(w, None, doc, scope_prefixes)?;
-        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-        //         write!(w, ").concat(")?;
-        //     // } else {
-        //         // write!(w, "+ (")?;
-        //     // }
-        //     write_js_expr_value(w, r, doc, scope_prefixes)?;
-        //     write!(w, ")")?;
-        // }
-
-        // &ExprValue::Expr(ExprOp::Add, box ExprValue::VariableReference(ref var_name), ref r) => {
-        //     // let state_ty = scope.state_lookup_key(Some(var_name.as_str())).as_ref()
-        //     //     .map_or(None, |s| doc.default_state_map.get(s.as_str()));
-
-        //     // write!(w, "(")?;
-        //     // write_js_var_reference(w, None, doc, scope)?;
-        //     // if let Some(&(Some(VarType::ArrayVar(..)), _)) = state_ty {
-        //     //     write!(w, ").concat(")?;
-        //     // } else {
-        //     //     write!(w, "+ (")?;
-        //     // }
-        //     // write_js_expr_value(w, r, doc, scope)?;
-        //     // write!(w, ")")?;
-        // }
 
         &ExprValue::Expr(ref op, box ExprValue::SymbolReference(ref l_sym), ref r) => {
             let l_expr = ExprValue::SymbolReference(l_sym.clone());
             write_js_expr_value(w, &l_expr, doc, scope)?;
 
-            let is_array = match l_sym {
-                &Symbol(_, Some(VarType::ArrayVar(_)), _) => true,
-                _ => false
-            };
+            let is_array = match l_sym.ty() { Some(&VarType::ArrayVar(..)) => true, _ => false };
+
+            // let is_array = match l_sym {
+            //     &Symbol(_, Some(VarType::ArrayVar(_)), _) => true,
+            //     _ => false
+            // };
 
             match op {
                 &ExprOp::Add if is_array => write!(w, ".concat("),

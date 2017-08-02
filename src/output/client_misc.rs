@@ -50,38 +50,41 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
         }
 
         &ExprValue::SymbolReference(ref sym) => {
-            match sym {
-                &Symbol(ref sym, _, _) => {
-                    match sym {
-                        &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-                            if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
-                                if let Some(ref default_expr) = reducer_data.default_expr {
-                                    return reduce_expr(default_expr, doc, scope);
-                                };
-                            };
-                        }
-
-                        &SymbolReferenceType::LoopVarReference(ref var_name) => {
-                            if let Some(ref reducer_data) = doc.reducer_key_data.get(var_name) {
-                                if let Some(ref default_expr) = reducer_data.default_expr {
-                                    return reduce_expr(default_expr, doc, scope);
-                                };
-                            };
-                        }
-
-                        &SymbolReferenceType::PropReference(ref prop_name) => {
-                            if let Some(ref reducer_data) = doc.reducer_key_data.get(prop_name) {
-                                if let Some(ref default_expr) = reducer_data.default_expr {
-                                    return reduce_expr(default_expr, doc, scope);
-                                };
-                            };
-                        }
-
-                        _ => {}
-                    };
-                }
-                _ => {}
+            if let Some(expr) = doc.resolve_symbol_value(sym) {
+                return Some(expr);
             };
+            // match sym {
+            //     &Symbol(ref sym, _, _) => {
+            //         match sym {
+            //             &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
+            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
+            //                     if let Some(ref default_expr) = reducer_data.default_expr {
+            //                         return reduce_expr(default_expr, doc, scope);
+            //                     };
+            //                 };
+            //             }
+
+            //             &SymbolReferenceType::LoopVarReference(ref var_name) => {
+            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(var_name) {
+            //                     if let Some(ref default_expr) = reducer_data.default_expr {
+            //                         return reduce_expr(default_expr, doc, scope);
+            //                     };
+            //                 };
+            //             }
+
+            //             &SymbolReferenceType::PropReference(ref prop_name) => {
+            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(prop_name) {
+            //                     if let Some(ref default_expr) = reducer_data.default_expr {
+            //                         return reduce_expr(default_expr, doc, scope);
+            //                     };
+            //                 };
+            //             }
+
+            //             _ => {}
+            //         };
+            //     }
+            //     _ => {}
+            // };
             None
         }
 

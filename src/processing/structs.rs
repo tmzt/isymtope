@@ -146,12 +146,12 @@ pub struct ExprScopeProcessingState {
     pub symbol_map: SymbolMap
 }
 
-impl ExprScopeProcessingState {
-    pub fn with_symbol(mut self, var_name: &str, sym: SymbolReferenceType, ty: Option<&VarType>) -> Self {
-        self.symbol_map.insert(var_name.to_owned(), Symbol(sym, ty.map(Clone::clone), None));
-        self
-    }
-}
+// impl ExprScopeProcessingState {
+//     pub fn with_symbol(mut self, var_name: &str, sym: SymbolReferenceType, ty: Option<&VarType>) -> Self {
+//         self.symbol_map.insert(var_name.to_owned(), Symbol(sym, ty.map(Clone::clone), None));
+//         self
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState {
@@ -173,4 +173,18 @@ pub struct DocumentState<'inp> {
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>
+}
+
+impl<'inp> DocumentState<'inp> {
+    pub fn resolve_symbol_value(&self, sym: &Symbol) -> Option<ExprValue> {
+        match sym.sym_ref() {
+            &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref reducer_key)) => {
+                if let Some(reducer_data) = self.reducer_key_data.get(reducer_key) {
+                    return reducer_data.default_expr.clone();
+                };
+            }
+            _ => {}
+        };
+        None
+    }
 }
