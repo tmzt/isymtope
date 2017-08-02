@@ -261,7 +261,7 @@ impl<'input> ProcessDocument<'input> {
             uses: None,
             child_map: Default::default(),
             symbol_map: block.scope.symbol_map.clone(),
-            params: block.scope.props.clone()
+            props: block.scope.props.clone()
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);

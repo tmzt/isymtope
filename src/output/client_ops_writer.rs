@@ -70,13 +70,15 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     fn invoke_component_with_props(&mut self, w: &mut io::Write, doc: &'input DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, output_component_contents: bool) -> Result {
         let mut prop_scope = scope.clone();
 
-        for (ref key, ref param) in comp.params {
-            if let ExprValue::SymbolReference(SymbolReferenceType::VariableReference(ref var_name)) = param {
-                if let Some(ref expr) = reduce_expr(&expr, doc, scope) {
-                    //let value = ExprValue::SymbolReference(sym.clone());
-                    prop_scope.add_prop_with_value(key, &expr);
+        for (key, param) in comp.props.iter() {
+            if let &Symbol(SymbolReferenceType::PropReference(ref var_name), _, _) = param {
+                if let Some(&Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, Some(box ref expr))) = scope.1.props.get(var_name) {
+                    if let Some(ref expr) = reduce_expr(&expr, doc, scope) {
+                        //let value = ExprValue::SymbolReference(sym.clone());
+                        prop_scope.add_prop_with_value(key, &expr);
+                    };
                 };
-            }
+            };
         }
 
         if let Some(props) = props {
