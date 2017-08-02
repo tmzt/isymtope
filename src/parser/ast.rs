@@ -102,6 +102,13 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, Some(Box::new(value.clone())))
     }
 
+    pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        let value = value.map(|value| Box::new(value.clone()));
+        let ty = ty.map(|ty| ty.clone());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, value)
+    }
+
     pub fn loop_var(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)

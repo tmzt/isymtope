@@ -61,7 +61,7 @@ impl<'input> ProcessDocument<'input> {
                     let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
 
                     if !has_default_sym {
-                        let mut sym = Symbol::reducer_key(var_name);
+                        let mut sym = Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr.as_ref());
                         // TODO: Type
                         // sym.1 = var_ty.as_ref().map(Clone::clone);
                         self.processing.default_state_symbol = Some(sym);
@@ -554,15 +554,16 @@ pub fn process_content_node<'input>(
 
                 let attrs = match lens {
                     Some(LensExprType::GetLens(ref sym)) => {
+                        let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
+
                         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
                             if let Some(ref sym) = resolve_reducer_key(processing, &mut scope, key) {
-                                let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
                                 let value = Some(ExprValue::SymbolReference(sym.clone()));
                                 attrs.push((key.clone(), value));
                             };
                         };
 
-                        attrs
+                        Some(attrs)
                     }
                     _ => attrs
                 };
