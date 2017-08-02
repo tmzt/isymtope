@@ -103,24 +103,47 @@ impl<'input> ProcessDocument<'input> {
                     let mut action = ReducerActionData::from_name(&action_path, Some(reducer_key));
                     if let &Some(ref simple_expr) = simple_expr {
                         let ActionStateExprType::SimpleReducerKeyExpr(ref expr) = *simple_expr;
-                        action.state_ty = Self::peek_var_ty(expr);
+
+                        // let mut processing_scope: ProcessingScope = ProcessingScope::default();
+
+                        // let action_ty = self.default_state_symbol.as_ref()
+                        //     .map(|sym| sym.ty().clone())
+                        //     .or_else(|| Self::peek_var_ty(expr));
+
+                        // // let ty = Self::peek_var_ty(expr);
+                        // action.state_ty = action_ty.clone();
+                        // // action.state_ty = Self::peek_var_ty(expr);
+
+                        if let Some(ref sym) = self.processing.default_state_symbol {
+                            // processing_scope.2 = Some(sym.to_owned());
+                            action.state_ty = sym.ty().map(|s| s.clone());
+                        };
 
                         // Create a new expression and processing scope for the expression
-                        // let mut expr_scope: ExprScopeProcessingState = Default::default();
-                        let processing_scope: ProcessingScope =
-                            match self.processing.default_state_symbol {
-                                Some(ref sym) => {
-                                    let sym = Symbol::action_state(sym.ty());
-                                    (None, None, Some(sym.clone()))
-                                }
-                                _ => (None, None, None)
-                            };
+                        // // let mut expr_scope: ExprScopeProcessingState = Default::default();
+                        // let processing_scope: ProcessingScope =
+                        //     match self.processing.default_state_symbol {
+                        //         Some(ref sym) => {
+                        //             let sym = Symbol::action_state(sym.ty().or_else(|| ty.as_ref()));
+                        //             (None, None, Some(sym.clone()))
+                        //         }
+                        //         _ => (None, None, None)
+                        //     };
          
                         // process_expr(expr, &mut action_block, &self.processing, &processing_scope)?;
 
                         let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
                         let action_expr = map_expr_using_scope(expr, &self.processing, &mut self.scope, &resolution_mode);
-                        action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(action_expr));
+
+                        let typed_expr = map_expr(&action_expr, &|node| match node {
+                            &ExprValue::DefaultVariableReference => {
+                                let sym = Symbol::action_state(action.state_ty.as_ref());
+                                ExprValue::SymbolReference(sym)
+                            },
+                            _ => node.clone()
+                        });
+
+                        action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(typed_expr));
                     };
                     let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
                         .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key), None));
@@ -200,8 +223,10 @@ impl<'input> ProcessDocument<'input> {
                     let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
 
                     if !has_default_sym {
+                        let sym = Symbol::reducer_key_with_ty(var_name, var_ty.as_ref());
                         // TODO: Restore type
-                        self.processing.default_state_symbol = Some(Symbol::reducer_key(var_name));
+                        self.processing.default_state_symbol = Some(sym);
+                        // self.processing.default_state_symbol = Some(Symbol::reducer_key(var_name));
                     }
 
                     if !has_default_reducer_key {
@@ -427,6 +452,22 @@ pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentPr
 
 #[inline]
 #[allow(dead_code)]
+pub fn map_expr<'input, F: Fn(&ExprValue) -> ExprValue>(expr: &'input ExprValue, f: &F) -> ExprValue {
+    match expr {
+        &ExprValue::Expr(ref op, ref l, ref r) => {
+            let l_val = map_expr(l, f);
+            let r_val = map_expr(r, f);
+            ExprValue::Expr(op.clone(), Box::new(l_val), Box::new(r_val))
+        }
+
+        _ => {
+            f(expr)
+        }
+    }
+}
+
+#[inline]
+#[allow(dead_code)]
 pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
                 processing: &DocumentProcessingState,
                 scope: &mut DocumentProcessingScope,
@@ -468,11 +509,10 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
         }
 
         &ExprValue::DefaultVariableReference => {
-
-            // TODO: Do we need this at all?
+            // NOTE: This is currently used primarily for action expressions
 
             // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
-            // if let Some(ref sym) = processing_scope.2 {
+            // if let Some(ref sym) = (scope.0).2 {
             //     return ExprValue::SymbolReference(sym.clone());
             // };
 

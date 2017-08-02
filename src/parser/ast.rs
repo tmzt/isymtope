@@ -91,6 +91,12 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 
+    pub fn reducer_key_with_ty(key: &str, ty: Option<&VarType>) -> Symbol {
+        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        let ty = ty.map(|ty| ty.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, None)
+    }
+
     pub fn reducer_key_with_value(key: &str, value: &ExprValue) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, Some(Box::new(value.clone())))
@@ -130,15 +136,10 @@ impl Symbol {
 
     pub fn ty(&self) -> Option<&VarType> {
         self.1.as_ref()
-        // self.1.as_ref().map(Clone::clone)
     }
 
     pub fn value(&self) -> Option<&ExprValue> {
         self.2.as_ref().map(|b| b.as_ref())
-        // if let Some(box ref value) = self.2 {
-        //     return Some(value);
-        // };
-        // None
     }
 }
 
