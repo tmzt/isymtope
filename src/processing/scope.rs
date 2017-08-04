@@ -20,7 +20,8 @@ use parser::ast::*;
 pub struct DocumentProcessingScope {
     pub props: SymbolMap,
     pub symbol_map: SymbolMap,
-    pub reducer_key_cache: SymbolMap
+    pub reducer_key_cache: SymbolMap,
+    pub block_params: SymbolMap
 }
 
 // #[derive(Debug, Clone)]
@@ -41,12 +42,12 @@ impl DocumentProcessingScope {
     }
 
     pub fn add_loop_var(&mut self, var_name: &str) -> &mut Self {
-        self.symbol_map.insert(var_name.to_owned(), Symbol::loop_var(var_name));
+        self.block_params.insert(var_name.to_owned(), Symbol::loop_var(var_name));
         self
     }
 
     pub fn add_loop_var_with_value(&mut self, var_name: &str, value: &ExprValue) -> &mut Self {
-        self.symbol_map.insert(var_name.to_owned(), Symbol::loop_var_with_value(var_name, value));
+        self.block_params.insert(var_name.to_owned(), Symbol::loop_var_with_value(var_name, value));
         self
     }
 

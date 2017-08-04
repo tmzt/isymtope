@@ -267,6 +267,14 @@ impl<'input> ProcessDocument<'input> {
         let name: &'input str = component_data.name.as_str();
         let mut block = BlockProcessingState::default();
 
+        if let Some(ref inputs) = component_data.inputs {
+            for input in inputs {
+                let prop_ref = Symbol::unresolved(input);
+
+                block.scope.props.insert(input.to_owned(), prop_ref);
+            }
+        };
+
         if let Some(ref children) = component_data.children {
             for ref child in children {
                 match *child {
@@ -484,16 +492,43 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
             ExprValue::Expr(op.clone(), left_expr, right_expr)
         }
 
-        &ExprValue::VariableReference(ref given) => {
+        &ExprValue::SymbolReference(ref sym) => {
+            if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                if let Some(_) = scope.props.get(key) {
+                    let sym = Symbol::prop(key);
+                    return ExprValue::SymbolReference(sym);
+                };
 
-            // First, try to resolve as a reducer key
-            if let Some(ref sym) = resolve_reducer_key(processing, scope, given) {
-                return ExprValue::SymbolReference(sym.clone());
+                if let Some(_) = resolve_reducer_key(processing, scope, key) {
+                    let sym = Symbol::reducer_key(key);
+                    return ExprValue::SymbolReference(sym);
+                };
+
+                if let Some(_) = scope.block_params.get(key) {
+                    let sym = Symbol::block_param(key);
+                    return ExprValue::SymbolReference(sym);
+                };
             };
 
-            if let Some(ref sym) = resolve_prop(processing, scope, given) {
-                return ExprValue::SymbolReference(sym.clone());
-            }
+            expr.clone()
+        }
+
+        &ExprValue::VariableReference(ref given) => {
+
+            // if let Some(&(ref key, ref sym)) = scope.props.get(given) {
+            //     return ExprValue::SymbolReference(sym.clone());
+            // };
+
+            // // First, try to resolve as a reducer key
+            // if let Some(ref sym) = resolve_reducer_key(processing, scope, given) {
+            //     return ExprValue::SymbolReference(sym.clone());
+            // };
+
+            // if let Some(ref sym) = resolve_prop(processing, scope, given) {
+            //     return ExprValue::SymbolReference(sym.clone());
+            // }
+
+
 
             // // Try to resolve the symbol in the scope, including parameters and loop_vars
             // if let Some(ref sym) = resolve_existing_symbol(processing, scope, given, resolution_mode) {
@@ -615,8 +650,6 @@ pub fn process_content_node<'input>(
             }
         }
         &ContentNodeType::ExpressionValueNode(ref expr) => {
-            // FIXME
-            let processing_scope: ProcessingScope = Default::default();
             let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
 
             block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
@@ -625,7 +658,6 @@ pub fn process_content_node<'input>(
             let block_id = allocate_element_key().replace("-", "_");
             block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
-            let processing_scope: ProcessingScope = Default::default();
             let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.scope, resolution_mode);
 
             // Add forvar as a parameter in the symbol map

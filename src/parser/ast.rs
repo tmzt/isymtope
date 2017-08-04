@@ -72,6 +72,7 @@ pub enum ResolvedSymbolType {
     GlobalVarReference(String),
     ActionStateReference(Option<VarType>),
     LoopVarReference(String),
+    BlockParamReference(String),
     PropReference(String),
     LensPropReference(String, Box<LensExprType>)
 }
@@ -110,7 +111,12 @@ impl Symbol {
     }
 
     pub fn loop_var(key: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+        let resolved = ResolvedSymbolType::LoopVarReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+    }
+
+    pub fn block_param(key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::BlockParamReference(key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 

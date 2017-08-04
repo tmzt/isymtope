@@ -8,7 +8,7 @@ store {
     }
 }
 
-component greeter {
+component greeter (lines) {
     for line in lines { p { ("Message: " + line) } }
     p (class="actions") {
         a (href="#add") click || { dispatch add; } { "Say Hello" }

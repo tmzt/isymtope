@@ -56,20 +56,20 @@ UseStmtNode : NodeType =
 
 ComponentDefinitionNode: NodeType =
 {
-    ComponentKeyword <name:Id> "{"
-        <children:NodeType*>
-    "}" =>
-    {
-        let definition_name = name.into();
+    // ComponentKeyword <name:Id> "{"
+    //     <children:NodeType*>
+    // "}" =>
+    // {
+    //     let definition_name = name.into();
 
-        NodeType::ComponentDefinitionNode(
-            ComponentDefinitionType {
-                name: definition_name,
-                inputs: None,
-                children: Some(children)
-            }
-        )
-    },
+    //     NodeType::ComponentDefinitionNode(
+    //         ComponentDefinitionType {
+    //             name: definition_name,
+    //             inputs: None,
+    //             children: Some(children)
+    //         }
+    //     )
+    // },
     ComponentKeyword <name:Id> "(" <inputs:CommaList<Id>> ")" "{"
         <children:NodeType*>
     "}" =>
@@ -116,7 +116,7 @@ ExprTerm : ExprValue =
     <n:LitNum> => ExprValue::LiteralNumber(n),
 //    "(" <ExprValue> ")",
     ValueKeyword => ExprValue::DefaultVariableReference,
-    <ident:Id> => ExprValue::VariableReference(ident.into()),
+    <ident:Id> => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
     <s:LitStr> => ExprValue::LiteralString(s),
 };
 
