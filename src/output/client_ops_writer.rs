@@ -183,13 +183,12 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         // Write function header
                         let mut scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
-                        let foridx = &format!("__foridx_{}", block_id);
-                        let scope_prefixes = with_key_expr_prefix(&scope.0, ExprValue::VariableReference(foridx.clone()));
-                        let scope_id = scope_prefixes.key_prefix(block_id);
-                        scope.0 = scope_prefixes;
-                        self.scopes.insert(scope_id, scope.clone());
-
+                        let loopidx_ref = Symbol::loop_idx("foridx", block_id);
+                        scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
                         self.stream_writer.write_op_element_start_block(w, op, doc, &scope, block_id)?;
+
+                        let scope_id = scope.0.key_prefix(block_id);
+                        self.scopes.insert(scope_id, scope.clone());
                     };
                 }
 

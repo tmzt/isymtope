@@ -292,9 +292,9 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
         let foridx = &format!("__foridx_{}", block_id);
         let mut scope = scope.clone();
-        let scope_prefixes = with_key_expr_prefix(&scope.0, ExprValue::VariableReference(foridx.clone()));
-        // let scope_prefixes = prepend_var_prefix(&scope_prefixes, "store.getState()");
-        scope.0 = scope_prefixes;
+
+        let loopidx_ref = Symbol::loop_var(foridx);
+        scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
 
         write_js_expr_value(w, coll_expr, doc, &scope)?;
         writeln!(w, ").forEach(__{});", block_id)?;

@@ -34,17 +34,6 @@ pub enum ExprOp {
     Div
 }
 
-/*
-/// Complex expression
-#[derive(Debug)]
-pub enum ExprType {
-    LiteralNumber(i32),
-    LiteralString(String),
-    VariableReference(String),
-    Expr(ExprOp, ExprType, ExprType)
-}
-*/
-
 #[derive(Debug, Clone)]
 pub enum PrimitiveVarType {
     StringVar,
@@ -72,11 +61,11 @@ pub enum ResolvedSymbolType {
     GlobalVarReference(String),
     ActionStateReference(Option<VarType>),
     LoopVarReference(String),
+    LoopIndexReference(String, String),
     BlockParamReference(String),
     PropReference(String),
     LensPropReference(String, Box<LensExprType>)
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
@@ -108,6 +97,12 @@ impl Symbol {
         let value = value.map(|value| Box::new(value.clone()));
         let ty = ty.map(|ty| ty.clone());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, value)
+    }
+
+    pub fn loop_idx(key: &str, block_id: &str) -> Symbol {
+        let var_key = format!("__{}_{}", key, block_id);
+        let resolved = ResolvedSymbolType::LoopIndexReference(key.to_owned(), block_id.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved), None, None)
     }
 
     pub fn loop_var(key: &str) -> Symbol {
@@ -162,7 +157,6 @@ pub enum ExprValue {
     LiteralNumber(i32),
     LiteralString(String),
     LiteralArray(Option<Vec<ExprValue>>),
-    VariableReference(String),
     DefaultVariableReference,
     SymbolReference(Symbol),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),

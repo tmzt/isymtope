@@ -513,36 +513,6 @@ pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
             expr.clone()
         }
 
-        &ExprValue::VariableReference(ref given) => {
-
-            // if let Some(&(ref key, ref sym)) = scope.props.get(given) {
-            //     return ExprValue::SymbolReference(sym.clone());
-            // };
-
-            // // First, try to resolve as a reducer key
-            // if let Some(ref sym) = resolve_reducer_key(processing, scope, given) {
-            //     return ExprValue::SymbolReference(sym.clone());
-            // };
-
-            // if let Some(ref sym) = resolve_prop(processing, scope, given) {
-            //     return ExprValue::SymbolReference(sym.clone());
-            // }
-
-
-
-            // // Try to resolve the symbol in the scope, including parameters and loop_vars
-            // if let Some(ref sym) = resolve_existing_symbol(processing, scope, given, resolution_mode) {
-            //     return ExprValue::SymbolReference(sym.clone());
-            // };
-
-            // if let &BareSymbolResolutionMode::PropThenReducerKey = resolution_mode {
-            //     // Collect unresolved bare symbols as props on the scope
-            //     scope.with_prop(given, None, None);
-            // };
-
-            expr.clone()
-        }
-
         &ExprValue::DefaultVariableReference => {
             // NOTE: This is currently used primarily for action expressions
 

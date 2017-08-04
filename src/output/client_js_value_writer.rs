@@ -65,15 +65,6 @@ pub fn write_js_expr_value(w: &mut io::Write,
             write_js_var_reference(w, None, doc, scope)?;
         }
 
-        &ExprValue::VariableReference(ref var_name) => {
-            if let Some(sym) = scope.1.props.get(var_name) {
-                let sym_ref = ExprValue::SymbolReference(sym.clone());
-                return write_js_expr_value(w, &sym_ref, doc, scope);
-            };
-
-            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
-        }
-
         &ExprValue::SymbolReference(ref sym) => {
             if let &SymbolReferenceType::ResolvedReference(ref key, ref resolved) = sym.sym_ref() {
                 match resolved {
@@ -93,6 +84,11 @@ pub fn write_js_expr_value(w: &mut io::Write,
 
                     &ResolvedSymbolType::ActionStateReference(ref ty) => {
                         write_js_var_reference(w, Some("state"), doc, scope)?;
+                    }
+
+                    &ResolvedSymbolType::LoopIndexReference(ref key, ref block_id) => {
+                        let foridx = format!("__{}_{}", key, block_id);
+                        write_js_var_reference(w, Some(&foridx), doc, scope)?;
                     }
 
                     &ResolvedSymbolType::LoopVarReference(ref var_name) => {
