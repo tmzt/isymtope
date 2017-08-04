@@ -15,6 +15,23 @@ pub fn reduce_expr_to_string(expr: &ExprValue, doc: &DocumentState, scope: &Elem
     }
 }
 
+pub fn eval_sym(sym: &Symbol, scope: &ElementOpScope) -> Option<ExprValue> {
+    let sym_ref = sym.sym_ref();
+    let sym_ty = sym.ty();
+    if let &SymbolReferenceType::ResolvedReference(_, ref resolved) = sym_ref {
+        match resolved {
+            &ResolvedSymbolType::PropReference(ref key) => {
+                if let Some(sym_val) = scope.1.props.get(key) {
+                    return sym_val.value().map(|s| s.to_owned());
+                }
+            }
+            _ => {}
+        };
+    };
+
+    None
+}
+
 pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> Option<ExprValue> {
     match expr {
         &ExprValue::LiteralString(..) => Some(expr.clone()),
@@ -50,8 +67,12 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
         }
 
         &ExprValue::SymbolReference(ref sym) => {
+            if let Some(ref expr) = eval_sym(sym, &scope) {
+                return Some(expr.clone());
+            };
+
             if let Some(expr) = doc.resolve_symbol_value(sym) {
-                return Some(expr);
+                return Some(expr.clone());
             };
             // match sym {
             //     &Symbol(ref sym, _, _) => {

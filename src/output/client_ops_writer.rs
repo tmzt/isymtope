@@ -6,6 +6,7 @@ use std::slice::Iter;
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
+use parser::util::*;
 use processing::structs::*;
 use output::client_ops_stream_writer::*;
 use output::client_misc::*;
@@ -70,10 +71,26 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     fn invoke_component_with_props(&mut self, w: &mut io::Write, doc: &'input DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, output_component_contents: bool) -> Result {
         let mut prop_scope = scope.clone();
 
+        if let Some(props) = props {
+            for &(ref key, ref expr) in props {
+                if let Some(ref expr) = expr.as_ref().and_then(|expr| reduce_expr(&expr, doc, scope)) {
+                    prop_scope.add_prop_with_value(key, &expr);
+                };
+            }
+        };
+
         for (key, param) in comp.props.iter() {
-            if let Some(ref expr) = doc.resolve_symbol_value(param) {
-                prop_scope.add_prop_with_value(key, &expr);
+
+            if let Some(_) = scope.1.props.get(key) {
+                let sym = Symbol::prop(key);
+                let sym_ref = ExprValue::SymbolReference(sym);
+                prop_scope.add_prop_with_value(key, &sym_ref);
+                continue;
             };
+
+            // if let Some(ref expr) = doc.resolve_symbol_value(param) {
+            //     prop_scope.add_prop_with_value(key, &expr);
+            // };
 
             // if let &Symbol(SymbolReferenceType::PropReference(ref var_name), _, _) = param {
             //     if let Some(&Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, Some(box ref expr))) = scope.1.props.get(var_name) {
@@ -85,13 +102,9 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             // };
         }
 
-        if let Some(props) = props {
-            for &(ref key, ref expr) in props {
-                if let Some(ref expr) = expr.as_ref().and_then(|expr| reduce_expr(&expr, doc, scope)) {
-                    prop_scope.add_prop_with_value(key, &expr);
-                };
-            }
-        };
+        let scope_key = allocate_element_key();
+        let scope_id = prop_scope.0.key_prefix(&scope_key);
+        self.scopes.insert(scope_id, prop_scope.clone());
 
         if let Some(ref ops) = comp.ops {
             self.write_ops_content(w, ops.iter(), doc, &prop_scope, output_component_contents)?;
@@ -206,15 +219,19 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                 &ElementOp::MapCollection(ref block_id, ref ele, ref coll_expr) => {
                     if output_component_contents {
+                        let mut scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
+
                         let has_block = self.blocks.contains_key(block_id);
                         if has_block {
                             let ele = ele.as_ref().map(|e| e.as_str());
 
-                            if let &ExprValue::SymbolReference(ref sym) = coll_expr {
+                            let coll_expr = reduce_expr(coll_expr, doc, &scope);
+
+                            if let Some(ExprValue::SymbolReference(ref sym)) = coll_expr {
                                 if let Some(&VarType::ArrayVar(Some(box ref element_ty))) = sym.ty() {
                                     if let Some(ExprValue::LiteralArray(Some(ref items))) = doc.resolve_symbol_value(sym) {
                                         for item_expr in items {
-                                            self.write_loop_item(w, doc, item_expr, scope, ele, Some(&element_ty), block_id, output_component_contents)?;
+                                            self.write_loop_item(w, doc, item_expr, &scope, ele, Some(&element_ty), block_id, output_component_contents)?;
                                         };
                                     };
                                 };
