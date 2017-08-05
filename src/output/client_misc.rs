@@ -15,7 +15,7 @@ pub fn reduce_expr_to_string(expr: &ExprValue, doc: &DocumentState, scope: &Elem
     }
 }
 
-pub fn eval_sym(sym: &Symbol, scope: &ElementOpScope) -> Option<ExprValue> {
+pub fn eval_sym(sym: &Symbol, doc: &DocumentState, scope: &ElementOpScope) -> Option<ExprValue> {
     let sym_ref = sym.sym_ref();
     let sym_ty = sym.ty();
     if let &SymbolReferenceType::ResolvedReference(_, ref resolved) = sym_ref {
@@ -25,6 +25,19 @@ pub fn eval_sym(sym: &Symbol, scope: &ElementOpScope) -> Option<ExprValue> {
                     return sym_val.value().map(|s| s.to_owned());
                 }
             }
+
+            &ResolvedSymbolType::BlockParamReference(ref key) => {
+                if let Some(sym_val) = scope.1.block_params.get(key) {
+                    return sym_val.value().map(|s| s.to_owned());
+                }
+            }
+
+            &ResolvedSymbolType::ReducerKeyReference(ref key) => {
+                if let Some(expr) = doc.resolve_symbol_value(sym) {
+                    return Some(expr.clone());
+                };
+            }
+
             _ => {}
         };
     };
@@ -67,13 +80,10 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
         }
 
         &ExprValue::SymbolReference(ref sym) => {
-            if let Some(ref expr) = eval_sym(sym, &scope) {
+            if let Some(ref expr) = eval_sym(sym, doc, &scope) {
                 return Some(expr.clone());
             };
 
-            if let Some(expr) = doc.resolve_symbol_value(sym) {
-                return Some(expr.clone());
-            };
             // match sym {
             //     &Symbol(ref sym, _, _) => {
             //         match sym {
@@ -106,10 +116,10 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
             //     }
             //     _ => {}
             // };
-            None
+            Some(expr.clone())
         }
 
-        _ => None
+        _ => Some(expr.clone())
     }
 }
 

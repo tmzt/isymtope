@@ -37,7 +37,7 @@ impl DocumentProcessingScope {
     // }
 
     pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
-        self.symbol_map.insert(prop_name.to_owned(), Symbol::prop_with_value(prop_name, value));
+        self.props.insert(prop_name.to_owned(), Symbol::prop_with_value(prop_name, value));
         self
     }
 
