@@ -85,29 +85,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             }
         };
 
-        // for (key, param) in comp.props.iter() {
-            // if let Some(_) = scope.1.props.get(key) {
-            //     let sym = Symbol::prop(key);
-            //     let sym_ref = ExprValue::SymbolReference(sym);
-            //     scope.add_prop_with_value(key, &sym_ref);
-            //     continue;
-            // };
-
-
-
-            // if let Some(ref expr) = doc.resolve_symbol_value(param) {
-            //     prop_scope.add_prop_with_value(key, &expr);
-            // };
-
-            // if let &Symbol(SymbolReferenceType::PropReference(ref var_name), _, _) = param {
-            //     if let Some(&Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, Some(box ref expr))) = scope.1.props.get(var_name) {
-            //         if let Some(ref expr) = reduce_expr(&expr, doc, scope) {
-            //             //let value = ExprValue::SymbolReference(sym.clone());
-            //             prop_scope.add_prop_with_value(key, &expr);
-            //         };
-            //     };
-            // };
-        // }
+        // TODO: Restore props from Component object
 
         let scope_key = allocate_element_key();
         let scope_id = scope.0.key_prefix(&scope_key);
