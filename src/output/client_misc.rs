@@ -83,39 +83,6 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
             if let Some(ref expr) = eval_sym(sym, doc, &scope) {
                 return Some(expr.clone());
             };
-
-            // match sym {
-            //     &Symbol(ref sym, _, _) => {
-            //         match sym {
-            //             &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
-            //                     if let Some(ref default_expr) = reducer_data.default_expr {
-            //                         return reduce_expr(default_expr, doc, scope);
-            //                     };
-            //                 };
-            //             }
-
-            //             &SymbolReferenceType::LoopVarReference(ref var_name) => {
-            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(var_name) {
-            //                     if let Some(ref default_expr) = reducer_data.default_expr {
-            //                         return reduce_expr(default_expr, doc, scope);
-            //                     };
-            //                 };
-            //             }
-
-            //             &SymbolReferenceType::PropReference(ref prop_name) => {
-            //                 if let Some(ref reducer_data) = doc.reducer_key_data.get(prop_name) {
-            //                     if let Some(ref default_expr) = reducer_data.default_expr {
-            //                         return reduce_expr(default_expr, doc, scope);
-            //                     };
-            //                 };
-            //             }
-
-            //             _ => {}
-            //         };
-            //     }
-            //     _ => {}
-            // };
             Some(expr.clone())
         }
 
@@ -158,66 +125,6 @@ pub fn write_computed_expr_value(w: &mut io::Write,
                 write_computed_expr_value(w, &expr, doc, scope)?;
             };
         }
-
-        // &ExprValue::VariableReference(ref var_name) => {
-        //     let var_key = scope.0.var_prefix(var_name);
-        //     write!(w, "{}", var_key)?;
-        // }
-
-        // &ExprValue::SymbolReference(ref sym) => {
-        //     let expr = reduce_expr(expr, )
-        //     match sym {
-        //         &(Some(ref sym), _) => {
-        //             match sym {
-        //                 &SymbolReferenceType::LocalVarReference(ref var_name) => {
-        //                     write!(w, "{}", var_name)?;
-        //                 }
-
-        //                 &SymbolReferenceType::ParameterReference(ref param_key) => {
-        //                     write!(w, "{}", param_key)?;
-        //                 }
-
-        //                 &SymbolReferenceType::ReducerKeyReference(ref as_reducer_key) => {
-        //                     if let Some(ref reducer_data) = doc.reducer_key_data.get(as_reducer_key) {
-        //                         if let Some(ref default_expr) = reducer_data.default_expr {
-        //                             write_computed_expr_value(w, default_expr, doc, scope)?;
-        //                             return Ok(());
-        //                         };
-        //                     };
-
-        //                     write!(w, "{}", as_reducer_key)?;
-        //                 }
-
-        //                 &SymbolReferenceType::LoopVarReference(ref var_name) => {
-        //                     if let Some(ref eval_scope) = scope.2 {
-        //                         if let Some(ref value) = eval_scope.symbol_values.get(var_name) {
-        //                             if let SymbolValueType::ConstantValue(ref expr) = value.0 {
-        //                                 write_computed_expr_value(w, expr, doc, scope)?;
-        //                                 return Ok(());
-        //                             }
-        //                         }
-
-        //                     }
-        //                     write!(w, "{}", var_name)?;
-        //                 }
-
-        //                 _ => {}
-        //             };
-        //         }
-        //         _ => {}
-        //     };
-        // }
-
-        // &ExprValue::Expr(..) => {
-        //     let expr = reduce_expr(node, doc, scope);
-        //     write_computed_expr_value(w, &expr, doc, scope)?;
-        // }
-
-        // &ExprValue::ContentNode(..) => {}
-
-        // &ExprValue::DefaultAction(..) => {}
-
-        // &ExprValue::Action(..) => {}
     }
     Ok(())
 }
