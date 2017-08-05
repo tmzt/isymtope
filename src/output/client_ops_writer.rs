@@ -101,6 +101,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     #[allow(unused_variables)]
     pub fn write_ops_content<'op>(&mut self, w: &mut io::Write, ops: Iter<'op, ElementOp>, doc: &'input DocumentState, scope: &ElementOpScope, output_component_contents: bool) -> Result {
         for op in ops {
+            let mut scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
+
             if output_component_contents {
                 if let &ElementOp::EndBlock(..) = op {
                     self.cur_block_id = None;
@@ -121,8 +123,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             match op {
                 &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs, ref events) |
                 &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events) => {
-                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
-
                     let element_key = element_key.as_ref().map_or("null", |s| s);
 
                     let attrs = attrs.as_ref().map(|attrs| attrs.iter());
@@ -132,12 +132,12 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     self.stream_writer.write_op_element(w, op, doc, &scope, &element_key, element_tag, is_void, attrs, events)?;
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
-                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
+                    // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     self.stream_writer.write_op_element_close(w, op, doc, &scope, element_tag)?;
                 }
                 &ElementOp::WriteValue(ref expr, ref value_key) => {
-                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
+                    // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     let value_key = value_key.as_ref().map_or("null", |s| s);
                     self.stream_writer.write_op_element_value(w, op, doc, &scope, expr, value_key)?;
@@ -146,8 +146,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                             ref component_key,
                                             ref props,
                                             ref lens) => {
-                    let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
-
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
                         let props = props.as_ref().map(|s| s.clone());
@@ -179,8 +177,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         self.cur_block_id = Some(block_id.to_owned());
                     } else {
                         // Write function header
-                        let mut scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
-
                         let loopidx_ref = Symbol::loop_idx("foridx", block_id);
                         scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
                         self.stream_writer.write_op_element_start_block(w, op, doc, &scope, block_id)?;
