@@ -240,37 +240,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                     self.write_loop_item(w, doc, item_expr, &scope, ele, None, block_id, output_component_contents)?;
                                 };
                             };
-
-                            // if let Some(ExprValue::SymbolReference(ref sym)) = coll_expr {
-                            //     let sym_ty = sym.ty();
-
-                            //     if let Some(ExprValue::LiteralArray(Some(ref items))) = doc.resolve_symbol_value(sym) {
-                            //         for item_expr in items {
-                            //             self.write_loop_item(w, doc, item_expr, &scope, ele, Some(&element_ty), block_id, output_component_contents)?;
-                            //         };
-                            //     };
-
-                            //     // if let Some(&VarType::ArrayVar(Some(box ref element_ty))) = sym.ty() {
-                            //     //     if let Some(ExprValue::LiteralArray(Some(ref items))) = doc.resolve_symbol_value(sym) {
-                            //     //         for item_expr in items {
-                            //     //             self.write_loop_item(w, doc, item_expr, &scope, ele, Some(&element_ty), block_id, output_component_contents)?;
-                            //     //         };
-                            //     //     };
-                            //     // };
-                            // };
-
-                            // if let &ExprValue::SymbolReference(Symbol(SymbolReferenceType::ReducerKeyReference(ref reducer_key), _, _)) = coll_expr {
-                            //     if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_key) {
-                            //         if let Some(VarType::ArrayVar(Some(box ref element_ty))) = reducer_data.ty {
-                            //             if let Some(ExprValue::LiteralArray(Some(ref items))) = reducer_data.default_expr {
-                            //                 for item_expr in items {
-                            //                     self.write_loop_item(w, doc, item_expr, scope, ele, Some(element_ty), block_id, output_component_contents)?;
-                            //                 };
-                            //                 continue;
-                            //             };
-                            //         };
-                            //     };
-                            // };
                         };
                     } else {
                         let forvar_default = &format!("__forvar_{}", block_id);
