@@ -205,31 +205,29 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                 let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
                                 let coll_expr = reduce_expr(&coll_expr, doc, &scope);
 
-                                // if output_component_contents {
-                                    if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
-                                        for item_expr in items {
-                                            // let ele_key = ele_key.as_ref().map(|s| s.as_str());
-                                            // self.write_loop_item(w, doc, item_expr, &scope, ele_key, None, &component_id, output_component_contents)?;
-                                            // let props_iter = props.as_ref().map(|p| p.iter());
+                                let mut props = props.as_ref().map_or(vec![], |p| p.clone());
 
-                                            let mut props = props.as_ref().map_or(vec![], |p| p.clone());
-                                            if let &Some(ref ele_key) = ele_key {
-                                                let expr = ExprValue::SymbolReference(Symbol::prop(&ele_key));
-                                                props.push((ele_key.to_owned(), Some(expr)));
+                                if let &Some(ref ele_key) = ele_key {
 
-                                                let mut scope = scope.clone();
-                                                scope.1.add_param(ele_key);
+                                    // Prepare scope and props
+                                    let expr = ExprValue::SymbolReference(Symbol::prop(&ele_key));
+                                    props.push((ele_key.to_owned(), Some(expr)));
 
+                                    let mut scope = scope.clone();
+                                    scope.1.add_param(ele_key);
+
+                                    if output_component_contents {
+                                        if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
+                                            for item_expr in items {
                                                 let ele_sym = Symbol::prop(ele_key);
+                                                scope.1.add_prop_with_value(ele_key, item_expr);
                                                 self.write_single_component_instance(w, op, doc, &scope, comp, component_key, Some(props.iter()), lens.as_ref(), Some((&ele_sym, 1)), output_component_contents)?;
-
-                                                continue;
                                             };
-                                            self.write_single_component_instance(w, op, doc, &scope, comp, component_key, Some(props.iter()), None, None, output_component_contents)?;
                                         };
+                                    } else {
+                                        self.write_single_component_instance(w, op, doc, &scope, comp, component_key, Some(props.iter()), lens.as_ref(), None, output_component_contents)?;
                                     };
-                                // } else {
-                                // };
+                                };
                             }
 
                             &Some(LensExprType::GetLens(ref sym)) => {
