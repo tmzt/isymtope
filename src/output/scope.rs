@@ -54,6 +54,11 @@ impl ElementOpScope {
     //     self
     // }
 
+    pub fn add_param(&mut self, key: &str) -> &mut Self {
+        self.1.add_param(key);
+        self
+    }
+
     pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
         self.1.add_prop_with_value(prop_name, value);
         self

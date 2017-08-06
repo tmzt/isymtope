@@ -308,6 +308,27 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let base_key = scope_prefixes.key_prefix(component_key);
         let component_ty = &comp.name;
 
+        if let Some(&LensExprType::ForLens(Some(ref ele_key), ref coll_sym)) = lens {
+            let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
+            let coll_expr = ExprValue::SymbolReference(coll_sym.to_owned());
+            // write_js_expr_value(w, &coll_expr, doc, &scope)?;
+
+            let attrs = vec![
+                (ele_key.to_owned(), Some(ele_expr))
+            ];
+            write!(w, "((")?;
+            // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
+            write_js_expr_value(w, &coll_expr, doc, &scope)?;
+            // write!(w, ").map(function(v) {{ return {{  {} }}))")?;
+
+            write!(w, ").map(function(v) {{ return ")?;
+            // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
+            write!(w, "{{ {}: v }}", ele_key)?;
+            writeln!(w, "; }}))")?;
+
+            writeln!(w, ".map(function(props) {{")?;
+        };
+
         writeln!(w,
                 "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
                 component_key)
@@ -322,6 +343,10 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             write_js_props_object(w, attrs, doc, scope)?;
         }
         writeln!(w, ");")?;
+
+        if lens.is_some() {
+            writeln!(w, "}});")?;
+        };
 
         Ok(())
     }

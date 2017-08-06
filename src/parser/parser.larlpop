@@ -149,6 +149,7 @@ CommaList<T> : Vec<T> = {
 ElementLens : LensExprType = {
     // TODO: Support element key
     ForKeyword <coll:Id> => LensExprType::ForLens(None, Symbol::unresolved(&coll)),
+    ForKeyword <ele_key:Id> InKeyword <coll:Id> => LensExprType::ForLens(Some(ele_key.into()), Symbol::unresolved(&coll)),
     GetKeyword <prop:Id> => LensExprType::GetLens(Symbol::unresolved(&prop))
 };
 

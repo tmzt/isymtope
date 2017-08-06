@@ -71,4 +71,9 @@ mod tests {
     pub fn test_output4() {
         assert!(self::test_write_html("test4.ism", "test_output4.html").is_ok());
     }
+
+    #[test]
+    pub fn test_output5() {
+        assert!(self::test_write_html("test5_app.ism", "test_output5_app.html").is_ok());
+    }
 }

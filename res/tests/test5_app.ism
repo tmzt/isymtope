@@ -1,0 +1,28 @@
+use html;
+
+store {
+    let todos = ["One", "Two"];
+    let entry = "";
+
+    todos {
+        action add => value + "TODO:";
+    }
+}
+
+component todo (todo) {
+    p {
+        ("Todo: " + todo)
+    }
+}
+
+component new_todo (entry) {
+    p {
+        input(inputValue="") {}
+    }
+    p (class="actions") {
+        a (href="#add") click || { dispatch add; } { "Add" }
+    }
+}
+
+new_todo(get entry) {}
+todo (for todo in todos) {}

@@ -21,7 +21,8 @@ pub struct DocumentProcessingScope {
     pub props: SymbolMap,
     pub symbol_map: SymbolMap,
     pub reducer_key_cache: SymbolMap,
-    pub block_params: SymbolMap
+    pub block_params: SymbolMap,
+    pub params: SymbolMap
 }
 
 // #[derive(Debug, Clone)]
@@ -35,6 +36,11 @@ impl DocumentProcessingScope {
     //     // self.props.insert(prop_name.to_owned(), Symbol(sym, ty.map(Clone::clone), value.map(|value| Box::new(value.clone()))));
     //     self
     // }
+
+    pub fn add_param(&mut self, key: &str) -> &mut Self {
+        self.params.insert(key.to_owned(), Symbol::param(key));
+        self
+    }
 
     pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
         self.props.insert(prop_name.to_owned(), Symbol::prop_with_value(prop_name, value));

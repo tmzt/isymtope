@@ -52,10 +52,15 @@ pub fn write_js_expr_value(w: &mut io::Write,
         }
 
         &ExprValue::LiteralArray(ref items) => {
+            let mut wrote_first = false;
             if let &Some(ref items) = items {
                 write!(w, "[")?;
                 for ref item in items {
+                    if wrote_first {
+                        write!(w, ", ")?;
+                    };
                     write_js_expr_value(w, item, doc, scope)?;
+                    wrote_first = true;
                 }
                 write!(w, "]")?;
             };

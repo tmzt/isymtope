@@ -98,6 +98,55 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     }
 
     #[inline]
+    #[allow(dead_code)]
+    pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, output_component_contents: bool) -> Result {
+        let mut component_id =  format!("{}", component_key);
+        // let mut props: Vec<Prop> = props.collect();
+
+        let mut scope = scope.clone();
+
+        let props_iter = props.as_ref().map(|s| s.clone());
+        if let Some(props_iter) = props_iter {
+            for &(ref key, ref expr) in props_iter {
+                if let &Some(ref expr) = expr {
+                    if let Some(expr) = reduce_expr(&expr, doc, &scope) {
+                        scope.add_prop_with_value(&key, &expr);
+                    };
+                }
+            }
+        };
+
+        if let Some(ref loop_iteration) = loop_iteration {
+            let loop_idx = loop_iteration.1;
+            let loopidx_ref = Symbol::loop_idx("foridx", &component_id);
+
+            component_id = format!("{}_{}", component_id, loop_idx);
+            let key_suffix = format!("{}", loop_idx);
+            scope.0 = add_key_prefix(&scope.0, &key_suffix);
+            scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
+        };
+
+        // let props_iter = props.as_ref().map(|s| s.iter());
+
+        // OpenS
+        let props_iter = props.as_ref().map(|s| s.clone());
+        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), props_iter, lens)?;
+
+        if output_component_contents {
+            let props_iter = props.as_ref().map(|s| s.clone());
+            self.invoke_component_with_props(w, doc, &scope, comp, props_iter, true)?;
+            // if let Some(ref ops) = comp.ops {
+            //     self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
+            // };
+        };
+
+        // Close
+        self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, component_key, component_id.as_str())?;
+
+        Ok(())
+    }
+
+    #[inline]
     #[allow(unused_variables)]
     pub fn write_ops_content<'op>(&mut self, w: &mut io::Write, ops: Iter<'op, ElementOp>, doc: &'input DocumentState, scope: &ElementOpScope, output_component_contents: bool) -> Result {
         for op in ops {
@@ -148,26 +197,69 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                             ref lens) => {
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
-                        let props = props.as_ref().map(|s| s.clone());
-                        let lens = lens.as_ref().map(|s| s.clone());
-
                         let component_key = component_key.as_ref().map_or("null", |s| s);
                         let component_id = format!("{}_1", component_key);
 
-                        let props_iter = props.as_ref().map(|s| s.iter());
+                        match lens {
+                            &Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
+                                let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
+                                let coll_expr = reduce_expr(&coll_expr, doc, &scope);
 
-                        // OpenS
-                        self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), props_iter.as_ref().map(Clone::clone), lens.as_ref())?;
+                                // if output_component_contents {
+                                    if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
+                                        for item_expr in items {
+                                            // let ele_key = ele_key.as_ref().map(|s| s.as_str());
+                                            // self.write_loop_item(w, doc, item_expr, &scope, ele_key, None, &component_id, output_component_contents)?;
+                                            // let props_iter = props.as_ref().map(|p| p.iter());
 
-                        if output_component_contents {
-                            self.invoke_component_with_props(w, doc, &scope, comp, props_iter.as_ref().map(Clone::clone), true)?;
-                            // if let Some(ref ops) = comp.ops {
-                            //     self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
-                            // };
+                                            let mut props = props.as_ref().map_or(vec![], |p| p.clone());
+                                            if let &Some(ref ele_key) = ele_key {
+                                                let expr = ExprValue::SymbolReference(Symbol::prop(&ele_key));
+                                                props.push((ele_key.to_owned(), Some(expr)));
+
+                                                let mut scope = scope.clone();
+                                                scope.1.add_param(ele_key);
+
+                                                let ele_sym = Symbol::prop(ele_key);
+                                                self.write_single_component_instance(w, op, doc, &scope, comp, component_key, Some(props.iter()), lens.as_ref(), Some((&ele_sym, 1)), output_component_contents)?;
+
+                                                continue;
+                                            };
+                                            self.write_single_component_instance(w, op, doc, &scope, comp, component_key, Some(props.iter()), None, None, output_component_contents)?;
+                                        };
+                                    };
+                                // } else {
+                                // };
+                            }
+
+                            &Some(LensExprType::GetLens(ref sym)) => {
+                                let props_iter = props.as_ref().map(|p| p.iter());
+                                self.write_single_component_instance(w, op, doc, &scope, comp, component_key, props_iter, None, None, output_component_contents)?;
+                            }
+
+                            _ => {
+                                let props_iter = props.as_ref().map(|p| p.iter());
+                                self.write_single_component_instance(w, op, doc, &scope, comp, component_key, props_iter, None, None, output_component_contents)?;
+                            }
                         };
 
-                        // Close
-                        self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, component_key, component_id.as_str())?;
+                        // let props = props.as_ref().map(|s| s.clone());
+                        // let lens = lens.as_ref().map(|s| s.clone());
+
+                        // let props_iter = props.as_ref().map(|s| s.iter());
+
+                        // // OpenS
+                        // self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), props_iter.as_ref().map(Clone::clone), lens.as_ref())?;
+
+                        // if output_component_contents {
+                        //     self.invoke_component_with_props(w, doc, &scope, comp, props_iter.as_ref().map(Clone::clone), true)?;
+                        //     // if let Some(ref ops) = comp.ops {
+                        //     //     self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
+                        //     // };
+                        // };
+
+                        // // Close
+                        // self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, component_key, component_id.as_str())?;
                     }
                 }
 

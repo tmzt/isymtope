@@ -110,6 +110,11 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 
+    pub fn param(key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::ParameterReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+    }
+
     pub fn block_param(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::BlockParamReference(key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
