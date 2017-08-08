@@ -79,11 +79,11 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWriter {
     fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
-        let base_key = scope.0.key_prefix(element_key);
+        let complete_key = scope.0.complete_element_key();
 
         write!(w, "<{}", element_tag)?;
-        write!(w, " data-id=\"{}\"", base_key)?;
-        write!(w, " key=\"{}\"", base_key)?;
+        write!(w, " data-id=\"{}\"", complete_key)?;
+        write!(w, " key=\"{}\"", complete_key)?;
 
         if let Some(attrs) = attrs {
             for &(ref key, ref expr) in attrs {
@@ -110,7 +110,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
 
                 // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
                 let default_action_scope = scope.0.default_action_scope();
-                self.events_vec.push((base_key.clone(),
+                self.events_vec.push((complete_key.clone(),
                                         event_name,
                                         event_params,
                                         action_ops,
@@ -118,7 +118,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
             }
         };
 
-        self.keys_vec.push(base_key);
+        self.keys_vec.push(complete_key);
         Ok(())
     }
 
@@ -130,13 +130,13 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
 
     #[inline]
     fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, value_key: &str) -> Result {
-        let element_key = scope.0.key_prefix(value_key);
+        let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<span key=\"{}\" data-id=\"{}\">", element_key, element_key)?;
+        write!(w, "<span key=\"{}\" data-id=\"{}\">", complete_key, complete_key)?;
         write_computed_expr_value(w, expr, doc, scope)?;
         write!(w, "</span>")?;
 
-        self.keys_vec.push(element_key);
+        self.keys_vec.push(complete_key);
         Ok(())
     }
 
@@ -160,10 +160,10 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
 
     #[inline]
     fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
-        let base_key = scope.0.key_prefix(component_key);
+        let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<div key=\"{}\" data-id=\"{}\" >", &base_key, &base_key)?;
-        self.keys_vec.push(base_key);
+        write!(w, "<div key=\"{}\" data-id=\"{}\" data-comp=\"{}\" >", &complete_key, &complete_key, &component_id)?;
+        self.keys_vec.push(complete_key);
         Ok(())
     }
 

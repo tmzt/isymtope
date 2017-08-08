@@ -203,12 +203,12 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter {
     fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
 
-        let idx = 0;
-        let base_key = scope.0.key_prefix(element_key);
-        let base_expr = scope.0.key_expr_prefix(&base_key);
-        let element_key = format!("{}_{}", base_key, idx);
-        // let key_expr = format!("\"{}\" + idx", base_key);
-        let key_expr = format!("\"{}\"", base_key);
+        let mut scope = scope.clone();
+        let complete_key = scope.0.complete_element_key();
+        let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
+        scope.0.set_prefix_expr(&param_expr);
+        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
         // let attrs = attrs.as_ref().map(|attrs| attrs.iter().cloned().collect());
         // attrs.push(("data-id", element_key));
@@ -219,16 +219,16 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
-        write!(w, "\"{}\"", base_key)?;
-        if let Some(ref expr_prefix) = base_expr {
-            write!(w, " + ")?;
-            write_js_expr_value(w, expr_prefix, doc, scope)?;
-        };
+        if let Some(ref prefix_expr) = prefix_expr {
+            write_js_expr_value(w, prefix_expr, doc, &scope)?;
+        } else {
+            write!(w, "\"{}\"", element_key)?;
+        }
         write!(w, ", [")?;
 
         // Static attrs
         if attrs.is_some() {
-            write_js_incdom_attr_array(w, attrs, doc, scope, Some(&base_key))?;
+            write_js_incdom_attr_array(w, attrs, doc, &scope, Some(&element_key))?;
         };
 
         // TODO: Dynamic attributes
@@ -247,20 +247,34 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
     #[inline]
     fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, value_key: &str) -> Result {
-        let scope_prefixes = &scope.0;
+        let mut scope = scope.clone();
+        // let scope_prefixes = &scope.0;
         // let base_key = scope.base_element_key(value_key);
         // let key_expr = scope.element_key_expr(value_key);
 
         write!(w, "IncrementalDOM.elementOpen(\"span\", ")?;
-        write!(w, "\"{}\"", value_key)?;
-        if let Some(ref expr_prefix) = scope_prefixes.key_expr_prefix(value_key) {
-            write!(w, " + ")?;
-            write_js_expr_value(w, expr_prefix, doc, scope)?;
-        };
+        // write!(w, "\"{}\"", value_key)?;
+
+        let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        let key_expr = ExprValue::LiteralString(format!(".{}", value_key));
+        scope.0.set_prefix_expr(&param_expr);
+
+        // let prefix_expr = scope.0.make_prefix_expr(&param_expr);
+        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
+        if let Some(ref prefix_expr) = prefix_expr {
+            write_js_expr_value(w, prefix_expr, doc, &scope)?;
+        } else {
+            write!(w, "\"{}\"", value_key)?;
+        }
+
+        // if let Some(ref expr_prefix) = scope_prefixes.key_expr_prefix(value_key) {
+        //     write!(w, " + ")?;
+        //     write_js_expr_value(w, expr_prefix, doc, &scope)?;
+        // };
         writeln!(w, ", [\"key\", \"{}\", \"data-id\", \"{}\"]);", value_key, value_key)?;
 
         write!(w, "IncrementalDOM.text(")?;
-        write_js_expr_value(w, expr, doc, scope)?;
+        write_js_expr_value(w, expr, doc, &scope)?;
         writeln!(w, ");")?;
 
         writeln!(w, "IncrementalDOM.elementClose(\"span\");")?;
@@ -304,9 +318,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
     #[inline]
     fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
-        let scope_prefixes = &scope.0;
-        let base_key = scope_prefixes.key_prefix(component_key);
+        let mut scope = scope.clone();
+        scope.0.clear_index();
+
+        let complete_key = scope.0.complete_element_key();
         let component_ty = &comp.name;
+
+        let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
+        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
         if let Some(&LensExprType::ForLens(Some(ref ele_key), ref coll_sym)) = lens {
             let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
@@ -326,21 +345,61 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             write!(w, "{{ {}: v }}", ele_key)?;
             writeln!(w, "; }}))")?;
 
-            writeln!(w, ".map(function(props) {{")?;
+            let loop_prefix_expr = prefix_expr
+                .unwrap_or_else(|| ExprValue::LiteralString(format!("{}", complete_key)));
+
+            let foridx_expr = ExprValue::Expr(ExprOp::Add,
+                Box::new(ExprValue::Expr(ExprOp::Add,
+                    Box::new(loop_prefix_expr.clone()),
+                    Box::new(ExprValue::LiteralString(".".to_owned()))
+                )),
+                Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
+            );
+
+            // let foridx_expr = ExprValue::Expr(ExprOp::Add,
+            //     Box::new(ExprValue::Expr(ExprOp::Add,
+            //         Box::new(loop_prefix_expr.clone()),
+            //         Box::new(ExprValue::LiteralString(".".to_owned()))
+            //     )),
+            //     Box::new(ExprValue::SymbolReference(Symbol::param("key_prefix"))),
+            // );
+
+            // let foridx_expr = ExprValue::Expr(ExprOp::Add,
+            //     Box::new(ExprValue::Expr(ExprOp::Add,
+            //         Box::new(ExprValue::SymbolReference(Symbol::param("key_prefix"))),
+            //         Box::new(ExprValue::LiteralString(".".to_owned()))
+            //     )),
+            //     Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
+            // );
+            scope.0.set_prefix_expr(&foridx_expr);
+
+            writeln!(w, ".map(function(props, foridx) {{")?;
+
         };
 
-        writeln!(w,
-                "IncrementalDOM.elementOpen(\"div\", \"{}\", []);",
-                component_key)
-            ?;
-        write!(w,
-            "component_{}(\"{}_\", store, ",
-            component_ty,
-            component_key)
-            ?;
+        let key_expr = ExprValue::LiteralString(format!(".{}", component_key));
+        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
+
+        writeln!(w, "IncrementalDOM.elementOpen(\"div\", ")?;
+        if let Some(ref prefix_expr) = prefix_expr {
+            write_js_expr_value(w, prefix_expr, doc, &scope)?;
+        } else {
+            write!(w, "\"{}\"", complete_key)?;
+        };
+        writeln!(w, ", []);")?;
+
+        write!(w, "component_{}(", component_ty)?;
+        if let Some(ref prefix_expr) = prefix_expr {
+            write_js_expr_value(w, prefix_expr, doc, &scope)?;
+        } else {
+            write!(w, "\"{}\"", complete_key)?;
+        };
+        write!(w, ", store")?;
+
         if attrs.is_some() {
+            write!(w, ", ")?;
             // TODO: Fix lens support
-            write_js_props_object(w, attrs, doc, scope)?;
+            write_js_props_object(w, attrs, doc, &scope)?;
         }
         writeln!(w, ");")?;
 

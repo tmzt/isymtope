@@ -107,8 +107,10 @@ pub type VarDefault = Option<String>;
 
 pub type ExprPrefix = Option<ExprValue>;
 
+pub type ElementIndex = Option<i32>;
+
 #[derive(Debug, Clone, Default)]
-pub struct ScopePrefixes (KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix);
+pub struct ScopePrefixes (KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix, ElementIndex);
 
 pub trait ScopePrefixOperations {
     fn key_prefix(&self, key: &str) -> String;    
@@ -122,44 +124,133 @@ pub trait ScopePrefixOperations {
     fn key_expr_prefix(&self, key: &str) -> Option<ExprValue>;
 }
 
+impl ScopePrefixes {
+    pub fn set_index(&mut self, idx: i32) -> &mut Self {
+        self.5 = Some(idx);
+        self
+    }
+
+    pub fn clear_index(&mut self) -> &mut Self {
+        self.5 = None;
+        self
+    }
+
+    pub fn set_prefix_expr(&mut self, expr: &ExprValue) -> &mut Self {
+        self.4 = Some(expr.to_owned());
+        self
+    }
+
+    pub fn append_key(&mut self, key: &str) -> &mut Self {
+        let element_key = self.as_element_key();
+        let key = if element_key.len() > 0 {
+            format!("{}.{}", element_key, key)
+        } else {
+            key.to_owned()
+        };
+        self.0 = Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key));
+        self.5 = None; // Previous index becomes part of key
+        self
+    }
+
+    pub fn as_element_key(&self) -> String {
+        let mut key = match self.0 {
+            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => {
+                format!("{}", prefix)
+            },
+            _ => format!("")
+        };
+
+        if let Some(ref idx) = self.5 {
+            key = format!("{}.{}", key, idx);
+        };
+
+        key        
+    }
+
+    pub fn complete_element_key(&self) -> String {
+        let mut key = match self.0 {
+            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => prefix.to_owned(),
+            _ => "".to_owned()
+        };
+
+        if let Some(ref idx) = self.5 {
+            key.push_str(&format!(".{}", idx));
+        };
+
+        key
+    }
+
+    pub fn make_prefix_expr(&self, value: &ExprValue, idx_sym: Option<&Symbol>) -> Option<ExprValue> {
+        self.4.as_ref().map(|s| {
+            let mut expr = ExprValue::Expr(ExprOp::Add, Box::new(s.to_owned()), Box::new(value.to_owned()));
+            if let Some(idx_sym) = idx_sym {
+                expr = ExprValue::Expr(ExprOp::Add, Box::new(expr), Box::new(ExprValue::SymbolReference(idx_sym.to_owned())))
+            };
+            expr
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ScopePrefixes;
+
+    #[test]
+    pub fn test_scope_prefixes() {
+        let mut prefixes = ScopePrefixes::default();
+        prefixes
+            .append_key(&"abc")
+            .append_key(&"xyz");
+        assert_eq!("abc.xyz", prefixes.complete_element_key());
+
+        prefixes
+            .set_index(3);
+        assert_eq!("abc.xyz.3", prefixes.complete_element_key());
+
+        prefixes
+            .append_key(&"def");
+        assert_eq!("abc.xyz.3.def", prefixes.complete_element_key());
+    }
+}
+
 #[allow(dead_code)]
 pub fn add_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.key_prefix(key);
-    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn add_var_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.var_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn add_action_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.action_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), Some(ActionPrefixType::ScopeActionPrefix(key_prefix)), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), Some(ActionPrefixType::ScopeActionPrefix(key_prefix)), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn prepend_key_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.prepend_key_prefix(key);
-    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key_prefix)), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn prepend_var_prefix(base: &ScopePrefixes, key: &str) -> ScopePrefixes {
     let key_prefix = base.prepend_var_prefix(key);
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), Some(VarPrefixType::ScopeVarPrefix(key_prefix)), base.3.as_ref().map(Clone::clone), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn with_default_var(base: &ScopePrefixes, default_var: &str) -> ScopePrefixes {
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), Some(default_var.to_owned()), base.4.as_ref().map(Clone::clone))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), Some(default_var.to_owned()), base.4.as_ref().map(Clone::clone), base.5.clone())
 }
 
 #[allow(dead_code)]
 pub fn with_key_expr_prefix(base: &ScopePrefixes, expr: ExprValue) -> ScopePrefixes {
-    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), Some(expr))
+    ScopePrefixes(base.0.as_ref().map(Clone::clone), base.1.as_ref().map(Clone::clone), base.2.as_ref().map(Clone::clone), base.3.as_ref().map(Clone::clone), Some(expr), base.5.clone())
 }
 
 impl ScopePrefixOperations for ScopePrefixes {
