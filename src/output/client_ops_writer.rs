@@ -51,7 +51,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             scope.add_loop_var_with_value(ele_key, item_expr);
 
             if output_component_contents {
-                scope.0.set_index(1);
+                scope.0.set_index(0);
             } else {
                 let sym_expr = ExprValue::SymbolReference(Symbol::loop_idx("foridx", block_id));
                 scope.0.set_prefix_expr(&sym_expr);
@@ -271,12 +271,12 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                                     if output_component_contents {
                                         if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
-                                            for item_expr in items {
+                                            for (item_idx, item_expr) in items.iter().enumerate() {
                                                 let ele_sym = Symbol::prop(ele_key);
                                                 // scope.0.set_index(1);
                                                 scope.1.add_prop_with_value(ele_key, item_expr);
                                                 let prefix_sym = Symbol::param("key_prefix");
-                                                self.write_single_component_instance(w, op, doc, &scope, comp, &component_key, Some(props.iter()), lens.as_ref(), Some((&prefix_sym, 1)), output_component_contents)?;
+                                                self.write_single_component_instance(w, op, doc, &scope, comp, &component_key, Some(props.iter()), lens.as_ref(), Some((&prefix_sym, item_idx as i32)), output_component_contents)?;
                                             };
                                         };
                                     } else {
