@@ -38,7 +38,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             events_iter {
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,
-                     "  document.querySelector(\"[data-id='{}']\").addEventListener(\"{}\", \
+                     "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
                       function(event) {{",
                      element_key,
                      event_name)
@@ -175,7 +175,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         let keys_iter = self.output_html.keys_iter();
         for key in keys_iter {
             writeln!(w,
-                     "    markExisting(document.querySelector(\"[data-id='{}']\"));",
+                     "    markExisting(document.querySelector(\"[key='{}']\"));",
                      key)
                 ?;
         }

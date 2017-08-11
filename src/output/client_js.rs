@@ -159,7 +159,9 @@ impl<'input> WriteJsOps<'input> {
                 "  function component_{}(key_prefix, store, props) {{",
                 component_ty)
             ?;
+        writeln!(w, "IncrementalDOM.elementOpen(\"div\", key_prefix);")?;
         self.write_js_incdom_ops_content(w, ops, processing, &scope)?;
+        writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
 

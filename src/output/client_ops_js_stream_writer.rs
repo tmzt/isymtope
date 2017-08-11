@@ -252,14 +252,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
         scope.0.set_prefix_expr(&param_expr);
 
-        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None)
-            .unwrap_or_else(|| ExprValue::LiteralString(scope.0.complete_element_key()));
-
-        let attrs = vec![
-            ("key".to_owned(), Some(prefix_expr.clone())),
-            ("data-id".to_owned(), Some(prefix_expr.clone())),
-        ];
-        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, Some(attrs.iter()), events)
+        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, attrs, events)
     }
 
     #[inline]
@@ -276,14 +269,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let key_expr = ExprValue::LiteralString(format!(".{}.v", value_key));
         scope.0.set_prefix_expr(&param_expr);
 
-        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None)
-            .unwrap_or(ExprValue::LiteralString(complete_key.to_owned()));
-
-        let attrs = vec![
-            ("key".to_owned(), Some(prefix_expr.clone())),
-            ("data-id".to_owned(), Some(prefix_expr.clone())),
-        ];
-        self.write_element_open(w, op, doc, &scope, value_key, "span", &complete_key, false, Some(attrs.iter()), None)?;
+        self.write_element_open(w, op, doc, &scope, value_key, "span", &complete_key, false, None, None)?;
 
         write!(w, "IncrementalDOM.text(")?;
         write_js_expr_value(w, expr, doc, &scope)?;
@@ -430,7 +416,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
     #[inline]
     fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component) -> Result {
-        writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
+        // writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         Ok(())
     }
 

@@ -81,9 +81,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
         let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<{}", element_tag)?;
-        write!(w, " data-id=\"{}\"", complete_key)?;
-        write!(w, " key=\"{}\"", complete_key)?;
+        write!(w, "<{} key=\"{}\"", element_tag, &complete_key)?;
 
         if let Some(attrs) = attrs {
             for &(ref key, ref expr) in attrs {
@@ -134,7 +132,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
         scope.0.append_key("v");
         let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<span key=\"{}\" data-id=\"{}\">", complete_key, complete_key)?;
+        write!(w, "<span key=\"{}\">", complete_key)?;
         write_computed_expr_value(w, expr, doc, &scope)?;
         write!(w, "</span>")?;
 
@@ -164,7 +162,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<div key=\"{}\" data-id=\"{}\">", &complete_key, &complete_key)?;
+        write!(w, "<div key=\"{}\">", &complete_key)?;
         self.keys_vec.push(complete_key);
         Ok(())
     }
