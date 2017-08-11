@@ -159,16 +159,16 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let complete_key = scope.0.complete_element_key();
 
-        write!(w, "<div key=\"{}\" data-id=\"{}\" data-comp=\"{}\" >", &complete_key, &complete_key, &component_id)?;
+        write!(w, "<div key=\"{}\" data-id=\"{}\">", &complete_key, &complete_key)?;
         self.keys_vec.push(complete_key);
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component) -> Result {
         write!(w, "</div>")?;
         Ok(())
     }

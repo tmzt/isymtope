@@ -204,11 +204,12 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
 
         let mut scope = scope.clone();
+
         let complete_key = scope.0.complete_element_key();
+
         let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
         scope.0.set_prefix_expr(&param_expr);
-        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
         // let attrs = attrs.as_ref().map(|attrs| attrs.iter().cloned().collect());
         // attrs.push(("data-id", element_key));
@@ -219,10 +220,12 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
+        // let prefix_expr = scope.0.make_prefix_expr(&param_expr);
+        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
         if let Some(ref prefix_expr) = prefix_expr {
             write_js_expr_value(w, prefix_expr, doc, &scope)?;
         } else {
-            write!(w, "\"{}\"", element_key)?;
+            write!(w, "\"{}\"", complete_key)?;
         }
         write!(w, ", [")?;
 
@@ -317,15 +320,15 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let mut scope = scope.clone();
         scope.0.clear_index();
 
         let complete_key = scope.0.complete_element_key();
         let component_ty = &comp.name;
 
-        let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
-        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
+        // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
+        // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
         if let Some(&LensExprType::ForLens(Some(ref ele_key), ref coll_sym)) = lens {
             let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
@@ -345,14 +348,28 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
             write!(w, "{{ {}: v }}", ele_key)?;
             writeln!(w, "; }}))")?;
 
-            let loop_prefix_expr = prefix_expr
-                .unwrap_or_else(|| ExprValue::LiteralString(format!("{}", complete_key)));
+            // let loop_prefix_expr = prefix_expr
+            //     .unwrap_or_else(|| ExprValue::LiteralString(format!("{}", complete_key)));
+
+            // let foridx_expr = ExprValue::Expr(ExprOp::Add,
+            //     Box::new(ExprValue::Expr(ExprOp::Add,
+            //         Box::new(loop_prefix_expr.clone()),
+            //         Box::new(ExprValue::LiteralString(".".to_owned()))
+            //     )),
+            //     Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
+            // );
+
+            // let foridx_expr = ExprValue::Expr(ExprOp::Add,
+            //     Box::new(ExprValue::Expr(ExprOp::Add,
+            //         Box::new(ExprValue::LiteralString())
+            //         Box::new(loop_prefix_expr.clone()),
+            //         Box::new(ExprValue::LiteralString(".".to_owned()))
+            //     )),
+            //     Box::new(ExprValue::SymbolReference(Symbol::param("key_prefix"))),
+            // );
 
             let foridx_expr = ExprValue::Expr(ExprOp::Add,
-                Box::new(ExprValue::Expr(ExprOp::Add,
-                    Box::new(loop_prefix_expr.clone()),
-                    Box::new(ExprValue::LiteralString(".".to_owned()))
-                )),
+                Box::new(ExprValue::LiteralString(format!("{}.", complete_key))),
                 Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
             );
 
@@ -377,11 +394,11 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
         };
 
-        let key_expr = ExprValue::LiteralString(format!(".{}", component_key));
-        let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
+        // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
+        // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
-        writeln!(w, "IncrementalDOM.elementOpen(\"div\", ")?;
-        if let Some(ref prefix_expr) = prefix_expr {
+        write!(w, "IncrementalDOM.elementOpen(\"div\", ")?;
+        if let Some(ref prefix_expr) = scope.0.prefix_expr() {
             write_js_expr_value(w, prefix_expr, doc, &scope)?;
         } else {
             write!(w, "\"{}\"", complete_key)?;
@@ -389,7 +406,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         writeln!(w, ", []);")?;
 
         write!(w, "component_{}(", component_ty)?;
-        if let Some(ref prefix_expr) = prefix_expr {
+        if let Some(ref prefix_expr) = scope.0.prefix_expr() {
             write_js_expr_value(w, prefix_expr, doc, &scope)?;
         } else {
             write!(w, "\"{}\"", complete_key)?;
@@ -411,7 +428,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, component_key: &str, component_id: &str) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component) -> Result {
         writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         Ok(())
     }

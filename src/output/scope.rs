@@ -140,6 +140,11 @@ impl ScopePrefixes {
         self
     }
 
+    pub fn clear_key(&mut self) -> &mut Self {
+        self.5 = None;
+        self
+    }
+
     pub fn append_key(&mut self, key: &str) -> &mut Self {
         let element_key = self.as_element_key();
         let key = if element_key.len() > 0 {
@@ -178,6 +183,10 @@ impl ScopePrefixes {
         };
 
         key
+    }
+
+    pub fn prefix_expr(&self) -> Option<&ExprValue> {
+        self.4.as_ref()
     }
 
     pub fn make_prefix_expr(&self, value: &ExprValue, idx_sym: Option<&Symbol>) -> Option<ExprValue> {

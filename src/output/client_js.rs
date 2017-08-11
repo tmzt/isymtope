@@ -141,15 +141,19 @@ impl<'input> WriteJsOps<'input> {
                                             scope: &ElementOpScope)
                                             -> Result {
         let mut scope = scope.clone();
+        let key_var = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        if let Some(ref prefix_expr) = scope.0.make_prefix_expr(&key_var, None) {
+            scope.0.set_prefix_expr(&prefix_expr);
+        };
 
         // Merge component scope entries
         // TODO: Convert values to props
-
         for (key, sym) in comp.symbol_map.iter() {
             scope.1.symbol_map.insert(key.to_owned(), sym.to_owned());
-            // let &&Symbol(ref sym, ref ty, _) = value;
-            // scope.with_symbol(key, &sym, ty.as_ref(), None);
         };
+
+        // let scope_id = scope.0.complete_element_key();
+        // self.scopes.insert(complete_key, scope.clone());
 
         writeln!(w,
                 "  function component_{}(key_prefix, store, props) {{",
@@ -158,6 +162,9 @@ impl<'input> WriteJsOps<'input> {
         self.write_js_incdom_ops_content(w, ops, processing, &scope)?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
+
+        // self.scopes.pop_back();
+
         Ok(())
     }
 }
