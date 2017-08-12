@@ -34,7 +34,7 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
         for ref act_op in act_iter {
             match *act_op {
                 &ActionOpNode::DispatchAction(ref action, ref params) => {
-                    let action_ty = scope.0.action_prefix(action);
+                    let action_ty = scope.0.make_action_type(action);
                     //let action_type = resolve.action_type(Some(action));
                     write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                 }

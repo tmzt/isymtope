@@ -332,8 +332,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         self.cur_block_id = Some(block_id.to_owned());
                     } else {
                         // Write function header
-                        let loopidx_ref = Symbol::loop_idx("foridx", block_id);
-                        scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
+                        let loopidx_expr = ExprValue::SymbolReference(Symbol::loop_idx("foridx", block_id));
+                        scope.0.set_prefix_expr(&loopidx_expr);
                         self.stream_writer.write_op_element_start_block(w, op, doc, &scope, block_id)?;
 
                         // let scope_id = scope.0.key_prefix(block_id);

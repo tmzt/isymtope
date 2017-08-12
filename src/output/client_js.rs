@@ -58,7 +58,7 @@ impl<'input> WriteJsOps<'input> {
         for (ref reducer_key, ref reducer_data) in self.doc.reducer_key_data.iter() {
             writeln!(w, "  function {}Reducer(state, action) {{", reducer_key)?;
 
-            let reducer_scope_key = scope.0.action_prefix(reducer_key);
+            let reducer_scope_key = scope.0.make_action_type(reducer_key);
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
@@ -70,8 +70,7 @@ impl<'input> WriteJsOps<'input> {
                             //  TODO: Support other than default variable
                             // let action_scope = add_var_prefix(scope_prefixes, &reducer_scope_key);
                             let mut scope = scope.clone();
-                            let action_scope = with_default_var(&scope.0, "state");
-                            scope.0 = action_scope;
+                            scope.0.set_default_var("state");
 
                             writeln!(w,
                                      "if ('undefined' !== typeof action && '{}' == action.type) \

@@ -14,25 +14,18 @@ pub fn write_js_var_reference(w: &mut io::Write,
                                     doc: &DocumentState,
                                     scope: &ElementOpScope)
                                     -> Result {
-    let default_var_scope = scope.0.default_var_scope();
+    // let default_var_scope = scope.0.default_var_scope();
     if let Some(ref var_name) = var_name {
-        let var_key = scope.0.var_prefix(var_name);
+        let var_key = scope.0.make_var_name(var_name);
         write!(w, "{}", var_key)?;
     } else {
         // let default_var_scope = scope.0.default_var_scope();
         let default_var = scope.0.default_var();
-        let var_key = default_var_scope
-            .or_else(|| default_var)    
-            .unwrap_or("default".to_owned());
+        let var_key = default_var
+            .unwrap_or_else(|| "default".to_owned());
         write!(w, "{}", var_key)?;
     };
 
-    // let state_key = "".to_owned();
-    // let state_key = scope.state_lookup_key(var_name);
-    // let is_scope_key = state_key.map_or(false, |s| doc.default_state_map.contains_key(s.as_str()));
-    // let var_reference = scope.var_reference(is_scope_key, var_name);
-    // write!(w, "{}", var_reference)?;
-    // write!(w, "{}", var_key)?;
     Ok(())
 }
 
@@ -82,9 +75,8 @@ pub fn write_js_expr_value(w: &mut io::Write,
                     }
 
                     &ResolvedSymbolType::ReducerKeyReference(ref as_reducer_key) => {
-                        let mut scope = scope.clone();
-                        scope.0 = add_var_prefix(&scope.0, "store.getState()");
-                        write_js_var_reference(w, Some(as_reducer_key.as_str()), doc, &scope)?;
+                        let key = format!("store.getState().{}", as_reducer_key);
+                        write_js_var_reference(w, Some(&key), doc, &scope)?;
                     }
 
                     &ResolvedSymbolType::ActionStateReference(ref ty) => {
@@ -105,9 +97,8 @@ pub fn write_js_expr_value(w: &mut io::Write,
                     }
 
                     &ResolvedSymbolType::PropReference(ref var_name) => {
-                        let mut scope = scope.clone();
-                        scope.0 = add_var_prefix(&scope.0, "props");
-                        write_js_var_reference(w, Some(var_name.as_str()), doc, &scope)?;
+                        let key = format!("props.{}", var_name);
+                        write_js_var_reference(w, Some(&key), doc, &scope)?;
                     }
 
                     _ => {}

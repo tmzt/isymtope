@@ -55,7 +55,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            let action_ty = scope.0.action_prefix(action_key);
+                            let action_ty = scope.0.make_action_type(action_key);
 
                             // let action_ty = scope.action_type(action_key.as_str());
                             /*
@@ -84,7 +84,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
             if let Some(ref actions) = reducer_data.actions {
                 for ref action_data in actions {
-                    let action_ty = scope.0.action_prefix(reducer_key);
+                    let action_ty = scope.0.make_action_type(reducer_key);
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
@@ -296,8 +296,6 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
     #[inline]
     fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, coll_expr: &ExprValue, block_id: &str) -> Result {
-        let scope_prefixes = &scope.0;
-
         // let forvar_default = &format!("__forvar_{}", block_id);
 
         write!(w, "(")?;
@@ -305,8 +303,8 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let foridx = &format!("__foridx_{}", block_id);
         let mut scope = scope.clone();
 
-        let loopidx_ref = Symbol::loop_var(foridx);
-        scope.0 = with_key_expr_prefix(&scope.0, ExprValue::SymbolReference(loopidx_ref));
+        let loopidx_ref = ExprValue::SymbolReference(Symbol::loop_var(foridx));
+        scope.0.set_prefix_expr(&loopidx_ref);
 
         write_js_expr_value(w, coll_expr, doc, &scope)?;
         writeln!(w, ").forEach(__{});", block_id)?;

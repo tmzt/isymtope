@@ -52,10 +52,13 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                            let mut scope = scope.clone();
+                            scope.0.append_action_scope(action_key);
+                            
                             // let action_ty = resolve.action_type(action_key.as_str());
-                            let event_scope = event_scope.as_ref().map(|s| s.to_owned()).unwrap_or("".to_owned());
-                            let action_scope = add_action_prefix(&scope.0, &event_scope);
-                            let action_ty = action_scope.action_prefix(action_key);
+                            // let event_scope = event_scope.as_ref().map(|s| s.to_owned()).unwrap_or("".to_owned());
+                            // let action_scope = add_action_prefix(&scope.0, &event_scope);
+                            let action_ty = scope.0.make_action_type(action_key);
                             /*
                             // TODO: Fix type
                             let action_prefix = scope.as_ref()
@@ -97,7 +100,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         let mut base_scope: ElementOpScope = Default::default();
         if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            base_scope.0 = add_action_prefix(&base_scope.0, default_reducer_key);
+            base_scope.0.append_action_scope(default_reducer_key);
         };
 
         let base_expr_scope: ExprScopeProcessingState = Default::default();
