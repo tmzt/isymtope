@@ -198,7 +198,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
         Ok(())
     }
 
-    fn write_element_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, complete_key: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+    fn write_element_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, complete_key: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
         let mut scope = scope.clone();
         let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
@@ -245,14 +245,14 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>) -> Result {
+    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
         let mut scope = scope.clone();
         let complete_key = scope.0.complete_element_key();
         let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
         scope.0.set_prefix_expr(&param_expr);
 
-        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, attrs, events)
+        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, attrs, events, value_binding)
     }
 
     #[inline]
@@ -269,7 +269,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let key_expr = ExprValue::LiteralString(format!(".{}.v", value_key));
         scope.0.set_prefix_expr(&param_expr);
 
-        self.write_element_open(w, op, doc, &scope, value_key, "span", &complete_key, false, None, None)?;
+        self.write_element_open(w, op, doc, &scope, value_key, "span", &complete_key, false, None, None, None)?;
 
         write!(w, "IncrementalDOM.text(")?;
         write_js_expr_value(w, expr, doc, &scope)?;

@@ -217,8 +217,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             let is_void = if let &ElementOp::ElementVoid(..) = op { true } else { false };
 
             match op {
-                &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs, ref events) |
-                &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events) => {
+                &ElementOp::ElementOpen(ref element_tag, ref element_key, ref attrs, ref events, ref value_binding) |
+                &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events, ref value_binding) => {
                     let mut scope = scope.clone();
 
                     let element_key = element_key.as_ref().map_or("null", |s| s);
@@ -227,9 +227,10 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let complete_key = scope.0.complete_element_key();
                     let attrs = attrs.as_ref().map(|attrs| attrs.iter());
                     let events = events.as_ref().map(|events| events.iter());
+                    let value_binding = value_binding.as_ref().map(|s| s.clone());
                     
                     self.scopes.insert(complete_key.to_owned(), scope.clone());
-                    self.stream_writer.write_op_element(w, op, doc, &scope, &complete_key, element_tag, is_void, attrs, events)?;
+                    self.stream_writer.write_op_element(w, op, doc, &scope, &complete_key, element_tag, is_void, attrs, events, value_binding)?;
                     if is_void {
                         // Pop scope for self closing, this fixes issue with ElementVoid which
                         // was not being emitted previously by the parser/processor code.

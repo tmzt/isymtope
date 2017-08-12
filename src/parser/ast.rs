@@ -207,6 +207,17 @@ pub type EventsItem = (String,Option<String>,Option<EventHandlerParams>,Option<E
 pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;
 
+pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
+pub type ElementValueBinding = Option<String>;
+pub type ElementBindings = (ElementValueBinding, Option<Vec<ElementEventBinding>>);
+
+#[derive(Debug, Clone)]
+pub enum ElementBindingNodeType {
+    ElementEventBindingNode(ElementEventBinding),
+    ElementValueBindingNode(String)
+}
+pub type ElementBindingNodeVec = Vec<ElementBindingNodeType>;
+
 pub type Prop = (String,Option<ExprValue>);
 
 #[derive(Debug, Clone)]
@@ -216,5 +227,5 @@ pub struct ElementType {
     pub attrs: Option<PropVec>,
     pub lens: Option<LensExprType>,
     pub children: Option<Vec<ContentNodeType>>,
-    pub events: Option<Vec<(Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>)>>
+    pub bindings: Option<Vec<ElementBindingNodeType>>
 }

@@ -563,10 +563,7 @@ pub fn process_content_node<'input>(
 
             let attrs = element_data.attrs.as_ref().map(Clone::clone);
             let lens = element_data.lens.as_ref().map(Clone::clone);
-
-            let events = element_data.events
-                .as_ref()
-                .map(|attrs| attrs.iter().map(Clone::clone).collect());
+            let bindings = element_data.bindings.as_ref().map(|s| s.clone());
 
             // Try to locate a matching component
             if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
@@ -627,17 +624,29 @@ pub fn process_content_node<'input>(
                 // Treat this as an HTML element
                 // TODO: Support imported elements
 
+                let mut events: Option<Vec<ElementEventBinding>> = Default::default();
+                let mut value_binding: ElementValueBinding = Default::default();
+
                 // Process events
-                if let Some(ref events) = element_data.events {
-                    for &(ref event_name, ref event_params, ref action_ops) in events {
-                        let event_name = event_name.as_ref().map(Clone::clone);
-                        let event_params = event_params.as_ref().map(Clone::clone);
-                        let action_ops = action_ops.as_ref().map(Clone::clone);
-                        block.events_vec.push((element_key.clone(),
-                                            event_name,
-                                            event_params,
-                                            action_ops,
-                                            None));
+                if let Some(ref bindings) = element_data.bindings {
+                    for binding in bindings {
+                        match binding {
+                            &ElementBindingNodeType::ElementEventBindingNode(ref event) => {
+                                if !events.is_some() { events = Some(Default::default()); }
+                                if let Some(ref mut events) = events { events.push(event.clone()); }
+
+                                let &(ref event_name, ref event_params, ref action_ops) = event;
+
+                                block.events_vec.push((element_key.clone(),
+                                                    event_name.as_ref().map(|s| s.to_owned()),
+                                                    event_params.as_ref().map(|s| s.clone()),
+                                                    action_ops.as_ref().map(|s| s.clone()),
+                                                    None));                                
+                            },
+                            &ElementBindingNodeType::ElementValueBindingNode(ref key) => {
+                                value_binding = Some(key.to_owned());
+                            }
+                        };
                     }
                 }
 
@@ -647,7 +656,8 @@ pub fn process_content_node<'input>(
                     block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
                                                         Some(element_key),
                                                         attrs,
-                                                        events));
+                                                        events,
+                                                        value_binding));
 
                     // Iterate over children
                     for ref child in children {
@@ -660,7 +670,8 @@ pub fn process_content_node<'input>(
                     block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
                                                         Some(element_key),
                                                         attrs,
-                                                        events));
+                                                        events,
+                                                        value_binding));
                 }
             }
         }

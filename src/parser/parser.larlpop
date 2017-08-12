@@ -187,12 +187,14 @@ Param : (String, ExprValue) = {
 
 //    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
 
-ElementNodeEvent: (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>) = 
-    <event_name:Id?> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => (event_name, params, act_ops);
+ElementBindingNode: ElementBindingNodeType = {
+    BindKeyword <key:Id> => ElementBindingNodeType::ElementValueBindingNode(key.to_owned()),
+    <event_name:Id?> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => ElementBindingNodeType::ElementEventBindingNode((event_name, params, act_ops))
+};
 
 ElementNode : ContentNodeType = {
     <element_ty:Id> "(" <params:ElementParamList> ")"
-    <events:(ElementNodeEvent+)?>
+    <bindings:(ElementBindingNode+)?>
     "{" <children:(ContentNodeType+)?> "}" =>
         {
             let element_ty = element_ty.into();
@@ -208,7 +210,7 @@ ElementNode : ContentNodeType = {
                     attrs: attrs,
                     lens: lens,
                     children: children,
-                    events: events
+                    bindings: bindings
                 }
             )
         },
@@ -224,7 +226,7 @@ ElementNode : ContentNodeType = {
                     attrs: None,
                     lens: None,
                     children: Some(children),
-                    events: None
+                    bindings: None
                 }
             )
         }
@@ -308,6 +310,7 @@ extern {
         LetKeyword => Token::LetKeyword,
         ForKeyword => Token::ForKeyword,
         InKeyword => Token::InKeyword,
+        BindKeyword => Token::BindKeyword,
         ValueKeyword => Token::ValueKeyword,
         
         ComponentKeyword => Token::ComponentKeyword,
