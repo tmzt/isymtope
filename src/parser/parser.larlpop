@@ -155,7 +155,8 @@ ElementLens : LensExprType = {
 
 #[inline]
 ElementProp: Prop = {
-    <ident:Id> "=" <val:ExprValue> => (ident.into(), Some(val))
+    ValueKeyword "=" <val:ExprValue> => { ("value".into(), Some(val)) },
+    <ident:Id> "=" <val:ExprValue> => { (ident.into(), Some(val)) }
 };
 
 #[inline]
@@ -192,7 +193,7 @@ ElementNodeEvent: (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>
 ElementNode : ContentNodeType = {
     <element_ty:Id> "(" <params:ElementParamList> ")"
     <events:(ElementNodeEvent+)?>
-    "{" <children:ContentNodeType*> "}" =>
+    "{" <children:(ContentNodeType+)?> "}" =>
         {
             let element_ty = element_ty.into();
             let element_key = allocate_element_key();
@@ -206,7 +207,7 @@ ElementNode : ContentNodeType = {
                     element_key: Some(element_key),
                     attrs: attrs,
                     lens: lens,
-                    children: Some(children),
+                    children: children,
                     events: events
                 }
             )

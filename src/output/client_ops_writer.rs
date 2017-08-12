@@ -230,6 +230,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     
                     self.scopes.insert(complete_key.to_owned(), scope.clone());
                     self.stream_writer.write_op_element(w, op, doc, &scope, &complete_key, element_tag, is_void, attrs, events)?;
+                    if is_void {
+                        // Pop scope for self closing, this fixes issue with ElementVoid which
+                        // was not being emitted previously by the parser/processor code.
+                        self.scopes.pop_back();
+                    };
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
                     // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());

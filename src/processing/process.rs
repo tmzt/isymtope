@@ -641,6 +641,7 @@ pub fn process_content_node<'input>(
                     }
                 }
 
+                // This should only be Some if there are actually children
                 if let Some(ref children) = element_data.children {
                     // Push element open
                     block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
