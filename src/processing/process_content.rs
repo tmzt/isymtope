@@ -172,35 +172,6 @@ impl ProcessContent {
                                             },
                                             _ => action_op.to_owned()
                                         }
-
-
-                                        // let mut action_op = action_op.to_owned();
-                                        // if let &ActionOpNode::DispatchAction(..) = action_op {
-
-                                        //     action_op.0 = scope.0.make_action_type(&action_op.0);
-                                        //     let mut action_op = ActionOpNode
-                                    // for mut action_op = action_ops {
-                                        // action_op.0 = scope.0.make_action_type(&action_op.0);
-                                        // if let ActionOpNode::DispatchAction(mut action_key, _) = action_op {
-                                        //     action_key = scope.0.make_action_type(&action_key);
-                                        // };
-
-                                        // if let ActionOpNode::DispatchAction(_, Some(ref mut action_params)) = action_op {
-                                        //     for param in action_params {
-                                        //         param.1 = param.1.as_ref().map(|expr| {
-                                        //             if let &ExprValue::SymbolReference(ref sym) = expr {
-                                        //                 if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                        //                     if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
-                                        //                         return ExprValue::SymbolReference(sym.to_owned());
-                                        //                     };
-                                        //                 };
-                                        //             };
-                                                    
-                                        //             map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
-                                        //         });
-                                        //     }
-                                        // };
-                                        // action_op
                                     }).collect()
                                 });
 
@@ -215,47 +186,6 @@ impl ProcessContent {
                             };
                         }
                     }
-
-                    // Process events
-                    // let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
-
-                    // for ref mut event in events {
-                    //     if let Some(ref mut action_ops) = event.action_ops {
-                    //         for ref mut action_op in action_ops {
-                    //             if let &ActionOpNode::DispatchAction(_, ref mut action_params) = action_op {
-                    //                 for ref mut param in action_params {
-                    //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
-                    //                 }
-                    //             }
-                    //         }
-                    //     };
-                    // }
-
-                    // let events = events.as_ref().map(|event| {
-                    //     event.action_ops = event.action_ops.as_ref().map(|action_op| {
-                    //         if let &ActionOpNode::DispatchAction(_, ref action_params) = action_op {
-                    //             if let Some(ref mut action_params) = action_params {
-                    //                 let action_params: PropVec = action_params.iter().map(|param| {
-                    //                     if let Some(ExprValue::SymbolReference(ref sym)) = param.1 {
-                    //                         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                    //                             if let Some(sym) = scope.1.element_value_bindings.get(key) {
-                    //                                 return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                    //                             };
-                    //                         };
-
-                    //                         if let Some(ref sym) = resolve_document_symbol(sym, self.doc, &mut scope) {
-                    //                             return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                    //                         };
-                    //                     };
-
-                    //                     param.to_owned()
-                    //                 }).collect();
-                    //         }
-
-                    //     })
-
-
-                    // });
 
                     // This should only be Some if there are actually children
                     if let Some(ref children) = element_data.children {
