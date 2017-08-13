@@ -121,7 +121,7 @@ ExprTerm : ExprValue =
 };
 
 ActionOpNode: ActionOpNode = {
-    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<Param>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
+    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ColonProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
 };
 
 AtLeastOne<T> : Vec<T> = {
@@ -157,6 +157,12 @@ ElementLens : LensExprType = {
 ElementProp: Prop = {
     ValueKeyword "=" <val:ExprValue> => { ("value".into(), Some(val)) },
     <ident:Id> "=" <val:ExprValue> => { (ident.into(), Some(val)) }
+};
+
+#[inline]
+ColonProp: Prop = {
+    ValueKeyword ":" <val:ExprValue> => { ("value".into(), Some(val)) },
+    <ident:Id> ":" <val:ExprValue> => { (ident.into(), Some(val)) }
 };
 
 #[inline]
@@ -297,6 +303,7 @@ extern {
         ")" => Token::CloseParen,
         "," => Token::Comma,
         "=" => Token::Equals,
+        ":" => Token::Colon,
         ";" => Token::Semi,
         "+" => Token::Plus,
         "-" => Token::Minus,

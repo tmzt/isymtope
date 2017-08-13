@@ -22,7 +22,8 @@ pub struct DocumentProcessingScope {
     pub symbol_map: SymbolMap,
     pub reducer_key_cache: SymbolMap,
     pub block_params: SymbolMap,
-    pub params: SymbolMap
+    pub params: SymbolMap,
+    pub element_value_bindings: SymbolMap
 }
 
 // #[derive(Debug, Clone)]
@@ -54,6 +55,11 @@ impl DocumentProcessingScope {
 
     pub fn add_loop_var_with_value(&mut self, var_name: &str, value: &ExprValue) -> &mut Self {
         self.block_params.insert(var_name.to_owned(), Symbol::loop_var_with_value(var_name, value));
+        self
+    }
+
+    pub fn add_element_value_binding(&mut self, key: &str, element_key: &str) -> &mut Self {
+        self.element_value_bindings.insert(key.to_owned(), Symbol::element_value_binding(key, element_key));
         self
     }
 

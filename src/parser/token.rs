@@ -43,6 +43,7 @@ pub enum Token {
     Dot,
     Comma,
     Equals,
+    Colon,
     Semi,
     Plus,
     Minus,

@@ -214,6 +214,7 @@ impl<'input> Lexer<'input> {
                     '.' => Token::Dot,
                     ',' => Token::Comma,
                     '=' => Token::Equals,
+                    ':' => Token::Colon,
                     ';' => Token::Semi,
 
                     // TODO: Support uniary minus (two char match)

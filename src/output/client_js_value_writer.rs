@@ -64,45 +64,59 @@ pub fn write_js_expr_value(w: &mut io::Write,
         }
 
         &ExprValue::SymbolReference(ref sym) => {
-            if let &SymbolReferenceType::ResolvedReference(ref key, ref resolved) = sym.sym_ref() {
-                match resolved {
-                    &ResolvedSymbolType::LocalVarReference(ref var_name) => {
-                        write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
-                    }
+            match sym.sym_ref() {
+                &SymbolReferenceType::ResolvedReference(ref key, ref resolved) => {
+                    match resolved {
+                        &ResolvedSymbolType::LocalVarReference(ref var_name) => {
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::ParameterReference(ref param_key) => {
-                        write_js_var_reference(w, Some(param_key.as_str()), doc, scope)?;
-                    }
+                        &ResolvedSymbolType::ParameterReference(ref param_key) => {
+                            write_js_var_reference(w, Some(param_key.as_str()), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::ReducerKeyReference(ref as_reducer_key) => {
-                        let key = format!("store.getState().{}", as_reducer_key);
-                        write_js_var_reference(w, Some(&key), doc, &scope)?;
-                    }
+                        &ResolvedSymbolType::ReducerKeyReference(ref as_reducer_key) => {
+                            let key = format!("store.getState().{}", as_reducer_key);
+                            write_js_var_reference(w, Some(&key), doc, &scope)?;
+                        }
 
-                    &ResolvedSymbolType::ActionStateReference(ref ty) => {
-                        write_js_var_reference(w, Some("state"), doc, scope)?;
-                    }
+                        &ResolvedSymbolType::ActionStateReference(ref ty) => {
+                            write_js_var_reference(w, Some("state"), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::LoopIndexReference(ref key, ref block_id) => {
-                        let foridx = format!("__{}_{}", key, block_id);
-                        write_js_var_reference(w, Some(&foridx), doc, scope)?;
-                    }
+                        &ResolvedSymbolType::LoopIndexReference(ref key, ref block_id) => {
+                            let foridx = format!("__{}_{}", key, block_id);
+                            write_js_var_reference(w, Some(&foridx), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::LoopVarReference(ref var_name) => {
-                        write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
-                    }
+                        &ResolvedSymbolType::LoopVarReference(ref var_name) => {
+                            write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::BlockParamReference(ref key) => {
-                        write_js_var_reference(w, Some(key.as_str()), doc, scope)?;
-                    }
+                        &ResolvedSymbolType::BlockParamReference(ref key) => {
+                            write_js_var_reference(w, Some(key.as_str()), doc, scope)?;
+                        }
 
-                    &ResolvedSymbolType::PropReference(ref var_name) => {
-                        let key = format!("props.{}", var_name);
-                        write_js_var_reference(w, Some(&key), doc, &scope)?;
-                    }
+                        &ResolvedSymbolType::PropReference(ref var_name) => {
+                            let key = format!("props.{}", var_name);
+                            write_js_var_reference(w, Some(&key), doc, &scope)?;
+                        }
 
-                    _ => {}
-                };
+                        &ResolvedSymbolType::ElementValueReference(ref ref_element_key) => {
+                            let key = format!("document.querySelector(\"[key='{}']\").value", ref_element_key);
+                            write_js_var_reference(w, Some(&key), doc, &scope)?;
+                        }
+
+                        _ => {
+                            let key = format!("undefined");
+                            write_js_var_reference(w, Some(&key), doc, &scope)?;
+                        }
+                    };
+                }
+                _ => {
+                    let key = format!("undefined");
+                    write_js_var_reference(w, Some(&key), doc, &scope)?;
+                }
             };
         }
 

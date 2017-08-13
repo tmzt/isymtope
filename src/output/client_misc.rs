@@ -90,6 +90,39 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
     }
 }
 
+#[inline]
+#[allow(dead_code)]
+pub fn resolve_document_symbol(sym: &Symbol, doc: &DocumentState, scope: &mut ElementOpScope) -> Option<Symbol> {
+    if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+        if let Some(_) = scope.1.params.get(key) {
+            return Some(Symbol::param(key));
+        };
+
+        if let Some(_) = scope.1.props.get(key) {
+            return Some(Symbol::prop(key));
+        };
+
+        if let Some(reducer_data) = doc.reducer_key_data.get(key) {
+            if let Some(ref default_expr) = reducer_data.default_expr {
+                scope.add_cached_reducer_key_with_value(key, default_expr);
+                return Some(Symbol::reducer_key_with_value(key, default_expr));
+            };
+            
+            return Some(Symbol::reducer_key(key));
+        };
+
+        if let Some(_) = scope.1.block_params.get(key) {
+            return Some(Symbol::block_param(key));
+        };
+
+        if let Some(value_binding) = scope.1.element_value_bindings.get(key) {
+            return Some(value_binding.to_owned());
+        };
+    }
+
+    return None;
+}
+
 pub fn write_computed_expr_value(w: &mut io::Write,
                                  node: &ExprValue,
                                  doc: &DocumentState,

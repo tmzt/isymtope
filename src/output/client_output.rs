@@ -1,13 +1,17 @@
 
 use std::io;
+use std::iter;
 use std::slice::Iter;
 
 use parser::ast::*;
 use parser::store::*;
 use processing::structs::*;
+use processing::process::*;
 use output::scope::*;
+use output::client_misc::*;
 use output::client_html::*;
 use output::client_js::*;
+use output::client_js_value_writer::*;
 use output::client_ops_writer::*;
 use output::client_ops_js_stream_writer::*;
 
@@ -54,19 +58,34 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
                             let mut scope = scope.clone();
                             scope.0.append_action_scope(action_key);
-                            
-                            // let action_ty = resolve.action_type(action_key.as_str());
-                            // let event_scope = event_scope.as_ref().map(|s| s.to_owned()).unwrap_or("".to_owned());
-                            // let action_scope = add_action_prefix(&scope.0, &event_scope);
                             let action_ty = scope.0.make_action_type(action_key);
-                            /*
-                            // TODO: Fix type
-                            let action_prefix = scope.as_ref()
-                                .map_or("".into(), |s| s.to_uppercase());
-                            let action_ty =
-                                format!("{}.{}", action_prefix, action_key.to_uppercase());
-                            */
-                            writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
+
+                            if let &Some(ref action_params) = action_params {
+                                let action_params: PropVec = iter::once(("type".to_owned(), Some(ExprValue::LiteralString(action_ty.to_owned()))))
+                                    .chain(action_params.iter().map(|s| s.clone())).collect();
+
+                                // let action_params = action_params.iter().map(|param| {
+                                //     if let Some(ExprValue::SymbolReference(ref sym)) = param.1 {
+                                //         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                                //             if let Some(sym) = scope.1.element_value_bindings.get(key) {
+                                //                 return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
+                                //             };
+                                //         };
+
+                                //         if let Some(ref sym) = resolve_document_symbol(sym, self.doc, &mut scope) {
+                                //             return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
+                                //         };
+                                //     };
+
+                                //     param.to_owned()
+                                // });
+
+                                write!(w, " store.dispatch(")?;
+                                write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
+                                writeln!(w, ");")?;
+                            } else {
+                                writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
+                            }
                         }
                     }
                 }

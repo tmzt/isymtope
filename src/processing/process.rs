@@ -501,6 +501,10 @@ pub fn resolve_sym(sym: &Symbol, processing: &DocumentProcessingState, scope: &m
         if let Some(_) = scope.block_params.get(key) {
             return Some(Symbol::block_param(key));
         };
+
+        if let Some(value_binding) = scope.element_value_bindings.get(key) {
+            return Some(value_binding.to_owned());
+        };
     }
 
     return None;
@@ -627,28 +631,97 @@ pub fn process_content_node<'input>(
                 let mut events: Option<Vec<ElementEventBinding>> = Default::default();
                 let mut value_binding: ElementValueBinding = Default::default();
 
-                // Process events
+                // Process bindings
                 if let Some(ref bindings) = element_data.bindings {
+                    // Loop through value bindings first
                     for binding in bindings {
-                        match binding {
-                            &ElementBindingNodeType::ElementEventBindingNode(ref event) => {
-                                if !events.is_some() { events = Some(Default::default()); }
-                                if let Some(ref mut events) = events { events.push(event.clone()); }
+                        if let &ElementBindingNodeType::ElementValueBindingNode(ref key) = binding {
+                            value_binding = Some(key.to_owned());
+                            block.scope.add_element_value_binding(key, &element_key);
+                        };
+                    }
 
-                                let &(ref event_name, ref event_params, ref action_ops) = event;
+                //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
 
-                                block.events_vec.push((element_key.clone(),
-                                                    event_name.as_ref().map(|s| s.to_owned()),
-                                                    event_params.as_ref().map(|s| s.clone()),
-                                                    action_ops.as_ref().map(|s| s.clone()),
-                                                    None));                                
-                            },
-                            &ElementBindingNodeType::ElementValueBindingNode(ref key) => {
-                                value_binding = Some(key.to_owned());
-                            }
+                    // Loop through the event bindings
+                    for binding in bindings {
+                        if let &ElementBindingNodeType::ElementEventBindingNode(ref event) = binding {
+                            let mut event = event.clone();
+
+                            event.2 = event.2.as_ref().map(|action_ops| {
+                                action_ops.iter().map(|action_op| {
+                                // for mut action_op = action_ops {
+                                    let mut action_op = action_op.to_owned();
+                                    if let ActionOpNode::DispatchAction(_, Some(ref mut action_params)) = action_op {
+                                        for param in action_params {
+                                            param.1 = param.1.as_ref().map(|expr| {
+                                                if let &ExprValue::SymbolReference(ref sym) = expr {
+                                                    if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                                                        if let Some(sym) = block.scope.element_value_bindings.get(key) {
+                                                            return ExprValue::SymbolReference(sym.to_owned());
+                                                        };
+                                                    };
+                                                };
+                                                
+                                                map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                                            });
+                                        }
+                                    };
+                                    action_op
+                                }).collect()
+                            });
+
+                            block.events_vec.push((element_key.clone(),
+                                                event.0.as_ref().map(|s| s.to_owned()),
+                                                event.1.as_ref().map(|s| s.to_owned()),
+                                                event.2.as_ref().map(|s| s.to_owned()),
+                                                None));
+                            if !events.is_some() { events = Some(Default::default()); }
+                            if let Some(ref mut events) = events { events.push(event.clone()); }
                         };
                     }
                 }
+
+                // Process events
+                // let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
+
+                // for ref mut event in events {
+                //     if let Some(ref mut action_ops) = event.action_ops {
+                //         for ref mut action_op in action_ops {
+                //             if let &ActionOpNode::DispatchAction(_, ref mut action_params) = action_op {
+                //                 for ref mut param in action_params {
+                //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
+                //                 }
+                //             }
+                //         }
+                //     };
+                // }
+
+                // let events = events.as_ref().map(|event| {
+                //     event.action_ops = event.action_ops.as_ref().map(|action_op| {
+                //         if let &ActionOpNode::DispatchAction(_, ref action_params) = action_op {
+                //             if let Some(ref mut action_params) = action_params {
+                //                 let action_params: PropVec = action_params.iter().map(|param| {
+                //                     if let Some(ExprValue::SymbolReference(ref sym)) = param.1 {
+                //                         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                //                             if let Some(sym) = scope.1.element_value_bindings.get(key) {
+                //                                 return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
+                //                             };
+                //                         };
+
+                //                         if let Some(ref sym) = resolve_document_symbol(sym, self.doc, &mut scope) {
+                //                             return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
+                //                         };
+                //                     };
+
+                //                     param.to_owned()
+                //                 }).collect();
+                //         }
+
+                //     })
+
+
+                // });
 
                 // This should only be Some if there are actually children
                 if let Some(ref children) = element_data.children {

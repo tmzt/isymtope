@@ -401,7 +401,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         if attrs.is_some() {
             write!(w, ", ")?;
             // TODO: Fix lens support
-            write_js_props_object(w, attrs, doc, &scope)?;
+            // write_js_props_object(w, attrs.iter(), doc, &scope)?;
         }
         writeln!(w, ");")?;
 

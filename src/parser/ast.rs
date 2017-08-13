@@ -64,7 +64,8 @@ pub enum ResolvedSymbolType {
     LoopIndexReference(String, String),
     BlockParamReference(String),
     PropReference(String),
-    LensPropReference(String, Box<LensExprType>)
+    LensPropReference(String, Box<LensExprType>),
+    ElementValueReference(String)
 }
 
 #[derive(Debug, Clone)]
@@ -143,6 +144,11 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved), ty.map(|ty| ty.to_owned()), None)
     }
 
+    pub fn element_value_binding(key: &str, element_key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::ElementValueReference(element_key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+    }
+
     pub fn sym_ref(&self) -> &SymbolReferenceType {
         &self.0
     }
@@ -184,7 +190,7 @@ pub enum LensExprType {
 
 #[derive(Debug, Clone)]
 pub enum ActionOpNode {
-    DispatchAction(String, Option<Vec<(String, ExprValue)>>)
+    DispatchAction(String, Option<PropVec>)
 }
 
 #[derive(Debug, Clone)]
