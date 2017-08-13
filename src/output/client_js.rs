@@ -7,7 +7,7 @@ use parser::ast::*;
 use parser::store::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
-use output::scope::*;
+
 use output::client_misc::*;
 use output::client_output::*;
 use output::client_js_value_writer::*;

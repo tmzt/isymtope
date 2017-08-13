@@ -8,7 +8,7 @@ use parser::ast::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
-use output::scope::*;
+
 // use output::client_js::*;
 use output::client_misc::*;
 use output::client_output::*;

@@ -9,7 +9,7 @@ use parser::util::allocate_element_key;
 use parser::store::*;
 use processing::structs::*;
 use processing::scope::*;
-use output::scope::*;
+
 use output::client_misc::*;
 use output::client_output::*;
 use output::client_js_value_writer::*;

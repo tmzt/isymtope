@@ -10,7 +10,7 @@ use parser::util::*;
 use processing::structs::*;
 use output::client_ops_stream_writer::*;
 use output::client_misc::*;
-use output::scope::*;
+
 
 
 #[derive(Debug)]
