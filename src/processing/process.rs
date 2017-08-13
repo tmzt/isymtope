@@ -675,7 +675,8 @@ pub fn process_content_node<'input>(
                                                 event.0.as_ref().map(|s| s.to_owned()),
                                                 event.1.as_ref().map(|s| s.to_owned()),
                                                 event.2.as_ref().map(|s| s.to_owned()),
-                                                None));
+                                                None,
+                                                Some(block.block_id.to_owned())));
                             if !events.is_some() { events = Some(Default::default()); }
                             if let Some(ref mut events) = events { events.push(event.clone()); }
                         };

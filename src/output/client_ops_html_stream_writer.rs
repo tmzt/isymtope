@@ -112,7 +112,8 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
                                         event_name,
                                         event_params,
                                         action_ops,
-                                        default_action_scope));
+                                        default_action_scope,
+                                        None));
             }
         };
 

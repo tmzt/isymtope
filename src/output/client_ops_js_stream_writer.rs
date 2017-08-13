@@ -33,7 +33,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
                                    scope: &ElementOpScope)
                                    -> Result {
         writeln!(w, "      // Bind actions")?;
-        for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope) in
+        for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope, ref block_id) in
             events_iter {
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,

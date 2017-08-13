@@ -6,6 +6,7 @@ use linked_hash_map::LinkedHashMap;
 use processing::scope::*;
 use parser::ast::*;
 use parser::store::*;
+use parser::util::*;
 
 #[derive(Debug, Default)]
 pub struct ReducerKeyData {
@@ -134,11 +135,24 @@ impl From<io::Error> for DocumentProcessingError {
 
 pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BlockProcessingState {
+    pub block_id: String,
     pub scope: DocumentProcessingScope,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
+}
+
+impl Default for BlockProcessingState {
+    fn default() -> Self {
+        let block_id = allocate_element_key();
+        BlockProcessingState {
+            block_id: block_id,
+            scope: Default::default(),
+            ops_vec: Default::default(),
+            events_vec: Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
