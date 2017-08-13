@@ -219,9 +219,12 @@ impl ProcessContent {
                 }
             }
             &ContentNodeType::ExpressionValueNode(ref expr) => {
-                let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
+                let mut scope = self.scope();
+                let expr = map_expr_using_scope(expr, processing, &mut scope, resolution_mode);
 
-                block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
+                let value_key = allocate_element_key();
+                let complete_key = scope.0.make_complete_element_key_with(&value_key);
+                block.ops_vec.push(ElementOp::WriteValue(expr, Some(complete_key.to_owned())));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 let mut scope = scope.clone();

@@ -126,14 +126,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, value_key: &str) -> Result {
-        let complete_key = scope.0.make_complete_element_key_with("v");
+    fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, complete_value_key: &str) -> Result {
+        let complete_value_key = format!("{}.v", complete_value_key);
 
-        write!(w, "<span key=\"{}\">", complete_key)?;
+        write!(w, "<span key=\"{}\">", complete_value_key)?;
         write_computed_expr_value(w, expr, doc, &scope)?;
         write!(w, "</span>")?;
 
-        self.keys_vec.push(complete_key.to_owned());
+        self.keys_vec.push(complete_value_key.to_owned());
         Ok(())
     }
 

@@ -290,7 +290,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     let value_key = value_key.as_ref().map_or("null", |s| s);
-                    self.stream_writer.write_op_element_value(w, op, doc, &scope, expr, value_key)?;
+                    let complete_key = scope.0.make_complete_element_key_with(value_key);
+                    self.stream_writer.write_op_element_value(w, op, doc, &scope, expr, &complete_key)?;
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
