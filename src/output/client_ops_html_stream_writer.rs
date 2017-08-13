@@ -78,10 +78,8 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
-        let complete_key = scope.0.complete_element_key();
-
-        write!(w, "<{} key=\"{}\"", element_tag, &complete_key)?;
+    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, complete_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
+        write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         if let Some(attrs) = attrs {
             for &(ref key, ref expr) in attrs {
@@ -117,7 +115,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
         //     }
         // };
 
-        self.keys_vec.push(complete_key);
+        self.keys_vec.push(complete_key.to_owned());
         Ok(())
     }
 
@@ -129,15 +127,13 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
 
     #[inline]
     fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, value_key: &str) -> Result {
-        let mut scope = scope.clone();
-        scope.0.append_key("v");
-        let complete_key = scope.0.complete_element_key();
+        let complete_key = scope.0.make_complete_element_key_with("v");
 
         write!(w, "<span key=\"{}\">", complete_key)?;
         write_computed_expr_value(w, expr, doc, &scope)?;
         write!(w, "</span>")?;
 
-        self.keys_vec.push(complete_key);
+        self.keys_vec.push(complete_key.to_owned());
         Ok(())
     }
 

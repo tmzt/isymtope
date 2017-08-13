@@ -191,7 +191,7 @@ impl ProcessContent {
                     if let Some(ref children) = element_data.children {
                         // Push element open
                         block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
-                                                            Some(element_key),
+                                                            Some(complete_key),
                                                             attrs,
                                                             events,
                                                             value_binding));
@@ -211,7 +211,7 @@ impl ProcessContent {
                         block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
                     } else {
                         block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
-                                                            Some(element_key),
+                                                            Some(complete_key),
                                                             attrs,
                                                             events,
                                                             value_binding));

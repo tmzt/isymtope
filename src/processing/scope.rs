@@ -124,8 +124,10 @@ pub type ExprPrefix = Option<ExprValue>;
 
 pub type ElementIndex = Option<i32>;
 
+pub type BaseElementKeyPrefix = Option<String>;
+
 #[derive(Debug, Clone, Default)]
-pub struct ScopePrefixes(KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix, ElementIndex);
+pub struct ScopePrefixes(KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix, ElementIndex, BaseElementKeyPrefix);
 
 impl ScopePrefixes {
     pub fn set_index(&mut self, idx: i32) -> &mut Self {
@@ -154,13 +156,8 @@ impl ScopePrefixes {
     }
 
     pub fn append_key(&mut self, key: &str) -> &mut Self {
-        let element_key = self.as_element_key();
-        let key = if element_key.len() > 0 {
-            format!("{}.{}", element_key, key)
-        } else {
-            key.to_owned()
-        };
-        self.0 = Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key));
+        let complete_key = self.make_complete_element_key_with(key);
+        self.0 = Some(ElementKeyPrefixType::ScopeElementKeyPrefix(complete_key));
         self.5 = None; // Previous index becomes part of key
         self
     }
@@ -176,25 +173,23 @@ impl ScopePrefixes {
         self
     }
 
-    pub fn as_element_key(&self) -> String {
-        let mut key = match self.0 {
-            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => format!("{}", prefix),
-            _ => format!(""),
-        };
+    pub fn set_base_key(&mut self, base_key: &str) -> &mut Self {
+        self.6 = Some(base_key.to_owned());
+        self
+    }
 
-        if let Some(ref idx) = self.5 {
-            key = format!("{}.{}", key, idx);
-        };
-
-        key
+    pub fn append_base_key(&mut self, base_key: &str) -> &mut Self {
+        let mut previous_base_key = self.6.as_ref().map_or("", |s| &s).to_owned();
+        previous_base_key.push_str(base_key);
+        self.6 = Some(previous_base_key);
+        self
     }
 
     pub fn complete_element_key(&self) -> String {
-        let mut key = match self.0 {
-            Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) => prefix.to_owned(),
-            _ => "".to_owned(),
+        let mut key = self.6.as_ref().map_or("", |s| &s).to_owned();
+        if let Some(ElementKeyPrefixType::ScopeElementKeyPrefix(ref prefix)) = self.0 {
+            key = join_keys(&key, prefix);
         };
-
         if let Some(ref idx) = self.5 {
             key.push_str(&format!(".{}", idx));
         };
@@ -207,12 +202,8 @@ impl ScopePrefixes {
     }
 
     pub fn make_complete_element_key_with(&self, suffix: &str) -> String {
-        let element_key = self.as_element_key();
-        if element_key.len() > 0 {
-            format!("{}.{}", element_key, suffix)
-        } else {
-            suffix.to_owned()
-        }
+        let complete_key = self.complete_element_key();
+        join_keys(&complete_key, suffix)
     }
 
     pub fn make_prefix_expr(&self,
@@ -260,6 +251,33 @@ impl ScopePrefixes {
     }
 }
 
+#[inline]
+#[allow(dead_code)]
+fn join_optionals(a: Option<&str>, b: Option<&str>) -> String {
+    let has_a = a.map_or(false, |a| a.len() > 0);
+    let has_b = b.map_or(false, |b| b.len() > 0);
+    if has_a && has_b {
+        format!("{}.{}", a.unwrap_or(""), b.unwrap_or(""))
+    } else if has_a {
+        a.unwrap_or("").to_owned()
+    } else {
+        b.unwrap_or("").to_owned()
+    }
+}
+
+#[inline]
+fn join_keys(a: &str, b: &str) -> String {
+    let has_a = a.len() > 0;
+    let has_b = b.len() > 0;
+    if has_a && has_b {
+        format!("{}.{}", a, b)
+    } else if has_a {
+        a.to_owned()
+    } else {
+        b.to_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::ScopePrefixes;
@@ -277,4 +295,16 @@ mod tests {
         prefixes.append_key(&"def");
         assert_eq!("abc.xyz.3.def", prefixes.complete_element_key());
     }
+
+    #[test]
+    pub fn test_base_key() {
+        let mut prefixes = ScopePrefixes::default();
+        prefixes.set_base_key(&"cbase");
+
+        let element_key = "fcd3.aefd";
+
+        let complete_key = prefixes.make_complete_element_key_with(element_key);
+        assert_eq!("cbase.fcd3.aefd", complete_key);
+    }
+
 }

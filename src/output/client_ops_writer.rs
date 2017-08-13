@@ -140,6 +140,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     #[allow(dead_code)]
     pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, output_component_contents: bool) -> Result {
         let mut scope = self.scope();
+        // scope.0.append_base_key(&format!("c_{}", component_key));
 
         // if let Some(ref li) = loop_iteration {
         //     if output_component_contents {
@@ -208,7 +209,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
             let mut scope = scope.clone();
             scope.0.clear_key();
-            scope.0.append_key(component_key);
+            // scope.0.append_key(component_key);
             if let Some(ref li) = loop_iteration {
                 let sym_expr = ExprValue::SymbolReference(li.0.clone());
                 scope.0.set_prefix_expr(&sym_expr);
@@ -261,13 +262,12 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 &ElementOp::ElementVoid(ref element_tag, ref element_key, ref attrs, ref events, ref value_binding) => {
                     let mut scope = scope.clone();
                     let element_key = element_key.as_ref().map_or("null", |s| s);
-                    scope.0.append_key(element_key);
+                    let complete_key = scope.0.make_complete_element_key_with(element_key);
+                    // scope.0.append_key(element_key);
 
                     // Push scope
-                    let scope_id = scope.0.complete_element_key();
-                    self.scopes.insert(scope_id, scope.clone());
+                    self.scopes.insert(complete_key.to_owned(), scope.clone());
 
-                    let complete_key = scope.0.complete_element_key();
                     let attrs = attrs.as_ref().map(|attrs| attrs.iter());
                     let events = events.as_ref().map(|events| events.iter());
                     let value_binding = value_binding.as_ref().map(|s| s.clone());
@@ -300,9 +300,9 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let component_key = component_key.as_ref().map_or("null", |s| s);
 
                     if output_component_contents {
-                        // Add component key
-                        let s = format!("c{}", component_key);
-                        scope.0.append_key(&s);
+                        // Add component key to base key
+                        scope.0.append_base_key(&format!("c_{}", component_key));
+                        // scope.0.append_key(&s);
                         self.push_scope(scope.clone());
 
                     }
