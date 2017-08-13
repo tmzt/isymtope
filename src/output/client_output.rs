@@ -49,10 +49,6 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                 ?;
 
             if let &Some(ref action_ops) = action_ops {
-                // let action_scope = event_scope.as_ref()
-                //     .map(|event_scope| resolve.with_state_key(event_scope));
-                // let resolve = action_scope.as_ref().map_or(resolve, |r| r);
-
                 for ref action_op in action_ops {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
@@ -63,22 +59,6 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                             if let &Some(ref action_params) = action_params {
                                 let action_params: PropVec = iter::once(("type".to_owned(), Some(ExprValue::LiteralString(action_ty.to_owned()))))
                                     .chain(action_params.iter().map(|s| s.clone())).collect();
-
-                                // let action_params = action_params.iter().map(|param| {
-                                //     if let Some(ExprValue::SymbolReference(ref sym)) = param.1 {
-                                //         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                //             if let Some(sym) = scope.1.element_value_bindings.get(key) {
-                                //                 return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                                //             };
-                                //         };
-
-                                //         if let Some(ref sym) = resolve_document_symbol(sym, self.doc, &mut scope) {
-                                //             return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                                //         };
-                                //     };
-
-                                //     param.to_owned()
-                                // });
 
                                 write!(w, " store.dispatch(")?;
                                 write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
@@ -98,10 +78,6 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
     #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn write_html_document(&mut self, w: &mut io::Write) -> Result {
-        // Output state
-        // let mut events_vec: EventsVec = Default::default();
-        // let mut keys_vec: Vec<String> = Default::default();
-
         // Output
         write!(w, "{}", indoc!(r#"
             <!doctype HTML>
@@ -136,9 +112,6 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         let base_scope: ElementOpScope = Default::default();
-
-        // let base_scope: ScopePrefixes = Default::default();
-        // let base_expr_scope: ExprScopeProcessingState = Default::default();
 
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
