@@ -124,8 +124,8 @@ impl<'input> WriteJsOps<'input> {
                                             processing: &DocumentState,
                                             scope: &ElementOpScope)
                                             -> Result {
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
-        ops_writer.write_ops_content(w, ops, &self.doc, scope, false)?;
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope.to_owned());
+        ops_writer.write_ops_content(w, ops, &self.doc, false)?;
 
         Ok(())
     }

@@ -35,11 +35,11 @@ impl<'input> WriteHtmlOpsContent<'input> {
     pub fn write_html_ops_content(&mut self,
                                   w: &mut io::Write,
                                   ops: Iter<ElementOp>,
-                                  scope: &ElementOpScope,
+                                  scope: ElementOpScope,
                                   events_vec: Option<&mut EventsVec>)
                                   -> Result {
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer);
-        ops_writer.write_ops_content(w, ops, &self.doc, scope, true)?;
+        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope);
+        ops_writer.write_ops_content(w, ops, &self.doc, true)?;
         let events_vec: EventsVec = ops_writer.events_iter().map(|s| s.clone()).collect();
         self.events_vec = Some(events_vec);
 
