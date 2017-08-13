@@ -25,6 +25,7 @@ pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub stream_writer: &'scope mut ElementOpsStreamWriter,
     pub scopes: LinkedHashMap<String, ElementOpScope>,
     pub blocks: BlockMap,
+    pub events_vec: EventsVec,
     pub cur_block_id: Option<String>
 }
 
@@ -36,8 +37,13 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             stream_writer: stream_writer,
             scopes: Default::default(),
             blocks: Default::default(),
+            events_vec: Default::default(),
             cur_block_id: None
         }
+    }
+
+    pub fn events_iter(&self) -> Iter<EventsItem> {
+        self.events_vec.iter()
     }
 
     #[inline]
@@ -104,6 +110,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         // self.scopes.insert(scope_id, scope.clone());
 
         if let Some(ref ops) = comp.ops {
+            let mut events_vec: EventsVec = Default::default();
             self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
         };
         Ok(())
@@ -157,6 +164,17 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
             // Close
             self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp)?;
+
+            // if let Some(ref events_vec) = events_vec {
+                if let Some(ref events) = comp.events {
+                    for event in events {
+                        let mut event = event.clone();
+                        let parent_key = scope.0.complete_element_key();
+                        event.0 = format!("{}.{}", parent_key, &event.0);
+                        self.events_vec.push(event);
+                    }
+                };
+            // };
 
             // self.scopes.pop_back();
         } else {

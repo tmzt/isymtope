@@ -75,6 +75,7 @@ pub enum ElementOp {
 // }
 
 pub type OpsVec = Vec<ElementOp>;
+pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
 pub type ReducerKeyMap = LinkedHashMap<String, ReducerKeyData>;
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
@@ -97,7 +98,8 @@ pub struct Component {
     pub uses: Option<Vec<String>>,
     pub child_map: Option<ComponentMap>,
     pub symbol_map: SymbolMap,
-    pub props: SymbolMap
+    pub props: SymbolMap,
+    pub events: Option<EventsVec>
 }
 
 // Processing
@@ -171,6 +173,7 @@ pub struct ExprScopeProcessingState {
 pub struct DocumentProcessingState {
     root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
+    pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
@@ -183,6 +186,7 @@ pub struct DocumentState<'inp> {
     pub ast: &'inp Template,
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
+    pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,

@@ -23,6 +23,7 @@ impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
             ast: self.ast,
             root_block: self.root_block,
             comp_map: self.processing.comp_map,
+            block_map: self.processing.block_map,
             reducer_key_data: self.processing.reducer_key_data,
             default_state_map: self.processing.default_state_map,
             default_state_symbol: self.processing.default_state_symbol,
@@ -293,7 +294,8 @@ impl<'input> ProcessDocument<'input> {
             uses: None,
             child_map: Default::default(),
             symbol_map: block.scope.symbol_map.clone(),
-            props: block.scope.props.clone()
+            props: block.scope.props.clone(),
+            events: Some(block.events_vec.clone())
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);

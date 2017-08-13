@@ -100,22 +100,22 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
         };
 
         // Process events
-        if let Some(events) = events {
-            for &(ref event_name, ref event_params, ref action_ops) in events {
-                let event_params = event_params.as_ref().map(|event_params| event_params.iter().cloned().collect());
-                let action_ops = action_ops.as_ref().map(|action_ops| action_ops.iter().cloned().collect());
-                let event_name = event_name.as_ref().map(Clone::clone);
+        // if let Some(events) = events {
+        //     for &(ref event_name, ref event_params, ref action_ops) in events {
+        //         let event_params = event_params.as_ref().map(|event_params| event_params.iter().cloned().collect());
+        //         let action_ops = action_ops.as_ref().map(|action_ops| action_ops.iter().cloned().collect());
+        //         let event_name = event_name.as_ref().map(Clone::clone);
 
-                // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
-                let default_action_scope = scope.0.default_action_scope();
-                self.events_vec.push((complete_key.clone(),
-                                        event_name,
-                                        event_params,
-                                        action_ops,
-                                        default_action_scope,
-                                        None));
-            }
-        };
+        //         // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
+        //         let default_action_scope = scope.0.default_action_scope();
+        //         self.events_vec.push((complete_key.clone(),
+        //                                 event_name,
+        //                                 event_params,
+        //                                 action_ops,
+        //                                 default_action_scope,
+        //                                 None));
+        //     }
+        // };
 
         self.keys_vec.push(complete_key);
         Ok(())

@@ -100,7 +100,8 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         let base_expr_scope: ExprScopeProcessingState = Default::default();
 
-        self.output_html.write_html_ops_content(w, ops_iter, &base_scope)?;
+        let mut events_vec: EventsVec = Default::default();
+        self.output_html.write_html_ops_content(w, ops_iter, &base_scope, Some(&mut events_vec))?;
 
         write!(w,
                "{}",
@@ -176,8 +177,9 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         }
 
         // Event handlers
-        let events_iter = self.output_html.events_iter();
-        self.write_js_event_bindings(w, events_iter, &base_scope)?;
+        if let Some(events_iter) = self.output_html.events_iter() {
+            self.write_js_event_bindings(w, events_iter, &base_scope)?;
+        }
 
         write!(w,
                "{}",
