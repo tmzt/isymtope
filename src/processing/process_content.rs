@@ -12,7 +12,7 @@ use processing::scope::*;
 use processing::process_util::*;
 
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ProcessContent {
     // root_node: &'input ContentNodeType,
     root_block: BlockProcessingState,
@@ -21,6 +21,14 @@ pub struct ProcessContent {
 }
 
 impl ProcessContent {
+
+    pub fn new(base_scope: ElementOpScope) -> Self {
+        ProcessContent {
+            root_block: Default::default(),
+            base_scope: base_scope,
+            scopes: Default::default()
+        }
+    }
 
     fn scope(&mut self) -> ElementOpScope {
         self.scopes.back().map_or(self.base_scope.clone(), |s| s.1.clone())
@@ -138,24 +146,61 @@ impl ProcessContent {
 
                                 event.2 = event.2.as_ref().map(|action_ops| {
                                     action_ops.iter().map(|action_op| {
-                                    // for mut action_op = action_ops {
-                                        let mut action_op = action_op.to_owned();
-                                        if let ActionOpNode::DispatchAction(_, Some(ref mut action_params)) = action_op {
-                                            for param in action_params {
-                                                param.1 = param.1.as_ref().map(|expr| {
-                                                    if let &ExprValue::SymbolReference(ref sym) = expr {
-                                                        if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                                            if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
-                                                                return ExprValue::SymbolReference(sym.to_owned());
+                                        match action_op {
+                                            &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                                                let action_ty = scope.0.make_action_type(&action_key);
+
+                                                let action_params = action_params.as_ref().map(|action_params| {
+                                                    let mut action_params = action_params.clone();
+                                                    for mut param in &mut action_params {
+                                                        param.1 = param.1.as_ref().map(|expr| {
+                                                            if let &ExprValue::SymbolReference(ref sym) = expr {
+                                                                if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                                                                    if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
+                                                                        return ExprValue::SymbolReference(sym.to_owned());
+                                                                    };
+                                                                };
                                                             };
-                                                        };
-                                                    };
-                                                    
-                                                    map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                                                            
+                                                            map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                                                        });
+                                                    }
+                                                    action_params
                                                 });
-                                            }
-                                        };
-                                        action_op
+
+                                                ActionOpNode::DispatchAction(action_ty, action_params)
+                                            },
+                                            _ => action_op.to_owned()
+                                        }
+
+
+                                        // let mut action_op = action_op.to_owned();
+                                        // if let &ActionOpNode::DispatchAction(..) = action_op {
+
+                                        //     action_op.0 = scope.0.make_action_type(&action_op.0);
+                                        //     let mut action_op = ActionOpNode
+                                    // for mut action_op = action_ops {
+                                        // action_op.0 = scope.0.make_action_type(&action_op.0);
+                                        // if let ActionOpNode::DispatchAction(mut action_key, _) = action_op {
+                                        //     action_key = scope.0.make_action_type(&action_key);
+                                        // };
+
+                                        // if let ActionOpNode::DispatchAction(_, Some(ref mut action_params)) = action_op {
+                                        //     for param in action_params {
+                                        //         param.1 = param.1.as_ref().map(|expr| {
+                                        //             if let &ExprValue::SymbolReference(ref sym) = expr {
+                                        //                 if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                                        //                     if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
+                                        //                         return ExprValue::SymbolReference(sym.to_owned());
+                                        //                     };
+                                        //                 };
+                                        //             };
+                                                    
+                                        //             map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                                        //         });
+                                        //     }
+                                        // };
+                                        // action_op
                                     }).collect()
                                 });
 

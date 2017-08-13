@@ -281,9 +281,12 @@ impl<'input> ProcessDocument<'input> {
             for ref child in children {
                 match *child {
                     &NodeType::ContentNode(ref content) => {
-                        let mut content_processor = ProcessContent::default();
-                        // let mut content_processor = ProcessContent::with_root_node(content);
-                        // content_processor.process(&self.processing)?;
+                        let mut scope = block.scope.clone();
+                        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+                            scope.0.append_action_scope(default_reducer_key);
+                        };
+
+                        let mut content_processor = ProcessContent::new(scope);
                         let mode = BareSymbolResolutionMode::PropThenReducerKey;
                         content_processor.process_content_node(content, &self.processing, &mut block, &mode)?;
                     }
@@ -313,6 +316,9 @@ impl<'input> ProcessDocument<'input> {
                          -> Result {
         let mut processed_store = false;
 
+        let mut base_scope: ElementOpScope = Default::default();
+
+        // Process store related nodes first
         for ref loc in self.ast.children.iter() {
             match &loc.inner {
                 &NodeType::StoreNode(ref scope_nodes) => {
@@ -320,16 +326,29 @@ impl<'input> ProcessDocument<'input> {
                     if !processed_store {
                         let mode = BareSymbolResolutionMode::ReducerKeyThenProp;
                         self.collect_js_store_default_scope(scope_nodes, &mode)?;
+
+                        // Update scope with default reducer key
+                        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+                            base_scope.0.append_action_scope(default_reducer_key);
+                        };
+
                         processed_store = true;
                     }
                 }
+                _ => {}
+            }
+        }
+
+        for ref loc in self.ast.children.iter() {
+            match &loc.inner {
                 &NodeType::ComponentDefinitionNode(ref component_data) => {
                     self.process_component_definition(component_data)?;
                 }
                 &NodeType::ContentNode(ref content) => {
                     let mode = BareSymbolResolutionMode::PropThenReducerKey;
                     // let mut content_processor = ProcessContent::with_root_node(content);
-                    let mut content_processor = ProcessContent::default();
+                    let mut scope = base_scope.clone();
+                    let mut content_processor = ProcessContent::new(scope);
                     // content_processor.process(&self.processing)?;
                     content_processor.process_content_node(content, &self.processing, block, &mode)?;
                 }

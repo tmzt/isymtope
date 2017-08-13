@@ -55,7 +55,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                     match *action_op {
                         &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
                             let mut scope = scope.clone();
-                            scope.0.append_action_scope(action_key);
+                            // scope.0.append_action_scope(action_key);
                             let action_ty = scope.0.make_action_type(action_key);
 
                             if let &Some(ref action_params) = action_params {
@@ -94,13 +94,10 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
         let ops_iter = self.doc.root_block.ops_vec.iter();
 
-
         let mut base_scope: ElementOpScope = Default::default();
         if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
             base_scope.0.append_action_scope(default_reducer_key);
         };
-
-        let base_expr_scope: ExprScopeProcessingState = Default::default();
 
         let mut events_vec: EventsVec = Default::default();
         self.output_html.write_html_ops_content(w, ops_iter, base_scope, Some(&mut events_vec))?;
