@@ -140,7 +140,7 @@ pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
 #[derive(Debug)]
 pub struct BlockProcessingState {
     pub block_id: String,
-    pub scope: DocumentProcessingScope,
+    pub scope: ElementOpScope,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }

@@ -3,7 +3,7 @@ use std::io;
 
 use parser::ast::*;
 use processing::structs::*;
-
+use processing::scope::*;
 
 
 pub fn reduce_expr_to_string(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> String {

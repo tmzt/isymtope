@@ -7,6 +7,7 @@ use parser::ast::*;
 use parser::store::*;
 use processing::structs::*;
 use processing::process::*;
+use processing::scope::*;
 
 use output::client_misc::*;
 use output::client_html::*;

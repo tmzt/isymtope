@@ -8,6 +8,7 @@ use linked_hash_map::LinkedHashMap;
 use parser::ast::*;
 use parser::util::*;
 use processing::structs::*;
+use processing::scope::*;
 use output::client_ops_stream_writer::*;
 use output::client_misc::*;
 

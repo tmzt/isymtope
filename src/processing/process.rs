@@ -7,14 +7,15 @@ use parser::api::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
-
+use processing::process_util::*;
+use processing::process_content::*;
 
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
     root_block: BlockProcessingState,
     processing: DocumentProcessingState,
-    scope: DocumentProcessingScope
+    scope: ElementOpScope
 }
 
 impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
@@ -36,7 +37,7 @@ impl<'input> ProcessDocument<'input> {
     pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
         let processing = DocumentProcessingState::default();
         let root_block = BlockProcessingState::default();
-        let scope = DocumentProcessingScope::default();
+        let scope = ElementOpScope::default();
 
         ProcessDocument {
             ast: ast,
@@ -272,7 +273,7 @@ impl<'input> ProcessDocument<'input> {
             for input in inputs {
                 let prop_ref = Symbol::unresolved(input);
 
-                block.scope.props.insert(input.to_owned(), prop_ref);
+                block.scope.1.props.insert(input.to_owned(), prop_ref);
             }
         };
 
@@ -280,8 +281,11 @@ impl<'input> ProcessDocument<'input> {
             for ref child in children {
                 match *child {
                     &NodeType::ContentNode(ref content) => {
+                        let mut content_processor = ProcessContent::default();
+                        // let mut content_processor = ProcessContent::with_root_node(content);
+                        // content_processor.process(&self.processing)?;
                         let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        process_content_node(content, &self.processing, &mut block, &mode)?;
+                        content_processor.process_content_node(content, &self.processing, &mut block, &mode)?;
                     }
                     _ => {}
                 }
@@ -293,8 +297,8 @@ impl<'input> ProcessDocument<'input> {
             ops: Some(block.ops_vec),
             uses: None,
             child_map: Default::default(),
-            symbol_map: block.scope.symbol_map.clone(),
-            props: block.scope.props.clone(),
+            symbol_map: block.scope.1.symbol_map.clone(),
+            props: block.scope.1.props.clone(),
             events: Some(block.events_vec.clone())
         };
 
@@ -324,7 +328,10 @@ impl<'input> ProcessDocument<'input> {
                 }
                 &NodeType::ContentNode(ref content) => {
                     let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                    process_content_node(content, &self.processing, block, &mode)?;
+                    // let mut content_processor = ProcessContent::with_root_node(content);
+                    let mut content_processor = ProcessContent::default();
+                    // content_processor.process(&self.processing)?;
+                    content_processor.process_content_node(content, &self.processing, block, &mode)?;
                 }
                 _ => {}
             }
@@ -343,48 +350,15 @@ impl<'input> ProcessDocument<'input> {
     }
 }
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum BareSymbolResolutionMode {
-    ReducerKeyThenProp,
-    PropThenReducerKey
-}
-
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_reducer_key(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, reducer_key: &str) -> Option<Symbol> {
-    // Try to resolve the symbol in the scope, including parameters and loop_vars
-    // and previously cached resolutions
-    // FIXME: Do we need to split these by type?
-    // let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
-    // if cached.is_some() { return cached; }
-
-    // let as_reducer_key = processing_scope.0.as_ref()
-    //     .map(|s| format!("{}.{}", s, reducer_key))
-    //     .unwrap_or(reducer_key.to_owned());
-
-    // Try to resolve and cache the symbol as a reducer key reference
-    if let Some(reducer_data) = processing.reducer_key_data.get(reducer_key) {
-        if let Some(ref default_expr) = reducer_data.default_expr {
-            scope.add_cached_reducer_key_with_value(reducer_key, default_expr);
-            return Some(Symbol::reducer_key_with_value(reducer_key, default_expr));
-        };
-        
-        return Some(Symbol::reducer_key(reducer_key));
-    };
-
-    None
-}
-
-#[inline]
-#[allow(dead_code)]
-pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, prop_key: &str) -> Option<Symbol> {
+pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut ElementOpScope, prop_key: &str) -> Option<Symbol> {
     // FIXME: This is causing us to resolve a reducer key instead.
     // let cached = expr_scope.symbol_map.get(prop_key).map(|s| s.clone());
     // if cached.is_some() { return cached; }
 
     // Collect unresolved bare symbols as props on the scope
-    let prop = scope.props.entry(prop_key.to_owned())
+    let prop = scope.1.props.entry(prop_key.to_owned())
         .or_insert_with(|| Symbol::prop(prop_key));
 
     // Replace the existing symbol in this map
@@ -404,7 +378,7 @@ pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentPr
 
 // #[inline]
 // #[allow(dead_code)]
-// pub fn resolve_existing_symbol(processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope, given: &str, resolution_mode: &BareSymbolResolutionMode) -> Option<Symbol> {
+// pub fn resolve_existing_symbol(processing: &DocumentProcessingState, scope: &mut ElementOpScope, given: &str, resolution_mode: &BareSymbolResolutionMode) -> Option<Symbol> {
 //     // FIXME: Split the cache types and re-enable
 //     // let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
 //     // if cached.is_some() { return cached; }
@@ -430,355 +404,3 @@ pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut DocumentPr
     
 //     None
 // }
-
-#[inline]
-pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
-                processing: &DocumentProcessingState,
-                scope: &mut DocumentProcessingScope)
-                -> Option<LensExprType> {
-    match lens {
-        Some(&LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-            let ele_key = ele_key.as_ref().map(|s| s.clone());
-            if let Some(resolved) = resolve_sym(coll_sym, processing, scope) {
-                return Some(LensExprType::ForLens(ele_key, resolved))
-            };
-        }
-        Some(&LensExprType::GetLens(ref sym)) => {
-            if let Some(resolved) = resolve_sym(sym, processing, scope) {
-                return Some(LensExprType::GetLens(resolved));
-            };
-
-            // None
-            // let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
-
-            // // Resolve variable as reducer key reference first
-            // // let sym = resolve_existing_symbol()
-
-            // let mut lens_scope = scope.clone();
-            // if let &ExprValue::VariableReference(ref prop_key) = lens_expr {
-            //     lens_scope.with_prop(prop_key, None, None);
-            // };
-
-            // let expr = map_expr_using_scope(lens_expr, processing, &mut lens_scope, &resolution_mode);
-            // Some(LensExprType::GetLens(expr))
-        }
-        _ => {}
-    };
-
-    None
-}
-
-#[inline]
-#[allow(dead_code)]
-pub fn map_expr<'input, F: Fn(&ExprValue) -> ExprValue>(expr: &'input ExprValue, f: &F) -> ExprValue {
-    match expr {
-        &ExprValue::Expr(ref op, ref l, ref r) => {
-            let l_val = map_expr(l, f);
-            let r_val = map_expr(r, f);
-            ExprValue::Expr(op.clone(), Box::new(l_val), Box::new(r_val))
-        }
-
-        _ => {
-            f(expr)
-        }
-    }
-}
-
-#[inline]
-#[allow(dead_code)]
-pub fn resolve_sym(sym: &Symbol, processing: &DocumentProcessingState, scope: &mut DocumentProcessingScope) -> Option<Symbol> {
-    if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-        if let Some(_) = scope.params.get(key) {
-            return Some(Symbol::param(key));
-        };
-
-        if let Some(_) = scope.props.get(key) {
-            return Some(Symbol::prop(key));
-        };
-
-        if let Some(_) = resolve_reducer_key(processing, scope, key) {
-            return Some(Symbol::reducer_key(key));
-        };
-
-        if let Some(_) = scope.block_params.get(key) {
-            return Some(Symbol::block_param(key));
-        };
-
-        if let Some(value_binding) = scope.element_value_bindings.get(key) {
-            return Some(value_binding.to_owned());
-        };
-    }
-
-    return None;
-}
-
-#[inline]
-#[allow(dead_code)]
-pub fn map_expr_using_scope<'input>(expr: &'input ExprValue,
-                processing: &DocumentProcessingState,
-                scope: &mut DocumentProcessingScope,
-                resolution_mode: &BareSymbolResolutionMode)
-                -> ExprValue {
-    match expr {
-        &ExprValue::Expr(ref op, ref l, ref r) => {
-            let l_vars = map_expr_using_scope(l, processing, scope, resolution_mode);
-            let r_vars = map_expr_using_scope(r, processing, scope, resolution_mode);
-
-            let left_expr = Box::new(l_vars);
-            let right_expr = Box::new(r_vars);
-
-            ExprValue::Expr(op.clone(), left_expr, right_expr)
-        }
-
-        &ExprValue::SymbolReference(ref sym) => {
-            if let Some(sym) = resolve_sym(sym, processing, scope) {
-                return ExprValue::SymbolReference(sym);
-            };
-
-            expr.clone()
-        }
-
-        &ExprValue::DefaultVariableReference => {
-            // NOTE: This is currently used primarily for action expressions
-
-            // If we have a valid default var in the scope, expand the DefaultVariableReference into a symbol reference
-            // if let Some(ref sym) = (scope.0).2 {
-            //     return ExprValue::SymbolReference(sym.clone());
-            // };
-
-            ExprValue::DefaultVariableReference
-        }
-
-        _ => expr.clone()
-    }
-}
-
-#[inline]
-pub fn process_content_node<'input>(
-                        node: &'input ContentNodeType,
-                        processing: &DocumentProcessingState,
-                        block: &mut BlockProcessingState,
-                        resolution_mode: &BareSymbolResolutionMode)
-                        -> DocumentProcessingResult<()> {
-
-    match node {
-        &ContentNodeType::ElementNode(ref element_data) => {
-            let element_tag = element_data.element_ty.to_lowercase();
-            let element_key =
-                element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
-
-            let attrs = element_data.attrs.as_ref().map(Clone::clone);
-            let lens = element_data.lens.as_ref().map(Clone::clone);
-            let bindings = element_data.bindings.as_ref().map(|s| s.clone());
-
-            // Try to locate a matching component
-            if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
-
-                // Attempt to map lens values
-                // FIXME
-                let mut scope = DocumentProcessingScope::default();
-                let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.scope);
-
-                let attrs = match lens {
-                    Some(LensExprType::GetLens(ref sym)) => {
-                        let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-
-                        if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                            if let Some(ref sym) = resolve_reducer_key(processing, &mut scope, key) {
-                                let value = Some(ExprValue::SymbolReference(sym.clone()));
-                                attrs.push((key.clone(), value));
-                            };
-                        };
-
-                        Some(attrs)
-                    }
-
-                    Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-                        let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-
-                        // let resolved = resolve_sym(coll_sym, processing, &mut scope);
-                        // let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
-                        // let coll_expr = map_expr_using_scope(&coll_expr, processing, &mut block.scope, resolution_mode);
-                        // let ele_sym = Symbol::unresolved(ele_key.to_owned());
-
-                        // if let &SymbolReferenceType::UnresolvedReference(ref key) = coll_sym.sym_ref() {
-                        //     if let Some(ref sym) = resolve_reducer_key(processing, &mut scope, key) {
-                        //         let value = Some(ExprValue::SymbolReference(sym.clone()));
-                        //         attrs.push((key.clone(), value));
-                        //     };
-                        // };
-
-                        if let &Some(ref ele_key) = ele_key {
-                            let sym = Symbol::prop(ele_key);
-                            let value = Some(ExprValue::SymbolReference(sym.clone()));
-                            attrs.push((ele_key.clone(), value));
-                        };
-
-                        Some(attrs)
-                    }
-
-                    _ => attrs
-                };
-
-                // Render a component during render
-                block.ops_vec.push(ElementOp::InstanceComponent(element_tag,
-                                                            Some(element_key),
-                                                            attrs,
-                                                            lens));
-
-            } else {
-                // Treat this as an HTML element
-                // TODO: Support imported elements
-
-                let mut events: Option<Vec<ElementEventBinding>> = Default::default();
-                let mut value_binding: ElementValueBinding = Default::default();
-
-                // Process bindings
-                if let Some(ref bindings) = element_data.bindings {
-                    // Loop through value bindings first
-                    for binding in bindings {
-                        if let &ElementBindingNodeType::ElementValueBindingNode(ref key) = binding {
-                            value_binding = Some(key.to_owned());
-                            block.scope.add_element_value_binding(key, &element_key);
-                        };
-                    }
-
-                //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
-
-                    // Loop through the event bindings
-                    for binding in bindings {
-                        if let &ElementBindingNodeType::ElementEventBindingNode(ref event) = binding {
-                            let mut event = event.clone();
-
-                            event.2 = event.2.as_ref().map(|action_ops| {
-                                action_ops.iter().map(|action_op| {
-                                // for mut action_op = action_ops {
-                                    let mut action_op = action_op.to_owned();
-                                    if let ActionOpNode::DispatchAction(_, Some(ref mut action_params)) = action_op {
-                                        for param in action_params {
-                                            param.1 = param.1.as_ref().map(|expr| {
-                                                if let &ExprValue::SymbolReference(ref sym) = expr {
-                                                    if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                                        if let Some(sym) = block.scope.element_value_bindings.get(key) {
-                                                            return ExprValue::SymbolReference(sym.to_owned());
-                                                        };
-                                                    };
-                                                };
-                                                
-                                                map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
-                                            });
-                                        }
-                                    };
-                                    action_op
-                                }).collect()
-                            });
-
-                            block.events_vec.push((element_key.clone(),
-                                                event.0.as_ref().map(|s| s.to_owned()),
-                                                event.1.as_ref().map(|s| s.to_owned()),
-                                                event.2.as_ref().map(|s| s.to_owned()),
-                                                None,
-                                                Some(block.block_id.to_owned())));
-                            if !events.is_some() { events = Some(Default::default()); }
-                            if let Some(ref mut events) = events { events.push(event.clone()); }
-                        };
-                    }
-                }
-
-                // Process events
-                // let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
-
-                // for ref mut event in events {
-                //     if let Some(ref mut action_ops) = event.action_ops {
-                //         for ref mut action_op in action_ops {
-                //             if let &ActionOpNode::DispatchAction(_, ref mut action_params) = action_op {
-                //                 for ref mut param in action_params {
-                //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
-                //                 }
-                //             }
-                //         }
-                //     };
-                // }
-
-                // let events = events.as_ref().map(|event| {
-                //     event.action_ops = event.action_ops.as_ref().map(|action_op| {
-                //         if let &ActionOpNode::DispatchAction(_, ref action_params) = action_op {
-                //             if let Some(ref mut action_params) = action_params {
-                //                 let action_params: PropVec = action_params.iter().map(|param| {
-                //                     if let Some(ExprValue::SymbolReference(ref sym)) = param.1 {
-                //                         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                //                             if let Some(sym) = scope.1.element_value_bindings.get(key) {
-                //                                 return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                //                             };
-                //                         };
-
-                //                         if let Some(ref sym) = resolve_document_symbol(sym, self.doc, &mut scope) {
-                //                             return (param.0.to_owned(), Some(ExprValue::SymbolReference(sym.to_owned())));
-                //                         };
-                //                     };
-
-                //                     param.to_owned()
-                //                 }).collect();
-                //         }
-
-                //     })
-
-
-                // });
-
-                // This should only be Some if there are actually children
-                if let Some(ref children) = element_data.children {
-                    // Push element open
-                    block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
-                                                        Some(element_key),
-                                                        attrs,
-                                                        events,
-                                                        value_binding));
-
-                    // Iterate over children
-                    for ref child in children {
-                        process_content_node(child, processing, block, resolution_mode)?;
-                    }
-
-                    // Push element close
-                    block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
-                } else {
-                    block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
-                                                        Some(element_key),
-                                                        attrs,
-                                                        events,
-                                                        value_binding));
-                }
-            }
-        }
-        &ContentNodeType::ExpressionValueNode(ref expr) => {
-            let expr = map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode);
-
-            block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
-        }
-        &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
-            let block_id = allocate_element_key().replace("-", "_");
-            block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
-
-            let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.scope, resolution_mode);
-
-            // Add forvar as a parameter in the symbol map
-            if let &Some(ref ele_key) = ele {
-                block.scope.add_loop_var(ele_key);
-            }
-
-            if let &Some(ref nodes) = nodes {
-                for ref node in nodes {
-                    // FIXME: forvar resolve
-                    process_content_node(node, processing, block, resolution_mode)?;
-                }
-            };
-
-            block.ops_vec.push(ElementOp::EndBlock(block_id.clone()));
-            block.ops_vec.push(ElementOp::MapCollection(block_id.clone(),
-                                                    ele.as_ref().map(Clone::clone),
-                                                    coll_expr.clone()));
-        }
-    }
-    (Ok(()))
-}
