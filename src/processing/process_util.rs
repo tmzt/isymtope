@@ -60,6 +60,10 @@ pub fn resolve_sym(sym: &Symbol, processing: &DocumentProcessingState, scope: &m
             return Some(Symbol::prop(key));
         };
 
+        if let Some(_) = scope.1.action_params.get(key) {
+            return Some(Symbol::action_param(key));
+        };
+
         if let Some(_) = resolve_reducer_key(processing, scope, key) {
             return Some(Symbol::reducer_key(key));
         };

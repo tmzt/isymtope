@@ -2,10 +2,9 @@ use html;
 
 store {
     let todos = ["One", "Two"];
-    let entry = "";
 
     todos {
-        action add => value + "TODO:";
+        action add => value + entry;
     }
 }
 

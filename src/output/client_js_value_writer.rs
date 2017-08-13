@@ -85,6 +85,11 @@ pub fn write_js_expr_value(w: &mut io::Write,
                             write_js_var_reference(w, Some("state"), doc, scope)?;
                         }
 
+                        &ResolvedSymbolType::ActionParamReference(ref key) => {
+                            let key = format!("action.{}", key);
+                            write_js_var_reference(w, Some(key.as_str()), doc, scope)?;
+                        }
+
                         &ResolvedSymbolType::LoopIndexReference(ref key, ref block_id) => {
                             let foridx = format!("__{}_{}", key, block_id);
                             write_js_var_reference(w, Some(&foridx), doc, scope)?;

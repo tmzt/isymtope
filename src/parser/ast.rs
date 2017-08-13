@@ -60,6 +60,7 @@ pub enum ResolvedSymbolType {
     LocalVarReference(String),
     GlobalVarReference(String),
     ActionStateReference(Option<VarType>),
+    ActionParamReference(String),
     LoopVarReference(String),
     LoopIndexReference(String, String),
     BlockParamReference(String),
@@ -98,6 +99,11 @@ impl Symbol {
         let value = value.map(|value| Box::new(value.clone()));
         let ty = ty.map(|ty| ty.clone());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, value)
+    }
+
+    pub fn action_param(key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
     }
 
     pub fn loop_idx(key: &str, block_id: &str) -> Symbol {

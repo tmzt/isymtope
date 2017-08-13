@@ -142,6 +142,15 @@ impl<'input> ProcessDocument<'input> {
                                 let sym = Symbol::action_state(action.state_ty.as_ref());
                                 ExprValue::SymbolReference(sym)
                             },
+                            &ExprValue::SymbolReference(ref sym) => {
+                                match sym.sym_ref() {
+                                    &SymbolReferenceType::ResolvedReference(..) => node.clone(),
+                                    &SymbolReferenceType::UnresolvedReference(ref key) => {
+                                        let action_param = Symbol::action_param(key);
+                                        ExprValue::SymbolReference(action_param)
+                                    }
+                                }
+                            },
                             _ => node.clone()
                         });
 

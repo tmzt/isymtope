@@ -15,11 +15,17 @@ pub struct DocumentProcessingScope {
     pub block_params: SymbolMap,
     pub params: SymbolMap,
     pub element_value_bindings: SymbolMap,
+    pub action_params: SymbolMap
 }
 
 impl DocumentProcessingScope {
     pub fn add_param(&mut self, key: &str) -> &mut Self {
         self.params.insert(key.to_owned(), Symbol::param(key));
+        self
+    }
+
+    pub fn add_action_param(&mut self, key: &str) -> &mut Self {
+        self.action_params.insert(key.to_owned(), Symbol::action_param(key));
         self
     }
 
