@@ -28,6 +28,7 @@ pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     pub scopes: LinkedHashMap<String, ElementOpScope>,
     pub blocks: BlockMap,
     pub events_vec: EventsVec,
+    component_instances: Vec<(String, String)>,
     pub cur_block_id: Option<String>
 }
 
@@ -52,12 +53,17 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             scopes: Default::default(),
             blocks: Default::default(),
             events_vec: Default::default(),
+            component_instances: Default::default(),
             cur_block_id: None
         }
     }
 
     pub fn events_iter(&self) -> Iter<EventsItem> {
         self.events_vec.iter()
+    }
+
+    pub fn component_instances_iter(&self) -> Iter<(String, String)> {
+        self.component_instances.iter()
     }
 
     #[inline]
@@ -162,11 +168,10 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 scope.0.set_index(li.1);
             };
 
-            let complete_key = scope.0.complete_element_key();
-            // self.scopes.insert(complete_key.to_owned(), scope.clone());
-
             // Push scope
             self.push_scope(scope.clone());
+
+            let complete_key = scope.0.complete_element_key();
 
             // OpenS
             let props_iter = props.as_ref().map(|s| s.clone());
@@ -178,17 +183,22 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             // Close
             self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp)?;
 
-            // if let Some(ref events_vec) = events_vec {
-                if let Some(ref events) = comp.events {
-                    for event in events {
-                        let mut event = event.clone();
-                        event.0 = format!("{}.{}", complete_key, &event.0);
-                        self.events_vec.push(event);
-                    }
-                };
-            // };
+            // DISABLE attempt to look up event bindings and write out
+            // using the component_instances vector
+            // // if let Some(ref events_vec) = events_vec {
+            //     if let Some(ref events) = comp.events {
+            //         for event in events {
+            //             let mut event = event.clone();
+            //             event.0 = format!("{}.{}", complete_key, &event.0);
+            //             self.events_vec.push(event);
+            //         }
+            //     };
+            // // };
 
-            // self.scopes.pop_back();
+            self.component_instances.push((complete_key.to_owned(), comp.name.to_owned()));
+
+            // Pop scope
+            self.pop_scope();
         } else {
             // let scope_key = {
             //     let mut scope = scope.clone();
@@ -293,8 +303,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         // Add component key
                         let s = format!("c{}", component_key);
                         scope.0.append_key(&s);
-
                         self.push_scope(scope.clone());
+
                     }
 
                     let comp = doc.comp_map.get(component_ty.as_str());

@@ -21,14 +21,17 @@ pub struct ProcessContent {
 }
 
 impl ProcessContent {
-    // pub fn with_root_node(root_node: &'input ContentNodeType) -> Self {
-    //     ProcessContent {
-    //         // root_node: root_node,
-    //         root_block: Default::default(),
-    //         base_scope: Default::default(),
-    //         scopes: Default::default()
-    //     }
-    // }
+
+    fn scope(&mut self) -> ElementOpScope {
+        self.scopes.back().map_or(self.base_scope.clone(), |s| s.1.clone())
+    }
+
+    fn push_scope(&mut self, scope: ElementOpScope) {
+        let scope_id = scope.0.complete_element_key();
+        self.scopes.insert(scope_id, scope);
+    }
+
+    fn pop_scope(&mut self) { self.scopes.pop_back(); }
 
     #[inline]
     pub fn process_content_node(&mut self,
@@ -37,8 +40,12 @@ impl ProcessContent {
                             block: &mut BlockProcessingState,
                             resolution_mode: &BareSymbolResolutionMode)
                             -> DocumentProcessingResult<()> {
+        let mut scope = self.scope();
+
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {
+                let is_void = element_data.children.as_ref().map_or(false, |c| c.len() > 0);
+
                 let element_tag = element_data.element_ty.to_lowercase();
                 let element_key =
                     element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
@@ -102,8 +109,9 @@ impl ProcessContent {
                                                                 lens));
 
                 } else {
-                    let mut scope = block.scope.clone();
+                    let mut scope = scope.clone();
                     scope.0.append_key(&element_key);
+                    let complete_key = scope.0.complete_element_key();
 
                     // Treat this as an HTML element
                     // TODO: Support imported elements
@@ -117,7 +125,7 @@ impl ProcessContent {
                         for binding in bindings {
                             if let &ElementBindingNodeType::ElementValueBindingNode(ref key) = binding {
                                 value_binding = Some(key.to_owned());
-                                block.scope.1.add_element_value_binding(key, &element_key);
+                                block.scope.1.add_element_value_binding(key, &complete_key);
                             };
                         }
 
@@ -151,9 +159,7 @@ impl ProcessContent {
                                     }).collect()
                                 });
 
-                                let complete_key = scope.0.complete_element_key();
-                                let event_element_key = format!("{}.{}", complete_key, element_key);
-                                block.events_vec.push((event_element_key,
+                                block.events_vec.push((scope.0.complete_element_key(),
                                                     event.0.as_ref().map(|s| s.to_owned()),
                                                     event.1.as_ref().map(|s| s.to_owned()),
                                                     event.2.as_ref().map(|s| s.to_owned()),
@@ -215,10 +221,16 @@ impl ProcessContent {
                                                             events,
                                                             value_binding));
 
+                        // Push scope
+                        self.push_scope(scope.clone());
+
                         // Iterate over children
                         for ref child in children {
                             self.process_content_node(child, processing, block, resolution_mode)?;
                         }
+
+                        // Pop scope
+                        self.pop_scope();
 
                         // Push element close
                         block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
@@ -237,6 +249,8 @@ impl ProcessContent {
                 block.ops_vec.push(ElementOp::WriteValue(expr, Some(allocate_element_key())));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
+                let mut scope = scope.clone();
+
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
@@ -244,7 +258,7 @@ impl ProcessContent {
 
                 // Add forvar as a parameter in the symbol map
                 if let &Some(ref ele_key) = ele {
-                    block.scope.1.add_loop_var(ele_key);
+                    scope.1.add_loop_var(ele_key);
                 }
 
                 if let &Some(ref nodes) = nodes {

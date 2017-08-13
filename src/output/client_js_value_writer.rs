@@ -104,7 +104,8 @@ pub fn write_js_expr_value(w: &mut io::Write,
                         }
 
                         &ResolvedSymbolType::ElementValueReference(ref ref_element_key) => {
-                            let key = format!("document.querySelector(\"[key='{}']\").value", ref_element_key);
+                            let complete_ref_key = scope.0.make_complete_element_key_with(ref_element_key);
+                            let key = format!("document.querySelector(\"[key='{}']\").value", complete_ref_key);
                             write_js_var_reference(w, Some(&key), doc, &scope)?;
                         }
 

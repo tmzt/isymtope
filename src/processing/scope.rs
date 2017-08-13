@@ -142,6 +142,11 @@ impl ScopePrefixes {
         self
     }
 
+    pub fn replace_key(&mut self, key: &str) -> &mut Self {
+        self.0 = Some(ElementKeyPrefixType::ScopeElementKeyPrefix(key.to_owned()));
+        self
+    }
+
     pub fn append_key(&mut self, key: &str) -> &mut Self {
         let element_key = self.as_element_key();
         let key = if element_key.len() > 0 {
@@ -193,6 +198,15 @@ impl ScopePrefixes {
 
     pub fn prefix_expr(&self) -> Option<&ExprValue> {
         self.4.as_ref()
+    }
+
+    pub fn make_complete_element_key_with(&self, suffix: &str) -> String {
+        let element_key = self.as_element_key();
+        if element_key.len() > 0 {
+            format!("{}.{}", element_key, suffix)
+        } else {
+            suffix.to_owned()
+        }
     }
 
     pub fn make_prefix_expr(&self,

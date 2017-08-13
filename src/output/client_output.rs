@@ -41,11 +41,12 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         writeln!(w, "      // Bind actions")?;
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope, ref block_id) in
             events_iter {
+            let complete_key = scope.0.make_complete_element_key_with(element_key);
             let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
             writeln!(w,
                      "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
                       function(event) {{",
-                     element_key,
+                     complete_key,
                      event_name)
                 ?;
 
@@ -182,6 +183,19 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             self.write_js_event_bindings(w, events_iter, &base_scope)?;
         }
 
+        // Component event handlers
+        if let Some(comp_instances) = self.output_html.component_instances_iter() {
+            for &(ref complete_key, ref comp_ty) in comp_instances {
+                if let Some(ref comp) = self.doc.comp_map.get(comp_ty) {
+                    let mut scope = base_scope.clone();
+                    scope.0.append_key(complete_key);
+                    if let Some(ref events) = comp.events {
+                        self.write_js_event_bindings(w, events.iter(), &scope)?;
+                    };
+                }
+            }
+        }
+        
         write!(w,
                "{}",
                indoc!(r#"
