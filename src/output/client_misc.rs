@@ -1,5 +1,6 @@
 
 use std::io;
+use std::slice::Iter;
 
 use parser::ast::*;
 use processing::structs::*;
@@ -21,8 +22,14 @@ pub fn eval_sym(sym: &Symbol, doc: &DocumentState, scope: &ElementOpScope) -> Op
     if let &SymbolReferenceType::ResolvedReference(_, ref resolved) = sym_ref {
         match resolved {
             &ResolvedSymbolType::PropReference(ref key) => {
-                if let Some(sym_val) = scope.1.props.get(key) {
-                    return sym_val.value().map(|s| s.to_owned());
+                if let Some(val) = scope.2.get_prop(key) {
+                    return Some(val.to_owned());
+                }
+            }
+
+            &ResolvedSymbolType::ForLensElementReference(ref key) => {
+                if let Some(val) = scope.2.get_lens_param(key) {
+                    return Some(val.to_owned());
                 }
             }
 
@@ -104,7 +111,7 @@ pub fn resolve_document_symbol(sym: &Symbol, doc: &DocumentState, scope: &mut El
 
         if let Some(reducer_data) = doc.reducer_key_data.get(key) {
             if let Some(ref default_expr) = reducer_data.default_expr {
-                scope.add_cached_reducer_key_with_value(key, default_expr);
+                scope.1.add_cached_reducer_key_with_value(key, default_expr);
                 return Some(Symbol::reducer_key_with_value(key, default_expr));
             };
             
@@ -160,4 +167,40 @@ pub fn write_computed_expr_value(w: &mut io::Write,
         }
     }
     Ok(())
+}
+
+#[inline]
+#[allow(dead_code)]
+pub fn map_prop_list_references(prop_list: Iter<String>, scope: &ElementOpScope) -> PropVec {
+    prop_list.map(|key| 
+        (key.to_owned(), scope.1.props.get(key.as_str()).map(|sym| ExprValue::SymbolReference(sym.clone())))
+    ).collect()
+}
+
+#[inline]
+#[allow(dead_code)]
+pub fn map_prop_list_using_scope(prop_list: Iter<String>, scope: &ElementOpScope) -> PropVec {
+    prop_list.map(|key| 
+        (key.to_owned(), scope.2.get_prop(&key).map(|expr| expr.clone()))
+    ).collect()
+}
+
+#[inline]
+#[allow(dead_code)]
+pub fn map_prop_references(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec {
+    props.map(|prop| {
+        let expr = prop.1.as_ref().map(|e| e.clone())
+            .or_else(|| scope.1.props.get(prop.0.as_str()).map(|sym| ExprValue::SymbolReference(sym.clone())));
+        
+        (prop.0.to_owned(), expr)
+    }).collect()
+}
+
+#[inline]
+#[allow(dead_code)]
+pub fn map_props_using_scope(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec {
+    props.map(|prop| {
+        let expr = (prop.1.as_ref().or_else(|| scope.2.get_prop(&prop.0))).map(|expr| expr.to_owned());
+        (prop.0.to_owned(), expr)
+    }).collect()
 }

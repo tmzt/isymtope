@@ -15,7 +15,30 @@ pub struct DocumentProcessingScope {
     pub block_params: SymbolMap,
     pub params: SymbolMap,
     pub element_value_bindings: SymbolMap,
-    pub action_params: SymbolMap
+    pub action_params: SymbolMap,
+    pub lens_params: SymbolMap
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ScopeValues {
+    prop_values: ValueMap,
+    lens_values: ValueMap
+}
+
+impl ScopeValues {
+    pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
+        self.prop_values.insert(prop_name.to_owned(), value.clone());
+        self
+    }
+
+    pub fn get_prop(&self, key: &str) -> Option<&ExprValue> { self.prop_values.get(key) }
+
+    pub fn add_lens_param(&mut self, key: &str, value: &ExprValue) -> &mut Self {
+        self.lens_values.insert(key.to_owned(), value.clone());
+        self
+    }
+
+    pub fn get_lens_param(&self, key: &str) -> Option<&ExprValue> { self.lens_values.get(key) }
 }
 
 impl DocumentProcessingScope {
@@ -46,6 +69,11 @@ impl DocumentProcessingScope {
         self
     }
 
+    pub fn add_for_lens_element_key(&mut self, key: &str) -> &mut Self {
+        self.block_params.insert(key.to_owned(), Symbol::for_lens_element_key(key));
+        self
+    }
+
     pub fn add_element_value_binding(&mut self, key: &str, element_key: &str) -> &mut Self {
         self.element_value_bindings.insert(key.to_owned(),
                                            Symbol::element_value_binding(key, element_key));
@@ -68,34 +96,11 @@ impl DocumentProcessingScope {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ElementOpScope(pub ScopePrefixes, pub DocumentProcessingScope);
+pub struct ElementOpScope(pub ScopePrefixes, pub DocumentProcessingScope, pub ScopeValues);
 
 impl ElementOpScope {
-    pub fn add_param(&mut self, key: &str) -> &mut Self {
-        self.1.add_param(key);
-        self
-    }
-
-    pub fn add_prop_with_value(&mut self, prop_name: &str, value: &ExprValue) -> &mut Self {
-        self.1.add_prop_with_value(prop_name, value);
-        self
-    }
-
     pub fn add_loop_var_with_value(&mut self, var_name: &str, value: &ExprValue) -> &mut Self {
         self.1.add_loop_var_with_value(var_name, value);
-        self
-    }
-
-    pub fn with_cached_reducer_key(&mut self, reducer_key: &str) -> &mut Self {
-        self.1.with_cached_reducer_key(reducer_key);
-        self
-    }
-
-    pub fn add_cached_reducer_key_with_value(&mut self,
-                                             reducer_key: &str,
-                                             value: &ExprValue)
-                                             -> &mut Self {
-        self.1.add_cached_reducer_key_with_value(reducer_key, value);
         self
     }
 }

@@ -174,6 +174,8 @@ pub fn write_js_expr_value(w: &mut io::Write,
         &ExprValue::ContentNode(..) => {}
         &ExprValue::DefaultAction(..) => {}
         &ExprValue::Action(..) => {}
+
+        &ExprValue::Undefined => { write!(w, "undefined")?; }
     }
     Ok(())
 }

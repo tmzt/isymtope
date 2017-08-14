@@ -64,8 +64,8 @@ pub fn resolve_sym(sym: &Symbol, processing: &DocumentProcessingState, scope: &m
             return Some(Symbol::action_param(key));
         };
 
-        if let Some(_) = resolve_reducer_key(processing, scope, key) {
-            return Some(Symbol::reducer_key(key));
+        if let Some(_) = scope.1.lens_params.get(key) {
+            return Some(Symbol::for_lens_element_key(key));
         };
 
         if let Some(_) = scope.1.block_params.get(key) {
@@ -74,6 +74,11 @@ pub fn resolve_sym(sym: &Symbol, processing: &DocumentProcessingState, scope: &m
 
         if let Some(value_binding) = scope.1.element_value_bindings.get(key) {
             return Some(value_binding.to_owned());
+        };
+
+        // Last
+        if let Some(_) = resolve_reducer_key(processing, scope, key) {
+            return Some(Symbol::reducer_key(key));
         };
     }
 

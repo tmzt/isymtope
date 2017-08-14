@@ -175,7 +175,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
         Ok(())
     }
 
-    fn write_element_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, complete_key: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
+    fn write_element_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, complete_key: &str, is_void: bool, props: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
         let mut scope = scope.clone();
         let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
@@ -196,8 +196,9 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
         write!(w, ", [")?;
 
         // Static attrs
-        if attrs.is_some() {
-            write_js_incdom_attr_array(w, attrs, doc, &scope, Some(&element_key))?;
+        // if let Some(ref props) = props {
+        if props.is_some() {
+            write_js_incdom_attr_array(w, props.clone(), doc, &scope, Some(&element_key))?;
         };
 
         // TODO: Dynamic attributes
@@ -216,14 +217,14 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, attrs: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
+    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, props: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
         let mut scope = scope.clone();
         let complete_key = scope.0.complete_element_key();
         let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
         scope.0.set_prefix_expr(&param_expr);
 
-        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, attrs, events, value_binding)
+        self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, props, events, value_binding)
     }
 
     #[inline]
@@ -284,12 +285,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, attrs: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
         let mut scope = scope.clone();
         scope.0.clear_index();
 
         let complete_key = scope.0.complete_element_key();
         let component_ty = &comp.name;
+
+        // let props = props.map(|p| map_props_using_scope(p, &scope));
 
         // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
         // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
@@ -333,10 +336,10 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         };
         write!(w, ", store")?;
 
-        if attrs.is_some() {
+        if props.is_some() {
             write!(w, ", ")?;
             // TODO: Fix lens support
-            write_js_props_object(w, attrs, doc, &scope)?;
+            write_js_props_object(w, props.clone(), doc, &scope)?;
         }
         writeln!(w, ");")?;
 

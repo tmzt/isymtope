@@ -66,12 +66,14 @@ pub enum ResolvedSymbolType {
     BlockParamReference(String),
     PropReference(String),
     LensPropReference(String, Box<LensExprType>),
+    ForLensElementReference(String),
     ElementValueReference(String)
 }
 
 #[derive(Debug, Clone)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
+pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
 impl Symbol {
     pub fn unresolved(key: &str) -> Symbol {
@@ -150,6 +152,11 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved), ty.map(|ty| ty.to_owned()), None)
     }
 
+    pub fn for_lens_element_key(key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::ForLensElementReference(key.to_owned());
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+    }
+
     pub fn element_value_binding(key: &str, element_key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ElementValueReference(element_key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
@@ -179,7 +186,18 @@ pub enum ExprValue {
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>)
+    Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
+    Undefined
+}
+
+impl ExprValue {
+    #[inline]
+    pub fn is_literal(&self) -> bool {
+        match self {
+            &ExprValue::LiteralArray(..) | &ExprValue::LiteralString(..) | &ExprValue::LiteralNumber(..) => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -230,6 +248,8 @@ pub enum ElementBindingNodeType {
 }
 pub type ElementBindingNodeVec = Vec<ElementBindingNodeType>;
 
+pub type PropKey = String;
+pub type PropList = Vec<PropKey>;
 pub type Prop = (String,Option<ExprValue>);
 
 #[derive(Debug, Clone)]

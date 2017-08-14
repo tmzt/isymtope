@@ -58,9 +58,11 @@ impl ProcessContent {
                 let element_key =
                     element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
 
-                let attrs = element_data.attrs.as_ref().map(Clone::clone);
+                // let attrs = element_data.attrs.as_ref().map(Clone::clone);
                 let lens = element_data.lens.as_ref().map(Clone::clone);
                 let bindings = element_data.bindings.as_ref().map(|s| s.clone());
+
+                // TODO: figure out when we want to pass along symbols or values
 
                 // Try to locate a matching component
                 if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
@@ -69,51 +71,38 @@ impl ProcessContent {
                     // FIXME
                     let lens = map_lens_using_scope(lens.as_ref(), processing, &mut block.scope);
 
-                    let attrs = match lens {
+                    // Create list of prop keys
+                    let mut prop_list: Option<Vec<PropKey>> = element_data.attrs.as_ref().map(|s| s.iter().map(|s| s.0.to_owned()).collect());
+
+                    match lens {
                         Some(LensExprType::GetLens(ref sym)) => {
-                            let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
+                            if !prop_list.is_some() { prop_list = Some(Default::default()); }
+                            // let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
 
-                            if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                if let Some(ref sym) = resolve_reducer_key(processing, &mut block.scope, key) {
-                                    let value = Some(ExprValue::SymbolReference(sym.clone()));
-                                    attrs.push((key.clone(), value));
-                                };
-                            };
-
-                            Some(attrs)
-                        }
-
-                        Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-                            let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-
-                            // let resolved = resolve_sym(coll_sym, processing, &mut scope);
-                            // let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
-                            // let coll_expr = map_expr_using_scope(&coll_expr, processing, &mut block.scope, resolution_mode);
-                            // let ele_sym = Symbol::unresolved(ele_key.to_owned());
-
-                            // if let &SymbolReferenceType::UnresolvedReference(ref key) = coll_sym.sym_ref() {
-                            //     if let Some(ref sym) = resolve_reducer_key(processing, &mut scope, key) {
+                            // if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                            //     if let Some(ref sym) = resolve_reducer_key(processing, &mut block.scope, key) {
                             //         let value = Some(ExprValue::SymbolReference(sym.clone()));
-                            //         attrs.push((key.clone(), value));
+                            //         // attrs.push((key.clone(), value));
+                            //         prop_list.push(key.to_owned());
                             //     };
                             // };
+                        }
+                        Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
+                            if !prop_list.is_some() { prop_list = Some(Default::default()); }
 
                             if let &Some(ref ele_key) = ele_key {
-                                let sym = Symbol::prop(ele_key);
-                                let value = Some(ExprValue::SymbolReference(sym.clone()));
-                                attrs.push((ele_key.clone(), value));
+                                if let Some(ref mut prop_list) = prop_list {
+                                    prop_list.push(ele_key.to_owned());
+                                };
                             };
-
-                            Some(attrs)
                         }
-
-                        _ => attrs
+                        _ => {}
                     };
 
                     // Render a component during render
                     block.ops_vec.push(ElementOp::InstanceComponent(element_tag,
                                                                 Some(element_key),
-                                                                attrs,
+                                                                prop_list,
                                                                 lens));
 
                 } else {
@@ -124,6 +113,7 @@ impl ProcessContent {
                     // Treat this as an HTML element
                     // TODO: Support imported elements
 
+                    let mut props = element_data.attrs.as_ref().map(|s| s.clone());
                     let mut events: Option<Vec<ElementEventBinding>> = Default::default();
                     let mut value_binding: ElementValueBinding = Default::default();
 
@@ -192,7 +182,7 @@ impl ProcessContent {
                         // Push element open
                         block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
                                                             Some(complete_key),
-                                                            attrs,
+                                                            props,
                                                             events,
                                                             value_binding));
 
@@ -212,7 +202,7 @@ impl ProcessContent {
                     } else {
                         block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
                                                             Some(complete_key),
-                                                            attrs,
+                                                            props,
                                                             events,
                                                             value_binding));
                     }
