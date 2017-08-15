@@ -91,17 +91,14 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             .map(|block| block.ops.clone());
 
         if let Some(ref block_ops) = block_ops {
-            let mut scope = scope.clone();
-
             // Push scope
-            let scope_id = scope.0.complete_element_key();
-            self.scopes.insert(complete_key, scope.clone());
+            self.push_scope_as(scope, &complete_key);
 
             // Output ops
             self.write_ops_content(w, block_ops.iter(), doc, output_component_contents)?;
 
             // Pop scope
-            self.scopes.pop_back();
+            self.pop_scope();
         };
         Ok(())
     }
@@ -110,16 +107,17 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     fn invoke_component_with_props(&mut self, w: &mut io::Write, doc: &'input DocumentState, comp: &Component, props: Option<Iter<Prop>>, output_component_contents: bool) -> Result {
         let mut scope = self.scope();
 
-        let prop_values = props.map(|p| map_props_using_scope(p, &scope));
-
-        // TODO: Restore props from Component object
-
-        // let scope_key = allocate_element_key();
-        // let scope_id = scope.0.key_prefix(&scope_key);
-        // self.scopes.insert(scope_id, scope.clone());
+        if let Some(props) = props {
+            for prop in props {
+                if let Some(ref expr) = prop.1 {
+                    scope.2.add_prop_with_value(&prop.0, expr);
+                };
+            }
+        };
+        // TODO: Merge default props from Component object
+        self.push_scope(scope);
 
         if let Some(ref ops) = comp.ops {
-            let mut events_vec: EventsVec = Default::default();
             self.write_ops_content(w, ops.iter(), doc, output_component_contents)?;
         };
         Ok(())
