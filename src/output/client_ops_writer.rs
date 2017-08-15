@@ -13,7 +13,6 @@ use output::client_ops_stream_writer::*;
 use output::client_misc::*;
 
 
-
 #[derive(Debug)]
 pub struct BlockDefinition {
     pub block_id: String,
@@ -41,6 +40,10 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     fn push_scope(&mut self, scope: ElementOpScope) {
         let scope_id = scope.0.complete_element_key();
         self.scopes.insert(scope_id, scope);
+    }
+
+    fn push_scope_as(&mut self, scope: ElementOpScope, scope_id: &str) {
+        self.scopes.insert(scope_id.to_owned(), scope);
     }
 
     fn pop_scope(&mut self) { self.scopes.pop_back(); }
@@ -82,14 +85,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 let sym_expr = ExprValue::SymbolReference(Symbol::loop_idx("foridx", block_id));
                 scope.0.set_prefix_expr(&sym_expr);
             };
-
-            // loop_scope.1.symbol_map.insert(ele_key.to_owned(), (Some(SymbolReferenceType::LoopVarReference(ele_key.to_owned())), None));
-            // loop_scope = loop_scope
-            //     .with_var(ele_key,
-            //         SymbolReferenceType::LoopVarReference(ele_key.to_owned()),
-            //         element_ty.as_ref().map(Clone::clone),
-            //         Some(SymbolValueType::ConstantValue(item_expr.clone()))
-            //     );
         };
 
         let block_ops = self.blocks.get(block_id)
@@ -117,24 +112,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
         let prop_values = props.map(|p| map_props_using_scope(p, &scope));
 
-        // if let Some(props) = props {
-        //     for &(ref key, ref expr) in props {
-        //         if let &Some(ref expr) = expr {
-        //             let expr = reduce_expr(expr, doc, &scope);
-        //             let is_literal = expr.as_ref().map_or(false, |l| l.is_literal());
-        //             if is_literal {
-        //                 if let Some(ref expr) = expr {
-        //                     scope.2.add_prop_with_value(key, expr);
-        //                 }
-        //             }
-        //         }
-
-        //         // if let Some(ref expr) = expr.as_ref().and_then(|expr| reduce_expr(&expr, doc, &scope)) {
-        //         //     scope.2.add_prop_with_value(key, &expr);
-        //         // };
-        //     }
-        // };
-
         // TODO: Restore props from Component object
 
         // let scope_key = allocate_element_key();
@@ -153,41 +130,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, output_component_contents: bool) -> Result {
         let mut scope = self.scope();
 
-        // scope.0.append_base_key(&format!("c_{}", component_key));
-
-        // if let Some(ref li) = loop_iteration {
-        //     if output_component_contents {
-        //         scope.0.set_index(li.1);
-        //     } else {
-        //         let sym_expr = ExprValue::SymbolReference(li.0.clone());
-        //         scope.0.clear_index();
-        //         scope.0.set_prefix_expr(&sym_expr);
-        //     };
-        // };
-
-        // let props_iter = props.as_ref().map(|s| s.clone());
-        // if let Some(props_iter) = props_iter {
-        //     for &(ref key, ref expr) in props_iter {
-        //         if let &Some(ref expr) = expr {
-        //             if let Some(expr) = reduce_expr(&expr, doc, &scope) {
-        //                 scope.2.add_prop_with_value(&key, &expr);
-        //             };
-        //         }
-        //     }
-        // };
-
-                    // let props = if output_component_contents {
-                    //     props.as_ref().map(|p| map_props_using_scope(p.iter(), &scope))
-                    // } else {
-                    //     props.as_ref().map(|p| map_prop_references(p.iter(), &scope))
-                    // };
-
-
         if output_component_contents {
-            // let props = props.as_ref().map(|p| map_props_using_scope(p.iter(), &scope))
-
-            // let prop_keys: Option<Vec<String>> = props.as_ref().map(|p| p.clone().map(|s| s.0.to_owned()).collect());
-
             // Add iteration
             if let Some(ref li) = loop_iteration {
                 scope.0.set_index(li.1);
@@ -298,29 +241,23 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     
                     let element_key = element_key.as_ref().map_or("null", |s| s);
                     let complete_key = scope.0.make_complete_element_key_with(element_key);
-                    // scope.0.append_key(element_key);
+                    self.push_scope_as(scope.clone(), &complete_key);
 
-                    // Push scope
-                    self.scopes.insert(complete_key.to_owned(), scope.clone());
-
-                    // let attrs = attrs.as_ref().map(|attrs| attrs.iter());
-                    // let prop_list = prop_list.as_ref().map(|prop_list| prop_list.iter());
                     let events = events.as_ref().map(|events| events.iter());
                     let value_binding = value_binding.as_ref().map(|s| s.clone());
                     
-                    // self.scopes.insert(complete_key.to_owned(), scope.clone());
                     self.stream_writer.write_op_element(w, op, doc, &scope, &complete_key, element_tag, is_void, props.as_ref().map(|s| s.iter()), events, value_binding)?;
                     if is_void {
                         // Pop scope for self closing, this fixes issue with ElementVoid which
                         // was not being emitted previously by the parser/processor code.
-                        self.scopes.pop_back();
+                        self.pop_scope();
                     };
                 }
                 &ElementOp::ElementClose(ref element_tag) => {
                     // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
 
                     self.stream_writer.write_op_element_close(w, op, doc, &scope, element_tag)?;
-                    self.scopes.pop_back();
+                    self.pop_scope();
                 }
                 &ElementOp::WriteValue(ref expr, ref value_key) => {
                     // let scope = self.scopes.back().map_or(scope.clone(), |s| s.1.clone());
@@ -356,39 +293,20 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
-                        // let component_key = component_key.as_ref().map_or("null", |s| s);
-                        // scope.0.append_key(&component_key);
-
                         match lens {
                             &Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
                                 let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
                                 let coll_expr = reduce_expr(&coll_expr, doc, &scope);
 
-                                // let mut props = props.as_ref().map_or(vec![], |p| p.clone());
-
                                 if let &Some(ref ele_key) = ele_key {
-
-                                    // Prepare scope and props
-                                    // let expr = ExprValue::SymbolReference(Symbol::prop(&ele_key));
-                                    // props.push((ele_key.to_owned(), Some(expr)));
-                                    // let mut prop_list: Vec<PropKey> = prop_list.map_or_else(|| Default::default(), |p| p.clone()).collect();
-                                    // prop_list.push(ele_key.to_owned());
-
                                     let mut scope = scope.clone();
                                     scope.1.add_param(ele_key);
 
                                     if output_component_contents {
-                                        // scope.0.append_key(component_key);
-
                                         if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
                                             write_single = false;
 
                                             for (item_idx, item_expr) in items.iter().enumerate() {
-                                                scope.2.add_prop_with_value(ele_key, item_expr);
-                                                //scope.2.add_lens_param(ele_key, item_expr);
-                                                // let ele_sym = Symbol::prop(ele_key);
-                                                // // scope.0.set_index(1);
-                                                // scope.1.add_prop_with_value(ele_key, item_expr);
                                                 let prefix_sym = Symbol::param("key_prefix");
                                                 if let Some(ref mut props) = props {
                                                     props.push((ele_key.to_owned(), Some(item_expr.to_owned())));
@@ -412,24 +330,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                             self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), None, None, output_component_contents)?;
                         };
 
-                        // let props = props.as_ref().map(|s| s.clone());
-                        // let lens = lens.as_ref().map(|s| s.clone());
-
-                        // let props_iter = props.as_ref().map(|s| s.iter());
-
-                        // // OpenS
-                        // self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, component_key, component_id.as_str(), props_iter.as_ref().map(Clone::clone), lens.as_ref())?;
-
-                        // if output_component_contents {
-                        //     self.invoke_component_with_props(w, doc, &scope, comp, props_iter.as_ref().map(Clone::clone), true)?;
-                        //     // if let Some(ref ops) = comp.ops {
-                        //     //     self.write_ops_content(w, ops.iter(), doc, &scope, output_component_contents)?;
-                        //     // };
-                        // };
-
-                        // // Close
-                        // self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, component_key, component_id.as_str())?;
-
                         if output_component_contents {
                             self.pop_scope();
                         }
@@ -449,9 +349,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         let loopidx_expr = ExprValue::SymbolReference(Symbol::loop_idx("foridx", block_id));
                         scope.0.set_prefix_expr(&loopidx_expr);
                         self.stream_writer.write_op_element_start_block(w, op, doc, &scope, block_id)?;
-
-                        // let scope_id = scope.0.key_prefix(block_id);
-                        // let scope_id = scope.0.complete_element_key(block_id);
                     };
 
                     self.push_scope(scope);
