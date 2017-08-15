@@ -93,6 +93,18 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
             Some(expr.clone())
         }
 
+        &ExprValue::SymbolPathReference(ref sym_path) => {
+            let mut cur_expr: Option<ExprValue> = None;
+            for sym in sym_path {
+                if let Some(expr) = eval_sym(sym, doc, &scope) {
+                    cur_expr = Some(expr.clone());
+                };
+            }
+
+            // cur_expr.or_else(|| Some(expr.to_owned()))
+            Some(ExprValue::LiteralString(format!("[cannot resolve: {:?}]", sym_path)))
+        }
+
         _ => Some(expr.clone())
     }
 }

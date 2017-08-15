@@ -285,12 +285,13 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, element_tag: Option<&str>) -> Result {
         let mut scope = scope.clone();
         scope.0.clear_index();
 
         let complete_key = scope.0.complete_element_key();
         let component_ty = &comp.name;
+        // let element_tag = element_tag.unwrap_or("div");
 
         // let props = props.map(|p| map_props_using_scope(p, &scope));
 
@@ -351,7 +352,8 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component) -> Result {
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, element_tag: Option<&str>) -> Result {
+        // let element_tag = element_tag.unwrap_or("div");
         // writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         Ok(())
     }

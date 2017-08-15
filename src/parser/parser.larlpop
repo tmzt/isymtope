@@ -117,6 +117,10 @@ ExprTerm : ExprValue =
 //    "(" <ExprValue> ")",
     ValueKeyword => ExprValue::DefaultVariableReference,
     <ident:Id> => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
+    <varpath:VarPath> => {
+        let sym_path = varpath.iter().map(|ref ident| Symbol::unresolved(ident)).collect();
+        ExprValue::SymbolPathReference(sym_path)
+    },
     <s:LitStr> => ExprValue::LiteralString(s),
 };
 
@@ -126,6 +130,22 @@ ActionOpNode: ActionOpNode = {
 
 AtLeastOne<T> : Vec<T> = {
     <v:(<T> ",")*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
+};
+
+// VarPath : String = {
+//     <v:(<Id> ".")*> <part:Id> => {
+//         let mut parts = v.join(".");
+//         parts.push_str(&part);
+//         parts
+//     }
+// };
+
+VarPath : Vec<String> = {
+    <v:(<Id> ".")+> <e:Id> => {
         let mut v = v;
         v.push(e);
         v
@@ -302,6 +322,7 @@ extern {
         "(" => Token::OpenParen,
         ")" => Token::CloseParen,
         "," => Token::Comma,
+        "." => Token::Dot,
         "=" => Token::Equals,
         ":" => Token::Colon,
         ";" => Token::Semi,

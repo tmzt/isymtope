@@ -125,7 +125,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, output_component_contents: bool) -> Result {
+    pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, item_element_tag: Option<&str>, output_component_contents: bool) -> Result {
         let mut scope = self.scope();
 
         if output_component_contents {
@@ -141,13 +141,13 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
             // OpenS
             // let props_iter = props.as_ref().map(|s| s.clone());
-            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens)?;
+            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens, item_element_tag)?;
 
             // let props_iter = props.as_ref().map(|s| s.clone());
             self.invoke_component_with_props(w, doc, comp, props.clone(), true)?;
 
             // Close
-            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp)?;
+            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, item_element_tag)?;
 
             // DISABLE attempt to look up event bindings and write out
             // using the component_instances vector
@@ -189,10 +189,10 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
             // OpenS
             // let props_iter = props.as_ref().map(|s| s.clone());
-            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens)?;
+            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens, item_element_tag)?;
 
             // Close
-            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp)?;
+            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, item_element_tag)?;
 
             // self.scopes.pop_back();
         };
@@ -266,9 +266,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
+                                            ref item_element_tag,
                                             ref prop_list,
                                             ref lens) => {
                     let mut scope = scope.clone();
+                    let item_element_tag = item_element_tag.as_ref().map(|s| s.as_str());
                     // let mut prop_list = prop_list.clone();
 
                     let mut props = if output_component_contents {
@@ -309,11 +311,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                                 if let Some(ref mut props) = props {
                                                     props.push((ele_key.to_owned(), Some(item_expr.to_owned())));
                                                 };
-                                                self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), Some((&prefix_sym, item_idx as i32)), output_component_contents)?;
+                                                self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), Some((&prefix_sym, item_idx as i32)), item_element_tag, output_component_contents)?;
                                             };
                                         };
                                     } else {
-                                        self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), None, output_component_contents)?;
+                                        self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), None, item_element_tag, output_component_contents)?;
                                    };
                                 };
                             }
@@ -325,7 +327,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                         };
 
                         if write_single {
-                            self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), None, None, output_component_contents)?;
+                            self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), None, None, item_element_tag, output_component_contents)?;
                         };
 
                         if output_component_contents {

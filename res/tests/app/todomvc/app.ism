@@ -1,0 +1,41 @@
+use html;
+
+store {
+    let todos = ["One", "Two"];
+
+    todos {
+        action add => value + entry;
+    }
+}
+
+component todo_text_input (todo) {
+    p {}
+}
+
+component todo_item (todo) {
+    li (class="completed editing") {
+        div (class="view") {
+            input(class="toggle", type="checkbox", checked=todo.completed) { (todo) }
+        }
+     }
+}
+
+component new_todo (entry) {
+    p {
+        input(value="") bind entry {}
+    }
+    p (class="actions") {
+        a (href="#add") click || { dispatch add(entry: entry); } { "Add" }
+    }
+}
+
+link(rel="stylesheet", href="./node_modules/todomvc-app-css/index.css", type="text/css") {}
+
+div(class="todoapp") {
+    section(class="main") {
+        new_todo(get entry) {}
+        ul(class="todo-list") {
+            todo_item (for todo in todos) {}
+        }
+    }
+}

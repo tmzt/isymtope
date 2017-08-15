@@ -183,6 +183,7 @@ pub enum ExprValue {
     LiteralArray(Option<Vec<ExprValue>>),
     DefaultVariableReference,
     SymbolReference(Symbol),
+    SymbolPathReference(Vec<Symbol>),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),

@@ -100,8 +100,10 @@ impl ProcessContent {
                     };
 
                     // Render a component during render
-                    block.ops_vec.push(ElementOp::InstanceComponent(element_tag,
+                    let component_ty = element_tag.to_owned();
+                    block.ops_vec.push(ElementOp::InstanceComponent(component_ty,
                                                                 Some(element_key),
+                                                                Some(element_tag),
                                                                 prop_list,
                                                                 lens));
 

@@ -165,17 +165,19 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>) -> Result {
+    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, element_tag: Option<&str>) -> Result {
         let complete_key = scope.0.complete_element_key();
+        let element_tag = element_tag.unwrap_or("div");
 
-        write!(w, "<div key=\"{}\">", &complete_key)?;
+        write!(w, "<{} key=\"{}\">", element_tag, &complete_key)?;
         self.keys_vec.push(complete_key);
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component) -> Result {
-        write!(w, "</div>")?;
+    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, element_tag: Option<&str>) -> Result {
+        let element_tag = element_tag.unwrap_or("div");
+        write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 }

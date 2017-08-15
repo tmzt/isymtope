@@ -75,4 +75,9 @@ mod tests {
     pub fn test_output5() {
         assert!(self::test_write_html("test5_app.ism", "test_output5_app.html").is_ok());
     }
+
+    #[test]
+    pub fn test_app_todomvc() {
+        assert!(self::test_write_html("app/todomvc/app.ism", "app-mvc.html").is_ok());
+    }
 }
