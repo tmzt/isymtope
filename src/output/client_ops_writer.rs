@@ -10,6 +10,7 @@ use parser::util::*;
 use processing::structs::*;
 use processing::scope::*;
 use output::client_ops_stream_writer::*;
+use output::client_js_value_writer::*;
 use output::client_misc::*;
 
 
@@ -120,13 +121,20 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
         if let Some(ref ops) = comp.ops {
             self.write_ops_content(w, ops.iter(), doc, output_component_contents)?;
         };
+
+        self.pop_scope();
         Ok(())
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, item_element_tag: Option<&str>, output_component_contents: bool) -> Result {
+    pub fn write_single_component_instance(&mut self, w: &mut io::Write, op: &ElementOp, doc: &'input DocumentState, comp: &Component, component_key: &str, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, loop_iteration: Option<(&Symbol, i32)>, parent_tag: Option<&str>, output_component_contents: bool) -> Result {
         let mut scope = self.scope();
+
+        let wrapping_tag = match parent_tag {
+            Some("ul") => None,
+            _ => Some("div")
+        };
 
         if output_component_contents {
             // Add iteration
@@ -135,19 +143,31 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             };
 
             // Push scope
-            self.push_scope(scope.clone());
+            // self.push_scope(scope.clone());
 
             let complete_key = scope.0.complete_element_key();
 
             // OpenS
             // let props_iter = props.as_ref().map(|s| s.clone());
-            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens, item_element_tag)?;
+            if wrapping_tag.is_some() {
+                self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens, wrapping_tag)?;
+            };
+
+            let mut scope = scope.clone();
+            let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+            // let key_expr = ExprValue::LiteralString(format!(".{}", component_key));
+            scope.0.set_prefix_expr(&param_expr);
+            self.push_scope(scope.clone());
 
             // let props_iter = props.as_ref().map(|s| s.clone());
             self.invoke_component_with_props(w, doc, comp, props.clone(), true)?;
 
+            self.pop_scope();
+
             // Close
-            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, item_element_tag)?;
+            if wrapping_tag.is_some() {
+                self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, wrapping_tag)?;
+            };
 
             // DISABLE attempt to look up event bindings and write out
             // using the component_instances vector
@@ -188,12 +208,23 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             // self.scopes.insert(scope_key.to_owned(), scope.clone());
 
             // OpenS
+            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, None, lens, wrapping_tag)?;
+
+
             // let props_iter = props.as_ref().map(|s| s.clone());
-            self.stream_writer.write_op_element_instance_component_open(w, op, doc, &scope, &comp, props.clone(), lens, item_element_tag)?;
+            if let Some(ref wrapping_tag) = wrapping_tag {
+                // let mut props: PropVec = Default();
+                self.stream_writer.write_op_element(w, op, doc, &scope, &component_key, wrapping_tag, false, None, None, None)?;
+            };
+
+            write_js_invoke_component(w, op, doc, &scope, &comp, props.clone(), component_key)?;
 
             // Close
-            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, item_element_tag)?;
+            if let Some(ref wrapping_tag) = wrapping_tag {
+                self.stream_writer.write_op_element_close(w, op, doc, &scope, wrapping_tag)?;
+            };
 
+            self.stream_writer.write_op_element_instance_component_close(w, op, doc, &scope, &comp, wrapping_tag)?;
             // self.scopes.pop_back();
         };
 
@@ -266,11 +297,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 }
                 &ElementOp::InstanceComponent(ref component_ty,
                                             ref component_key,
-                                            ref item_element_tag,
+                                            ref parent_tag,
                                             ref prop_list,
                                             ref lens) => {
                     let mut scope = scope.clone();
-                    let item_element_tag = item_element_tag.as_ref().map(|s| s.as_str());
+                    let parent_tag = parent_tag.as_ref().map(|s| s.as_str());
                     // let mut prop_list = prop_list.clone();
 
                     let mut props = if output_component_contents {
@@ -293,16 +324,25 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
-                        match lens {
-                            &Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-                                let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
-                                let coll_expr = reduce_expr(&coll_expr, doc, &scope);
+                        if let &Some(ref lens) = lens {
+                            if let &LensExprType::ForLens(ref ele_key, ref coll_sym) = lens {
+                                if !output_component_contents {
 
-                                if let &Some(ref ele_key) = ele_key {
-                                    let mut scope = scope.clone();
-                                    scope.1.add_param(ele_key);
+                                    // Map array onto component
+                                    write_js_lens_mapping_open(w, op, doc, &scope, lens)?;
+                                    self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), Some(lens), None, parent_tag, output_component_contents)?;
+                                    write_js_lens_mapping_close(w)?;
 
-                                    if output_component_contents {
+                                    self.pop_scope();
+
+                                } else {
+                                    let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
+                                    let coll_expr = reduce_expr(&coll_expr, doc, &scope);
+
+                                    if let &Some(ref ele_key) = ele_key {
+                                        let mut scope = scope.clone();
+                                        scope.1.add_param(ele_key);
+
                                         if let Some(ExprValue::LiteralArray(Some(ref items))) = coll_expr {
                                             write_single = false;
 
@@ -311,29 +351,22 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                                 if let Some(ref mut props) = props {
                                                     props.push((ele_key.to_owned(), Some(item_expr.to_owned())));
                                                 };
-                                                self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), Some((&prefix_sym, item_idx as i32)), item_element_tag, output_component_contents)?;
+                                                self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), Some(lens), Some((&prefix_sym, item_idx as i32)), parent_tag, output_component_contents)?;
                                             };
                                         };
-                                    } else {
-                                        self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), lens.as_ref(), None, item_element_tag, output_component_contents)?;
-                                   };
+                                    };
                                 };
-                            }
-
-                            &Some(LensExprType::GetLens(ref sym)) => {
-                            }
-
-                            _ => {}
+                            };
                         };
 
                         if write_single {
-                            self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), None, None, item_element_tag, output_component_contents)?;
+                            self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), None, None, parent_tag, output_component_contents)?;
                         };
+                    };
 
-                        if output_component_contents {
-                            self.pop_scope();
-                        }
-                    }
+                    if output_component_contents {
+                        self.pop_scope();
+                    };
                 }
 
                 &ElementOp::StartBlock(ref block_id) => {

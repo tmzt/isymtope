@@ -46,6 +46,7 @@ impl ProcessContent {
                             node: &ContentNodeType,
                             processing: &DocumentProcessingState,
                             block: &mut BlockProcessingState,
+                            parent_tag: Option<&str>,
                             resolution_mode: &BareSymbolResolutionMode)
                             -> DocumentProcessingResult<()> {
         let mut scope = self.scope();
@@ -103,7 +104,7 @@ impl ProcessContent {
                     let component_ty = element_tag.to_owned();
                     block.ops_vec.push(ElementOp::InstanceComponent(component_ty,
                                                                 Some(element_key),
-                                                                Some(element_tag),
+                                                                parent_tag.map(|s| s.to_owned()),
                                                                 prop_list,
                                                                 lens));
 
@@ -115,7 +116,21 @@ impl ProcessContent {
                     // Treat this as an HTML element
                     // TODO: Support imported elements
 
-                    let mut props = element_data.attrs.as_ref().map(|s| s.clone());
+                    let props = element_data.attrs.as_ref().map(|attrs| {
+                        attrs.iter().map(|attr| {
+                            let expr = attr.1.as_ref().map(|expr| {
+                                if expr.is_literal() {
+                                    expr.clone()
+                                } else {
+                                    map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                                }
+                            });
+
+                            (attr.0.clone(), expr)
+                        }).collect()
+                    });
+
+                    // let mut props = element_data.attrs.as_ref().map(|s| s.clone());
                     let mut events: Option<Vec<ElementEventBinding>> = Default::default();
                     let mut value_binding: ElementValueBinding = Default::default();
 
@@ -193,7 +208,7 @@ impl ProcessContent {
 
                         // Iterate over children
                         for ref child in children {
-                            self.process_content_node(child, processing, block, resolution_mode)?;
+                            self.process_content_node(child, processing, block, Some(&element_tag), resolution_mode)?;
                         }
 
                         // Pop scope
@@ -234,7 +249,7 @@ impl ProcessContent {
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
                         // FIXME: forvar resolve
-                        self.process_content_node(node, processing, block, resolution_mode)?;
+                        self.process_content_node(node, processing, block, None, resolution_mode)?;
                     }
                 };
 

@@ -90,7 +90,7 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
             if let Some(ref expr) = eval_sym(sym, doc, &scope) {
                 return Some(expr.clone());
             };
-            Some(expr.clone())
+            Some(ExprValue::LiteralString(format!("[cannot resolve: {:?}]", sym)))
         }
 
         &ExprValue::SymbolPathReference(ref sym_path) => {

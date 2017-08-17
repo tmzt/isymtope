@@ -176,10 +176,10 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
     }
 
     fn write_element_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, complete_key: &str, is_void: bool, props: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
-        let mut scope = scope.clone();
-        let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-        let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
-        scope.0.set_prefix_expr(&param_expr);
+        // let mut scope = scope.clone();
+        // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        // let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
+        // scope.0.set_prefix_expr(&param_expr);
 
         if !is_void {
             write!(w, "IncrementalDOM.elementOpen(\"{}\", ", element_tag)?;
@@ -187,6 +187,7 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
+        let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
         let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
         if let Some(ref prefix_expr) = prefix_expr {
             write_js_expr_value(w, prefix_expr, doc, &scope)?;
@@ -218,11 +219,11 @@ impl<'input: 'scope, 'scope> ElementOpsJsStreamWriter {
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter {
     fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_key: &str, element_tag: &str, is_void: bool, props: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
-        let mut scope = scope.clone();
+        // let mut scope = scope.clone();
         let complete_key = scope.0.complete_element_key();
-        let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-        let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
-        scope.0.set_prefix_expr(&param_expr);
+        // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        // let key_expr = ExprValue::LiteralString(format!(".{}", element_key));
+        // scope.0.set_prefix_expr(&param_expr);
 
         self.write_element_open(w, op, doc, &scope, element_key, element_tag, &complete_key, is_void, props, events, value_binding)
     }
@@ -237,9 +238,9 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
         let mut scope = scope.clone();
         scope.0.append_key("v");
         let complete_key = scope.0.complete_element_key();
-        let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-        let key_expr = ExprValue::LiteralString(format!(".{}.v", value_key));
-        scope.0.set_prefix_expr(&param_expr);
+        // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        // let key_expr = ExprValue::LiteralString(format!(".{}.v", value_key));
+        // scope.0.set_prefix_expr(&param_expr);
 
         self.write_element_open(w, op, doc, &scope, value_key, "span", &complete_key, false, None, None, None)?;
 
@@ -286,68 +287,6 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsJsStreamWriter
 
     #[inline]
     fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, element_tag: Option<&str>) -> Result {
-        let mut scope = scope.clone();
-        scope.0.clear_index();
-
-        let complete_key = scope.0.complete_element_key();
-        let component_ty = &comp.name;
-        // let element_tag = element_tag.unwrap_or("div");
-
-        // let props = props.map(|p| map_props_using_scope(p, &scope));
-
-        // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
-        // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
-
-        if let Some(&LensExprType::ForLens(Some(ref ele_key), ref coll_sym)) = lens {
-            let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
-            let coll_expr = ExprValue::SymbolReference(coll_sym.to_owned());
-            // write_js_expr_value(w, &coll_expr, doc, &scope)?;
-
-            let attrs = vec![
-                (ele_key.to_owned(), Some(ele_expr))
-            ];
-            write!(w, "((")?;
-            // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
-            write_js_expr_value(w, &coll_expr, doc, &scope)?;
-            // write!(w, ").map(function(v) {{ return {{  {} }}))")?;
-
-            write!(w, ").map(function(v) {{ return ")?;
-            // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
-            write!(w, "{{ {}: v }}", ele_key)?;
-            writeln!(w, "; }}))")?;
-
-            let foridx_expr = ExprValue::Expr(ExprOp::Add,
-                Box::new(ExprValue::LiteralString(format!("{}.", complete_key))),
-                Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
-            );
-            scope.0.set_prefix_expr(&foridx_expr);
-
-            writeln!(w, ".map(function(props, foridx) {{")?;
-
-        };
-
-        // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
-        // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
-
-        write!(w, "component_{}(", component_ty)?;
-        if let Some(ref prefix_expr) = scope.0.prefix_expr() {
-            write_js_expr_value(w, prefix_expr, doc, &scope)?;
-        } else {
-            write!(w, "\"{}\"", complete_key)?;
-        };
-        write!(w, ", store")?;
-
-        if props.is_some() {
-            write!(w, ", ")?;
-            // TODO: Fix lens support
-            write_js_props_object(w, props.clone(), doc, &scope)?;
-        }
-        writeln!(w, ");")?;
-
-        if lens.is_some() {
-            writeln!(w, "}});")?;
-        };
-
         Ok(())
     }
 

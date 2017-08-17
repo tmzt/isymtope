@@ -85,8 +85,9 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             <!doctype HTML>
             <html>
                 <head>
-                <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
-                <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+                    <meta charset="utf-8" />
+                    <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
+                    <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
                 </head>
                 <body>
                 <div id="root">
@@ -116,7 +117,11 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
             if let Some(ref ops) = comp_def.ops {
-                self.output_js.write_js_incdom_component(w, component_ty, comp_def, ops.iter(), &mut self.doc, &base_scope)?;
+                let mut scope = base_scope.clone();
+                let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+                scope.0.set_prefix_expr(&param_expr);
+
+                self.output_js.write_js_incdom_component(w, component_ty, comp_def, ops.iter(), &mut self.doc, &scope)?;
             };
         }
 

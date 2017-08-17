@@ -141,10 +141,10 @@ impl<'input> WriteJsOps<'input> {
                                             scope: &ElementOpScope)
                                             -> Result {
         let mut scope = scope.clone();
-        let key_var = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-        if let Some(ref prefix_expr) = scope.0.make_prefix_expr(&key_var, None) {
-            scope.0.set_prefix_expr(&prefix_expr);
-        };
+        // let key_var = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+        // if let Some(ref prefix_expr) = scope.0.make_prefix_expr(&key_var, None) {
+        //     scope.0.set_prefix_expr(&prefix_expr);
+        // };
 
         // Merge component scope entries
         // TODO: Convert values to props
@@ -159,9 +159,9 @@ impl<'input> WriteJsOps<'input> {
                 "  function component_{}(key_prefix, store, props) {{",
                 component_ty)
             ?;
-        writeln!(w, "IncrementalDOM.elementOpen(\"div\", key_prefix);")?;
+        // writeln!(w, "IncrementalDOM.elementOpen(\"div\", key_prefix);")?;
         self.write_js_incdom_ops_content(w, ops, processing, &scope)?;
-        writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
+        // writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
 

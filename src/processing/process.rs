@@ -297,7 +297,7 @@ impl<'input> ProcessDocument<'input> {
 
                         let mut content_processor = ProcessContent::new(scope);
                         let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        content_processor.process_content_node(content, &self.processing, &mut block, &mode)?;
+                        content_processor.process_content_node(content, &self.processing, &mut block, None, &mode)?;
                     }
                     _ => {}
                 }
@@ -359,7 +359,7 @@ impl<'input> ProcessDocument<'input> {
                     let mut scope = base_scope.clone();
                     let mut content_processor = ProcessContent::new(scope);
                     // content_processor.process(&self.processing)?;
-                    content_processor.process_content_node(content, &self.processing, block, &mode)?;
+                    content_processor.process_content_node(content, &self.processing, block, None, &mode)?;
                 }
                 _ => {}
             }

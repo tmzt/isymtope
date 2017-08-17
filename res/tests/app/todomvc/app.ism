@@ -13,28 +13,32 @@ component todo_text_input (todo) {
 }
 
 component todo_item (todo) {
-    li (class="completed editing") {
+    li (class="completed") {
         div (class="view") {
-            input(class="toggle", type="checkbox", checked=todo.completed) { (todo) }
+            input(class="toggle", type="checkbox", checked=todo_completed) {}
+            label { (todo) }
+            button(class="destroy") {}
         }
      }
 }
 
 component new_todo (entry) {
-    p {
-        input(value="") bind entry {}
-    }
-    p (class="actions") {
-        a (href="#add") click || { dispatch add(entry: entry); } { "Add" }
-    }
+    input(class="new-todo", placeholder="What needs to be done?", autofocus="autofocus") bind entry keydown || { dispatch add(entry: entry); } {}
 }
 
+link(rel="stylesheet", href="./node_modules/todomvc-common/base.css", type="text/css") {}
 link(rel="stylesheet", href="./node_modules/todomvc-app-css/index.css", type="text/css") {}
 
-div(class="todoapp") {
-    section(class="main") {
+section(class="todoapp") {
+    header(class="header") {
+        h1() { ("todos") }
         new_todo(get entry) {}
-        ul(class="todo-list") {
+    }
+
+    section(class="main") {
+        input(class="toggle-all", id="toggle-all", type="checkbox") {}
+        label(class="", for="toggle-all") { ("Mark all as complete") }
+        ul(id="todo-list", class="todo-list") {
             todo_item (for todo in todos) {}
         }
     }

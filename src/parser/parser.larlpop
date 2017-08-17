@@ -176,6 +176,7 @@ ElementLens : LensExprType = {
 #[inline]
 ElementProp: Prop = {
     ValueKeyword "=" <val:ExprValue> => { ("value".into(), Some(val)) },
+    ForKeyword "=" <val:ExprValue> => { ("for".into(), Some(val)) },
     <ident:Id> "=" <val:ExprValue> => { (ident.into(), Some(val)) }
 };
 
