@@ -12,10 +12,10 @@ use output::client_misc::*;
 
 #[inline]
 pub fn write_js_var_reference(w: &mut io::Write,
-                                    var_name: Option<&str>,
-                                    doc: &DocumentState,
-                                    scope: &ElementOpScope)
-                                    -> Result {
+                              var_name: Option<&str>,
+                              doc: &DocumentState,
+                              scope: &ElementOpScope)
+                              -> Result {
     // let default_var_scope = scope.0.default_var_scope();
     if let Some(ref var_name) = var_name {
         let var_key = scope.0.make_var_name(var_name);
@@ -23,8 +23,7 @@ pub fn write_js_var_reference(w: &mut io::Write,
     } else {
         // let default_var_scope = scope.0.default_var_scope();
         let default_var = scope.0.default_var();
-        let var_key = default_var
-            .unwrap_or_else(|| "default".to_owned());
+        let var_key = default_var.unwrap_or_else(|| "default".to_owned());
         write!(w, "{}", var_key)?;
     };
 
@@ -32,10 +31,10 @@ pub fn write_js_var_reference(w: &mut io::Write,
 }
 
 pub fn write_js_sym_value(w: &mut io::Write,
-                                sym: &Symbol,
-                                doc: &DocumentState,
-                                scope: &ElementOpScope)
-                                -> Result {
+                          sym: &Symbol,
+                          doc: &DocumentState,
+                          scope: &ElementOpScope)
+                          -> Result {
     match sym.sym_ref() {
         &SymbolReferenceType::ResolvedReference(ref key, ref resolved) => {
             match resolved {
@@ -81,7 +80,8 @@ pub fn write_js_sym_value(w: &mut io::Write,
 
                 &ResolvedSymbolType::ElementValueReference(ref ref_element_key) => {
                     let complete_ref_key = scope.0.make_complete_element_key_with(ref_element_key);
-                    let key = format!("document.querySelector(\"[key='{}']\").value", complete_ref_key);
+                    let key = format!("document.querySelector(\"[key='{}']\").value",
+                                      complete_ref_key);
                     write_js_var_reference(w, Some(&key), doc, &scope)?;
                 }
 
@@ -101,10 +101,10 @@ pub fn write_js_sym_value(w: &mut io::Write,
 
 #[inline]
 pub fn write_js_expr_value(w: &mut io::Write,
-                                node: &ExprValue,
-                                doc: &DocumentState,
-                                scope: &ElementOpScope)
-                                -> Result {
+                           node: &ExprValue,
+                           doc: &DocumentState,
+                           scope: &ElementOpScope)
+                           -> Result {
     match node {
         // TODO: Handle the case where quotes appear in the string
         &ExprValue::LiteralString(ref s) => {
@@ -145,14 +145,17 @@ pub fn write_js_expr_value(w: &mut io::Write,
             while let Some(ref sym) = iter.next() {
                 write!(w, ".")?;
                 write_js_sym_value(w, sym, doc, scope)?;
-            };
+            }
         }
 
         &ExprValue::Expr(ref op, box ExprValue::SymbolReference(ref l_sym), ref r) => {
             let l_expr = ExprValue::SymbolReference(l_sym.clone());
             write_js_expr_value(w, &l_expr, doc, scope)?;
 
-            let is_array = match l_sym.ty() { Some(&VarType::ArrayVar(..)) => true, _ => false };
+            let is_array = match l_sym.ty() {
+                Some(&VarType::ArrayVar(..)) => true,
+                _ => false,
+            };
 
             // let is_array = match l_sym {
             //     &Symbol(_, Some(VarType::ArrayVar(_)), _) => true,
@@ -160,12 +163,13 @@ pub fn write_js_expr_value(w: &mut io::Write,
             // };
 
             match op {
-                &ExprOp::Add if is_array => write!(w, ".concat("),
-                &ExprOp::Add => write!(w, " + "),
-                &ExprOp::Sub => write!(w, " - "), 
-                &ExprOp::Mul => write!(w, " * "),
-                &ExprOp::Div => write!(w, " / ")
-            }?;
+                    &ExprOp::Add if is_array => write!(w, ".concat("),
+                    &ExprOp::Add => write!(w, " + "),
+                    &ExprOp::Sub => write!(w, " - "), 
+                    &ExprOp::Mul => write!(w, " * "),
+                    &ExprOp::Div => write!(w, " / "),
+                }
+                ?;
 
             write_js_expr_value(w, r, doc, scope)?;
             if is_array {
@@ -196,7 +200,9 @@ pub fn write_js_expr_value(w: &mut io::Write,
         &ExprValue::DefaultAction(..) => {}
         &ExprValue::Action(..) => {}
 
-        &ExprValue::Undefined => { write!(w, "undefined")?; }
+        &ExprValue::Undefined => {
+            write!(w, "undefined")?;
+        }
     }
     Ok(())
 }
@@ -204,10 +210,10 @@ pub fn write_js_expr_value(w: &mut io::Write,
 #[inline]
 #[allow(unused_variables)]
 pub fn write_js_props_object<'input>(w: &mut io::Write,
-                                props: Option<Iter<'input, Prop>>,
-                                doc: &DocumentState,
-                                scope: &ElementOpScope)
-                        -> Result {
+                                     props: Option<Iter<'input, Prop>>,
+                                     doc: &DocumentState,
+                                     scope: &ElementOpScope)
+                                     -> Result {
     write!(w, "{{")?;
     let mut wrote_first = false;
     if let Some(props) = props {
@@ -240,10 +246,7 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
                     continue;
                 };
 
-                write_js_expr_value(w,
-                                    &expr,
-                                    doc,
-                                    scope)?;
+                write_js_expr_value(w, &expr, doc, scope)?;
 
             } else {
                 write!(w, "undefined")?;
@@ -255,7 +258,13 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
 }
 
 #[inline]
-pub fn write_js_lens_mapping_open(w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, ele_key: &str, coll_expr: &ExprValue) -> Result {
+pub fn write_js_lens_mapping_open(w: &mut io::Write,
+                                  op: &ElementOp,
+                                  doc: &DocumentState,
+                                  scope: &ElementOpScope,
+                                  ele_key: &str,
+                                  coll_expr: &ExprValue)
+                                  -> Result {
     let mut scope = scope.clone();
     let complete_key = scope.0.complete_element_key();
 
@@ -299,7 +308,14 @@ pub fn map_invoke_component_props(props: Iter<&Prop>, scope: &ElementOpScope) ->
 }
 
 #[inline]
-pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, component_key: &str) -> Result {
+pub fn write_js_invoke_component(w: &mut io::Write,
+                                 op: &ElementOp,
+                                 doc: &DocumentState,
+                                 scope: &ElementOpScope,
+                                 comp: &Component,
+                                 props: Option<Iter<Prop>>,
+                                 component_key: &str)
+                                 -> Result {
     let mut scope = scope.clone();
     scope.0.append_base_key(&format!("c_{}", component_key));
     scope.0.clear_index();
@@ -308,7 +324,7 @@ pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &Docume
     let component_ty = &comp.name;
     // let element_tag = element_tag.unwrap_or("div");
 
-        // .map(|p| reduce_expr(p, doc, &scope).or(p));
+    // .map(|p| reduce_expr(p, doc, &scope).or(p));
 
     // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
     // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
@@ -340,7 +356,8 @@ pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &Docume
                 //     .or_else(|| p.1.to_owned());
 
                 p.to_owned()
-            }).collect();
+            })
+            .collect();
 
         write!(w, ", ")?;
         // TODO: Fix lens support
@@ -356,11 +373,11 @@ pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &Docume
 #[allow(dead_code)]
 #[allow(unused_variables)]
 pub fn write_js_incdom_attr_array<'input>(w: &mut io::Write,
-                                    attrs: Option<Iter<'input, Prop>>,
-                                    doc: &DocumentState,
-                                    scope: &ElementOpScope,
-                                    base_key: Option<&str>)
-                                    -> Result {
+                                          attrs: Option<Iter<'input, Prop>>,
+                                          doc: &DocumentState,
+                                          scope: &ElementOpScope,
+                                          base_key: Option<&str>)
+                                          -> Result {
     let mut wrote_first = false;
     if let Some(base_key) = base_key {
         write!(w, "\"data-id\", \"{}\", ", base_key)?;

@@ -7,7 +7,7 @@ use parser::loc::Loc;
 
 #[derive(Debug, Default)]
 pub struct Template {
-    pub children: Vec<Loc<NodeType, (usize, usize)>>
+    pub children: Vec<Loc<NodeType, (usize, usize)>>,
 }
 
 #[derive(Debug, Clone)]
@@ -15,14 +15,14 @@ pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
     StoreNode(Vec<DefaultScopeNodeType>),
-    ContentNode(ContentNodeType)
+    ContentNode(ContentNodeType),
 }
 
 #[derive(Debug, Clone)]
 pub enum ContentNodeType {
     ElementNode(ElementType),
     ExpressionValueNode(ExprValue),
-    ForNode(Option<String>, ExprValue, Option<Vec<ContentNodeType>>)
+    ForNode(Option<String>, ExprValue, Option<Vec<ContentNodeType>>),
 }
 
 /// Operators
@@ -31,7 +31,7 @@ pub enum ExprOp {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
 }
 
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ pub enum VarType {
 #[derive(Debug, Clone)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
-    ResolvedReference(String, ResolvedSymbolType)
+    ResolvedReference(String, ResolvedSymbolType),
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ pub enum ResolvedSymbolType {
     PropReference(String),
     LensPropReference(String, Box<LensExprType>),
     ForLensElementReference(String),
-    ElementValueReference(String)
+    ElementValueReference(String),
 }
 
 #[derive(Debug, Clone)]
@@ -77,89 +77,121 @@ pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
 impl Symbol {
     pub fn unresolved(key: &str) -> Symbol {
-        Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()), None, None)
+        Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()),
+               None,
+               None)
     }
 
     pub fn reducer_key(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn reducer_key_with_ty(key: &str, ty: Option<&VarType>) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let ty = ty.map(|ty| ty.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               ty,
+               None)
     }
 
     pub fn reducer_key_with_value(key: &str, value: &ExprValue) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, Some(Box::new(value.clone())))
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               Some(Box::new(value.clone())))
     }
 
     pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let value = value.map(|value| Box::new(value.clone()));
         let ty = ty.map(|ty| ty.clone());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), ty, value)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               ty,
+               value)
     }
 
     pub fn action_param(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn loop_idx(key: &str, block_id: &str) -> Symbol {
         let var_key = format!("__{}_{}", key, block_id);
         let resolved = ResolvedSymbolType::LoopIndexReference(key.to_owned(), block_id.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved),
+               None,
+               None)
     }
 
     pub fn loop_var(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::LoopVarReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn param(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ParameterReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn block_param(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::BlockParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn loop_var_with_value(key: &str, value: &ExprValue) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let value = Some(Box::new(value.clone()));
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, value)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               value)
     }
 
     pub fn prop(prop_name: &str) -> Symbol {
         let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn prop_with_value(prop_name: &str, value: &ExprValue) -> Symbol {
         let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
         let value = Some(Box::new(value.clone()));
         // TODO: peek type
-        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved), None, value)
+        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
+               None,
+               value)
     }
 
     pub fn action_state(ty: Option<&VarType>) -> Symbol {
         let resolved = ResolvedSymbolType::ActionStateReference(ty.map(|ty| ty.to_owned()));
-        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved), ty.map(|ty| ty.to_owned()), None)
+        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved),
+               ty.map(|ty| ty.to_owned()),
+               None)
     }
 
     pub fn for_lens_element_key(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ForLensElementReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn element_value_binding(key: &str, element_key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ElementValueReference(element_key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved), None, None)
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+               None,
+               None)
     }
 
     pub fn sym_ref(&self) -> &SymbolReferenceType {
@@ -188,53 +220,60 @@ pub enum ExprValue {
     ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
     Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    Undefined
+    Undefined,
 }
 
 impl ExprValue {
     #[inline]
     pub fn is_literal(&self) -> bool {
         match self {
-            &ExprValue::LiteralArray(..) | &ExprValue::LiteralString(..) | &ExprValue::LiteralNumber(..) => true,
-            _ => false
+            &ExprValue::LiteralArray(..) |
+            &ExprValue::LiteralString(..) |
+            &ExprValue::LiteralNumber(..) => true,
+            _ => false,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum ElementExpr {
-    Element(String,Option<String>,Option<Vec<Box<ExprValue>>>),
-    Value(ExprValue)
+    Element(String, Option<String>, Option<Vec<Box<ExprValue>>>),
+    Value(ExprValue),
 }
 
 #[derive(Debug, Clone)]
 pub enum LensExprType {
     ForLens(Option<String>, Symbol),
-    GetLens(Symbol)
+    GetLens(Symbol),
 }
 
 #[derive(Debug, Clone)]
 pub enum ActionOpNode {
-    DispatchAction(String, Option<PropVec>)
+    DispatchAction(String, Option<PropVec>),
 }
 
 #[derive(Debug, Clone)]
 pub struct UseStmtType {
-    pub package: String
+    pub package: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct ComponentDefinitionType {
     pub name: String,
     pub inputs: Option<Vec<String>>,
-    pub children: Option<Vec<NodeType>>
+    pub children: Option<Vec<NodeType>>,
 }
 
-pub type EventHandler = (Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>);
+pub type EventHandler = (Option<String>, Option<EventHandlerParams>, Option<EventHandlerActionOps>);
 pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<EventHandler>;
-pub type EventsItem = (String,Option<String>,Option<EventHandlerParams>,Option<EventHandlerActionOps>,Option<String>,Option<String>);
+pub type EventsItem = (String,
+                       Option<String>,
+                       Option<EventHandlerParams>,
+                       Option<EventHandlerActionOps>,
+                       Option<String>,
+                       Option<String>);
 pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;
 
@@ -245,13 +284,13 @@ pub type ElementBindings = (ElementValueBinding, Option<Vec<ElementEventBinding>
 #[derive(Debug, Clone)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(ElementEventBinding),
-    ElementValueBindingNode(String)
+    ElementValueBindingNode(String),
 }
 pub type ElementBindingNodeVec = Vec<ElementBindingNodeType>;
 
 pub type PropKey = String;
 pub type PropList = Vec<PropKey>;
-pub type Prop = (String,Option<ExprValue>);
+pub type Prop = (String, Option<ExprValue>);
 
 #[derive(Debug, Clone)]
 pub struct ElementType {
@@ -260,5 +299,5 @@ pub struct ElementType {
     pub attrs: Option<PropVec>,
     pub lens: Option<LensExprType>,
     pub children: Option<Vec<ContentNodeType>>,
-    pub bindings: Option<Vec<ElementBindingNodeType>>
+    pub bindings: Option<Vec<ElementBindingNodeType>>,
 }

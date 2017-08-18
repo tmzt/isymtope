@@ -1,5 +1,6 @@
 
 use std::clone::Clone;
+use std::slice::Iter;
 
 use linked_hash_map::LinkedHashMap;
 
@@ -17,16 +18,15 @@ pub struct ProcessContent {
     // root_node: &'input ContentNodeType,
     root_block: BlockProcessingState,
     base_scope: ElementOpScope,
-    scopes: LinkedHashMap<String, ElementOpScope>
+    scopes: LinkedHashMap<String, ElementOpScope>,
 }
 
 impl ProcessContent {
-
     pub fn new(base_scope: ElementOpScope) -> Self {
         ProcessContent {
             root_block: Default::default(),
             base_scope: base_scope,
-            scopes: Default::default()
+            scopes: Default::default(),
         }
     }
 
@@ -39,16 +39,18 @@ impl ProcessContent {
         self.scopes.insert(scope_id, scope);
     }
 
-    fn pop_scope(&mut self) { self.scopes.pop_back(); }
+    fn pop_scope(&mut self) {
+        self.scopes.pop_back();
+    }
 
     #[inline]
     pub fn process_content_node(&mut self,
-                            node: &ContentNodeType,
-                            processing: &DocumentProcessingState,
-                            block: &mut BlockProcessingState,
-                            parent_tag: Option<&str>,
-                            resolution_mode: &BareSymbolResolutionMode)
-                            -> DocumentProcessingResult<()> {
+                                node: &ContentNodeType,
+                                processing: &DocumentProcessingState,
+                                block: &mut BlockProcessingState,
+                                parent_tag: Option<&str>,
+                                resolution_mode: &BareSymbolResolutionMode)
+                                -> DocumentProcessingResult<()> {
         let mut scope = self.scope();
 
         match node {
@@ -70,27 +72,23 @@ impl ProcessContent {
 
                     // Attempt to map lens values
                     // FIXME
-                    let lens = map_lens_using_scope(lens.as_ref(), processing, &mut scope)
-                        .or(lens);
+                    let lens = map_lens_using_scope(lens.as_ref(), processing, &mut scope).or(lens);
 
                     // Create list of prop keys
-                    let mut prop_list: Option<Vec<PropKey>> = element_data.attrs.as_ref().map(|s| s.iter().map(|s| s.0.to_owned()).collect());
+                    let mut prop_list: Option<Vec<PropKey>> = element_data.attrs
+                        .as_ref()
+                        .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
 
                     match lens {
                         Some(LensExprType::GetLens(ref sym)) => {
-                            if !prop_list.is_some() { prop_list = Some(Default::default()); }
-                            // let mut attrs = attrs.as_ref().map_or_else(|| Default::default(), |s| s.clone());
-
-                            // if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                            //     if let Some(ref sym) = resolve_reducer_key(processing, &mut block.scope, key) {
-                            //         let value = Some(ExprValue::SymbolReference(sym.clone()));
-                            //         // attrs.push((key.clone(), value));
-                            //         prop_list.push(key.to_owned());
-                            //     };
-                            // };
+                            if !prop_list.is_some() {
+                                prop_list = Some(Default::default());
+                            }
                         }
                         Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-                            if !prop_list.is_some() { prop_list = Some(Default::default()); }
+                            if !prop_list.is_some() {
+                                prop_list = Some(Default::default());
+                            }
 
                             if let &Some(ref ele_key) = ele_key {
                                 if let Some(ref mut prop_list) = prop_list {
@@ -103,11 +101,12 @@ impl ProcessContent {
 
                     // Render a component during render
                     let component_ty = element_tag.to_owned();
-                    block.ops_vec.push(ElementOp::InstanceComponent(component_ty,
-                                                                Some(element_key),
-                                                                parent_tag.map(|s| s.to_owned()),
-                                                                prop_list,
-                                                                lens));
+                    block.ops_vec
+                        .push(ElementOp::InstanceComponent(component_ty,
+                                                           Some(element_key),
+                                                           parent_tag.map(|s| s.to_owned()),
+                                                           prop_list,
+                                                           lens));
 
                 } else {
                     let mut scope = scope.clone();
@@ -118,17 +117,22 @@ impl ProcessContent {
                     // TODO: Support imported elements
 
                     let props = element_data.attrs.as_ref().map(|attrs| {
-                        attrs.iter().map(|attr| {
-                            let expr = attr.1.as_ref().map(|expr| {
-                                if expr.is_literal() {
-                                    expr.clone()
-                                } else {
-                                    map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
-                                }
-                            });
+                        attrs.iter()
+                            .map(|attr| {
+                                let expr = attr.1.as_ref().map(|expr| {
+                                    if expr.is_literal() {
+                                        expr.clone()
+                                    } else {
+                                        map_expr_using_scope(expr,
+                                                             processing,
+                                                             &mut block.scope,
+                                                             resolution_mode)
+                                    }
+                                });
 
-                            (attr.0.clone(), expr)
-                        }).collect()
+                                (attr.0.clone(), expr)
+                            })
+                            .collect()
                     });
 
                     // let mut props = element_data.attrs.as_ref().map(|s| s.clone());
@@ -139,58 +143,41 @@ impl ProcessContent {
                     if let Some(ref bindings) = element_data.bindings {
                         // Loop through value bindings first
                         for binding in bindings {
-                            if let &ElementBindingNodeType::ElementValueBindingNode(ref key) = binding {
+                            if let &ElementBindingNodeType::ElementValueBindingNode(ref key) =
+                                   binding {
                                 value_binding = Some(key.to_owned());
                                 block.scope.1.add_element_value_binding(key, &complete_key);
                             };
                         }
 
-                    //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
+                        //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
 
                         // Loop through the event bindings
                         for binding in bindings {
-                            if let &ElementBindingNodeType::ElementEventBindingNode(ref event) = binding {
+                            if let &ElementBindingNodeType::ElementEventBindingNode(ref event) =
+                                   binding {
                                 let mut event = event.clone();
 
                                 event.2 = event.2.as_ref().map(|action_ops| {
-                                    action_ops.iter().map(|action_op| {
-                                        match action_op {
-                                            &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                                                let action_ty = scope.0.make_action_type(&action_key);
-
-                                                let action_params = action_params.as_ref().map(|action_params| {
-                                                    let mut action_params = action_params.clone();
-                                                    for mut param in &mut action_params {
-                                                        param.1 = param.1.as_ref().map(|expr| {
-                                                            if let &ExprValue::SymbolReference(ref sym) = expr {
-                                                                if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-                                                                    if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
-                                                                        return ExprValue::SymbolReference(sym.to_owned());
-                                                                    };
-                                                                };
-                                                            };
-                                                            
-                                                            map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
-                                                        });
-                                                    }
-                                                    action_params
-                                                });
-
-                                                ActionOpNode::DispatchAction(action_ty, action_params)
-                                            },
-                                            _ => action_op.to_owned()
-                                        }
-                                    }).collect()
+                                    self.process_content_action_ops(action_ops.iter(),
+                                                                    processing,
+                                                                    &scope,
+                                                                    block,
+                                                                    resolution_mode)
                                 });
 
                                 block.events_vec.push((scope.0.complete_element_key(),
-                                                    event.0.as_ref().map(|s| s.to_owned()),
-                                                    event.1.as_ref().map(|s| s.to_owned()),
-                                                    event.2.as_ref().map(|s| s.to_owned()),
-                                                    None,
-                                                    Some(block.block_id.to_owned())));
-                                if !events.is_some() { events = Some(Default::default()); }
-                                if let Some(ref mut events) = events { events.push(event.clone()); }
+                                                       event.0.as_ref().map(|s| s.to_owned()),
+                                                       event.1.as_ref().map(|s| s.to_owned()),
+                                                       event.2.as_ref().map(|s| s.to_owned()),
+                                                       None,
+                                                       Some(block.block_id.to_owned())));
+                                if !events.is_some() {
+                                    events = Some(Default::default());
+                                }
+                                if let Some(ref mut events) = events {
+                                    events.push(event.clone());
+                                }
                             };
                         }
                     }
@@ -199,17 +186,21 @@ impl ProcessContent {
                     if let Some(ref children) = element_data.children {
                         // Push element open
                         block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
-                                                            Some(complete_key),
-                                                            props,
-                                                            events,
-                                                            value_binding));
+                                                                  Some(complete_key),
+                                                                  props,
+                                                                  events,
+                                                                  value_binding));
 
                         // Push scope
                         self.push_scope(scope.clone());
 
                         // Iterate over children
                         for ref child in children {
-                            self.process_content_node(child, processing, block, Some(&element_tag), resolution_mode)?;
+                            self.process_content_node(child,
+                                                      processing,
+                                                      block,
+                                                      Some(&element_tag),
+                                                      resolution_mode)?;
                         }
 
                         // Pop scope
@@ -219,10 +210,10 @@ impl ProcessContent {
                         block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
                     } else {
                         block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
-                                                            Some(complete_key),
-                                                            props,
-                                                            events,
-                                                            value_binding));
+                                                                  Some(complete_key),
+                                                                  props,
+                                                                  events,
+                                                                  value_binding));
                     }
                 }
             }
@@ -240,7 +231,8 @@ impl ProcessContent {
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
 
-                let coll_expr = map_expr_using_scope(coll_expr, processing, &mut block.scope, resolution_mode);
+                let coll_expr =
+                    map_expr_using_scope(coll_expr, processing, &mut block.scope, resolution_mode);
 
                 // Add forvar as a parameter in the symbol map
                 if let &Some(ref ele_key) = ele {
@@ -256,10 +248,48 @@ impl ProcessContent {
 
                 block.ops_vec.push(ElementOp::EndBlock(block_id.clone()));
                 block.ops_vec.push(ElementOp::MapCollection(block_id.clone(),
-                                                        ele.as_ref().map(Clone::clone),
-                                                        coll_expr.clone()));
+                                                            ele.as_ref().map(Clone::clone),
+                                                            coll_expr.clone()));
             }
         }
         (Ok(()))
+    }
+
+    #[inline]
+    pub fn process_content_action_ops(&mut self,
+                                      action_ops: Iter<&ActionOpNode>,
+                                      scope: &ElementOpScope,
+                                      processing: &DocumentProcessingState,
+                                      block: &mut BlockProcessingState,
+                                      resolution_mode: &BareSymbolResolutionMode)
+                                      -> Vec<ActionOpNode> {
+        action_ops.map(|action_op| {
+            match action_op {
+                &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                    let action_ty = scope.0.make_action_type(&action_key);
+
+                    let action_params = action_params.as_ref().map(|action_params| {
+                        let mut action_params = action_params.clone();
+                        for mut param in &mut action_params {
+                            param.1 = param.1.as_ref().map(|expr| {
+                                if let &ExprValue::SymbolReference(ref sym) = expr {
+                                    if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+                                        if let Some(sym) = block.scope.1.element_value_bindings.get(key) {
+                                            return ExprValue::SymbolReference(sym.to_owned());
+                                        };
+                                    };
+                                };
+                                
+                                map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode)
+                            });
+                        }
+                        action_params
+                    });
+
+                    ActionOpNode::DispatchAction(action_ty, action_params)
+                },
+                _ => action_op.to_owned()
+            }
+        }).collect()
     }
 }

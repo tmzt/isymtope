@@ -1,9 +1,15 @@
 
 #[derive(Debug)]
 pub enum Error {
-    Unexpected { pos: usize },
-    UnterminatedString { start: usize },
-    InvalidNumber { start: usize },
+    Unexpected {
+        pos: usize,
+    },
+    UnterminatedString {
+        start: usize,
+    },
+    InvalidNumber {
+        start: usize,
+    },
 }
 
 #[allow(dead_code)]

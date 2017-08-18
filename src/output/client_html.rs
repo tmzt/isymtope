@@ -29,7 +29,7 @@ impl<'input> WriteHtmlOpsContent<'input> {
             doc: doc,
             stream_writer: ElementOpsHtmlStreamWriter::new(),
             events_vec: None,
-            component_instances: None
+            component_instances: None,
         }
     }
 
@@ -44,7 +44,8 @@ impl<'input> WriteHtmlOpsContent<'input> {
         let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope);
         ops_writer.write_ops_content(w, ops, &self.doc, true)?;
         let events_vec: EventsVec = ops_writer.events_iter().map(|s| s.clone()).collect();
-        let comp_instances: Vec<(String, String)> = ops_writer.component_instances_iter().map(|s| s.clone()).collect();
+        let comp_instances: Vec<(String, String)> =
+            ops_writer.component_instances_iter().map(|s| s.clone()).collect();
         self.events_vec = Some(events_vec);
         self.component_instances = Some(comp_instances);
 

@@ -15,7 +15,7 @@ pub struct ProcessDocument<'input> {
     ast: &'input Template,
     root_block: BlockProcessingState,
     processing: DocumentProcessingState,
-    scope: ElementOpScope
+    scope: ElementOpScope,
 }
 
 impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
@@ -28,7 +28,7 @@ impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
             reducer_key_data: self.processing.reducer_key_data,
             default_state_map: self.processing.default_state_map,
             default_state_symbol: self.processing.default_state_symbol,
-            default_reducer_key: self.processing.default_reducer_key
+            default_reducer_key: self.processing.default_reducer_key,
         }
     }
 }
@@ -43,7 +43,7 @@ impl<'input> ProcessDocument<'input> {
             ast: ast,
             root_block: root_block,
             processing: processing,
-            scope: scope
+            scope: scope,
         }
     }
 
@@ -63,25 +63,30 @@ impl<'input> ProcessDocument<'input> {
                     let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
 
                     if !has_default_sym {
-                        let mut sym = Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr.as_ref());
-                        // TODO: Type
-                        // sym.1 = var_ty.as_ref().map(Clone::clone);
+                        let sym =
+                            Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr.as_ref());
+                        // TODO: Include type
                         self.processing.default_state_symbol = Some(sym);
-                        // self.processing.default_state_symbol = Some(sym, var_ty.as_ref().map(Clone::clone));
-                        // self.processing.default_state_symbol = Some(sym, var_ty.as_ref().map(Clone::clone)));
                     }
 
                     if !has_default_reducer_key {
                         self.processing.default_reducer_key = Some(var_name.to_owned());
                     }
 
-                    let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name), var_ty.as_ref().map(Clone::clone)));
+                    let reducer_entry = self.processing
+                        .reducer_key_data
+                        .entry(var_name.to_owned())
+                        .or_insert_with(|| {
+                            ReducerKeyData::from_name(&format!("{}", var_name),
+                                                      var_ty.as_ref().map(Clone::clone))
+                        });
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
 
-                        self.processing.default_state_map.entry(var_name.to_owned())
+                        self.processing
+                            .default_state_map
+                            .entry(var_name.to_owned())
                             .or_insert_with(|| {
                                 let var_ty = Self::peek_var_ty(expr);
                                 (var_ty, Some(expr.clone()))
@@ -90,8 +95,6 @@ impl<'input> ProcessDocument<'input> {
                 }
                 &ScopeNodeType::ActionNode(ref action_name, ref simple_expr, ref params) => {
                     let mut scope = ElementOpScope::default();
-                    // let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
-                    //     .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
 
                     let action_path = format!("{}{}",
                                               reducer_key_prefix.and_then(|prefix| {
@@ -107,33 +110,9 @@ impl<'input> ProcessDocument<'input> {
                     if let &Some(ref simple_expr) = simple_expr {
                         let ActionStateExprType::SimpleReducerKeyExpr(ref expr) = *simple_expr;
 
-                        // let mut processing_scope: ProcessingScope = ProcessingScope::default();
-
-                        // let action_ty = self.default_state_symbol.as_ref()
-                        //     .map(|sym| sym.ty().clone())
-                        //     .or_else(|| Self::peek_var_ty(expr));
-
-                        // // let ty = Self::peek_var_ty(expr);
-                        // action.state_ty = action_ty.clone();
-                        // // action.state_ty = Self::peek_var_ty(expr);
-
                         if let Some(ref sym) = self.processing.default_state_symbol {
-                            // processing_scope.2 = Some(sym.to_owned());
                             action.state_ty = sym.ty().map(|s| s.clone());
                         };
-
-                        // Create a new expression and processing scope for the expression
-                        // // let mut expr_scope: ExprScopeProcessingState = Default::default();
-                        // let processing_scope: ProcessingScope =
-                        //     match self.processing.default_state_symbol {
-                        //         Some(ref sym) => {
-                        //             let sym = Symbol::action_state(sym.ty().or_else(|| ty.as_ref()));
-                        //             (None, None, Some(sym.clone()))
-                        //         }
-                        //         _ => (None, None, None)
-                        //     };
-         
-                        // process_expr(expr, &mut action_block, &self.processing, &processing_scope)?;
 
                         if let &Some(ref params) = params {
                             for param in params {
@@ -142,38 +121,47 @@ impl<'input> ProcessDocument<'input> {
                         };
 
                         let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        let action_expr = map_expr_using_scope(expr, &self.processing, &mut scope, &resolution_mode);
+                        let action_expr = map_expr_using_scope(expr,
+                                                               &self.processing,
+                                                               &mut scope,
+                                                               &resolution_mode);
 
-                        let typed_expr = map_expr(&action_expr, &|node| match node {
-                            &ExprValue::DefaultVariableReference => {
-                                let sym = Symbol::action_state(action.state_ty.as_ref());
-                                ExprValue::SymbolReference(sym)
-                            },
-                            &ExprValue::SymbolReference(ref sym) => {
-                                match sym.sym_ref() {
-                                    &SymbolReferenceType::ResolvedReference(..) => node.clone(),
-                                    &SymbolReferenceType::UnresolvedReference(ref key) => {
+                        let typed_expr = map_expr(&action_expr,
+                                                  &|node| match node {
+                                                      &ExprValue::DefaultVariableReference => {
+                                                          let sym =
+                                                              Symbol::action_state(action.state_ty
+                                                                  .as_ref());
+                                                          ExprValue::SymbolReference(sym)
+                                                      }
+                                                      &ExprValue::SymbolReference(ref sym) => {
+                                                          match sym.sym_ref() {
+                                                              &SymbolReferenceType::ResolvedReference(..) => node.clone(),
+                                                              &SymbolReferenceType::UnresolvedReference(ref key) => {
                                         let action_param = Symbol::action_param(key);
                                         ExprValue::SymbolReference(action_param)
                                     }
-                                }
-                            },
-                            _ => node.clone()
-                        });
+                                                          }
+                                                      }
+                                                      _ => node.clone(),
+                                                  });
 
-                        action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(typed_expr));
+                        action.state_expr =
+                            Some(ActionStateExprType::SimpleReducerKeyExpr(typed_expr));
                     };
-                    let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key), None));
+                    let reducer_entry = self.processing
+                        .reducer_key_data
+                        .entry(reducer_key.to_owned())
+                        .or_insert_with(|| {
+                            ReducerKeyData::from_name(&format!("{}", reducer_key), None)
+                        });
 
                     if let Some(ref mut actions) = reducer_entry.actions {
                         actions.push(action);
                     };
                 }
                 &ScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                    self.collect_js_store_child_scope(scope_name,
-                                                      scope_nodes,
-                                                      reducer_key_prefix)?;
+                    self.collect_js_store_child_scope(scope_name, scope_nodes, reducer_key_prefix)?;
                 }
                 _ => {}
             }
@@ -191,8 +179,12 @@ impl<'input> ProcessDocument<'input> {
                 &ApiNodeType::ResourceNode(ref resource_data) => {
                     let reducer_name: &'input str = &resource_data.resource_name;
 
-                    self.processing.reducer_key_data.entry(scope_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", scope_name), None));
+                    self.processing
+                        .reducer_key_data
+                        .entry(scope_name.to_owned())
+                        .or_insert_with(|| {
+                            ReducerKeyData::from_name(&format!("{}", scope_name), None)
+                        });
                 }
                 _ => {}
             }
@@ -251,13 +243,20 @@ impl<'input> ProcessDocument<'input> {
                         self.processing.default_reducer_key = Some(var_name.to_owned());
                     }
 
-                    let reducer_entry = self.processing.reducer_key_data.entry(var_name.to_owned())
-                        .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", var_name), var_ty.as_ref().map(Clone::clone)));
+                    let reducer_entry = self.processing
+                        .reducer_key_data
+                        .entry(var_name.to_owned())
+                        .or_insert_with(|| {
+                            ReducerKeyData::from_name(&format!("{}", var_name),
+                                                      var_ty.as_ref().map(Clone::clone))
+                        });
 
                     if let &Some(ref expr) = expr {
                         reducer_entry.default_expr = Some(expr.clone());
 
-                        self.processing.default_state_map.entry(var_name.to_owned())
+                        self.processing
+                            .default_state_map
+                            .entry(var_name.to_owned())
                             .or_insert_with(|| {
                                 let var_ty = Self::peek_var_ty(expr);
                                 (var_ty, Some(expr.clone()))
@@ -298,13 +297,18 @@ impl<'input> ProcessDocument<'input> {
                 match *child {
                     &NodeType::ContentNode(ref content) => {
                         let mut scope = block.scope.clone();
-                        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+                        if let Some(ref default_reducer_key) = self.processing
+                            .default_reducer_key {
                             scope.0.append_action_scope(default_reducer_key);
                         };
 
                         let mut content_processor = ProcessContent::new(scope);
                         let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        content_processor.process_content_node(content, &self.processing, &mut block, None, &mode)?;
+                        content_processor.process_content_node(content,
+                                                  &self.processing,
+                                                  &mut block,
+                                                  None,
+                                                  &mode)?;
                     }
                     _ => {}
                 }
@@ -318,7 +322,7 @@ impl<'input> ProcessDocument<'input> {
             child_map: Default::default(),
             symbol_map: block.scope.1.symbol_map.clone(),
             props: block.scope.1.props.clone(),
-            events: Some(block.events_vec.clone())
+            events: Some(block.events_vec.clone()),
         };
 
         self.processing.comp_map.insert(name.to_owned(), comp);
@@ -344,7 +348,8 @@ impl<'input> ProcessDocument<'input> {
                         self.collect_js_store_default_scope(scope_nodes, &mode)?;
 
                         // Update scope with default reducer key
-                        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+                        if let Some(ref default_reducer_key) = self.processing
+                            .default_reducer_key {
                             base_scope.0.append_action_scope(default_reducer_key);
                         };
 
@@ -387,13 +392,18 @@ impl<'input> ProcessDocument<'input> {
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut ElementOpScope, prop_key: &str) -> Option<Symbol> {
+pub fn resolve_prop(processing: &DocumentProcessingState,
+                    scope: &mut ElementOpScope,
+                    prop_key: &str)
+                    -> Option<Symbol> {
     // FIXME: This is causing us to resolve a reducer key instead.
     // let cached = expr_scope.symbol_map.get(prop_key).map(|s| s.clone());
     // if cached.is_some() { return cached; }
 
     // Collect unresolved bare symbols as props on the scope
-    let prop = scope.1.props.entry(prop_key.to_owned())
+    let prop = scope.1
+        .props
+        .entry(prop_key.to_owned())
         .or_insert_with(|| Symbol::prop(prop_key));
 
     // Replace the existing symbol in this map
@@ -436,6 +446,6 @@ pub fn resolve_prop(processing: &DocumentProcessingState, scope: &mut ElementOpS
 //             if sym.is_some() { return sym; }
 //         }
 //     };
-    
+
 //     None
 // }

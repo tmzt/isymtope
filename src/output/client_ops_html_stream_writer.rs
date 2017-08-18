@@ -9,7 +9,6 @@ use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
 
-// use output::client_js::*;
 use output::client_misc::*;
 use output::client_output::*;
 use output::client_js_value_writer::*;
@@ -24,18 +23,23 @@ pub struct ElementOpsHtmlStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
-
-    pub fn new() -> Self { Default::default() }
+    pub fn new() -> Self {
+        Default::default()
+    }
 
     #[inline]
     #[allow(unused_variables)]
-    fn write_html_js_action(&mut self, w: &mut io::Write, act_iter: Iter<ActionOpNode>, scope: &ElementOpScope) -> Result {
+    fn write_html_js_action(&mut self,
+                            w: &mut io::Write,
+                            act_iter: Iter<ActionOpNode>,
+                            scope: &ElementOpScope)
+                            -> Result {
         write!(w, "function(event) {{")?;
         for ref act_op in act_iter {
             match *act_op {
                 &ActionOpNode::DispatchAction(ref action, ref params) => {
                     let action_ty = scope.0.make_action_type(action);
-                    //let action_type = resolve.action_type(Some(action));
+                    // let action_type = resolve.action_type(Some(action));
                     write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                 }
             }
@@ -45,7 +49,13 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
     }
 
     #[inline]
-    fn write_element_attribute_expr_value(&mut self, w: &mut io::Write, key: &str, expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> Result {
+    fn write_element_attribute_expr_value(&mut self,
+                                          w: &mut io::Write,
+                                          key: &str,
+                                          expr: &ExprValue,
+                                          doc: &DocumentState,
+                                          scope: &ElementOpScope)
+                                          -> Result {
         match expr {
             &ExprValue::Expr(ExprOp::Add, ref l, ref r) => {}
 
@@ -78,7 +88,18 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 }
 
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWriter {
-    fn write_op_element(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, complete_key: &str, element_tag: &str, is_void: bool, props: Option<Iter<Prop>>, events: Option<Iter<EventHandler>>, value_binding: ElementValueBinding) -> Result {
+    fn write_op_element(&mut self,
+                        w: &mut io::Write,
+                        op: &ElementOp,
+                        doc: &DocumentState,
+                        scope: &ElementOpScope,
+                        complete_key: &str,
+                        element_tag: &str,
+                        is_void: bool,
+                        props: Option<Iter<Prop>>,
+                        events: Option<Iter<EventHandler>>,
+                        value_binding: ElementValueBinding)
+                        -> Result {
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         if let Some(props) = props {
@@ -90,52 +111,37 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
             }
         }
 
-        // if let Some(ref prop_list) = prop_list {
-        //     for ref key in prop_list {
-        //         // Ignore empty attributes// 
-        //         if let Some(ref expr) = scope.2.get_prop(key) {
-        //             write!(w, " {}=", key)?;
-        //             self.write_element_attribute_expr_value(w, key, expr, doc, scope)?;
-        //         };
-        //     }
-        // }
-
         if is_void {
             write!(w, " />")?;
         } else {
             write!(w, ">")?;
         };
 
-        // Process events
-        // if let Some(events) = events {
-        //     for &(ref event_name, ref event_params, ref action_ops) in events {
-        //         let event_params = event_params.as_ref().map(|event_params| event_params.iter().cloned().collect());
-        //         let action_ops = action_ops.as_ref().map(|action_ops| action_ops.iter().cloned().collect());
-        //         let event_name = event_name.as_ref().map(Clone::clone);
-
-        //         // let cur_scope = resolve.cur_scope.as_ref().map(|s| format!("{}", s));
-        //         let default_action_scope = scope.0.default_action_scope();
-        //         self.events_vec.push((complete_key.clone(),
-        //                                 event_name,
-        //                                 event_params,
-        //                                 action_ops,
-        //                                 default_action_scope,
-        //                                 None));
-        //     }
-        // };
-
         self.keys_vec.push(complete_key.to_owned());
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, element_tag: &str) -> Result {
+    fn write_op_element_close(&mut self,
+                              w: &mut io::Write,
+                              op: &ElementOp,
+                              doc: &DocumentState,
+                              scope: &ElementOpScope,
+                              element_tag: &str)
+                              -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_value(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, expr: &ExprValue, complete_value_key: &str) -> Result {
+    fn write_op_element_value(&mut self,
+                              w: &mut io::Write,
+                              op: &ElementOp,
+                              doc: &DocumentState,
+                              scope: &ElementOpScope,
+                              expr: &ExprValue,
+                              complete_value_key: &str)
+                              -> Result {
         let complete_value_key = format!("{}.v", complete_value_key);
 
         let is_literal = expr.is_literal();
@@ -153,25 +159,53 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_start_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, block_id: &str) -> Result {
+    fn write_op_element_start_block(&mut self,
+                                    w: &mut io::Write,
+                                    op: &ElementOp,
+                                    doc: &DocumentState,
+                                    scope: &ElementOpScope,
+                                    block_id: &str)
+                                    -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_end_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self,
+                                  w: &mut io::Write,
+                                  op: &ElementOp,
+                                  doc: &DocumentState,
+                                  scope: &ElementOpScope,
+                                  block_id: &str)
+                                  -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_map_collection_to_block(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, coll_expr: &ExprValue, block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self,
+                                                w: &mut io::Write,
+                                                op: &ElementOp,
+                                                doc: &DocumentState,
+                                                scope: &ElementOpScope,
+                                                coll_expr: &ExprValue,
+                                                block_id: &str)
+                                                -> Result {
         // TODO: What should this be in HTML output?
         Ok(())
     }
 
     #[inline]
-    fn write_op_element_instance_component_open(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, lens: Option<&LensExprType>, element_tag: Option<&str>) -> Result {
+    fn write_op_element_instance_component_open(&mut self,
+                                                w: &mut io::Write,
+                                                op: &ElementOp,
+                                                doc: &DocumentState,
+                                                scope: &ElementOpScope,
+                                                comp: &Component,
+                                                props: Option<Iter<Prop>>,
+                                                lens: Option<&LensExprType>,
+                                                element_tag: Option<&str>)
+                                                -> Result {
         let complete_key = scope.0.complete_element_key();
         let element_tag = element_tag.unwrap_or("div");
 
@@ -181,7 +215,14 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
-    fn write_op_element_instance_component_close(&mut self, w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, element_tag: Option<&str>) -> Result {
+    fn write_op_element_instance_component_close(&mut self,
+                                                 w: &mut io::Write,
+                                                 op: &ElementOp,
+                                                 doc: &DocumentState,
+                                                 scope: &ElementOpScope,
+                                                 comp: &Component,
+                                                 element_tag: Option<&str>)
+                                                 -> Result {
         let element_tag = element_tag.unwrap_or("div");
         write!(w, "</{}>", element_tag)?;
         Ok(())

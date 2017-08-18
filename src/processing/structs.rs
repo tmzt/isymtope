@@ -51,11 +51,23 @@ impl ReducerActionData {
 
 #[derive(Debug, Clone)]
 pub enum ElementOp {
-    ElementOpen(String, Option<String>, Option<Vec<Prop>>, Option<EventHandlersVec>, ElementValueBinding),
-    ElementVoid(String, Option<String>, Option<Vec<Prop>>, Option<EventHandlersVec>, ElementValueBinding),
+    ElementOpen(String,
+                Option<String>,
+                Option<Vec<Prop>>,
+                Option<EventHandlersVec>,
+                ElementValueBinding),
+    ElementVoid(String,
+                Option<String>,
+                Option<Vec<Prop>>,
+                Option<EventHandlersVec>,
+                ElementValueBinding),
     ElementClose(String),
     WriteValue(ExprValue, Option<String>),
-    InstanceComponent(String, Option<String>, Option<String>, Option<Vec<PropKey>>, Option<LensExprType>),
+    InstanceComponent(String,
+                      Option<String>,
+                      Option<String>,
+                      Option<Vec<PropKey>>,
+                      Option<LensExprType>),
     StartBlock(String),
     EndBlock(String),
     MapCollection(String, Option<String>, ExprValue),
@@ -99,7 +111,7 @@ pub struct Component {
     pub child_map: Option<ComponentMap>,
     pub symbol_map: SymbolMap,
     pub props: SymbolMap,
-    pub events: Option<EventsVec>
+    pub events: Option<EventsVec>,
 }
 
 // Processing
@@ -152,14 +164,14 @@ impl Default for BlockProcessingState {
             block_id: block_id,
             scope: Default::default(),
             ops_vec: Default::default(),
-            events_vec: Default::default()
+            events_vec: Default::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct ExprScopeProcessingState {
-    pub symbol_map: SymbolMap
+    pub symbol_map: SymbolMap,
 }
 
 // impl ExprScopeProcessingState {
@@ -178,7 +190,7 @@ pub struct DocumentProcessingState {
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
     pub default_state_symbol: Option<Symbol>,
-    pub default_reducer_key: Option<String>
+    pub default_reducer_key: Option<String>,
 }
 
 #[derive(Debug)]
@@ -190,7 +202,7 @@ pub struct DocumentState<'inp> {
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,
-    pub default_reducer_key: Option<String>
+    pub default_reducer_key: Option<String>,
 }
 
 impl<'inp> DocumentState<'inp> {

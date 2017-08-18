@@ -38,28 +38,26 @@ pub fn main() {
 
     let ty = vm.get_slot_type(0);
     println!("Type {:?}", ty);
-    
+
     let horn_result = vm.get_slot_bool(0);
     println!("Has horn? {:?}", horn_result);
 
-    //let greets = vm.get_slot_handle(0).unwrap();
-    //println!("Greets {:?}", greets);
+    // let greets = vm.get_slot_handle(0).unwrap();
+    // println!("Greets {:?}", greets);
 
-    /*
-    let vm = VM::new(Configuration::new());
-    match vm.interpret("Test", source) {
-        Err(Error::CompileError(msg)) => println("Compile Error: {}", msg),
-        Err(Error::RuntimeError(msg)) => println("Compile Error: {}", msg),
-        Err(Error::UnknownError(msg)) => println("Compile Error: {}", msg),
-        _ => println!("Successfully ran")
-    }
-    */
+    // let vm = VM::new(Configuration::new());
+    // match vm.interpret("Test", source) {
+    // Err(Error::CompileError(msg)) => println("Compile Error: {}", msg),
+    // Err(Error::RuntimeError(msg)) => println("Compile Error: {}", msg),
+    // Err(Error::UnknownError(msg)) => println("Compile Error: {}", msg),
+    // _ => println!("Successfully ran")
+    // }
+    //
 
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn it_works() {
-    }
+    fn it_works() {}
 }

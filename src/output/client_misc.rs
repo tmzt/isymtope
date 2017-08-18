@@ -7,12 +7,15 @@ use processing::structs::*;
 use processing::scope::*;
 
 
-pub fn reduce_expr_to_string(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> String {
+pub fn reduce_expr_to_string(expr: &ExprValue,
+                             doc: &DocumentState,
+                             scope: &ElementOpScope)
+                             -> String {
     match expr {
         &ExprValue::LiteralString(ref s) => format!("{}", s),
         &ExprValue::LiteralNumber(ref n) => format!("{}", n),
         &ExprValue::LiteralArray(..) => format!("[array]"),
-        _ => format!("[invalid]")
+        _ => format!("[invalid]"),
     }
 }
 
@@ -56,7 +59,10 @@ pub fn eval_sym(sym: &Symbol, doc: &DocumentState, scope: &ElementOpScope) -> Op
     None
 }
 
-pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope) -> Option<ExprValue> {
+pub fn reduce_expr(expr: &ExprValue,
+                   doc: &DocumentState,
+                   scope: &ElementOpScope)
+                   -> Option<ExprValue> {
     match expr {
         &ExprValue::LiteralString(..) => Some(expr.clone()),
         &ExprValue::LiteralNumber(..) => Some(expr.clone()),
@@ -109,13 +115,16 @@ pub fn reduce_expr(expr: &ExprValue, doc: &DocumentState, scope: &ElementOpScope
             Some(ExprValue::LiteralString(format!("[cannot resolve: {:?}]", sym_path)))
         }
 
-        _ => Some(expr.clone())
+        _ => Some(expr.clone()),
     }
 }
 
 #[inline]
 #[allow(dead_code)]
-pub fn resolve_document_symbol(sym: &Symbol, doc: &DocumentState, scope: &mut ElementOpScope) -> Option<Symbol> {
+pub fn resolve_document_symbol(sym: &Symbol,
+                               doc: &DocumentState,
+                               scope: &mut ElementOpScope)
+                               -> Option<Symbol> {
     if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
         if let Some(_) = scope.1.params.get(key) {
             return Some(Symbol::param(key));
@@ -130,7 +139,7 @@ pub fn resolve_document_symbol(sym: &Symbol, doc: &DocumentState, scope: &mut El
                 scope.1.add_cached_reducer_key_with_value(key, default_expr);
                 return Some(Symbol::reducer_key_with_value(key, default_expr));
             };
-            
+
             return Some(Symbol::reducer_key(key));
         };
 
@@ -188,38 +197,49 @@ pub fn write_computed_expr_value(w: &mut io::Write,
 #[inline]
 #[allow(dead_code)]
 pub fn map_prop_list_references(prop_list: Iter<String>, scope: &ElementOpScope) -> PropVec {
-    prop_list.map(|key| 
-        (key.to_owned(), scope.1.props.get(key.as_str()).map(|sym| ExprValue::SymbolReference(sym.clone())))
-    ).collect()
+    prop_list.map(|key| {
+            (key.to_owned(),
+             scope.1.props.get(key.as_str()).map(|sym| ExprValue::SymbolReference(sym.clone())))
+        })
+        .collect()
 }
 
 #[inline]
 #[allow(dead_code)]
 pub fn map_prop_list_using_scope(prop_list: Iter<String>, scope: &ElementOpScope) -> PropVec {
-    prop_list.map(|key| 
-        (key.to_owned(), scope.2.get_prop(&key).map(|expr| expr.clone()))
-    ).collect()
+    prop_list.map(|key| (key.to_owned(), scope.2.get_prop(&key).map(|expr| expr.clone())))
+        .collect()
 }
 
 #[inline]
 #[allow(dead_code)]
 pub fn map_prop_references(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec {
     props.map(|prop| {
-        let expr = prop.1.as_ref().map(|e| e.clone())
-            .or_else(|| scope.1.props.get(prop.0.as_str()).map(|sym| ExprValue::SymbolReference(sym.clone())));
-        
-        (prop.0.to_owned(), expr)
-    }).collect()
+            let expr = prop.1
+                .as_ref()
+                .map(|e| e.clone())
+                .or_else(|| {
+                    scope.1
+                        .props
+                        .get(prop.0.as_str())
+                        .map(|sym| ExprValue::SymbolReference(sym.clone()))
+                });
+
+            (prop.0.to_owned(), expr)
+        })
+        .collect()
 }
 
 #[inline]
 #[allow(dead_code)]
 pub fn map_props_using_scope(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec {
     props.map(|prop| {
-        let expr = (prop.1.as_ref()
-            .or_else(|| scope.2.get_prop(&prop.0))
-            .or_else(|| scope.2.get_reducer_default(&prop.0))
-        ).map(|expr| expr.to_owned());
-        (prop.0.to_owned(), expr)
-    }).collect()
+            let expr = (prop.1
+                    .as_ref()
+                    .or_else(|| scope.2.get_prop(&prop.0))
+                    .or_else(|| scope.2.get_reducer_default(&prop.0)))
+                .map(|expr| expr.to_owned());
+            (prop.0.to_owned(), expr)
+        })
+        .collect()
 }

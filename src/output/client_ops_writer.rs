@@ -6,7 +6,6 @@ use std::slice::Iter;
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
-use parser::util::*;
 use processing::structs::*;
 use processing::scope::*;
 use output::client_ops_stream_writer::*;
@@ -31,8 +30,6 @@ pub struct ElementOpsWriter<'input: 'scope, 'scope> {
     component_instances: Vec<(String, String)>,
     pub cur_block_id: Option<String>,
 }
-
-// pub type LensDescr = Option<Option<String>, Option<ExprValue>, Option<Symbol>>;
 
 impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     fn scope(&mut self) -> ElementOpScope {
@@ -256,7 +253,8 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let expr = ExprValue::SymbolReference(Symbol::reducer_key(reducer_key));
                     let props = vec![( reducer_key.to_owned(), Some(expr) )];
 
-                    self.write_single_component_instance(w, op, doc, comp, component_key, Some(props.iter()), None, parent_tag, output_component_contents)?;
+                    self.write_single_component_instance(w, op, doc, comp, component_key,
+                        Some(props.iter()), None, parent_tag, output_component_contents)?;
                 };
             }
 
@@ -331,26 +329,13 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             // Pop scope
             self.pop_scope();
         } else {
-            // let scope_key = {
-            //     let mut scope = scope.clone();
-            //     scope.0.append_key(component_key);
-            //     scope.0.complete_element_key()
-            // };
-
             let mut scope = scope.clone();
-            // let props = props.as_ref().map(|p| map_prop_references(p.iter(), &scope));
 
             scope.0.clear_key();
-            // scope.0.append_key(component_key);
             if let Some(ref li) = loop_iteration {
                 let sym_expr = ExprValue::SymbolReference(li.0.clone());
                 scope.0.set_prefix_expr(&sym_expr);
             };
-
-            // let key_expr = ExprValue::LiteralString(format!("{}", component_key));
-            // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
-
-            // self.scopes.insert(scope_key.to_owned(), scope.clone());
 
             // OpenS
             self.stream_writer

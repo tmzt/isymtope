@@ -16,14 +16,14 @@ pub struct DocumentProcessingScope {
     pub params: SymbolMap,
     pub element_value_bindings: SymbolMap,
     pub action_params: SymbolMap,
-    pub lens_params: SymbolMap
+    pub lens_params: SymbolMap,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct ScopeValues {
     prop_values: ValueMap,
     lens_values: ValueMap,
-    reducer_cache: ValueMap
+    reducer_cache: ValueMap,
 }
 
 impl ScopeValues {
@@ -32,21 +32,27 @@ impl ScopeValues {
         self
     }
 
-    pub fn get_prop(&self, key: &str) -> Option<&ExprValue> { self.prop_values.get(key) }
+    pub fn get_prop(&self, key: &str) -> Option<&ExprValue> {
+        self.prop_values.get(key)
+    }
 
     pub fn add_lens_param(&mut self, key: &str, value: &ExprValue) -> &mut Self {
         self.lens_values.insert(key.to_owned(), value.clone());
         self
     }
 
-    pub fn get_lens_param(&self, key: &str) -> Option<&ExprValue> { self.lens_values.get(key) }
+    pub fn get_lens_param(&self, key: &str) -> Option<&ExprValue> {
+        self.lens_values.get(key)
+    }
 
     pub fn add_cached_reducer(&mut self, reducer_key: &str, value: &ExprValue) -> &mut Self {
         self.reducer_cache.insert(reducer_key.to_owned(), value.clone());
         self
     }
 
-    pub fn get_reducer_default(&self, key: &str) -> Option<&ExprValue> { self.reducer_cache.get(key) }
+    pub fn get_reducer_default(&self, key: &str) -> Option<&ExprValue> {
+        self.reducer_cache.get(key)
+    }
 }
 
 impl DocumentProcessingScope {
@@ -140,7 +146,13 @@ pub type ElementIndex = Option<i32>;
 pub type BaseElementKeyPrefix = Option<String>;
 
 #[derive(Debug, Clone, Default)]
-pub struct ScopePrefixes(KeyPrefix, ActionPrefix, VarPrefix, VarDefault, ExprPrefix, ElementIndex, BaseElementKeyPrefix);
+pub struct ScopePrefixes(KeyPrefix,
+                         ActionPrefix,
+                         VarPrefix,
+                         VarDefault,
+                         ExprPrefix,
+                         ElementIndex,
+                         BaseElementKeyPrefix);
 
 impl ScopePrefixes {
     pub fn set_index(&mut self, idx: i32) -> &mut Self {

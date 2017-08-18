@@ -23,36 +23,14 @@ pub struct WriteJsOps<'input> {
 }
 
 impl<'input> WriteJsOps<'input> {
-
     pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
         WriteJsOps {
             doc: doc,
-            stream_writer: ElementOpsJsStreamWriter::new()
+            stream_writer: ElementOpsJsStreamWriter::new(),
         }
     }
 
-    // fn scope_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
-    //     match scope_prefix {
-    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-    //             format!("{}.{}", prefix, key)
-    //         },
-    //         _ => format!("{}", key)
-    //     }
-    // }
-
-    // fn scope_action_prefix(&self, scope_prefixes: &ScopePrefixes, key: &str) -> String {
-    //     match scope_prefix {
-    //         Some(&ScopePrefixType::ScopePrefix(ref prefix)) => {
-    //             format!("{}.{}", prefix.to_uppercase(), key.to_uppercase())
-    //         },
-    //         _ => format!("{}", key.to_uppercase())
-    //     }
-    // }
-
-    pub fn write_js_store(&mut self,
-                          w: &mut io::Write,
-                          scope: &ElementOpScope)
-                          -> Result {
+    pub fn write_js_store(&mut self, w: &mut io::Write, scope: &ElementOpScope) -> Result {
         // TODO: Implement default scope?
 
         // Generate script
@@ -67,9 +45,6 @@ impl<'input> WriteJsOps<'input> {
 
                     match &action_data.state_expr {
                         &Some(ActionStateExprType::SimpleReducerKeyExpr(ref simple_expr)) => {
-
-                            //  TODO: Support other than default variable
-                            // let action_scope = add_var_prefix(scope_prefixes, &reducer_scope_key);
                             let mut scope = scope.clone();
                             scope.0.set_default_var("state");
 
@@ -79,16 +54,13 @@ impl<'input> WriteJsOps<'input> {
                                      action_ty)
                                 ?;
                             write!(w, "  return ")?;
-                            // write!(w, "Object.assign({{ \"{}\": ", reducer_key)?;
-                            // let scope_prefix = ScopePrefixType::ScopePrefix(format!("{}.", action_ty));
                             write_js_expr_value(w, simple_expr, &self.doc, &scope)?;
                             writeln!(w, ";")?;
-                            // writeln!(w, "}})")?;
                             writeln!(w, "}}")?;
                         }
                         _ => {}
                     }
-             
+
                 }
             }
 
@@ -120,12 +92,13 @@ impl<'input> WriteJsOps<'input> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_js_incdom_ops_content(&mut self,
-                                            w: &mut io::Write,
-                                            ops: Iter<'input, ElementOp>,
-                                            processing: &DocumentState,
-                                            scope: &ElementOpScope)
-                                            -> Result {
-        let mut ops_writer = ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope.to_owned());
+                                       w: &mut io::Write,
+                                       ops: Iter<'input, ElementOp>,
+                                       processing: &DocumentState,
+                                       scope: &ElementOpScope)
+                                       -> Result {
+        let mut ops_writer =
+            ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope.to_owned());
         ops_writer.write_ops_content(w, ops, &self.doc, false)?;
 
         Ok(())
@@ -133,13 +106,13 @@ impl<'input> WriteJsOps<'input> {
 
     #[inline]
     pub fn write_js_incdom_component(&mut self,
-                                            w: &mut io::Write,
-                                            component_ty: &'input str,
-                                            comp: &Component,
-                                            ops: Iter<'input, ElementOp>,
-                                            processing: &DocumentState,
-                                            scope: &ElementOpScope)
-                                            -> Result {
+                                     w: &mut io::Write,
+                                     component_ty: &'input str,
+                                     comp: &Component,
+                                     ops: Iter<'input, ElementOp>,
+                                     processing: &DocumentState,
+                                     scope: &ElementOpScope)
+                                     -> Result {
         let mut scope = scope.clone();
         // let key_var = ExprValue::SymbolReference(Symbol::param("key_prefix"));
         // if let Some(ref prefix_expr) = scope.0.make_prefix_expr(&key_var, None) {
@@ -150,14 +123,14 @@ impl<'input> WriteJsOps<'input> {
         // TODO: Convert values to props
         for (key, sym) in comp.symbol_map.iter() {
             scope.1.symbol_map.insert(key.to_owned(), sym.to_owned());
-        };
+        }
 
         // let scope_id = scope.0.complete_element_key();
         // self.scopes.insert(complete_key, scope.clone());
 
         writeln!(w,
-                "  function component_{}(key_prefix, store, props) {{",
-                component_ty)
+                 "  function component_{}(key_prefix, store, props) {{",
+                 component_ty)
             ?;
         // writeln!(w, "IncrementalDOM.elementOpen(\"div\", key_prefix);")?;
         self.write_js_incdom_ops_content(w, ops, processing, &scope)?;

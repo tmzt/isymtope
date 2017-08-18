@@ -75,18 +75,17 @@ mod tests {
 
         let lexer = super::parse(input);
 
-        /*
-        let mut tokens: Vec<Token> = Vec::new();
-        loop {
-            if let Some(Ok((start, tok, end))) = lexer.next() {
-                println!("Got token {:?} ({:?} .. {:?})", tok, start, end);
-                tokens.push(tok);
-            } else {
-                println!("Done");
-                break;
-            }
-        }
-        */
+        // let mut tokens: Vec<Token> = Vec::new();
+        // loop {
+        // if let Some(Ok((start, tok, end))) = lexer.next() {
+        // println!("Got token {:?} ({:?} .. {:?})", tok, start, end);
+        // tokens.push(tok);
+        // } else {
+        // println!("Done");
+        // break;
+        // }
+        // }
+        //
 
         let res = parser::parse_Template(lexer);
         println!("Result 1: {:?}", res);
@@ -103,17 +102,16 @@ mod tests {
 
         let lexer = super::parse(input);
 
-        /*
-        let mut tokens: Vec<Token> = Vec::new();
-        loop {
-            if let Some(Ok((start, tok, end))) = lexer.next() {
-                println!("Got token {:?} ({:?} .. {:?})", tok, start, end);
-                tokens.push(tok);
-            } else {
-                println!("Done");
-                break;
-            }
-        }*/
+        // let mut tokens: Vec<Token> = Vec::new();
+        // loop {
+        // if let Some(Ok((start, tok, end))) = lexer.next() {
+        // println!("Got token {:?} ({:?} .. {:?})", tok, start, end);
+        // tokens.push(tok);
+        // } else {
+        // println!("Done");
+        // break;
+        // }
+        // }
 
         let res = parser::parse_Template(lexer);
         println!("Result 2: {:?}", res);

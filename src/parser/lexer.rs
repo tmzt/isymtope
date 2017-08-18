@@ -121,7 +121,7 @@ impl<'input> Lexer<'input> {
             "component" => {
                 self.block_name_mode = true;
                 Token::ComponentKeyword
-            },
+            }
 
             "use" => Token::UseKeyword,
             "let" => Token::LetKeyword,
@@ -145,7 +145,7 @@ impl<'input> Lexer<'input> {
             "event" => Token::EventKeyword,
             "dispatch" => Token::DispatchKeyword,
 
-            identifier => Token::Identifier(identifier.into())
+            identifier => Token::Identifier(identifier.into()),
         };
 
         return Ok((start, token, end));
@@ -175,7 +175,7 @@ impl<'input> Lexer<'input> {
             return Ok((start, Token::LiteralNumber(num), end));
         }
 
-        Err(Error::InvalidNumber { start: start }.into())        
+        Err(Error::InvalidNumber { start: start }.into())
     }
 
     fn normal(&mut self) -> Option<Result<(usize, Token, usize)>> {
@@ -183,7 +183,7 @@ impl<'input> Lexer<'input> {
             if let Some((start, a, b)) = self.two() {
                 let token = match (a, b) {
                     ('=', '>') => Some(Token::HashRocket),
-                    _ => None
+                    _ => None,
                 };
 
                 if let Some(token) = token {
@@ -194,7 +194,7 @@ impl<'input> Lexer<'input> {
 
             if let Some((start, c)) = self.one() {
 
-                //println!("Char: {:?}", c);
+                // println!("Char: {:?}", c);
 
                 let token = match c {
                     '|' => Token::Pipe,
@@ -205,11 +205,11 @@ impl<'input> Lexer<'input> {
                     '(' => {
                         self.param_list_mode = true;
                         Token::OpenParen
-                    },
+                    }
                     ')' => {
                         self.param_list_mode = false;
                         Token::CloseParen
-                    },
+                    }
                     '"' => return Some(self.string(start)),
                     '.' => Token::Dot,
                     ',' => Token::Comma,
@@ -226,18 +226,18 @@ impl<'input> Lexer<'input> {
                     // TODO: Support negative numbers
                     '0'...'9' => {
                         return Some(self.numeric(start));
-                    },
+                    }
 
                     'A'...'Z' | 'a'...'z' => {
                         return Some(self.identifier(start));
-                    },
+                    }
 
                     ' ' | '\n' | '\r' | '\t' => {
                         self.step();
                         continue;
-                    },
+                    }
 
-                    _ => break
+                    _ => break,
                 };
 
                 let end = self.step_n(1);
@@ -245,7 +245,7 @@ impl<'input> Lexer<'input> {
             } else {
                 return None;
             }
-        };
+        }
 
         Some(Err(Error::Unexpected { pos: self.pos() }))
     }
@@ -286,6 +286,6 @@ pub fn lex<'input>(input: &'input str) -> Lexer<'input> {
         ref_mode: false,
         ref_buffer: String::new(),
         block_name_mode: false,
-        param_list_mode: false
+        param_list_mode: false,
     }
 }
