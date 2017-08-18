@@ -304,11 +304,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                     let parent_tag = parent_tag.as_ref().map(|s| s.as_str());
                     // let mut prop_list = prop_list.clone();
 
-                    let mut props = if output_component_contents {
-                        prop_list.as_ref().map(|p| map_prop_list_using_scope(p.iter(), &scope))
-                    } else {
-                        prop_list.as_ref().map(|p| map_prop_list_references(p.iter(), &scope))
-                    };
+                    // let mut props = if output_component_contents {
+                    //     prop_list.as_ref().map(|p| map_prop_list_using_scope(p.iter(), &scope))
+                    // } else {
+                    //     prop_list.as_ref().map(|p| map_prop_list_references(p.iter(), &scope))
+                    // };
 
                     let component_key = component_key.as_ref().map_or("null", |s| s);
 
@@ -322,20 +322,36 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                     }
 
+                    let mut props: Option<PropVec> = Default::default();
+
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
                         if let &Some(ref lens) = lens {
                             if let &LensExprType::ForLens(ref ele_key, ref coll_sym) = lens {
                                 if !output_component_contents {
+                                    write_single = false;
+
+                                    // let props = prop_list.as_ref().map(|p| map_prop_list_references(p.iter(), &scope));
+                                    // let props = props.as_ref().map(|p| map_invoke_component_props(p.iter(), &scope));
 
                                     // Map array onto component
                                     write_js_lens_mapping_open(w, op, doc, &scope, lens)?;
+
+                                    props = prop_list.as_ref().map(|prop_list|                                    
+                                        prop_list.iter().map(|key| {
+                                            let expr = ExprValue::SymbolReference(Symbol::prop(key));
+                                            (key.to_owned(), Some(expr))
+                                        }).collect());
+
                                     self.write_single_component_instance(w, op, doc, comp, &component_key, props.as_ref().map(|p| p.iter()), Some(lens), None, parent_tag, output_component_contents)?;
+
                                     write_js_lens_mapping_close(w)?;
 
                                     self.pop_scope();
 
                                 } else {
+                                    let mut props = prop_list.as_ref().map(|p| map_prop_list_using_scope(p.iter(), &scope));
+
                                     let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
                                     let coll_expr = reduce_expr(&coll_expr, doc, &scope);
 
@@ -355,6 +371,13 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                             };
                                         };
                                     };
+                                };
+                            };
+
+                            if let &LensExprType::GetLens(ref sym) = lens {
+                                if let &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref reducer_key)) = sym.sym_ref() {
+                                    let expr = ExprValue::SymbolReference(Symbol::reducer_key(reducer_key));
+                                    props = Some(vec![( reducer_key.to_owned(), Some(expr) )]);
                                 };
                             };
                         };

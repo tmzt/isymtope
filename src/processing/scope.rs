@@ -22,7 +22,8 @@ pub struct DocumentProcessingScope {
 #[derive(Debug, Clone, Default)]
 pub struct ScopeValues {
     prop_values: ValueMap,
-    lens_values: ValueMap
+    lens_values: ValueMap,
+    reducer_cache: ValueMap
 }
 
 impl ScopeValues {
@@ -39,6 +40,13 @@ impl ScopeValues {
     }
 
     pub fn get_lens_param(&self, key: &str) -> Option<&ExprValue> { self.lens_values.get(key) }
+
+    pub fn add_cached_reducer(&mut self, reducer_key: &str, value: &ExprValue) -> &mut Self {
+        self.reducer_cache.insert(reducer_key.to_owned(), value.clone());
+        self
+    }
+
+    pub fn get_reducer_default(&self, key: &str) -> Option<&ExprValue> { self.reducer_cache.get(key) }
 }
 
 impl DocumentProcessingScope {

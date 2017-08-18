@@ -23,7 +23,8 @@ pub fn resolve_reducer_key(processing: &DocumentProcessingState, scope: &mut Ele
     if let Some(reducer_data) = processing.reducer_key_data.get(reducer_key) {
         if let Some(ref default_expr) = reducer_data.default_expr {
             scope.1.add_cached_reducer_key_with_value(reducer_key, default_expr);
-            return Some(Symbol::reducer_key_with_value(reducer_key, default_expr));
+            scope.2.add_cached_reducer(reducer_key, default_expr);
+            // return Some(Symbol::reducer_key_with_value(reducer_key, default_expr));
         };
         
         return Some(Symbol::reducer_key(reducer_key));
@@ -141,6 +142,11 @@ pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
         }
         Some(&LensExprType::GetLens(ref sym)) => {
             if let Some(resolved) = resolve_sym(sym, processing, scope) {
+                let resolved = match resolved.sym_ref() {
+                    &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref key)) =>
+                        Symbol::prop(key),
+                    _ => resolved.clone()
+                };
                 return Some(LensExprType::GetLens(resolved));
             };
 

@@ -7,6 +7,7 @@ use processing::structs::*;
 use processing::scope::*;
 
 use output::client_ops_writer::*;
+use output::client_misc::*;
 
 
 #[inline]
@@ -221,7 +222,7 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
             write!(w, "\"{}\": ", key)?;
 
             // Write the property value or undefined for None
-write_js_expr_value            if let &Some(ref expr) = expr {
+            if let &Some(ref expr) = expr {
 
                 if let &ExprValue::DefaultAction(ref params, ref act_ops) = expr {
                     write!(w, "\"{}\", ", key)?;
@@ -294,6 +295,11 @@ pub fn write_js_lens_mapping_close(w: &mut io::Write) -> Result {
 }
 
 #[inline]
+pub fn map_invoke_component_props(props: Iter<&Prop>, scope: &ElementOpScope) -> Result {
+    Ok(())
+}
+
+#[inline]
 pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, comp: &Component, props: Option<Iter<Prop>>, component_key: &str) -> Result {
     let mut scope = scope.clone();
     scope.0.append_base_key(&format!("c_{}", component_key));
@@ -303,7 +309,7 @@ pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &Docume
     let component_ty = &comp.name;
     // let element_tag = element_tag.unwrap_or("div");
 
-    // let props = props.map(|p| map_props_using_scope(p, &scope));
+        // .map(|p| reduce_expr(p, doc, &scope).or(p));
 
     // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
     // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
@@ -319,11 +325,29 @@ pub fn write_js_invoke_component(w: &mut io::Write, op: &ElementOp, doc: &Docume
     };
     write!(w, ", store")?;
 
-    if props.is_some() {
+    if let Some(props) = props {
+        let props = map_props_using_scope(props, &scope);
+        let props: PropVec = props.iter()
+            .map(|p| {
+                if let Some(sym) = scope.1.props.get(&p.0) {
+                    // let expr = p.1.as_ref().and_then(|expr| reduce_expr(expr, doc,  &scope))
+                    //     .or_else(|| p.1.to_owned());
+                    let expr = ExprValue::SymbolReference(sym.to_owned());
+
+                    return (p.0.to_owned(), Some(expr));
+                };
+
+                // let expr = p.1.as_ref().and_then(|expr| reduce_expr(expr, doc,  &scope))
+                //     .or_else(|| p.1.to_owned());
+
+                p.to_owned()
+            }).collect();
+
         write!(w, ", ")?;
         // TODO: Fix lens support
-        write_js_props_object(w, props.clone(), doc, &scope)?;
-    }
+        write_js_props_object(w, Some(props.iter()), doc, &scope)?;
+    };
+
     writeln!(w, ");")?;
 
     Ok(())

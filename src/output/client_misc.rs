@@ -40,6 +40,10 @@ pub fn eval_sym(sym: &Symbol, doc: &DocumentState, scope: &ElementOpScope) -> Op
             }
 
             &ResolvedSymbolType::ReducerKeyReference(ref key) => {
+                if let Some(expr) = scope.2.get_reducer_default(key) {
+                    return Some(expr.clone());
+                };
+
                 if let Some(expr) = doc.resolve_symbol_value(sym) {
                     return Some(expr.clone());
                 };
@@ -212,7 +216,10 @@ pub fn map_prop_references(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec
 #[allow(dead_code)]
 pub fn map_props_using_scope(props: Iter<Prop>, scope: &ElementOpScope) -> PropVec {
     props.map(|prop| {
-        let expr = (prop.1.as_ref().or_else(|| scope.2.get_prop(&prop.0))).map(|expr| expr.to_owned());
+        let expr = (prop.1.as_ref()
+            .or_else(|| scope.2.get_prop(&prop.0))
+            .or_else(|| scope.2.get_reducer_default(&prop.0))
+        ).map(|expr| expr.to_owned());
         (prop.0.to_owned(), expr)
     }).collect()
 }
