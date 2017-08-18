@@ -79,7 +79,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                        doc: &'input DocumentState,
                        item_expr: &ExprValue,
                        ele: Option<&str>,
-                       element_ty: Option<&VarType>,
+                       _: Option<&VarType>,
                        block_id: &str,
                        output_component_contents: bool)
                        -> Result {
@@ -119,7 +119,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
     #[inline]
     fn invoke_component_with_props(&mut self,
                                    w: &mut io::Write,
-                                   op: &ElementOp,
+                                   _: &ElementOp,
                                    doc: &'input DocumentState,
                                    comp: &Component,
                                    props: Option<Iter<Prop>>,
@@ -187,7 +187,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                     scope: &ElementOpScope,
                                     comp: &Component,
                                     component_key: &str,
-                                    prop_list: Option<Iter<String>>,
+                                    _: Option<Iter<String>>,
                                     lens: Option<&LensExprType>,
                                     parent_tag: Option<&str>,
                                     output_component_contents: bool)
@@ -429,7 +429,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                         ref props,
                                         ref events,
                                         ref value_binding) => {
-                    let mut scope = scope.clone();
 
                     let props = if output_component_contents {
                         props.as_ref().map(|p| map_props_using_scope(p.iter(), &scope))
@@ -482,15 +481,7 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                                               ref parent_tag,
                                               ref prop_list,
                                               ref lens) => {
-                    let mut scope = scope.clone();
                     let parent_tag = parent_tag.as_ref().map(|s| s.as_str());
-                    // let mut prop_list = prop_list.clone();
-
-                    // let mut props = if output_component_contents {
-                    //     prop_list.as_ref().map(|p| map_prop_list_using_scope(p.iter(), &scope))
-                    // } else {
-                    //     prop_list.as_ref().map(|p| map_prop_list_references(p.iter(), &scope))
-                    // };
 
                     let comp = doc.comp_map.get(component_ty.as_str());
                     if let Some(ref comp) = comp {
@@ -509,8 +500,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
                 }
 
                 &ElementOp::StartBlock(ref block_id) => {
-                    let mut scope = self.scope();
-
                     let complete_key = scope.0.complete_element_key();
 
                     if output_component_contents {
@@ -543,8 +532,6 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
 
                 &ElementOp::MapCollection(ref block_id, ref ele, ref coll_expr) => {
                     if output_component_contents {
-                        let mut scope = self.scope();
-
                         let has_block = self.blocks.contains_key(block_id);
                         if has_block {
                             let ele = ele.as_ref().map(|e| e.as_str());

@@ -5,8 +5,6 @@ use std::slice::Iter;
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
-use parser::store::*;
-use parser::api::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
@@ -80,12 +78,12 @@ impl ProcessContent {
                         .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
 
                     match lens {
-                        Some(LensExprType::GetLens(ref sym)) => {
+                        Some(LensExprType::GetLens(_)) => {
                             if !prop_list.is_some() {
                                 prop_list = Some(Default::default());
                             }
                         }
-                        Some(LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
+                        Some(LensExprType::ForLens(ref ele_key, _)) => {
                             if !prop_list.is_some() {
                                 prop_list = Some(Default::default());
                             }
@@ -160,8 +158,8 @@ impl ProcessContent {
 
                                 event.2 = event.2.as_ref().map(|action_ops| {
                                     self.process_content_action_ops(action_ops.iter(),
-                                                                    processing,
                                                                     &scope,
+                                                                    processing,
                                                                     block,
                                                                     resolution_mode)
                                 });
@@ -257,7 +255,7 @@ impl ProcessContent {
 
     #[inline]
     pub fn process_content_action_ops(&mut self,
-                                      action_ops: Iter<&ActionOpNode>,
+                                      action_ops: Iter<ActionOpNode>,
                                       scope: &ElementOpScope,
                                       processing: &DocumentProcessingState,
                                       block: &mut BlockProcessingState,
@@ -270,7 +268,7 @@ impl ProcessContent {
 
                     let action_params = action_params.as_ref().map(|action_params| {
                         let mut action_params = action_params.clone();
-                        for mut param in &mut action_params {
+                        for param in &mut action_params {
                             param.1 = param.1.as_ref().map(|expr| {
                                 if let &ExprValue::SymbolReference(ref sym) = expr {
                                     if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
@@ -287,8 +285,7 @@ impl ProcessContent {
                     });
 
                     ActionOpNode::DispatchAction(action_ty, action_params)
-                },
-                _ => action_op.to_owned()
+                }
             }
         }).collect()
     }

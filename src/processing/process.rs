@@ -369,7 +369,7 @@ impl<'input> ProcessDocument<'input> {
                 &NodeType::ContentNode(ref content) => {
                     let mode = BareSymbolResolutionMode::PropThenReducerKey;
                     // let mut content_processor = ProcessContent::with_root_node(content);
-                    let mut scope = base_scope.clone();
+                    let scope = base_scope.clone();
                     let mut content_processor = ProcessContent::new(scope);
                     // content_processor.process(&self.processing)?;
                     content_processor.process_content_node(content, &self.processing, block, None, &mode)?;

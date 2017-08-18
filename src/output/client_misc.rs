@@ -8,8 +8,8 @@ use processing::scope::*;
 
 
 pub fn reduce_expr_to_string(expr: &ExprValue,
-                             doc: &DocumentState,
-                             scope: &ElementOpScope)
+                             _: &DocumentState,
+                             _: &ElementOpScope)
                              -> String {
     match expr {
         &ExprValue::LiteralString(ref s) => format!("{}", s),
@@ -21,7 +21,6 @@ pub fn reduce_expr_to_string(expr: &ExprValue,
 
 pub fn eval_sym(sym: &Symbol, doc: &DocumentState, scope: &ElementOpScope) -> Option<ExprValue> {
     let sym_ref = sym.sym_ref();
-    let sym_ty = sym.ty();
     if let &SymbolReferenceType::ResolvedReference(_, ref resolved) = sym_ref {
         match resolved {
             &ResolvedSymbolType::PropReference(ref key) => {

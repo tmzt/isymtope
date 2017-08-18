@@ -8,6 +8,7 @@ use parser::ast::*;
 use parser::store::*;
 use parser::util::*;
 
+
 #[derive(Debug, Default)]
 pub struct ReducerKeyData {
     pub reducer_key: String,
@@ -73,35 +74,11 @@ pub enum ElementOp {
     MapCollection(String, Option<String>, ExprValue),
 }
 
-// #[derive(Debug, Clone)]
-// pub enum PrimitiveVarType {
-//     StringVar,
-//     Number,
-//     Expr,
-// }
-
-// #[derive(Debug, Clone)]
-// pub enum VarType {
-//     ArrayVar(Option<Box<VarType>>),
-//     Primitive(PrimitiveVarType),
-// }
-
 pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
 pub type ReducerKeyMap = LinkedHashMap<String, ReducerKeyData>;
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
-
-#[derive(Debug, Clone)]
-pub enum ExpressionContext {
-    Normal,
-    ActionResult,
-}
-impl Default for ExpressionContext {
-    fn default() -> Self {
-        ExpressionContext::Normal
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Component {
@@ -119,7 +96,6 @@ pub struct Component {
 use parser::token::Error as ParsingError;
 use std::io;
 use std::fmt;
-use std::cell::Cell;
 
 #[derive(Debug)]
 pub enum DocumentProcessingError {
@@ -147,8 +123,6 @@ impl From<io::Error> for DocumentProcessingError {
     }
 }
 
-pub type ProcessingScope = (Option<String>, Option<String>, Option<Symbol>);
-
 #[derive(Debug)]
 pub struct BlockProcessingState {
     pub block_id: String,
@@ -173,13 +147,6 @@ impl Default for BlockProcessingState {
 pub struct ExprScopeProcessingState {
     pub symbol_map: SymbolMap,
 }
-
-// impl ExprScopeProcessingState {
-//     pub fn with_symbol(mut self, var_name: &str, sym: SymbolReferenceType, ty: Option<&VarType>) -> Self {
-//         self.symbol_map.insert(var_name.to_owned(), Symbol(sym, ty.map(Clone::clone), None));
-//         self
-//     }
-// }
 
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState {

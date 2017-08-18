@@ -1,6 +1,5 @@
 
 use std::io;
-use std::fmt;
 use parser::ast::*;
 use processing::process::*;
 

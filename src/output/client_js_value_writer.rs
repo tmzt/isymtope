@@ -6,22 +6,19 @@ use parser::ast::*;
 use processing::structs::*;
 use processing::scope::*;
 
-use output::client_ops_writer::*;
 use output::client_misc::*;
 
 
 #[inline]
 pub fn write_js_var_reference(w: &mut io::Write,
                               var_name: Option<&str>,
-                              doc: &DocumentState,
+                              _: &DocumentState,
                               scope: &ElementOpScope)
                               -> Result {
-    // let default_var_scope = scope.0.default_var_scope();
     if let Some(ref var_name) = var_name {
         let var_key = scope.0.make_var_name(var_name);
         write!(w, "{}", var_key)?;
     } else {
-        // let default_var_scope = scope.0.default_var_scope();
         let default_var = scope.0.default_var();
         let var_key = default_var.unwrap_or_else(|| "default".to_owned());
         write!(w, "{}", var_key)?;
@@ -36,7 +33,7 @@ pub fn write_js_sym_value(w: &mut io::Write,
                           scope: &ElementOpScope)
                           -> Result {
     match sym.sym_ref() {
-        &SymbolReferenceType::ResolvedReference(ref key, ref resolved) => {
+        &SymbolReferenceType::ResolvedReference(_, ref resolved) => {
             match resolved {
                 &ResolvedSymbolType::LocalVarReference(ref var_name) => {
                     write_js_var_reference(w, Some(var_name.as_str()), doc, scope)?;
@@ -51,7 +48,7 @@ pub fn write_js_sym_value(w: &mut io::Write,
                     write_js_var_reference(w, Some(&key), doc, &scope)?;
                 }
 
-                &ResolvedSymbolType::ActionStateReference(ref ty) => {
+                &ResolvedSymbolType::ActionStateReference(_) => {
                     write_js_var_reference(w, Some("state"), doc, scope)?;
                 }
 
@@ -157,11 +154,6 @@ pub fn write_js_expr_value(w: &mut io::Write,
                 _ => false,
             };
 
-            // let is_array = match l_sym {
-            //     &Symbol(_, Some(VarType::ArrayVar(_)), _) => true,
-            //     _ => false
-            // };
-
             match op {
                     &ExprOp::Add if is_array => write!(w, ".concat("),
                     &ExprOp::Add => write!(w, " + "),
@@ -259,18 +251,14 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
 
 #[inline]
 pub fn write_js_lens_mapping_open(w: &mut io::Write,
-                                  op: &ElementOp,
+                                  _: &ElementOp,
                                   doc: &DocumentState,
                                   scope: &ElementOpScope,
                                   ele_key: &str,
                                   coll_expr: &ExprValue)
                                   -> Result {
     let mut scope = scope.clone();
-    let complete_key = scope.0.complete_element_key();
 
-    let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
-
-    let props = vec![(ele_key.to_owned(), Some(ele_expr))];
     write!(w, "((")?;
     write_js_expr_value(w, &coll_expr, doc, &scope)?;
     write!(w, ").map(function(v) {{ return ")?;
@@ -284,13 +272,6 @@ pub fn write_js_lens_mapping_open(w: &mut io::Write,
         Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
     );
     scope.0.set_prefix_expr(&param_expr);
-    // self.push_scope(scope.clone());
-
-    // let foridx_expr = ExprValue::Expr(ExprOp::Add,
-    //     Box::new(ExprValue::LiteralString(format!("{}.", complete_key))),
-    //     Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
-    // );
-    // scope.0.set_prefix_expr(&foridx_expr);
 
     writeln!(w, ".map(function(props, foridx) {{")?;
     Ok(())
@@ -303,13 +284,15 @@ pub fn write_js_lens_mapping_close(w: &mut io::Write) -> Result {
 }
 
 #[inline]
+#[allow(dead_code)]
+#[allow(unused_variables)]
 pub fn map_invoke_component_props(props: Iter<&Prop>, scope: &ElementOpScope) -> Result {
     Ok(())
 }
 
 #[inline]
 pub fn write_js_invoke_component(w: &mut io::Write,
-                                 op: &ElementOp,
+                                 _: &ElementOp,
                                  doc: &DocumentState,
                                  scope: &ElementOpScope,
                                  comp: &Component,
@@ -322,15 +305,6 @@ pub fn write_js_invoke_component(w: &mut io::Write,
 
     let complete_key = scope.0.complete_element_key();
     let component_ty = &comp.name;
-    // let element_tag = element_tag.unwrap_or("div");
-
-    // .map(|p| reduce_expr(p, doc, &scope).or(p));
-
-    // let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
-    // let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
-
-    let key_expr = ExprValue::LiteralString(format!(".{}", complete_key));
-    let prefix_expr = scope.0.make_prefix_expr(&key_expr, None);
 
     write!(w, "component_{}(", component_ty)?;
     if let Some(ref prefix_expr) = scope.0.prefix_expr() {
@@ -345,15 +319,9 @@ pub fn write_js_invoke_component(w: &mut io::Write,
         let props: PropVec = props.iter()
             .map(|p| {
                 if let Some(sym) = scope.1.props.get(&p.0) {
-                    // let expr = p.1.as_ref().and_then(|expr| reduce_expr(expr, doc,  &scope))
-                    //     .or_else(|| p.1.to_owned());
                     let expr = ExprValue::SymbolReference(sym.to_owned());
-
                     return (p.0.to_owned(), Some(expr));
                 };
-
-                // let expr = p.1.as_ref().and_then(|expr| reduce_expr(expr, doc,  &scope))
-                //     .or_else(|| p.1.to_owned());
 
                 p.to_owned()
             })

@@ -4,17 +4,12 @@ use std::iter;
 use std::slice::Iter;
 
 use parser::ast::*;
-use parser::store::*;
 use processing::structs::*;
-use processing::process::*;
 use processing::scope::*;
 
-use output::client_misc::*;
 use output::client_html::*;
 use output::client_js::*;
 use output::client_js_value_writer::*;
-use output::client_ops_writer::*;
-use output::client_ops_js_stream_writer::*;
 
 
 pub struct FormatHtml<'input> {
@@ -42,8 +37,6 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             for ref action_op in action_ops {
                 match *action_op {
                     &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                        let mut scope = scope.clone();
-                        // scope.0.append_action_scope(action_key);
                         let action_ty = scope.0.make_action_type(action_key);
 
                         if let &Some(ref action_params) = action_params {

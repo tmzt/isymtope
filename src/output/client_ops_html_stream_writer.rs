@@ -1,18 +1,12 @@
 
 use std::io;
-use std::clone::Clone;
 use std::slice::Iter;
-use std::collections::hash_map::HashMap;
 
 use parser::ast::*;
-use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
 
 use output::client_misc::*;
-use output::client_output::*;
-use output::client_js_value_writer::*;
-use output::client_ops_writer::*;
 use output::client_ops_stream_writer::*;
 
 
@@ -39,7 +33,6 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
             match *act_op {
                 &ActionOpNode::DispatchAction(ref action, ref params) => {
                     let action_ty = scope.0.make_action_type(action);
-                    // let action_type = resolve.action_type(Some(action));
                     write!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
                 }
             }
@@ -51,20 +44,18 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
     #[inline]
     fn write_element_attribute_expr_value(&mut self,
                                           w: &mut io::Write,
-                                          key: &str,
+                                          _: &str,
                                           expr: &ExprValue,
                                           doc: &DocumentState,
                                           scope: &ElementOpScope)
                                           -> Result {
         match expr {
-            &ExprValue::Expr(ExprOp::Add, ref l, ref r) => {}
-
-            &ExprValue::DefaultAction(ref params, ref act_ops) => {
+            &ExprValue::DefaultAction(_, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
                     self.write_html_js_action(w, act_ops.iter(), scope)?;
                 };
             }
-            &ExprValue::Action(ref event_name, ref params, ref act_ops) => {
+            &ExprValue::Action(_, _, ref act_ops) => {
                 if let &Some(ref act_ops) = act_ops {
                     self.write_html_js_action(w, act_ops.iter(), scope)?;
                 };
@@ -78,10 +69,6 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
         Ok(())
     }
 
-    pub fn events_iter(&self) -> Iter<EventsItem> {
-        self.events_vec.iter()
-    }
-
     pub fn keys_iter(&self) -> Iter<String> {
         self.keys_vec.iter()
     }
@@ -90,15 +77,15 @@ impl<'input: 'scope, 'scope> ElementOpsHtmlStreamWriter {
 impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWriter {
     fn write_op_element(&mut self,
                         w: &mut io::Write,
-                        op: &ElementOp,
+                        _: &ElementOp,
                         doc: &DocumentState,
                         scope: &ElementOpScope,
                         complete_key: &str,
                         element_tag: &str,
                         is_void: bool,
                         props: Option<Iter<Prop>>,
-                        events: Option<Iter<EventHandler>>,
-                        value_binding: ElementValueBinding)
+                        _: Option<Iter<EventHandler>>,
+                        _: ElementValueBinding)
                         -> Result {
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
@@ -122,6 +109,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_close(&mut self,
                               w: &mut io::Write,
                               op: &ElementOp,
@@ -136,7 +124,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     #[inline]
     fn write_op_element_value(&mut self,
                               w: &mut io::Write,
-                              op: &ElementOp,
+                              _: &ElementOp,
                               doc: &DocumentState,
                               scope: &ElementOpScope,
                               expr: &ExprValue,
@@ -159,6 +147,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_start_block(&mut self,
                                     w: &mut io::Write,
                                     op: &ElementOp,
@@ -171,6 +160,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_end_block(&mut self,
                                   w: &mut io::Write,
                                   op: &ElementOp,
@@ -183,6 +173,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_map_collection_to_block(&mut self,
                                                 w: &mut io::Write,
                                                 op: &ElementOp,
@@ -196,6 +187,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_instance_component_open(&mut self,
                                                 w: &mut io::Write,
                                                 op: &ElementOp,
@@ -215,6 +207,7 @@ impl<'input: 'scope, 'scope> ElementOpsStreamWriter for ElementOpsHtmlStreamWrit
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn write_op_element_instance_component_close(&mut self,
                                                  w: &mut io::Write,
                                                  op: &ElementOp,

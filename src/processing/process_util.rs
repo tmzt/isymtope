@@ -2,9 +2,6 @@
 use std::clone::Clone;
 
 use parser::ast::*;
-use parser::store::*;
-use parser::api::*;
-use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
 

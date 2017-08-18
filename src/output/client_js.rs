@@ -3,17 +3,12 @@ use std::io;
 use std::clone::Clone;
 use std::slice::Iter;
 
-use parser::ast::*;
 use parser::store::*;
-use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::scope::*;
 
-use output::client_misc::*;
-use output::client_output::*;
 use output::client_js_value_writer::*;
 use output::client_ops_writer::*;
-use output::client_ops_stream_writer::*;
 use output::client_ops_js_stream_writer::*;
 
 
@@ -26,7 +21,7 @@ impl<'input> WriteJsOps<'input> {
     pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
         WriteJsOps {
             doc: doc,
-            stream_writer: ElementOpsJsStreamWriter::new(),
+            stream_writer: Default::default(),
         }
     }
 
@@ -114,10 +109,6 @@ impl<'input> WriteJsOps<'input> {
                                      scope: &ElementOpScope)
                                      -> Result {
         let mut scope = scope.clone();
-        // let key_var = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-        // if let Some(ref prefix_expr) = scope.0.make_prefix_expr(&key_var, None) {
-        //     scope.0.set_prefix_expr(&prefix_expr);
-        // };
 
         // Merge component scope entries
         // TODO: Convert values to props
@@ -125,20 +116,13 @@ impl<'input> WriteJsOps<'input> {
             scope.1.symbol_map.insert(key.to_owned(), sym.to_owned());
         }
 
-        // let scope_id = scope.0.complete_element_key();
-        // self.scopes.insert(complete_key, scope.clone());
-
         writeln!(w,
                  "  function component_{}(key_prefix, store, props) {{",
                  component_ty)
             ?;
-        // writeln!(w, "IncrementalDOM.elementOpen(\"div\", key_prefix);")?;
         self.write_js_incdom_ops_content(w, ops, processing, &scope)?;
-        // writeln!(w, "IncrementalDOM.elementClose(\"div\");")?;
         writeln!(w, "  }};")?;
         writeln!(w, "")?;
-
-        // self.scopes.pop_back();
 
         Ok(())
     }
