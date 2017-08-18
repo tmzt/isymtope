@@ -267,7 +267,8 @@ impl<'input> ProcessDocument<'input> {
                 &DefaultScopeNodeType::ApiRootNode(ref scope_name, ref api_nodes) => {
                     if let &Some(ref api_nodes) = api_nodes {
                         self.collect_js_store_api_scope(scope_name, api_nodes)?;
-                    }
+                    }                            // processing_scope.2 = Some(sym.to_owned());
+
                 }
                 &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
                     self.collect_js_store_child_scope(scope_name, scope_nodes, None)?;
@@ -389,63 +390,3 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 }
-
-#[inline]
-#[allow(dead_code)]
-pub fn resolve_prop(processing: &DocumentProcessingState,
-                    scope: &mut ElementOpScope,
-                    prop_key: &str)
-                    -> Option<Symbol> {
-    // FIXME: This is causing us to resolve a reducer key instead.
-    // let cached = expr_scope.symbol_map.get(prop_key).map(|s| s.clone());
-    // if cached.is_some() { return cached; }
-
-    // Collect unresolved bare symbols as props on the scope
-    let prop = scope.1
-        .props
-        .entry(prop_key.to_owned())
-        .or_insert_with(|| Symbol::prop(prop_key));
-
-    // Replace the existing symbol in this map
-    // TODO: Remove this hack
-    // prop.0 = Some(SymbolReferenceType::PropReference(prop_key.to_owned()));
-    // prop.1 = None;
-
-    Some(prop.clone())
-
-    // expr_scope.symbol_map.insert(
-    //     prop_key.to_owned(),
-    //     (Some(SymbolReferenceType::PropReference(prop_key.to_owned())), None)
-    // );
-
-    // None
-}
-
-// #[inline]
-// #[allow(dead_code)]
-// pub fn resolve_existing_symbol(processing: &DocumentProcessingState, scope: &mut ElementOpScope, given: &str, resolution_mode: &BareSymbolResolutionMode) -> Option<Symbol> {
-//     // FIXME: Split the cache types and re-enable
-//     // let cached = expr_scope.symbol_map.get(given).map(|s| s.clone());
-//     // if cached.is_some() { return cached; }
-
-//     match resolution_mode {
-//         &BareSymbolResolutionMode::ReducerKeyThenProp => {
-//             let sym = resolve_reducer_key(processing, scope, given);
-//             if sym.is_some() { return sym; }
-
-//             // FIXME: This overwrites the correct reducer_key entry due to the hack
-//             // let sym = resolve_prop(processing, expr_scope, processing_scope, given);
-//             // if sym.is_some() { return sym; }
-//         }
-
-//         &BareSymbolResolutionMode::PropThenReducerKey => {
-//             let sym = resolve_prop(processing, scope, given);
-//             if sym.is_some() { return sym; }
-
-//             let sym = resolve_reducer_key(processing, scope, given);
-//             if sym.is_some() { return sym; }
-//         }
-//     };
-
-//     None
-// }
