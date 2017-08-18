@@ -33,6 +33,37 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
     }
 
     #[allow(unused_variables)]
+    pub fn write_js_event_actions(&self,
+                                   w: &mut io::Write,
+                                   scope: &ElementOpScope,
+                                   action_ops: &Option<Vec<ActionOpNode>>)
+                                   -> Result {
+        if let &Some(ref action_ops) = action_ops {
+            for ref action_op in action_ops {
+                match *action_op {
+                    &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                        let mut scope = scope.clone();
+                        // scope.0.append_action_scope(action_key);
+                        let action_ty = scope.0.make_action_type(action_key);
+
+                        if let &Some(ref action_params) = action_params {
+                            let action_params: PropVec = iter::once(("type".to_owned(), Some(ExprValue::LiteralString(action_ty.to_owned()))))
+                                .chain(action_params.iter().map(|s| s.clone())).collect();
+
+                            write!(w, " store.dispatch(")?;
+                            write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
+                            writeln!(w, ");")?;
+                        } else {
+                            writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[allow(unused_variables)]
     pub fn write_js_event_bindings(&self,
                                    w: &mut io::Write,
                                    events_iter: Iter<EventsItem>,
@@ -42,7 +73,13 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         for &(ref element_key, ref event_name, ref params, ref action_ops, ref event_scope, ref block_id) in
             events_iter {
             let complete_key = scope.0.make_complete_element_key_with(element_key);
-            let event_name = event_name.as_ref().map(String::as_str).map_or("click", |s| s);
+            let was_enterkey = event_name.as_ref().map_or(false, |event_name| event_name == "enterkey");
+            let event_name = match event_name.as_ref().map(|s| s.as_str()) {
+                Some("enterkey") => "keydown",
+                Some(event_name) => event_name,
+                None => "click"
+            };
+            
             writeln!(w,
                      "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
                       function(event) {{",
@@ -50,28 +87,16 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                      event_name)
                 ?;
 
-            if let &Some(ref action_ops) = action_ops {
-                for ref action_op in action_ops {
-                    match *action_op {
-                        &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                            let mut scope = scope.clone();
-                            // scope.0.append_action_scope(action_key);
-                            let action_ty = scope.0.make_action_type(action_key);
+            if was_enterkey {
+                writeln!(w, "if (event.keyCode == 13) {{")?;
+            };
 
-                            if let &Some(ref action_params) = action_params {
-                                let action_params: PropVec = iter::once(("type".to_owned(), Some(ExprValue::LiteralString(action_ty.to_owned()))))
-                                    .chain(action_params.iter().map(|s| s.clone())).collect();
+            self.write_js_event_actions(w, scope, action_ops)?;
 
-                                write!(w, " store.dispatch(")?;
-                                write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
-                                writeln!(w, ");")?;
-                            } else {
-                                writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
-                            }
-                        }
-                    }
-                }
-            }
+            if was_enterkey {
+                writeln!(w, "}}")?;
+            };
+
             writeln!(w, "  }});")?;
         }
         Ok(())
