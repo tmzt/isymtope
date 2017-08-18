@@ -276,14 +276,14 @@ ScopeNodeType : ScopeNodeType = {
     <name:Id> "{" <children:ScopeNodeType*> "}" => ScopeNodeType::ScopeNode(name.into(), children)
 };
 
+ActionNodeParamList: Vec<String> = "(" <CommaList<Id>> ")";
+
 ActionNode : ScopeNodeType = {
-    ActionKeyword <name:Id> <expr:("=>" <ExprValue>)?> ";" => {
-        // TODO: Support other expression types
-        if let Some(expr) = expr {
-            ScopeNodeType::ActionNode(name.into(), Some(ActionStateExprType::SimpleReducerKeyExpr(expr)))
-        } else {
-            ScopeNodeType::ActionNode(name.into(), None)
-        }
+    ActionKeyword <name:Id> <params:ActionNodeParamList?> <expr:("=>" <ExprValue>)?> ";" => {
+        let expr = expr.as_ref().map(|expr| ActionStateExprType::SimpleReducerKeyExpr(expr.to_owned()));
+        let has_params = params.as_ref().map_or(false, |params| params.len() > 0);
+        let params = if has_params { params } else { None };
+        ScopeNodeType::ActionNode(name.to_owned(), expr, params)
     }
 };
 

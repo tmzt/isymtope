@@ -201,9 +201,11 @@ impl<'input: 'scope, 'scope> ElementOpsWriter<'input, 'scope> {
             Some(&LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
                 // props = prop_list.map(|prop_list| map_prop_list_using_scope(prop_list, scope));
                 let coll_expr = ExprValue::SymbolReference(coll_sym.clone());
-                let coll_expr = reduce_expr(&coll_expr, doc, &scope).unwrap_or(coll_expr);
 
                 if output_component_contents {
+                    // Only reduce before we output a static expression
+                    let coll_expr = reduce_expr(&coll_expr, doc, &scope).unwrap_or(coll_expr);
+
                     self.write_component_instance_loop(w,
                                                        op,
                                                        doc,

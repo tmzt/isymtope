@@ -88,7 +88,8 @@ impl<'input> ProcessDocument<'input> {
                             });
                     };
                 }
-                &ScopeNodeType::ActionNode(ref action_name, ref simple_expr) => {
+                &ScopeNodeType::ActionNode(ref action_name, ref simple_expr, ref params) => {
+                    let mut scope = ElementOpScope::default();
                     // let reducer_entry = self.processing.reducer_key_data.entry(reducer_key.to_owned())
                     //     .or_insert_with(|| ReducerKeyData::from_name(&format!("{}", reducer_key)));
 
@@ -134,8 +135,14 @@ impl<'input> ProcessDocument<'input> {
          
                         // process_expr(expr, &mut action_block, &self.processing, &processing_scope)?;
 
+                        if let &Some(ref params) = params {
+                            for param in params {
+                                scope.1.add_action_param(param);
+                            }
+                        };
+
                         let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        let action_expr = map_expr_using_scope(expr, &self.processing, &mut self.scope, &resolution_mode);
+                        let action_expr = map_expr_using_scope(expr, &self.processing, &mut scope, &resolution_mode);
 
                         let typed_expr = map_expr(&action_expr, &|node| match node {
                             &ExprValue::DefaultVariableReference => {

@@ -21,7 +21,7 @@ pub enum DefaultScopeNodeType {
 #[derive(Debug, Clone)]
 pub enum ScopeNodeType {
     LetNode(String, Option<ExprValue>),
-    ActionNode(String, Option<ActionStateExprType>),
+    ActionNode(String, Option<ActionStateExprType>, Option<Vec<String>>),
     ApiNode(Vec<ApiNodeType>),
     ScopeNode(String, Vec<ScopeNodeType>)
 }
