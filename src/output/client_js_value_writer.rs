@@ -255,36 +255,35 @@ pub fn write_js_props_object<'input>(w: &mut io::Write,
 }
 
 #[inline]
-pub fn write_js_lens_mapping_open(w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, lens: &LensExprType) -> Result {
+pub fn write_js_lens_mapping_open(w: &mut io::Write, op: &ElementOp, doc: &DocumentState, scope: &ElementOpScope, ele_key: &str, coll_expr: &ExprValue) -> Result {
     let mut scope = scope.clone();
     let complete_key = scope.0.complete_element_key();
 
-    if let &LensExprType::ForLens(Some(ref ele_key), ref coll_sym) = lens {
-        let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
-        let coll_expr = ExprValue::SymbolReference(coll_sym.to_owned());
-        // write_js_expr_value(w, &coll_expr, doc, &scope)?;
+    let ele_expr = ExprValue::SymbolReference(Symbol::prop(ele_key));
 
-        let attrs = vec![
-            (ele_key.to_owned(), Some(ele_expr))
-        ];
-        write!(w, "((")?;
-        // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
-        write_js_expr_value(w, &coll_expr, doc, &scope)?;
-        // write!(w, ").map(function(v) {{ return {{  {} }}))")?;
+    let props = vec![(ele_key.to_owned(), Some(ele_expr))];
+    write!(w, "((")?;
+    write_js_expr_value(w, &coll_expr, doc, &scope)?;
+    write!(w, ").map(function(v) {{ return ")?;
+    write!(w, "{{ {}: v }}", ele_key)?;
+    writeln!(w, "; }}))")?;
 
-        write!(w, ").map(function(v) {{ return ")?;
-        // write_js_props_object(w, Some(attrs.iter()), doc, scope)?;
-        write!(w, "{{ {}: v }}", ele_key)?;
-        writeln!(w, "; }}))")?;
+    let param_expr = ExprValue::Expr(ExprOp::Add,
+        Box::new(ExprValue::Expr(ExprOp::Add,
+            Box::new(ExprValue::SymbolReference(Symbol::param("key_prefix"))),
+            Box::new(ExprValue::LiteralString(".".to_owned())))),
+        Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
+    );
+    scope.0.set_prefix_expr(&param_expr);
+    // self.push_scope(scope.clone());
 
-        let foridx_expr = ExprValue::Expr(ExprOp::Add,
-            Box::new(ExprValue::LiteralString(format!("{}.", complete_key))),
-            Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
-        );
-        scope.0.set_prefix_expr(&foridx_expr);
+    // let foridx_expr = ExprValue::Expr(ExprOp::Add,
+    //     Box::new(ExprValue::LiteralString(format!("{}.", complete_key))),
+    //     Box::new(ExprValue::SymbolReference(Symbol::param("foridx")))
+    // );
+    // scope.0.set_prefix_expr(&foridx_expr);
 
-        writeln!(w, ".map(function(props, foridx) {{")?;
-    };
+    writeln!(w, ".map(function(props, foridx) {{")?;
     Ok(())
 }
 

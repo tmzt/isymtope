@@ -142,11 +142,11 @@ pub fn map_lens_using_scope<'input>(lens: Option<&LensExprType>,
         }
         Some(&LensExprType::GetLens(ref sym)) => {
             if let Some(resolved) = resolve_sym(sym, processing, scope) {
-                let resolved = match resolved.sym_ref() {
-                    &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref key)) =>
-                        Symbol::prop(key),
-                    _ => resolved.clone()
-                };
+                // let resolved = match resolved.sym_ref() {
+                //     &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref key)) =>
+                //         Symbol::prop(key),
+                //     _ => resolved.clone()
+                // };
                 return Some(LensExprType::GetLens(resolved));
             };
 

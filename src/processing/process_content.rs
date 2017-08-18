@@ -70,7 +70,8 @@ impl ProcessContent {
 
                     // Attempt to map lens values
                     // FIXME
-                    let lens = map_lens_using_scope(lens.as_ref(), processing, &mut scope);
+                    let lens = map_lens_using_scope(lens.as_ref(), processing, &mut scope)
+                        .or(lens);
 
                     // Create list of prop keys
                     let mut prop_list: Option<Vec<PropKey>> = element_data.attrs.as_ref().map(|s| s.iter().map(|s| s.0.to_owned()).collect());

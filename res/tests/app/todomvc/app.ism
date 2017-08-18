@@ -2,6 +2,7 @@ use html;
 
 store {
     let todos = ["One", "Two"];
+    let entry = "";
 
     todos {
         action add => value + entry;
