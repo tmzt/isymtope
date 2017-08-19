@@ -277,4 +277,33 @@ mod tests {
         // We should resolve the symbol from the nearest scope where it is defined
         assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
     }
+
+    #[derive(Debug, Clone, Default)]
+    struct TestOutputWriter {}
+
+    impl TestOutputWriter {
+        pub fn push_component_instance_scope(&mut self, ctx: &mut Context, element_id: &str) {
+            ctx.push_child_scope();
+            ctx.append_path_str(element_id);
+            ctx.add_sym("todo", Symbol::param("todo"));
+        }
+    }
+
+    #[test]
+    pub fn test_context_output_writer() {
+        let mut ctx = Context::default();
+        let mut output = TestOutputWriter::default();
+
+        // Comp1
+        output.push_component_instance_scope(&mut ctx, "Comp1");
+
+        // The joined path (dynamic) should be a string join operation
+        let expr = ctx.scope().join_path_as_expr(Some("."));
+        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+            Box::new(ExprValue::LiteralString("Comp1".to_owned())),
+        ]))));
+
+        // The local var (param) should resolve to a param
+        assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo")));
+    }
 }
