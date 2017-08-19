@@ -2,14 +2,14 @@
 
 // Scope: store/{scope*}/api
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ApiNodeType {
     ResourceNode(ApiResourceData),
     MethodsNode(Vec<MethodType>),
     BareMethodNode(MethodType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MethodType {
     Get,
     Post,
@@ -18,7 +18,7 @@ pub enum MethodType {
     Patch,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ApiResourceData {
     pub resource_name: String,
     pub children: Option<Vec<ApiNodeType>>,

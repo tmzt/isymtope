@@ -10,7 +10,7 @@ pub struct Template {
     pub children: Vec<Loc<NodeType, (usize, usize)>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
@@ -18,7 +18,7 @@ pub enum NodeType {
     ContentNode(ContentNodeType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ContentNodeType {
     ElementNode(ElementType),
     ExpressionValueNode(ExprValue),
@@ -26,7 +26,7 @@ pub enum ContentNodeType {
 }
 
 /// Operators
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ExprOp {
     Add,
     Sub,
@@ -34,26 +34,26 @@ pub enum ExprOp {
     Div,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveVarType {
     StringVar,
     Number,
     Expr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     ArrayVar(Option<Box<VarType>>),
     Primitive(PrimitiveVarType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
     ResolvedReference(String, ResolvedSymbolType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedSymbolType {
     ReducerKeyReference(String),
     ParameterReference(String),
@@ -70,7 +70,7 @@ pub enum ResolvedSymbolType {
     ElementValueReference(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 pub type ValueMap = LinkedHashMap<String, ExprValue>;
@@ -208,7 +208,7 @@ impl Symbol {
 }
 
 /// Simple expression (parameter value)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExprValue {
     LiteralNumber(i32),
     LiteralString(String),
@@ -235,29 +235,29 @@ impl ExprValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ElementExpr {
     Element(String, Option<String>, Option<Vec<Box<ExprValue>>>),
     Value(ExprValue),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LensExprType {
     ForLens(Option<String>, Symbol),
     GetLens(Symbol),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ActionOpNode {
     DispatchAction(String, Option<PropVec>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UseStmtType {
     pub package: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ComponentDefinitionType {
     pub name: String,
     pub inputs: Option<Vec<String>>,
@@ -281,7 +281,7 @@ pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<
 pub type ElementValueBinding = Option<String>;
 pub type ElementBindings = (ElementValueBinding, Option<Vec<ElementEventBinding>>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(ElementEventBinding),
     ElementValueBindingNode(String),
@@ -292,7 +292,7 @@ pub type PropKey = String;
 pub type PropList = Vec<PropKey>;
 pub type Prop = (String, Option<ExprValue>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ElementType {
     pub element_ty: String,
     pub element_key: Option<String>,

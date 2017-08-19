@@ -11,6 +11,7 @@ extern crate linked_hash_map;
 extern crate broadcast;
 
 mod parser;
+mod scope;
 mod processing;
 mod output;
 
