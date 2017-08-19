@@ -9,7 +9,7 @@ use scope::symbols::*;
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    base_scope: Scope,
+    // base_scope: Scope,
     scopes: LinkedHashMap<String, Scope>,
     symbol_maps: LinkedHashMap<String, Symbols>
 }
@@ -26,21 +26,46 @@ impl Default for Context {
 impl Context {
     pub fn new(base_scope: Scope, symbols: Symbols) -> Self {
         let mut ctx = Context {
-            base_scope: base_scope,
+            // base_scope: base_scope,
             scopes: Default::default(),
             symbol_maps: Default::default()
         };
 
+        ctx.push_scope(base_scope);
         ctx.add_symbol_map(symbols);
         ctx
     }
 
-    pub fn scope(&mut self) -> Scope {
-        if let Some(scope) = self.scopes.back().map(|s| s.1.clone()) {
-            return scope;
+    fn scope_ref_mut(&mut self) -> Option<&mut Scope> {
+        let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
+        if let Some(scope_id) = scope_id {
+            return self.scopes.get_mut(&scope_id);
         }
+        None
+    }
 
-        self.base_scope.clone()
+    fn scope_ref(&mut self) -> Option<&Scope> {
+        let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
+        if let Some(scope_id) = scope_id {
+            return self.scopes.get(&scope_id);
+        }
+        None
+    }
+
+    pub fn scope(&mut self) -> Scope {
+        self.scope_ref().unwrap().clone()
+    }
+
+    pub fn create_child_scope(&mut self) -> Scope {
+        let parent_scope = self.scope();
+        let parent_map_id = parent_scope.map_id().to_owned();
+        let symbol_path = parent_scope.symbol_path().clone();
+
+        let symbols = Symbols::new(Some(&parent_map_id));
+        let map_id = symbols.map_id().to_owned();
+        self.add_symbol_map(symbols);
+
+        Scope::new(&map_id, Some(symbol_path))
     }
 
     pub fn push_scope(&mut self, scope: Scope) {
@@ -49,6 +74,11 @@ impl Context {
 
     pub fn pop_scope(&mut self) {
         self.scopes.pop_back();
+    }
+
+    pub fn push_child_scope(&mut self) {
+        let scope = self.create_child_scope();
+        self.push_scope(scope);
     }
 
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
@@ -77,6 +107,19 @@ impl Context {
             map.add_sym(key, sym);
         };
     }
+
+    pub fn append_path_expr(&mut self, expr: &ExprValue) {
+        if let Some(scope) = self.scope_ref_mut() {
+            scope.append_path_expr(expr);
+        };
+    }
+
+    pub fn append_path_str(&mut self, s: &str) {
+        if let Some(scope) = self.scope_ref_mut() {
+            scope.append_path_str(s);
+        };
+    }
+
 }
 
 #[cfg(test)]
@@ -189,8 +232,9 @@ mod tests {
         let parent_map_id = ctx.scope().map_id().to_owned();
         let symbol_path = ctx.scope().symbol_path().clone();
         let symbols = create_symbols(key, sym, Some(&parent_map_id));
+        let map_id = symbols.map_id().to_owned();
         ctx.add_symbol_map(symbols);
-        Scope::new(&parent_map_id, Some(symbol_path))
+        Scope::new(&map_id, Some(symbol_path))
     }
 
     #[test]
@@ -199,24 +243,24 @@ mod tests {
 
         // Lm
         {
-            let mut s1 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz1"));
-            s1.append_path_str("Lm");
-            ctx.push_scope(s1);
+            ctx.push_child_scope();
+            ctx.append_path_str("Lm");
+            ctx.add_sym("abc", Symbol::prop("xyz3"));
         }
 
         // Lm.No
         {
-            let mut s2 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz2"));
-            s2.append_path_str("No");
+            ctx.push_child_scope();
+            ctx.append_path_str("No");
+            ctx.add_sym("abc", Symbol::prop("xyz2"));
             ctx.add_sym("def", Symbol::prop("def2"));
-            ctx.push_scope(s2);
         }
 
         // Lm.No.Pq
         {
-            let mut s3 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz3"));
-            s3.append_path_str("Pq");
-            ctx.push_scope(s3);
+            ctx.push_child_scope();
+            ctx.append_path_str("Pq");
+            ctx.add_sym("abc", Symbol::prop("xyz3"));
         }
 
         // The joined path (dynamic) should be a string join operation
@@ -228,9 +272,9 @@ mod tests {
         ]))));
 
         // We should resolve the symbol from the nearest scope where it is defined
-        // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz1")));
+        assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz3")));
 
         // We should resolve the symbol from the nearest scope where it is defined
-        // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
+        assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
     }
 }
