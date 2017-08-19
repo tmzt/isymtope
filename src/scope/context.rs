@@ -7,20 +7,32 @@ use scope::scope::*;
 use scope::symbols::*;
 
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Context {
     base_scope: Scope,
     scopes: LinkedHashMap<String, Scope>,
     symbol_maps: LinkedHashMap<String, Symbols>
 }
 
+impl Default for Context {
+    fn default() -> Context {
+        let symbols = Symbols::default();
+        let base_scope = Scope::with_map_id(symbols.map_id());
+        Context::new(base_scope, symbols)
+
+    }
+}
+
 impl Context {
-    pub fn with_base(base_scope: Scope) -> Self {
-        Context {
+    pub fn new(base_scope: Scope, symbols: Symbols) -> Self {
+        let mut ctx = Context {
             base_scope: base_scope,
             scopes: Default::default(),
             symbol_maps: Default::default()
-        }
+        };
+
+        ctx.add_symbol_map(symbols);
+        ctx
     }
 
     pub fn scope(&mut self) -> Scope {
@@ -57,6 +69,13 @@ impl Context {
 
     pub fn add_symbol_map(&mut self, map: Symbols) {
         self.symbol_maps.insert(map.map_id().to_owned(), map);
+    }
+
+    pub fn add_sym(&mut self, key: &str, sym: Symbol) {
+        let map_id = self.scope().map_id().to_owned();
+        if let Some(map) = self.symbol_maps.get_mut(&map_id) {
+            map.add_sym(key, sym);
+        };
     }
 }
 
@@ -105,7 +124,12 @@ mod tests {
     }
 
     #[derive(Debug, Clone, Default)]
+    struct ContextTestDocument {
+    }
+
+    #[derive(Debug, Clone, Default)]
     struct ContextTestOutput {
+        doc: ContextTestDocument
     }
 
     impl ContextTestOutput {
@@ -114,7 +138,7 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Clone)]
     struct ContextTest {
         ctx: Context,
         output: ContextTestOutput
@@ -135,7 +159,78 @@ mod tests {
 
     #[test]
     pub fn test_context_1() {
-        let mut context_test = ContextTest::default();
+        // let map_id = "m1";
+        // let scope = Scope::with_map_id(map_id);
+        // let context = Context::with_base_scope(scope);
+        let ctx = Context::default();
+        let mut context_test = ContextTest { ctx: ctx, output: Default::default() };
         context_test.example_1();
+    }
+
+    #[test]
+    pub fn test_context_symbol_path_mixed1() {
+        let mut ctx = Context::default();
+        let mut scope = ctx.scope();
+
+        let expr1 = ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)));
+        scope.append_path_expr(&expr1);
+        scope.append_path_str("test");
+
+        ctx.push_scope(scope);
+
+        let expr = ctx.scope().join_path_as_expr(None);
+        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
+            Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
+            Box::new(ExprValue::LiteralString("test".to_owned()))
+        ]))));
+    }
+
+    fn create_child_scope_with_symbols(ctx: &mut Context, key: &str, sym: Symbol) -> Scope {
+        let parent_map_id = ctx.scope().map_id().to_owned();
+        let symbol_path = ctx.scope().symbol_path().clone();
+        let symbols = create_symbols(key, sym, Some(&parent_map_id));
+        ctx.add_symbol_map(symbols);
+        Scope::new(&parent_map_id, Some(symbol_path))
+    }
+
+    #[test]
+    pub fn test_context_scope_nesting1() {
+        let mut ctx = Context::default();
+
+        // Lm
+        {
+            let mut s1 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz1"));
+            s1.append_path_str("Lm");
+            ctx.push_scope(s1);
+        }
+
+        // Lm.No
+        {
+            let mut s2 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz2"));
+            s2.append_path_str("No");
+            ctx.add_sym("def", Symbol::prop("def2"));
+            ctx.push_scope(s2);
+        }
+
+        // Lm.No.Pq
+        {
+            let mut s3 = create_child_scope_with_symbols(&mut ctx, "abc", Symbol::prop("xyz3"));
+            s3.append_path_str("Pq");
+            ctx.push_scope(s3);
+        }
+
+        // The joined path (dynamic) should be a string join operation
+        let expr = ctx.scope().join_path_as_expr(Some("."));
+        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+            Box::new(ExprValue::LiteralString("Lm".to_owned())),
+            Box::new(ExprValue::LiteralString("No".to_owned())),
+            Box::new(ExprValue::LiteralString("Pq".to_owned()))
+        ]))));
+
+        // We should resolve the symbol from the nearest scope where it is defined
+        // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz1")));
+
+        // We should resolve the symbol from the nearest scope where it is defined
+        // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
     }
 }

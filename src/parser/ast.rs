@@ -35,6 +35,12 @@ pub enum ExprOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum ExprApplyOp {
+    JoinString(Option<String>),
+    Sum
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveVarType {
     StringVar,
     Number,
@@ -217,6 +223,7 @@ pub enum ExprValue {
     SymbolReference(Symbol),
     SymbolPathReference(Vec<Symbol>),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
+    Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
     DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
     Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),

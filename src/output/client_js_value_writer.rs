@@ -188,6 +188,9 @@ pub fn write_js_expr_value(w: &mut io::Write,
             write_js_expr_value(w, r, doc, scope)?;
         }
 
+        // TODO
+        &ExprValue::Apply(..) => {}
+
         &ExprValue::ContentNode(..) => {}
         &ExprValue::DefaultAction(..) => {}
         &ExprValue::Action(..) => {}

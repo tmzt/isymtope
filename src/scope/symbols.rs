@@ -11,6 +11,12 @@ pub struct Symbols {
     symbol_map: SymbolMap
 }
 
+impl Default for Symbols {
+    fn default() -> Symbols {
+        Symbols::new(None)
+    }
+}
+
 impl Symbols {
     pub fn new(parent_map_id: Option<&str>) -> Symbols {
         Symbols {
