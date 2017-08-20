@@ -119,30 +119,105 @@ mod tests {
         ctx: Context
     }
 
-    impl ComponentWriter {
-        fn resolve_props<I>(&mut self, props: I) -> impl IntoIterator<Item = PropValue>
-          where I: IntoIterator<Item = Prop>
-        {
-            props.map(|prop| {
-                let resolved_sym = self.ctx.resolve_sym(&prop.0);
-                if let Some(resolved_sym) = resolved_sym {
-                    let key = &prop.0.to_owned();
-                    let expr = ExprValue::SymbolReference(resolved_sym);
-                    return (key, Some(expr));
-                }
+    type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
 
-                return prop.clone();
-            })
+    #[derive(Debug)]
+    struct SymbolResolver<'a, I: Iterator<Item = &'a str>> {
+        ctx: &'a mut Context,
+        iter: I
+    }
+
+    // impl<'a, I> SymbolResolver<'a, I>
+    // //   where I: Iterator<Item = &'a PropValue<'a>>
+    // {
+    //     pub fn new(ctx: &'a mut Context, iter: Self::I) -> Self {
+    //         SymbolResolver { ctx: ctx, iter: iter }
+    //     }
+    // }
+
+    // impl<'a, I> Iterator for SymbolResolver<'a, I>
+    //   where I: Iterator<Item = &'a PropValue<'a>>
+    impl<'a, I: Iterator<Item = &'a str>> Iterator for SymbolResolver<'a, I>
+    {
+        type Item = Prop;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(key) = self.iter.next() {
+                let resolved_sym = self.ctx.resolve_sym(key);
+                if let Some(resolved_sym) = resolved_sym {
+                    // let key = prop.0.to_owned();
+                    let expr = ExprValue::SymbolReference(resolved_sym);
+                    return Some((key.to_owned(), Some(expr)));
+                }; 
+                return Some((key.to_owned(), None));
+                // return Some((key.to_owned(), prop.1.map(|p| p.to_owned())));
+            };
+            None
+
+            // self.iter.next().map(|prop| {
+            //     let resolved_sym = self.ctx.resolve_sym(&prop.0);
+            //     if let Some(resolved_sym) = resolved_sym {
+            //         let key = prop.0.to_owned();
+            //         let expr = ExprValue::SymbolReference(resolved_sym);
+            //         return (key, Some(expr));
+            //     }
+
+            //     return (prop.0.to_owned(), prop.1.map(|p| p.to_owned()))
+            // })
         }
+    }
+
+    // impl<B, I: ExactSizeIterator, F> ExactSizeIterator for SymbolResolver<I>
+    // {
+    //     fn len(&self) -> usize {
+    //         self.iter.len()
+    //     }
+
+    //     fn is_empty(&self) -> bool {
+    //         self.iter.is_empty()
+    //     }
+    // }
+
+    impl<'a> ComponentWriter {
+        // fn resolve_props<'props, I>(&'a mut self, props: I) -> SymbolResolver<'a, I>
+        //   where I: Iterator<Item = PropValue<'props>>
+        // {
+        //     SymbolResolver::new(&mut self.ctx, props)
+        // }
 
         fn write_op_to<W>(&mut self, ops_writer: &mut W, comp_op: &ElementOp)
           where W: OpsWriter
         {
             match comp_op {
                 &ElementOp::ElementVoid(ref element_ty, ref element_id, ref props, ref event_handlers, ref value_bindings) => {
-                    let resolved_props = props.map(|props| self.resolve_props(props));
-                    let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), resolved_props, event_handlers.to_owned(), value_bindings.to_owned());
-                    ops_writer.write_op(&op);
+                    if let &Some(ref props) = props {
+                        // let v: Vec<PropValue<'a>> = vec![];
+                        // let v: PropVec = vec![];
+                        // let mut prop_iter = v.iter().map(|prop| (prop.0.as_ref(), prop.1.as_ref()));
+
+                        let mut prop_iter = props.iter().map(|prop| prop.0.as_str());
+                        let mut iter = SymbolResolver { ctx: &mut self.ctx, iter: prop_iter };
+                        let resolved_props: Vec<Prop> = iter.collect();
+
+                        let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), Some(resolved_props), event_handlers.to_owned(), value_bindings.to_owned());
+                        ops_writer.write_op(&op);
+                    };
+
+                    // let resolved_props = props.map(|props| {
+                    //     let mut props_iter = props.iter().map(|prop| (prop.0.as_ref(), prop.1.map(|p| &p)));
+                    //     let mut iter = SymbolResolver { ctx: &mut self.ctx, iter: props_iter };
+
+                    //     // let mut iter = self.resolve_props(
+                    //     //     props.iter().map(|prop| (prop.0.as_ref(), prop.1.map(|p| &p)))
+                    //     // );
+                    //     let resolved_prop = iter.next().unwrap();
+                    //     // let resolved_props: PropVec = iter.collect();
+
+                    //     // resolved_props
+                    //     vec![]
+                    // });
+                    // let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), resolved_props, event_handlers.to_owned(), value_bindings.to_owned());
+                    // ops_writer.write_op(&op);
                 },
                 _ => { ops_writer.write_op(comp_op); }
             };
