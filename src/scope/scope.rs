@@ -51,6 +51,10 @@ impl Scope {
     pub fn param(&self, key: &str) -> Symbol {
         Symbol::param(key, self.id())
     }
+
+    pub fn unbound_formal_param(&self, key: &str) -> Symbol {
+        Symbol::unbound_formal_param(key, Some(self.id()))
+    }
 }
 
 

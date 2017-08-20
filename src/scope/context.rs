@@ -170,8 +170,12 @@ impl Context {
         self.scope().param(key)
     }
 
-    pub fn add_unbound_formal(&mut self, key: &str) {
-        let formal = Symbol::unbound_formal_param(key);
+    pub fn unbound_formal_param(&mut self, key: &str) -> Symbol {
+        self.scope().unbound_formal_param(key)
+    }
+
+    pub fn add_unbound_formal_param(&mut self, key: &str) {
+        let formal = self.unbound_formal_param(key);
         self.add_sym(key, formal);
     }
 
@@ -304,7 +308,13 @@ mod tests {
     }
 
     #[derive(Debug, Clone, Default)]
+    struct TestProcessor2 {}
+
+    #[derive(Debug, Clone, Default)]
     struct TestOutput2 {}
+
+    type FormalProp<'a> = (&'a str);
+    type FormalPropVec<'a> = Vec<FormalProp<'a>>;
 
     type PropKeyRef = (String, String);
     type PropKeyRefVec = Vec<PropKeyRef>;
@@ -312,12 +322,33 @@ mod tests {
     type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
     type PropValueVec<'a> = Vec<PropValue<'a>>;
 
-    impl TestOutput2 {
-        pub fn push_component_definition_param_bindings_scope(&mut self, ctx: &mut Context) {
+    impl TestProcessor2 {
+        pub fn push_component_definition_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, formals: I)
+          where I: IntoIterator<Item = &'a FormalProp<'a>>
+        {
             ctx.push_child_scope();
-            ctx.add_unbound_formal("todo");
+            for formal in formals {
+                ctx.add_unbound_formal_param(formal);
+            }
         }
 
+        pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, _element_id: &str, _element_ty: &str, props: I)
+          where I: IntoIterator<Item = &'a PropKeyRef>
+        {
+            let parent_scope_id = ctx.scope().id().to_owned();
+            ctx.push_child_scope();
+            for prop in props {
+                ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
+            }
+        }
+
+        pub fn push_element_scope(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str) {
+            ctx.push_child_scope();
+            ctx.append_path_str(element_id);
+        }
+    }
+
+    impl TestOutput2 {
         pub fn push_component_instance_invocation_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, props: I)
           where I: IntoIterator<Item = &'a PropValue<'a>>
         {
@@ -342,6 +373,48 @@ mod tests {
             for prop in props {
                 ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
             }
+        }
+    }
+
+    #[test]
+    pub fn test_context_scope_component_processing1() {
+        let mut ctx = Context::default();
+        let mut processor = TestProcessor2::default();
+
+        // component Component(todo)
+        // Create new component context with unbound formal prop (todo)
+        {
+            let formals: FormalPropVec = vec![("todo")];
+            processor.push_component_definition_scope(&mut ctx, "Component", formals.iter());
+        }
+        let comp_definition_scope_id = ctx.scope().id().to_owned();
+
+        // within Component definition
+        {
+            // The local (todo) should be an unbound formal prop (todo)
+            assert_eq!(ctx.resolve_sym("todo"),
+                // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
+                Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
+            );
+        }
+
+        // element Pq invocation
+        {
+            let props: PropKeyRefVec = vec![
+                ("value".into(), "todo".into())
+            ];
+            processor.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", props.iter());
+        }
+        // let element_pq_invocation_scope_id = ctx.scope().id().to_owned();
+
+        // element Pq scope
+        {
+            processor.push_element_scope(&mut ctx, "Pq", "input");
+
+            // The local (todo) should still be an unbound formal param (todo)
+            assert_eq!(ctx.resolve_sym("todo"),
+                Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
+            );
         }
     }
 

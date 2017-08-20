@@ -64,6 +64,7 @@ pub enum KeyReferenceType {
     ReducerKey(String),
     FuncParam(i32),
     FuncParamObjectProp(i32, String),
+    UnboundFormalParam,
     BlockMapIndex,
     BlockMapObjectProp,
     ComponentProp(String),
@@ -76,7 +77,6 @@ pub enum KeyReferenceType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedSymbolType {
     ReferenceToKeyInScope(KeyReferenceType, Option<String>),
-    UnboundFormalParam,
 
     ReducerKeyReference(String),
     ParameterReference(String),
@@ -130,19 +130,29 @@ impl Symbol {
         Self::ref_key_in_scope(key, key_ref, scope_id)
     }
 
+    /// Defines a value for a given formal parameter on the current component invocation scope.
     pub fn invocation_prop(key: &str, expr: Option<&ExprValue>) -> Symbol {
         let key_ref = KeyReferenceType::InvocationProp(expr.map(|e| Box::new(e.to_owned())));
         Self::ref_key_in_scope(key, key_ref, None)
     }
 
-    pub fn unbound_formal_param(key: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::UnboundFormalParam;
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               None,
-               None)
+    /// Defines an unbound formal parameter on the current component definition.
+    ///
+    /// Retains the current scope id.
+    pub fn unbound_formal_param(key: &str, scope_id: Option<&str>) -> Symbol {
+        let key_ref = KeyReferenceType::UnboundFormalParam;
+        Self::ref_key_in_scope(key, key_ref, scope_id)
     }
 
-
+    // /// Creates a reference to an unbound formal parameter the given scope.
+    // ///
+    // /// Typically will be used to reference an unbound formal parameter in the currently
+    // /// defined component and refers to the closest enclosing component definition.
+    // pub fn unbound_formal_param_ref(key: &str, scope_id: &str) -> Symbol {
+    //     // let key_ref = KeyReferenceType::UnboundFormalParamRef(key.to_owned());
+    //     let key_ref = KeyReferenceType::UnboundFormalParam;
+    //     Self::ref_key_in_scope(key, key_ref, Some(scope_id))
+    // }
 
     pub fn reducer_key(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
