@@ -3,6 +3,7 @@
 #![feature(plugin)]
 #![plugin(indoc)]
 #![feature(box_patterns)]
+#![feature(conservative_impl_trait)]
 
 extern crate wren;
 extern crate uuid;
@@ -12,7 +13,7 @@ extern crate broadcast;
 
 mod parser;
 mod scope;
-// mod processing;
+mod processing;
 // mod output;
 
 use wren::{VM, Configuration};

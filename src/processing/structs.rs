@@ -3,7 +3,7 @@ use std::result;
 
 use linked_hash_map::LinkedHashMap;
 
-use processing::scope::*;
+// use processing::scope::*;
 use parser::ast::*;
 use parser::store::*;
 use parser::util::*;
@@ -50,7 +50,7 @@ impl ReducerActionData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ElementOp {
     ElementOpen(String,
                 Option<String>,
@@ -80,15 +80,46 @@ pub type ComponentMap = LinkedHashMap<String, Component>;
 pub type ReducerKeyMap = LinkedHashMap<String, ReducerKeyData>;
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
 
+type ElementOpsVec = Vec<ElementOp>;
+
 #[derive(Debug, Clone)]
 pub struct Component {
-    pub name: String,
-    pub ops: Option<OpsVec>,
-    pub uses: Option<Vec<String>>,
-    pub child_map: Option<ComponentMap>,
-    pub symbol_map: SymbolMap,
-    pub props: SymbolMap,
-    pub events: Option<EventsVec>,
+    ty: String,
+    ops: Option<ElementOpsVec>,
+    // pub uses: Option<Vec<String>>,
+    // pub child_map: Option<ComponentMap>,
+    // pub symbol_map: SymbolMap,
+    // pub props: SymbolMap,
+    // pub events: Option<EventsVec>,
+}
+
+impl<'a> Component {
+    #[allow(dead_code)]
+    pub fn new<'ops, I>(ty: &str, ops: Option<I>) -> Self
+      where I: IntoIterator<Item = &'ops ElementOp>
+    {
+        let ops = ops.map(|ops| ops.into_iter().map(|op| op.clone()).collect());
+        Component {
+            ty: ty.to_owned(),
+            ops: ops
+        }
+    }
+
+    /// Consumes parameters and returns new Component
+    pub fn new_with_vec(ty: String, ops: Option<OpsVec>) -> Self {
+        Component {
+            ty: ty,
+            ops: ops
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn ty(&self) -> &str { &self.ty }
+
+    #[allow(dead_code)]
+    pub fn ops_iter(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
+        self.ops.as_ref().map(|ops| ops.into_iter())
+    }
 }
 
 // Processing
@@ -126,7 +157,7 @@ impl From<io::Error> for DocumentProcessingError {
 #[derive(Debug)]
 pub struct BlockProcessingState {
     pub block_id: String,
-    pub scope: ElementOpScope,
+    // pub scope: ElementOpScope,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
 }
@@ -136,7 +167,7 @@ impl Default for BlockProcessingState {
         let block_id = allocate_element_key();
         BlockProcessingState {
             block_id: block_id,
-            scope: Default::default(),
+            // scope: Default::default(),
             ops_vec: Default::default(),
             events_vec: Default::default(),
         }
@@ -175,7 +206,7 @@ pub struct DocumentState<'inp> {
 impl<'inp> DocumentState<'inp> {
     pub fn resolve_symbol_value(&self, sym: &Symbol) -> Option<ExprValue> {
         match sym.sym_ref() {
-            &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref reducer_key)) => {
+            &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref reducer_key), _) => {
                 if let Some(reducer_data) = self.reducer_key_data.get(reducer_key) {
                     return reducer_data.default_expr.clone();
                 };
