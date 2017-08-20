@@ -56,11 +56,28 @@ pub enum VarType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
-    ResolvedReference(String, ResolvedSymbolType),
+    ResolvedReference(String, ResolvedSymbolType, Option<String>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum KeyReferenceType {
+    ReducerKey(String),
+    FuncParam(i32),
+    FuncParamObjectProp(i32, String),
+    BlockMapIndex,
+    BlockMapObjectProp,
+    ComponentProp(String),
+    InvocationProp(Option<Box<ExprValue>>),
+    CurrentElementProp(String),
+    CurrentReducerActionParam(String),
+    CurrentReducerActionState
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedSymbolType {
+    ReferenceToKeyInScope(KeyReferenceType, Option<String>),
+    UnboundFormalParam,
+
     ReducerKeyReference(String),
     ParameterReference(String),
     LocalVarReference(String),
@@ -88,9 +105,48 @@ impl Symbol {
                None)
     }
 
+    pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
+        let resolved = ResolvedSymbolType::ReferenceToKeyInScope(key_ref, scope_id.map(|s| s.to_owned()));
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
+               None,
+               None)
+    }
+
+    pub fn ref_prop_in_scope(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
+        let key_ref = KeyReferenceType::ComponentProp(prop_key.to_owned());
+        let resolved = ResolvedSymbolType::ReferenceToKeyInScope(key_ref, scope_id.map(|s| s.to_owned()));
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
+               None,
+               None)
+    }
+
+    pub fn element_prop(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
+        let key_ref = KeyReferenceType::CurrentElementProp(prop_key.to_owned());
+        Self::ref_key_in_scope(key, key_ref, scope_id)
+    }
+
+    pub fn component_prop(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
+        let key_ref = KeyReferenceType::ComponentProp(prop_key.to_owned());
+        Self::ref_key_in_scope(key, key_ref, scope_id)
+    }
+
+    pub fn invocation_prop(key: &str, expr: Option<&ExprValue>) -> Symbol {
+        let key_ref = KeyReferenceType::InvocationProp(expr.map(|e| Box::new(e.to_owned())));
+        Self::ref_key_in_scope(key, key_ref, None)
+    }
+
+    pub fn unbound_formal_param(key: &str) -> Symbol {
+        let resolved = ResolvedSymbolType::UnboundFormalParam;
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
+               None,
+               None)
+    }
+
+
+
     pub fn reducer_key(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                None,
                None)
     }
@@ -98,14 +154,14 @@ impl Symbol {
     pub fn reducer_key_with_ty(key: &str, ty: Option<&VarType>) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let ty = ty.map(|ty| ty.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                ty,
                None)
     }
 
     pub fn reducer_key_with_value(key: &str, value: &ExprValue) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                None,
                Some(Box::new(value.clone())))
     }
@@ -114,88 +170,88 @@ impl Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let value = value.map(|value| Box::new(value.clone()));
         let ty = ty.map(|ty| ty.clone());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                ty,
                value)
     }
 
-    pub fn action_param(key: &str) -> Symbol {
+    pub fn action_param(key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn loop_idx(key: &str, block_id: &str) -> Symbol {
+    pub fn loop_idx(key: &str, block_id: &str, scope_id: &str) -> Symbol {
         let var_key = format!("__{}_{}", key, block_id);
         let resolved = ResolvedSymbolType::LoopIndexReference(key.to_owned(), block_id.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn loop_var(key: &str) -> Symbol {
+    pub fn loop_var(key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::LoopVarReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn param(key: &str) -> Symbol {
+    pub fn param(key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ParameterReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn block_param(key: &str) -> Symbol {
+    pub fn block_param(key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::BlockParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn loop_var_with_value(key: &str, value: &ExprValue) -> Symbol {
-        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        let value = Some(Box::new(value.clone()));
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
-               None,
-               value)
-    }
+    // pub fn loop_var_with_value(key: &str, value: &ExprValue) -> Symbol {
+    //     let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
+    //     let value = Some(Box::new(value.clone()));
+    //     Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+    //            None,
+    //            value)
+    // }
 
-    pub fn prop(prop_name: &str) -> Symbol {
+    pub fn prop(prop_name: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn prop_with_value(prop_name: &str, value: &ExprValue) -> Symbol {
-        let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
-        let value = Some(Box::new(value.clone()));
-        // TODO: peek type
-        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
-               None,
-               value)
-    }
+    // pub fn prop_with_value(prop_name: &str, value: &ExprValue) -> Symbol {
+    //     let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
+    //     let value = Some(Box::new(value.clone()));
+    //     // TODO: peek type
+    //     Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
+    //            None,
+    //            value)
+    // }
 
-    pub fn action_state(ty: Option<&VarType>) -> Symbol {
+    pub fn action_state(ty: Option<&VarType>, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ActionStateReference(ty.map(|ty| ty.to_owned()));
-        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved, Some(scope_id.to_owned())),
                ty.map(|ty| ty.to_owned()),
                None)
     }
 
-    pub fn for_lens_element_key(key: &str) -> Symbol {
+    pub fn for_lens_element_key(key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ForLensElementReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
 
-    pub fn element_value_binding(key: &str, element_key: &str) -> Symbol {
+    pub fn element_value_binding(key: &str, element_key: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ElementValueReference(element_key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
+        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }

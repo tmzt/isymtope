@@ -43,6 +43,14 @@ impl Scope {
     pub fn join_path_as_expr(&self, s: Option<&str>) -> Option<ExprValue> {
         self.symbol_path.join_as_expr(s)
     }
+
+    pub fn prop(&self, key: &str) -> Symbol {
+        Symbol::prop(key, self.id())
+    }
+
+    pub fn param(&self, key: &str) -> Symbol {
+        Symbol::param(key, self.id())
+    }
 }
 
 

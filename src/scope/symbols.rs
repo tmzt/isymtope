@@ -51,7 +51,9 @@ mod tests {
     #[test]
     pub fn test_symbols() {
         let mut symbols = Symbols::new(None);
-        symbols.add_sym("abc", Symbol::prop("xyz"));
-        assert_eq!(Some(&Symbol::prop("xyz")), symbols.get_sym("abc"));
+        symbols.add_sym("abc", Symbol::prop("xyz", "s1"));
+        // assert!(match symbols.get_sym("abc").map(|s| s.sym_ref()) { Some(&SymbolReferenceType::ResolvedReference("abc".to_owned(), ResolvedSymbolType::PropReference("abc".to_owned()), _)) => true, _ => false);
+
+        assert_eq!(symbols.get_sym("abc").map(|s| s.sym_ref()), Some(&SymbolReferenceType::ResolvedReference("xyz".to_owned(), ResolvedSymbolType::PropReference("xyz".to_owned()), Some("s1".to_owned()))));
     }
 }
