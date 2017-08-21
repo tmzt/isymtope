@@ -106,11 +106,18 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct TestOpsWriter {
+        output_ops: Vec<ElementOp>
     }
     
+    impl<'a> TestOpsWriter {
+        pub fn ops_iter(&'a self) -> impl Iterator<Item = &'a ElementOp> {
+            self.output_ops.iter()
+        }
+    }
+
     impl OpsWriter for TestOpsWriter {
         fn write_op(&mut self, op: &ElementOp) {
-
+            self.output_ops.push(op.to_owned());
         }
     }
 
@@ -127,16 +134,13 @@ mod tests {
         iter: I
     }
 
-    // impl<'a, I> SymbolResolver<'a, I>
-    // //   where I: Iterator<Item = &'a PropValue<'a>>
-    // {
-    //     pub fn new(ctx: &'a mut Context, iter: Self::I) -> Self {
-    //         SymbolResolver { ctx: ctx, iter: iter }
-    //     }
-    // }
+    impl<'a, I: Iterator<Item = PropValue<'a>>> SymbolResolver<'a, I>
+    {
+        pub fn new(ctx: &'a mut Context, iter: I) -> Self {
+            SymbolResolver { ctx: ctx, iter: iter }
+        }
+    }
 
-    // impl<'a, I> Iterator for SymbolResolver<'a, I>
-    //   where I: Iterator<Item = &'a PropValue<'a>>
     impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
     {
         type Item = Prop;
@@ -147,45 +151,21 @@ mod tests {
                 let expr = &prop.1;
                 let resolved_sym = self.ctx.resolve_sym(&key);
                 if let Some(resolved_sym) = resolved_sym {
-                    // let key = prop.0.to_owned();
                     let expr = ExprValue::SymbolReference(resolved_sym);
                     return Some((key, Some(expr)));
                 }; 
                 return Some((key, expr.map(|p| p.clone())));
-                // return Some((key.to_owned(), prop.1.map(|p| p.to_owned())));
             };
             None
-
-            // self.iter.next().map(|prop| {
-            //     let resolved_sym = self.ctx.resolve_sym(&prop.0);
-            //     if let Some(resolved_sym) = resolved_sym {
-            //         let key = prop.0.to_owned();
-            //         let expr = ExprValue::SymbolReference(resolved_sym);
-            //         return (key, Some(expr));
-            //     }
-
-            //     return (prop.0.to_owned(), prop.1.map(|p| p.to_owned()))
-            // })
         }
     }
 
-    // impl<B, I: ExactSizeIterator, F> ExactSizeIterator for SymbolResolver<I>
-    // {
-    //     fn len(&self) -> usize {
-    //         self.iter.len()
-    //     }
-
-    //     fn is_empty(&self) -> bool {
-    //         self.iter.is_empty()
-    //     }
-    // }
-
     impl<'a> ComponentWriter {
-        // fn resolve_props<'props, I>(&'a mut self, props: I) -> SymbolResolver<'a, I>
-        //   where I: Iterator<Item = PropValue<'props>>
-        // {
-        //     SymbolResolver::new(&mut self.ctx, props)
-        // }
+        fn resolve_props<I>(&'a mut self, props: I) -> SymbolResolver<'a, I>
+          where I: Iterator<Item = PropValue<'a>>
+        {
+            SymbolResolver::new(&mut self.ctx, props)
+        }
 
         fn write_op_to<W>(&mut self, ops_writer: &mut W, comp_op: &ElementOp)
           where W: OpsWriter
@@ -193,33 +173,13 @@ mod tests {
             match comp_op {
                 &ElementOp::ElementVoid(ref element_ty, ref element_id, ref props, ref event_handlers, ref value_bindings) => {
                     if let &Some(ref props) = props {
-                        // let v: Vec<PropValue<'a>> = vec![];
-                        // let v: PropVec = vec![];
-                        // let mut prop_iter = v.iter().map(|prop| (prop.0.as_ref(), prop.1.as_ref()));
-
-                        let mut prop_iter = props.iter().map(|prop| (prop.0.as_str(), prop.1.as_ref()));
-                        let mut iter = SymbolResolver { ctx: &mut self.ctx, iter: prop_iter };
+                        let prop_iter = props.iter().map(|prop| (prop.0.as_str(), prop.1.as_ref()));
+                        let iter = self.resolve_props(prop_iter);
                         let resolved_props: Vec<Prop> = iter.collect();
 
                         let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), Some(resolved_props), event_handlers.to_owned(), value_bindings.to_owned());
                         ops_writer.write_op(&op);
                     };
-
-                    // let resolved_props = props.map(|props| {
-                    //     let mut props_iter = props.iter().map(|prop| (prop.0.as_ref(), prop.1.map(|p| &p)));
-                    //     let mut iter = SymbolResolver { ctx: &mut self.ctx, iter: props_iter };
-
-                    //     // let mut iter = self.resolve_props(
-                    //     //     props.iter().map(|prop| (prop.0.as_ref(), prop.1.map(|p| &p)))
-                    //     // );
-                    //     let resolved_prop = iter.next().unwrap();
-                    //     // let resolved_props: PropVec = iter.collect();
-
-                    //     // resolved_props
-                    //     vec![]
-                    // });
-                    // let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), resolved_props, event_handlers.to_owned(), value_bindings.to_owned());
-                    // ops_writer.write_op(&op);
                 },
                 _ => { ops_writer.write_op(comp_op); }
             };
@@ -302,5 +262,12 @@ mod tests {
         let mut comp_writer = ComponentWriter::default();
 
         comp_writer.write_component(&mut ops_writer, &comp);
+
+        assert_eq!(ops_writer.ops_iter().cloned().collect::<OpsVec>(), vec![
+                ElementOp::ElementVoid("input".into(), Some("Pq".into()), Some(vec![(
+                    "value".into(),
+                    Some(ExprValue::SymbolReference(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)) ))
+                )]), None, None)
+        ]);
     }
 }
