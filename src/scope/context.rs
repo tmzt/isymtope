@@ -7,7 +7,42 @@ use scope::scope::*;
 use scope::symbols::*;
 
 
-#[derive(Debug, Clone)]
+
+pub type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
+
+#[derive(Debug)]
+pub struct SymbolResolver<'a, I: Iterator<Item = PropValue<'a>>> {
+    ctx: &'a mut Context,
+    iter: I
+}
+
+impl<'a, I: Iterator<Item = PropValue<'a>>> SymbolResolver<'a, I>
+{
+    pub fn new(ctx: &'a mut Context, iter: I) -> Self {
+        SymbolResolver { ctx: ctx, iter: iter }
+    }
+}
+
+impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
+{
+    type Item = Prop;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(prop) = self.iter.next() {
+            let key = prop.0.to_owned();
+            let expr = &prop.1;
+            let resolved_sym = self.ctx.resolve_sym(&key);
+            if let Some(resolved_sym) = resolved_sym {
+                let expr = ExprValue::SymbolReference(resolved_sym);
+                return Some((key, Some(expr)));
+            }; 
+            return Some((key, expr.map(|p| p.clone())));
+        };
+        None
+    }
+}
+
+#[derive(Debug)]
 pub struct Context {
     // base_scope: Scope,
     scopes: LinkedHashMap<String, Scope>,
@@ -119,6 +154,12 @@ impl Context {
             scope.append_path_str(s);
         };
     }
+
+    // pub fn resolve_props<'p, I>(&mut self, props: I) -> SymbolResolver<'p, I>
+    //     where I: Iterator<Item = PropValue<'p>>
+    // {
+    //     SymbolResolver::new(&mut self, props)
+    // }
 
     pub fn reduce_expr_to_string(&self, expr: &ExprValue) -> String {
         match expr {

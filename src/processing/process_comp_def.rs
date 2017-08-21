@@ -11,8 +11,8 @@ type FormalPropVec<'a> = Vec<FormalProp<'a>>;
 type PropKeyRef = (String, String);
 type PropKeyRefVec = Vec<PropKeyRef>;
 
-type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
-type PropValueVec<'a> = Vec<PropValue<'a>>;
+// type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
+// type PropValueVec<'a> = Vec<PropValue<'a>>;
 
 
 #[derive(Debug, Clone, Default)]
@@ -122,59 +122,18 @@ mod tests {
     }
 
     #[derive(Debug, Default)]
-    struct ComponentWriter {
-        ctx: Context
-    }
+    struct ComponentWriter {}
 
-    type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
-
-    #[derive(Debug)]
-    struct SymbolResolver<'a, I: Iterator<Item = PropValue<'a>>> {
-        ctx: &'a mut Context,
-        iter: I
-    }
-
-    impl<'a, I: Iterator<Item = PropValue<'a>>> SymbolResolver<'a, I>
-    {
-        pub fn new(ctx: &'a mut Context, iter: I) -> Self {
-            SymbolResolver { ctx: ctx, iter: iter }
-        }
-    }
-
-    impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
-    {
-        type Item = Prop;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if let Some(prop) = self.iter.next() {
-                let key = prop.0.to_owned();
-                let expr = &prop.1;
-                let resolved_sym = self.ctx.resolve_sym(&key);
-                if let Some(resolved_sym) = resolved_sym {
-                    let expr = ExprValue::SymbolReference(resolved_sym);
-                    return Some((key, Some(expr)));
-                }; 
-                return Some((key, expr.map(|p| p.clone())));
-            };
-            None
-        }
-    }
-
-    impl<'a> ComponentWriter {
-        fn resolve_props<I>(&'a mut self, props: I) -> SymbolResolver<'a, I>
-          where I: Iterator<Item = PropValue<'a>>
-        {
-            SymbolResolver::new(&mut self.ctx, props)
-        }
-
-        fn write_op_to<W>(&mut self, ops_writer: &mut W, comp_op: &ElementOp)
+    impl ComponentWriter {
+        fn write_op_to<W>(&mut self, ctx: &mut Context, ops_writer: &mut W, comp_op: &ElementOp)
           where W: OpsWriter
         {
             match comp_op {
                 &ElementOp::ElementVoid(ref element_ty, ref element_id, ref props, ref event_handlers, ref value_bindings) => {
                     if let &Some(ref props) = props {
                         let prop_iter = props.iter().map(|prop| (prop.0.as_str(), prop.1.as_ref()));
-                        let iter = self.resolve_props(prop_iter);
+                        // let iter = ctx.resolve_props(prop_iter);
+                        let iter = SymbolResolver::new(ctx, prop_iter);
                         let resolved_props: Vec<Prop> = iter.collect();
 
                         let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), Some(resolved_props), event_handlers.to_owned(), value_bindings.to_owned());
@@ -185,7 +144,7 @@ mod tests {
             };
         }
 
-        pub fn write_component<W>(&mut self, ops_writer: &mut W, comp: &Component)
+        pub fn write_component<W>(&mut self, ctx: &mut Context, ops_writer: &mut W, comp: &Component)
           where W: OpsWriter
         {
             if let Some(ops_iter) = comp.ops_iter() {
@@ -193,6 +152,18 @@ mod tests {
                     ops_writer.write_op(op);
                 }
             };
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct ComponentOutputProcessor {
+    }
+
+    impl ComponentOutputProcessor {
+        pub fn push_component_invocation_scope<'a, I>(&mut self, ctx: &mut Context, comp: &Component)
+          where I: IntoIterator<Item = PropValue<'a>>
+        {
+            ctx.push_child_scope();
         }
     }
 
@@ -259,9 +230,13 @@ mod tests {
 
         // Test writer
         let mut ops_writer = TestOpsWriter::default();
-        let mut comp_writer = ComponentWriter::default();
 
-        comp_writer.write_component(&mut ops_writer, &comp);
+        {
+            let mut ctx = Context::default();
+            let mut comp_writer = ComponentWriter::default();
+
+            comp_writer.write_component(&mut ctx, &mut ops_writer, &comp);
+        }
 
         assert_eq!(ops_writer.ops_iter().cloned().collect::<OpsVec>(), vec![
                 ElementOp::ElementVoid("input".into(), Some("Pq".into()), Some(vec![(
