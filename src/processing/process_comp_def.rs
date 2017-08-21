@@ -125,7 +125,7 @@ mod tests {
     struct ComponentWriter {}
 
     impl ComponentWriter {
-        fn write_op_to<W>(&mut self, ctx: &mut Context, ops_writer: &mut W, comp_op: &ElementOp)
+        fn write_op_to<W>(ctx: &mut Context, ops_writer: &mut W, comp_op: &ElementOp)
           where W: OpsWriter
         {
             match comp_op {
@@ -149,7 +149,8 @@ mod tests {
         {
             if let Some(ops_iter) = comp.ops_iter() {
                 for op in ops_iter {
-                    ops_writer.write_op(op);
+                    Self::write_op_to(ctx, ops_writer, op);
+                    // ops_writer.write_op(op);
                 }
             };
         }
