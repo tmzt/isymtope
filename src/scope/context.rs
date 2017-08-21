@@ -132,6 +132,65 @@ impl Context {
         None
     }
 
+    pub fn resolve_sym_starting_at(&mut self, key: &str, map_id: &str) -> Option<Symbol> {
+        let mut cur_map = self.symbol_maps.get(map_id);
+        while let Some(map) = cur_map {
+            if let Some(sym) = map.get_sym(key) {
+                return Some(sym.to_owned());
+            };
+
+            cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
+        };
+
+        None
+    }
+
+    pub fn eval_sym(&mut self, sym: &Symbol) -> Option<ExprValue> {
+
+        // let mut cur_sym = sym;
+        // match sym.sym_ref() {
+        //     &SymbolReferenceType::ResolvedReference(ref key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref scope_id)), _) => {
+        //         match key_ref {
+        //             &KeyReferenceType::UnboundFormalParam => {
+        //                 if let Some(ref ref_sym) = self.resolve_sym_starting_at(key, scope_id) {
+        //                     return self.eval_sym(ref_sym);
+        //                 };
+
+        //             },
+        //             _ => ()
+        //         };
+        //     },
+
+        //     _ => {}
+        // };
+
+        // let map_id = self.scope().map_id().to_owned();
+        // let mut cur_map = self.symbol_maps.get(&map_id);
+        let mut cur_sym = Some(sym);
+
+        while let Some(sym) = cur_sym {
+            match sym.sym_ref() {
+                &SymbolReferenceType::ResolvedReference(ref sym_key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref scope_id)), _) => {
+                    match key_ref {
+                        &KeyReferenceType::UnboundFormalParam => {
+                            // cur_map = self.symbol_maps.get(scope_id);
+                            if let Some(map) = self.symbol_maps.get(scope_id) {
+                                cur_sym = map.get_sym(sym_key);
+                            }
+                            continue;
+                        }
+
+                        _ => { break; }
+                    };
+                }
+
+                _ => {}
+            };
+        };
+
+        None
+    }
+
     pub fn add_symbol_map(&mut self, map: Symbols) {
         self.symbol_maps.insert(map.map_id().to_owned(), map);
     }

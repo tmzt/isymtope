@@ -279,6 +279,16 @@ impl Symbol {
     }
 }
 
+/// Bindings
+#[derive(Debug, Clone, PartialEq)]
+pub enum BindingType {
+    ExpressionBinding(Box<ExprValue>),
+    KeyInSymbolsBinding(String, String),
+    ReducerPathBinding(String, Option<Vec<String>>)
+}
+
+pub type BindingMap = LinkedHashMap<String, BindingType>;
+
 /// Simple expression (parameter value)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprValue {
@@ -288,6 +298,8 @@ pub enum ExprValue {
     DefaultVariableReference,
     SymbolReference(Symbol),
     SymbolPathReference(Vec<Symbol>),
+    Binding(BindingType),
+
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
