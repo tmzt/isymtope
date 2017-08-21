@@ -122,7 +122,7 @@ mod tests {
     type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
 
     #[derive(Debug)]
-    struct SymbolResolver<'a, I: Iterator<Item = &'a str>> {
+    struct SymbolResolver<'a, I: Iterator<Item = PropValue<'a>>> {
         ctx: &'a mut Context,
         iter: I
     }
@@ -137,19 +137,21 @@ mod tests {
 
     // impl<'a, I> Iterator for SymbolResolver<'a, I>
     //   where I: Iterator<Item = &'a PropValue<'a>>
-    impl<'a, I: Iterator<Item = &'a str>> Iterator for SymbolResolver<'a, I>
+    impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
     {
         type Item = Prop;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if let Some(key) = self.iter.next() {
-                let resolved_sym = self.ctx.resolve_sym(key);
+            if let Some(prop) = self.iter.next() {
+                let key = prop.0.to_owned();
+                let expr = &prop.1;
+                let resolved_sym = self.ctx.resolve_sym(&key);
                 if let Some(resolved_sym) = resolved_sym {
                     // let key = prop.0.to_owned();
                     let expr = ExprValue::SymbolReference(resolved_sym);
-                    return Some((key.to_owned(), Some(expr)));
+                    return Some((key, Some(expr)));
                 }; 
-                return Some((key.to_owned(), None));
+                return Some((key, expr.map(|p| p.clone())));
                 // return Some((key.to_owned(), prop.1.map(|p| p.to_owned())));
             };
             None
@@ -195,7 +197,7 @@ mod tests {
                         // let v: PropVec = vec![];
                         // let mut prop_iter = v.iter().map(|prop| (prop.0.as_ref(), prop.1.as_ref()));
 
-                        let mut prop_iter = props.iter().map(|prop| prop.0.as_str());
+                        let mut prop_iter = props.iter().map(|prop| (prop.0.as_str(), prop.1.as_ref()));
                         let mut iter = SymbolResolver { ctx: &mut self.ctx, iter: prop_iter };
                         let resolved_props: Vec<Prop> = iter.collect();
 
