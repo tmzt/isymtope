@@ -3,6 +3,7 @@
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
+use scope::context::*;
 
 
 #[derive(Debug, Default)]
@@ -58,19 +59,19 @@ impl BindingContext {
 }
 
 #[derive(Debug)]
-pub struct SymbolBindingsResolver<'a, I: Iterator<Item = &'a Symbol>> {
+pub struct SymbolBindingResolver<'a, I: Iterator<Item = &'a Symbol>> {
     bindings: &'a mut BindingContext,
     iter: I
 }
 
-impl<'a, I: Iterator<Item = &'a Symbol>> SymbolBindingsResolver<'a, I>
+impl<'a, I: Iterator<Item = &'a Symbol>> SymbolBindingResolver<'a, I>
 {
     pub fn new(bindings: &'a mut BindingContext, iter: I) -> Self {
-        SymbolBindingsResolver { bindings: bindings, iter: iter }
+        SymbolBindingResolver { bindings: bindings, iter: iter }
     }
 }
 
-impl<'a, I: Iterator<Item = &'a Symbol>> Iterator for SymbolBindingsResolver<'a, I>
+impl<'a, I: Iterator<Item = &'a Symbol>> Iterator for SymbolBindingResolver<'a, I>
 {
     type Item = BindingType;
 
@@ -79,6 +80,53 @@ impl<'a, I: Iterator<Item = &'a Symbol>> Iterator for SymbolBindingsResolver<'a,
             if let Some(resolved_binding) = self.bindings.resolve_sym(sym) {
                 return Some(resolved_binding.to_owned());
             }; 
+        };
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct SymbolBindingPropResolver<'a, I: Iterator<Item = PropValue<'a>>> {
+    ctx: &'a mut Context,
+    bindings: &'a BindingContext,
+    iter: I
+}
+
+impl<'a, I: Iterator<Item = PropValue<'a>>> SymbolBindingPropResolver<'a, I>
+{
+    pub fn new(ctx: &'a mut Context, bindings: &'a BindingContext, iter: I) -> Self {
+        SymbolBindingPropResolver { ctx: ctx, bindings: bindings, iter: iter }
+    }
+}
+
+impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolBindingPropResolver<'a, I>
+{
+    type Item = Prop;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(prop) = self.iter.next() {
+            let (key, expr) = prop;
+            if let Some(expr) = expr {
+                if let &ExprValue::SymbolReference(ref sym) = expr {
+                    match sym.sym_ref() {
+                        &SymbolReferenceType::ResolvedReference(ref sym_key, ResolvedSymbolType::ReferenceToKeyInScope(KeyReferenceType::UnboundFormalParam, _), _) => {
+                            if let Some(resolved_binding) = self.bindings.resolve_binding(sym_key) {
+                                let res = ExprValue::Binding(resolved_binding.to_owned());
+                                return Some((key.to_owned(), Some(res)));
+                            };
+
+                            // if let Some(ref resolved_sym) = self.ctx.resolve_sym(sym_key) {
+                            //     if let Some(resolved_binding) = self.bindings.resolve_sym(resolved_sym) {
+                            //         let res = ExprValue::Binding(resolved_binding.to_owned());
+                            //         return Some((key.to_owned(), Some(res)));
+                            //     };
+                            // };
+                        },
+                        _ => { }
+                    };
+                };
+            };
+            return Some((key.to_owned(), expr.map(|p| p.clone())));
         };
         None
     }
@@ -119,7 +167,7 @@ mod tests {
             Symbol::unbound_formal_param("todo", Some("s1"))
         ];
 
-        let binding_iter = SymbolBindingsResolver::new(&mut bindings, symbols.iter());
+        let binding_iter = SymbolBindingResolver::new(&mut bindings, symbols.iter());
         assert_eq!(binding_iter.collect::<Vec<BindingType>>(), vec![
             BindingType::ReducerPathBinding("todo".into(), None)
         ]);

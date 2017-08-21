@@ -2,6 +2,7 @@
 
 use parser::ast::*;
 use scope::context::*;
+use scope::bindings::*;
 use processing::structs::*;
 
 
@@ -125,16 +126,15 @@ mod tests {
     struct ComponentWriter {}
 
     impl ComponentWriter {
-        fn write_op_to<W>(ctx: &mut Context, ops_writer: &mut W, comp_op: &ElementOp)
+        fn write_op_to<W>(ctx: &mut Context, bindings: &BindingContext, ops_writer: &mut W, comp_op: &ElementOp)
           where W: OpsWriter
         {
             match comp_op {
                 &ElementOp::ElementVoid(ref element_ty, ref element_id, ref props, ref event_handlers, ref value_bindings) => {
                     if let &Some(ref props) = props {
                         let prop_iter = props.iter().map(|prop| (prop.0.as_str(), prop.1.as_ref()));
-                        // let iter = ctx.resolve_props(prop_iter);
-                        let iter = SymbolResolver::new(ctx, prop_iter);
-                        let resolved_props: Vec<Prop> = iter.collect();
+                        let bindings_iter = SymbolBindingPropResolver::new(ctx, bindings, prop_iter);
+                        let resolved_props: Vec<Prop> = bindings_iter.collect();
 
                         let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), Some(resolved_props), event_handlers.to_owned(), value_bindings.to_owned());
                         ops_writer.write_op(&op);
@@ -144,12 +144,12 @@ mod tests {
             };
         }
 
-        pub fn write_component<W>(&mut self, ctx: &mut Context, ops_writer: &mut W, comp: &Component)
+        pub fn write_component<W>(&mut self, ctx: &mut Context, bindings: &BindingContext, ops_writer: &mut W, comp: &Component)
           where W: OpsWriter
         {
             if let Some(ops_iter) = comp.ops_iter() {
                 for op in ops_iter {
-                    Self::write_op_to(ctx, ops_writer, op);
+                    Self::write_op_to(ctx, bindings, ops_writer, op);
                     // ops_writer.write_op(op);
                 }
             };
@@ -234,15 +234,18 @@ mod tests {
 
         {
             let mut ctx = Context::default();
+            let mut bindings = BindingContext::default();
+            bindings.add_reducer_key("todo", "todo");
+
             let mut comp_writer = ComponentWriter::default();
 
-            comp_writer.write_component(&mut ctx, &mut ops_writer, &comp);
+            comp_writer.write_component(&mut ctx, &bindings, &mut ops_writer, &comp);
         }
 
         assert_eq!(ops_writer.ops_iter().cloned().collect::<OpsVec>(), vec![
                 ElementOp::ElementVoid("input".into(), Some("Pq".into()), Some(vec![(
                     "value".into(),
-                    Some(ExprValue::SymbolReference(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)) ))
+                    Some(ExprValue::Binding((BindingType::ReducerPathBinding("todo".into(), None))))
                 )]), None, None)
         ]);
     }
