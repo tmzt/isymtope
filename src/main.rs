@@ -4,6 +4,7 @@
 #![plugin(indoc)]
 #![feature(box_patterns)]
 #![feature(conservative_impl_trait)]
+#![feature(specialization)]
 
 extern crate wren;
 extern crate uuid;
@@ -14,7 +15,7 @@ extern crate broadcast;
 mod parser;
 mod scope;
 mod processing;
-// mod output;
+mod output;
 
 use wren::{VM, Configuration};
 
