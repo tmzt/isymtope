@@ -347,10 +347,10 @@ mod tests {
         ctx.push_scope(scope);
 
         let expr = ctx.scope().join_path_as_expr(None);
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
-        ]))));
+        ])));
     }
 
     fn create_child_scope_with_symbols(ctx: &mut Context, key: &str, sym: Symbol) -> Scope {
@@ -394,11 +394,11 @@ mod tests {
 
         // The joined path (dynamic) should be a string join operation
         let expr = ctx.scope().join_path_as_expr(Some("."));
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("No".to_owned())),
             Box::new(ExprValue::LiteralString("Pq".to_owned()))
-        ]))));
+        ])));
 
         // We should resolve the symbol from the nearest scope where it is defined
         // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz3")));
@@ -532,9 +532,9 @@ mod tests {
 
             // Our element path should be (Lm)
             let expr = ctx.scope().join_path_as_expr(Some("."));
-            assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned()))
-            ]))));
+            ])));
         }
         // let lm_element_scope_id = ctx.scope().id().to_owned();
 
@@ -555,9 +555,9 @@ mod tests {
 
             // Our element path should still be the same (Lm)
             let expr = ctx.scope().join_path_as_expr(Some("."));
-            assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned()))
-            ]))));
+            ])));
         }
 
         // Lm.Comp1
@@ -568,10 +568,10 @@ mod tests {
 
             // The joined path (dynamic) should be a string join operation
             let expr = ctx.scope().join_path_as_expr(Some("."));
-            assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned())),
                 Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-            ]))));
+            ])));
 
             // The local (todo) should resolve to a reducer key reference (todo)
             // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
@@ -593,11 +593,11 @@ mod tests {
 
         // The joined path (dynamic) should be a string join operation
         let expr = ctx.scope().join_path_as_expr(Some("."));
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
             Box::new(ExprValue::LiteralString("Pq".to_owned()))
-        ]))));
+        ])));
 
         // The local var (param) should resolve to a param
         // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
@@ -632,9 +632,9 @@ mod tests {
 
         // The joined path (dynamic) should be a string join operation
         let expr = ctx.scope().join_path_as_expr(Some("."));
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-        ]))));
+        ])));
 
         // The local var (param) should resolve to a param
         // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));

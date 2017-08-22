@@ -97,7 +97,7 @@ mod tests {
         use parser::parser;
 
         let input = r#"
-            component test { h1 { } }
+            component test() { h1 { } }
         "#;
 
         let lexer = super::parse(input);

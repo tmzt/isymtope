@@ -40,7 +40,7 @@ impl Scope {
         self.symbol_path.append_str(s);
     }
 
-    pub fn join_path_as_expr(&self, s: Option<&str>) -> Option<ExprValue> {
+    pub fn join_path_as_expr(&self, s: Option<&str>) -> ExprValue {
         self.symbol_path.join_as_expr(s)
     }
 
@@ -74,9 +74,9 @@ mod tests {
         scope.append_path_str("test");
 
         let expr = scope.join_path_as_expr(Some("."));
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
-        ]))));
+        ])));
     }
 }

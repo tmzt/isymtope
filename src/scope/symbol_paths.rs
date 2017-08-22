@@ -34,18 +34,19 @@ impl SymbolPathScope {
     }
 
     #[inline]
-    pub fn join_as_expr(&self, s: Option<&str>) -> Option<ExprValue> {
-        self.0.as_ref().map(|symbol_path| {
-            let expr_components: Vec<Box<ExprValue>> = symbol_path.iter()
-                .map(|component| match component {
-                    &SymbolPathComponent::StaticPathComponent(ref s) => Box::new(ExprValue::LiteralString(s.to_owned())),
-                    &SymbolPathComponent::EvalPathComponent(ref expr) => Box::new(expr.to_owned())
-                }).collect();
+    pub fn join_as_expr(&self, s: Option<&str>) -> ExprValue {
+        let expr_components: Option<Vec<Box<ExprValue>>> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
+            .map(|component| match component {
+                &SymbolPathComponent::StaticPathComponent(ref s) => Box::new(ExprValue::LiteralString(s.to_owned())),
+                &SymbolPathComponent::EvalPathComponent(ref expr) => Box::new(expr.to_owned())
+            }).collect());
 
-            let components = if expr_components.len() > 0 { Some(expr_components) } else { None };
-            let join_opt = s.map(|s| s.to_owned());
-            ExprValue::Apply(ExprApplyOp::JoinString(join_opt), components)
-        })
+        let components = expr_components.and_then(|expr_components| {
+            if expr_components.len() > 0 { Some(expr_components) } else { None }
+        });
+
+        let join_opt = s.map(|s| s.to_owned());
+        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), components)
     }
 }
 
@@ -58,7 +59,7 @@ mod tests {
     pub fn test_symbol_path_empty() {
         let symbol_path_scope = SymbolPathScope::default();
         let expr = symbol_path_scope.join_as_expr(None);
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(None), None)))
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), None));
     }
 
     #[test]
@@ -71,10 +72,10 @@ mod tests {
         symbol_path_scope.append_expr(&expr2);
 
         let expr = symbol_path_scope.join_as_expr(None);
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
-        ]))));
+        ])));
     }
 
     #[test]
@@ -86,9 +87,9 @@ mod tests {
         symbol_path_scope.append_str("test");
 
         let expr = symbol_path_scope.join_as_expr(None);
-        assert_eq!(expr, Some(ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
+        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
-        ]))));
+        ])));
     }
 }
