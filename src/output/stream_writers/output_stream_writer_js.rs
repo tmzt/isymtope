@@ -80,6 +80,8 @@ mod tests {
     pub fn test_output_stream_writers_js_ops1() {
         // let scope = Scope::default();
         let mut ctx = Context::default();
+        ctx.append_path_str("prefix");
+
         let bindings = BindingContext::default();
         let mut value_writer = ValueWriterJs::default();
         let mut expr_writer = ExpressionWriterJs::default();
@@ -88,10 +90,11 @@ mod tests {
 
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
+        ctx.append_path_str(&key);
         assert!(
             stream_writer.write_op_element_open(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
             stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key).is_ok()
         );
-        assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", ().join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
+        assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
     }
 }
