@@ -284,7 +284,8 @@ impl Symbol {
 pub enum BindingType {
     ExpressionBinding(Box<ExprValue>),
     KeyInSymbolsBinding(String, String),
-    ReducerPathBinding(String, Option<Vec<String>>)
+    ReducerPathBinding(String, Option<Vec<String>>),
+    LoopIndexBinding
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;

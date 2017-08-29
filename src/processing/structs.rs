@@ -1,4 +1,5 @@
 
+use std::error::Error;
 use std::result;
 
 use linked_hash_map::LinkedHashMap;
@@ -135,6 +136,26 @@ pub enum DocumentProcessingError {
     FormatError(fmt::Error),
 }
 
+impl Error for DocumentProcessingError {
+    fn description(&self) -> &str {
+        match *self {
+            DocumentProcessingError::ParsingError(ref e) => e.description(),
+            DocumentProcessingError::IOError(ref e) => e.description(),
+            DocumentProcessingError::FormatError(ref e) => e.description()
+        }
+    }
+}
+
+impl fmt::Display for DocumentProcessingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            DocumentProcessingError::ParsingError(ref e) => e.fmt(f),
+            DocumentProcessingError::IOError(ref e) => e.fmt(f),
+            DocumentProcessingError::FormatError(ref e) => e.fmt(f)
+        }
+    }
+}
+
 pub type DocumentProcessingResult<T> = result::Result<T, DocumentProcessingError>;
 pub type Result = DocumentProcessingResult<()>;
 
@@ -153,6 +174,23 @@ impl From<io::Error> for DocumentProcessingError {
         DocumentProcessingError::IOError(err)
     }
 }
+
+// impl From<result::Result<(), io::Error>> for result::Result<(), DocumentProcessingError> {
+//     fn from(r: result::Result<(), io::Error>) -> Self {
+
+
+
+//     }
+// }
+
+// impl<T, E: Into<DocumentProcessingError>> From<result::Result<T, E>> for DocumentProcessingResult<T> {
+//     fn from(r: result::Result<T, E>) -> Self {
+//         match r {
+//             result::Result::Ok(t) => DocumentProcessingResult::Ok(t),
+//             result::Result::Err(e) => DocumentProcessingResult::Err(e)
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 pub struct BlockProcessingState {

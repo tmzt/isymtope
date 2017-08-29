@@ -79,7 +79,7 @@ impl Context {
         None
     }
 
-    fn scope_ref(&mut self) -> Option<&Scope> {
+    pub fn scope_ref(&mut self) -> Option<&Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
         if let Some(scope_id) = scope_id {
             return self.scopes.get(&scope_id);

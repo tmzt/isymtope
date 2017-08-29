@@ -165,7 +165,7 @@ impl<'input> Lexer<'input> {
             self.step();
         }
 
-        Err(Error::UnterminatedString { start: start }.into())
+        Err(Error::UnterminatedString(start).into())
     }
 
     fn numeric(&mut self, start: usize) -> Result<(usize, Token, usize)> {
@@ -175,7 +175,7 @@ impl<'input> Lexer<'input> {
             return Ok((start, Token::LiteralNumber(num), end));
         }
 
-        Err(Error::InvalidNumber { start: start }.into())
+        Err(Error::InvalidNumber(start).into())
     }
 
     fn normal(&mut self) -> Option<Result<(usize, Token, usize)>> {
@@ -247,7 +247,7 @@ impl<'input> Lexer<'input> {
             }
         }
 
-        Some(Err(Error::Unexpected { pos: self.pos() }))
+        Some(Err(Error::Unexpected(self.pos())))
     }
 }
 

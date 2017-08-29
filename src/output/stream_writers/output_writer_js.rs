@@ -57,8 +57,23 @@ impl DynamicExpressionWriter for ExpressionWriterJs {
 
         Ok(())
     }
-}
 
+    fn write_dynamic_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
+        match a_op {
+            &ExprApplyOp::JoinString(ref sep) => {
+                write!(w, "(")?;
+                if let Some(arr) = arr {
+                    for v in arr {
+                        self.write_expr(w, value_writer, ctx, bindings, v)?;
+                    }
+                };
+                write!(w, ").join(\"{}\")", sep.as_ref().map_or("", |s| s.as_str()))?;
+            },
+            _ => {}
+        };
+        Ok(())
+    }
+}
 
 
 #[cfg(test)]

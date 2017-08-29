@@ -1,16 +1,35 @@
 
+use std::fmt;
+use std::error;
+
+
 #[derive(Debug)]
 pub enum Error {
-    Unexpected {
-        pos: usize,
-    },
-    UnterminatedString {
-        start: usize,
-    },
-    InvalidNumber {
-        start: usize,
-    },
+    Unexpected(usize),
+    UnterminatedString(usize),
+    InvalidNumber(usize)
 }
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match self {
+            &Error::Unexpected(_) => "Unexpected token",
+            &Error::UnterminatedString(_) => "Unterminated string",
+            &Error::InvalidNumber(_) => "Invalid number"
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Error::Unexpected(ref s) => write!(f, "Unexpected token at pos {0}", s),
+            &Error::UnterminatedString(ref s) => write!(f, "Unterminated string at start {0}", s),
+            &Error::InvalidNumber(ref s) => write!(f, "Invalid number at start {0}", s)
+        }
+    }
+}
+
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]

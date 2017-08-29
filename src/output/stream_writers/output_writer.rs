@@ -1,6 +1,6 @@
 
 use std::io;
-use std::slice::Iter;
+use std::iter;
 
 use parser::ast::*;
 use processing::structs::*;
@@ -21,6 +21,7 @@ pub trait ExpressionWriter { }
 
 pub trait DynamicExpressionWriter : ExpressionWriter {
     fn write_dynamic_expression(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
+    fn write_dynamic_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
 }
 
 pub trait ValueWriter {
@@ -56,6 +57,11 @@ impl<T: DynamicExpressionWriter> ExprWriter for T {
     default fn write_expr(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
         if let &ExprValue::Expr(ref op, ref left, ref right) = expr {
             return self.write_dynamic_expression(w, value_writer, ctx, bindings, op, left, right);
+        };
+
+        if let &ExprValue::Apply(ref a_op, ref arr) = expr {
+            let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
+            return self.write_dynamic_apply_expression(w, value_writer, ctx, bindings, a_op, arr_iter);
         };
 
         self::common_write_expr(w, value_writer, ctx, bindings, expr)
@@ -102,6 +108,10 @@ mod tests {
             self.wrote_op = Some(op.clone());
             self.wrote_left = Some(left.clone());
             self.wrote_right = Some(right.clone());
+            Ok(())
+        }
+
+        fn write_dynamic_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
             Ok(())
         }
     }
