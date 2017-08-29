@@ -1,8 +1,5 @@
 
 use std::io;
-use std::iter;
-
-use itertools;
 
 use parser::ast::*;
 use processing::structs::*;
@@ -38,7 +35,30 @@ impl ValueWriter for ValueWriterJs {
         };
         Ok(())
     }
+
+    fn write_op(&mut self, w: &mut io::Write, op: &ExprOp) -> Result {
+        match op {
+            &ExprOp::Add => { write!(w, "+")?; },
+            _ => {}
+        };
+        Ok(())
+    }
 }
+
+#[derive(Debug, Default)]
+pub struct ExpressionWriterJs {}
+
+impl ExpressionWriter for ExpressionWriterJs {}
+impl DynamicExpressionWriter for ExpressionWriterJs {
+    fn write_dynamic_expression(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+        self.write_expr(w, value_writer, ctx, bindings, left)?;
+        value_writer.write_op(w, op)?;
+        self.write_expr(w, value_writer, ctx, bindings, right)?;
+
+        Ok(())
+    }
+}
+
 
 
 #[cfg(test)]
@@ -51,7 +71,7 @@ mod tests {
 
 
     #[test]
-    fn test_stream_writers_value_writer_write_binding1() {
+    fn test_stream_writers_value_writer_js_write_binding1() {
         let mut value_writer = ValueWriterJs::default();
         let mut ctx = Context::default();
         let binding = BindingType::ReducerPathBinding("todo".into(), None);
@@ -74,5 +94,27 @@ mod tests {
             assert!(res.is_ok());
             assert_eq!(str::from_utf8(&s), Ok("store.getState().todo".into()));
         }
+    }
+
+    #[test]
+    fn test_stream_writers_value_writer_js_write_dynamic_expression1() {
+        let bindings = BindingContext::default();
+        let mut ctx = Context::default();
+        let binding = BindingType::ReducerPathBinding("todo".into(), None);
+        let literal_string = ExprValue::LiteralString("test".into());
+
+        let expr = ExprValue::Expr(ExprOp::Add,
+            Box::new(ExprValue::Binding(binding.clone())),
+            Box::new(literal_string.clone())
+        );
+
+        let mut value_writer = ValueWriterJs::default();
+        let mut expr_writer = ExpressionWriterJs::default();
+
+        let mut s: Vec<u8> = Default::default();
+        let res = expr_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+        assert!(res.is_ok());
+        assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
+        
     }
 }
