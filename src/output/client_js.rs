@@ -9,7 +9,13 @@ use processing::scope::*;
 
 use output::client_js_value_writer::*;
 use output::client_ops_writer::*;
-use output::client_ops_js_stream_writer::*;
+use output::client_ops_js_stream_writer::output_writer::*;
+use output::client_ops_js_stream_writer::output_stream_writer::*;
+use output::stream_writers::output_writer_js::*;
+use output::stream_writers::output_stream_writer_js::*;
+
+use scope::scope::*;
+use scope::context::*;
 
 
 pub struct WriteJsOps<'input> {
@@ -88,10 +94,16 @@ impl<'input> WriteJsOps<'input> {
     #[allow(unused_variables)]
     pub fn write_js_incdom_ops_content(&mut self,
                                        w: &mut io::Write,
+                                       ctx: &mut Context,
+                                       bindings: &BindingContext,
                                        ops: Iter<'input, ElementOp>,
                                        processing: &DocumentState,
                                        scope: &ElementOpScope)
                                        -> Result {
+        let mut value_writer = ValueWriterJs::default();
+        let mut expr_writer = ExpressionWriterJs::default();
+        let mut stream_writer = ElementOpsStreamWriterJs::default();
+
         let mut ops_writer =
             ElementOpsWriter::with_doc(&self.doc, &mut self.stream_writer, scope.to_owned());
         ops_writer.write_ops_content(w, ops, &self.doc, false)?;
@@ -102,6 +114,8 @@ impl<'input> WriteJsOps<'input> {
     #[inline]
     pub fn write_js_incdom_component(&mut self,
                                      w: &mut io::Write,
+                                     ctx: &mut Context,
+                                     bindings: &BindingContext,
                                      component_ty: &'input str,
                                      comp: &Component,
                                      ops: Iter<'input, ElementOp>,

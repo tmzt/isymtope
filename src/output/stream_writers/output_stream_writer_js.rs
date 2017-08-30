@@ -29,7 +29,8 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterJs {
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
-        let path_expr = ctx.scope_ref().unwrap().join_path_as_expr(Some("."));
+        // let path_expr = ctx.scope_ref().unwrap().join_path_as_expr(Some("."));
+        let path_expr = ctx.join_path_as_expr(Some("."));
         expr_writer.write_expr(w, value_writer, ctx, bindings, &path_expr)?;
 
         // write_js_expr_value(w, scope, path_expr)?;

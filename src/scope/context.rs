@@ -94,13 +94,13 @@ impl Context {
     pub fn create_child_scope(&mut self) -> Scope {
         let parent_scope = self.scope();
         let parent_map_id = parent_scope.map_id().to_owned();
-        let symbol_path = parent_scope.symbol_path().clone();
+        // let symbol_path = parent_scope.symbol_path().clone();
 
         let symbols = Symbols::new(Some(&parent_map_id));
         let map_id = symbols.map_id().to_owned();
         self.add_symbol_map(symbols);
 
-        Scope::new(&map_id, Some(symbol_path))
+        Scope::new_from_parent(&map_id, &parent_scope)
     }
 
     pub fn push_scope(&mut self, scope: Scope) {
@@ -114,6 +114,13 @@ impl Context {
     pub fn push_child_scope(&mut self) {
         let scope = self.create_child_scope();
         self.push_scope(scope);
+    }
+
+    pub fn resolve_unresolved_sym_object(&mut self, sym: &Symbol) -> Option<Symbol> {
+        if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+            return self.resolve_sym(key);
+        };
+        None
     }
 
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
@@ -262,6 +269,26 @@ impl Context {
         }
     }
 
+    pub fn reduce_expr_or_return_same(&self, expr: &ExprValue) -> ExprValue {
+        self.reduce_expr(expr).unwrap_or(expr.clone())
+    }
+
+    pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
+        self.scope().join_path_as_expr(s)
+    }
+
+    pub fn join_path(&mut self, s: Option<&str>) -> String {
+        self.scope().join_path(self, s)
+    }
+
+    pub fn join_action_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
+        self.scope().join_action_path_as_expr(s)
+    }
+
+    pub fn join_action_path(&mut self, s: Option<&str>) -> String {
+        self.scope().join_action_path(self, s)
+    }
+
     pub fn prop(&mut self, key: &str) -> Symbol {
         self.scope().prop(key)
     }
@@ -346,20 +373,11 @@ mod tests {
 
         ctx.push_scope(scope);
 
-        let expr = ctx.scope().join_path_as_expr(None);
+        let expr = ctx.join_path_as_expr(None);
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
         ])));
-    }
-
-    fn create_child_scope_with_symbols(ctx: &mut Context, key: &str, sym: Symbol) -> Scope {
-        let parent_map_id = ctx.scope().map_id().to_owned();
-        let symbol_path = ctx.scope().symbol_path().clone();
-        let symbols = create_symbols(key, sym, Some(&parent_map_id));
-        let map_id = symbols.map_id().to_owned();
-        ctx.add_symbol_map(symbols);
-        Scope::new(&map_id, Some(symbol_path))
     }
 
     #[test]
@@ -393,7 +411,7 @@ mod tests {
         }
 
         // The joined path (dynamic) should be a string join operation
-        let expr = ctx.scope().join_path_as_expr(Some("."));
+        let expr = ctx.join_path_as_expr(Some("."));
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("No".to_owned())),
@@ -531,7 +549,7 @@ mod tests {
             ctx.append_path_str("Lm");
 
             // Our element path should be (Lm)
-            let expr = ctx.scope().join_path_as_expr(Some("."));
+            let expr = ctx.join_path_as_expr(Some("."));
             assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned()))
             ])));
@@ -554,7 +572,7 @@ mod tests {
             output.push_component_instance_invocation_scope(&mut ctx, "Component1", props.iter());
 
             // Our element path should still be the same (Lm)
-            let expr = ctx.scope().join_path_as_expr(Some("."));
+            let expr = ctx.join_path_as_expr(Some("."));
             assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned()))
             ])));
@@ -567,7 +585,7 @@ mod tests {
             output.push_component_instance_scope(&mut ctx, "Comp1", "Component1");
 
             // The joined path (dynamic) should be a string join operation
-            let expr = ctx.scope().join_path_as_expr(Some("."));
+            let expr = ctx.join_path_as_expr(Some("."));
             assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
                 Box::new(ExprValue::LiteralString("Lm".to_owned())),
                 Box::new(ExprValue::LiteralString("Comp1".to_owned())),
@@ -592,7 +610,7 @@ mod tests {
         }
 
         // The joined path (dynamic) should be a string join operation
-        let expr = ctx.scope().join_path_as_expr(Some("."));
+        let expr = ctx.join_path_as_expr(Some("."));
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
@@ -631,7 +649,7 @@ mod tests {
         output.push_component_instance_scope(&mut ctx, "Comp1");
 
         // The joined path (dynamic) should be a string join operation
-        let expr = ctx.scope().join_path_as_expr(Some("."));
+        let expr = ctx.join_path_as_expr(Some("."));
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
         ])));

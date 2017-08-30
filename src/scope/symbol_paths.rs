@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use parser::ast::*;
+use scope::context::*;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +32,21 @@ impl SymbolPathScope {
         } else {
             self.0 = Some(vec![comp]);
         };
+    }
+
+    #[inline]
+    pub fn join_as_str(&self, ctx: &Context, s: Option<&str>) -> String {
+        let str_components: Option<Vec<String>> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
+            .map(|component| match component {
+                &SymbolPathComponent::StaticPathComponent(ref s) => s.to_owned(),
+                &SymbolPathComponent::EvalPathComponent(ref expr) => ctx.reduce_expr_to_string(expr)
+            }).collect());
+
+        let res = str_components.and_then(|str_components| {
+            if str_components.len() > 0 { Some(str_components.join("")) } else { None }
+        });
+
+        res.unwrap_or("".into())
     }
 
     #[inline]

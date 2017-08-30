@@ -11,6 +11,9 @@ use output::client_html::*;
 use output::client_js::*;
 use output::client_js_value_writer::*;
 
+use scope::scope::*;
+use scope::context::*;
+
 
 pub struct FormatHtml<'input> {
     doc: &'input DocumentState<'input>,
@@ -105,7 +108,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    pub fn write_html_document(&mut self, w: &mut io::Write) -> Result {
+    pub fn write_html_document(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         // Output
         write!(w, "{}", indoc!(r#"
             <!doctype HTML>
@@ -165,6 +168,8 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         // Render content nodes as incdom calls
         self.output_js
             .write_js_incdom_ops_content(w,
+                                         ctx,
+                                         bindings,
                                          self.doc.root_block.ops_vec.iter(),
                                          &mut self.doc,
                                          &base_scope)?;
