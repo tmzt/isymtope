@@ -21,7 +21,7 @@ pub enum NodeType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ContentNodeType {
     ElementNode(ElementType),
-    ExpressionValueNode(ExprValue),
+    ExpressionValueNode(ExprValue, String),
     ForNode(Option<String>, ExprValue, Option<Vec<ContentNodeType>>),
 }
 
@@ -381,7 +381,7 @@ pub type Prop = (String, Option<ExprValue>);
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementType {
     pub element_ty: String,
-    pub element_key: Option<String>,
+    pub element_key: String,
     pub attrs: Option<PropVec>,
     pub lens: Option<LensExprType>,
     pub children: Option<Vec<ContentNodeType>>,

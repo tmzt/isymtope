@@ -74,7 +74,7 @@ impl<'out> CompDefProcessor<'out> {
             (key.to_owned(), None)
         }).collect());
 
-        let op = ElementOp::ElementVoid(element_ty.to_owned(), Some(element_id.to_owned()), element_props, None, None);
+        let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), element_props, None, None);
         self.add_op(op);
 
         let parent_scope_id = ctx.scope().id().to_owned();
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(
             comp.ops_iter().map(|v| v.into_iter().cloned().collect()),
             Some(vec![
-                ElementOp::ElementVoid("input".into(), Some("Pq".into()), Some(vec![(
+                ElementOp::ElementVoid("input".into(), "Pq".into(), Some(vec![(
                     "value".into(),
                     Some(ExprValue::SymbolReference(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)) ))
                 )]), None, None)
@@ -243,7 +243,7 @@ mod tests {
         }
 
         assert_eq!(ops_writer.ops_iter().cloned().collect::<OpsVec>(), vec![
-                ElementOp::ElementVoid("input".into(), Some("Pq".into()), Some(vec![(
+                ElementOp::ElementVoid("input".into(), "Pq".into(), Some(vec![(
                     "value".into(),
                     Some(ExprValue::Binding((BindingType::ReducerPathBinding("todo".into(), None))))
                 )]), None, None)

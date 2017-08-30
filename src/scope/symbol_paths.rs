@@ -43,7 +43,7 @@ impl SymbolPathScope {
             }).collect());
 
         let res = str_components.and_then(|str_components| {
-            if str_components.len() > 0 { Some(str_components.join("")) } else { None }
+            if str_components.len() > 0 { Some(str_components.join(s.unwrap_or(""))) } else { None }
         });
 
         res.unwrap_or("".into())

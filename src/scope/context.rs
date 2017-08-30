@@ -281,6 +281,11 @@ impl Context {
         self.scope().join_path(self, s)
     }
 
+    pub fn join_path_with(&mut self, s: Option<&str>, last: &str) -> String {
+        let key = self.scope().join_path(self, s);
+        if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
+    }
+
     pub fn join_action_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
         self.scope().join_action_path_as_expr(s)
     }

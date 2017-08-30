@@ -27,11 +27,11 @@ ContentNodeType : ContentNodeType = {
 //         => ContentNodeType::ForNode(ele, coll.clone(), body),
 
     "(" "{" <node:ContentNodeType> "}" ")" => node.clone(),
-    "(" <expr:ExprValue> ")" => ContentNodeType::ExpressionValueNode(expr.clone()),
+    "(" <expr:ExprValue> ")" => ContentNodeType::ExpressionValueNode(expr.clone(), allocate_element_key()),
 
     ElementNode,
-    <num:LitNum> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralNumber(num)),
-    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit))
+    <num:LitNum> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralNumber(num), allocate_element_key()),
+    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit), allocate_element_key())
 };
 
 // Store defines a default scope which restricts the type of nodes allowed
@@ -233,7 +233,7 @@ ElementNode : ContentNodeType = {
             ContentNodeType::ElementNode(
                 ElementType {
                     element_ty: element_ty,
-                    element_key: Some(element_key),
+                    element_key: element_key,
                     attrs: attrs,
                     lens: lens,
                     children: children,
@@ -249,7 +249,7 @@ ElementNode : ContentNodeType = {
             ContentNodeType::ElementNode(
                 ElementType {
                     element_ty: element_ty,
-                    element_key: Some(element_key),
+                    element_key: element_key,
                     attrs: None,
                     lens: None,
                     children: Some(children),

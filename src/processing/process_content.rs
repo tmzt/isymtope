@@ -62,27 +62,20 @@ impl ProcessContent {
                                 processing: &DocumentProcessingState,
                                 parent_tag: Option<&str>)
                                 -> DocumentProcessingResult<()> {
-        let mut scope = ctx.scope();
-
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {
-                let mut scope = ctx.scope();
-                let element_key = element_data.element_key.as_ref().map_or("".into(), |s| s.clone());
-                scope.append_path_str(&element_key);
-
+                ctx.push_child_scope();
+                ctx.append_path_str(&element_data.element_key);
+                let complete_key = ctx.join_path(Some("."));
                 let is_void = element_data.children.as_ref().map_or(false, |c| c.len() > 0);
 
                 let element_tag = element_data.element_ty.to_lowercase();
-                // let element_key =
-                //     element_data.element_key.as_ref().map_or(String::from(""), Clone::clone);
 
                 // let attrs = element_data.attrs.as_ref().map(Clone::clone);
                 let lens = element_data.lens.as_ref().map(Clone::clone);
                 let element_bindings = element_data.bindings.as_ref().map(|s| s.clone());
 
                 // TODO: figure out when we want to pass along symbols or values
-
-                let complete_key = ctx.join_path(Some("."));
 
                 // Try to locate a matching component
                 if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
@@ -120,14 +113,14 @@ impl ProcessContent {
                     let component_ty = element_tag.to_owned();
                     block.ops_vec
                         .push(ElementOp::InstanceComponent(component_ty,
-                                                           Some(element_key),
+                                                           complete_key,
                                                            parent_tag.map(|s| s.to_owned()),
                                                            prop_list,
                                                            lens));
 
                 } else {
                     // let mut scope = scope.clone();
-                    ctx.append_path_str(&element_key);
+                    // ctx.append_path_str(&element_key);
                     // scope.0.append_key(&element_key);
                     // let complete_key = scope.0.complete_element_key();
 
@@ -205,14 +198,15 @@ impl ProcessContent {
                     if let Some(ref children) = element_data.children {
                         // Push element open
                         block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
-                                                                  Some(complete_key.clone()),
+                                                                  complete_key.clone(),
                                                                   props,
                                                                   events,
                                                                   value_binding));
 
                         // Push scope
                         // self.push_scope(scope.clone());
-                        ctx.push_scope(scope.clone());
+                        // ctx.push_scope(scope.clone());
+                        ctx.push_child_scope();
 
                         // Iterate over children
                         for ref child in children {
@@ -233,23 +227,22 @@ impl ProcessContent {
                         block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
                     } else {
                         block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
-                                                                  Some(complete_key.clone()),
+                                                                  complete_key.clone(),
                                                                   props,
                                                                   events,
                                                                   value_binding));
                     }
                 }
             }
-            &ContentNodeType::ExpressionValueNode(ref expr) => {
+            &ContentNodeType::ExpressionValueNode(ref expr, ref value_key) => {
                 let mut scope = ctx.scope();
                 // let expr = map_expr_using_scope(expr, processing, &mut scope, resolution_mode);
                 let expr = ctx.reduce_expr_or_return_same(expr);
 
-                let value_key = allocate_element_key();
                 // let complete_key = scope.0.make_complete_element_key_with(&value_key);
-                let complete_key = ctx.join_path(Some(&value_key));
+                let complete_key = ctx.join_path(Some("."));
                 let complete_key = format!("{}.{}", complete_key, value_key);
-                block.ops_vec.push(ElementOp::WriteValue(expr, Some(complete_key.to_owned())));
+                block.ops_vec.push(ElementOp::WriteValue(expr, complete_key.to_owned()));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 let mut scope = ctx.scope();
@@ -343,9 +336,9 @@ mod tests {
         let mut bindings = BindingContext::default();
 
         let nodes: Vec<ContentNodeType> = vec![
-            ContentNodeType::ElementNode(ElementType { element_ty: "div".into(), element_key: Some("Ab".into()), attrs: None, lens: None, bindings: None, children: Some(vec![
-                ContentNodeType::ElementNode(ElementType { element_ty: "span".into(), element_key: Some("Cd".into()), attrs: None, lens: None, bindings: None, children: Some(vec![
-                    ContentNodeType::ExpressionValueNode(ExprValue::LiteralString("hi".into()))
+            ContentNodeType::ElementNode(ElementType { element_ty: "div".into(), element_key: "Ab".into(), attrs: None, lens: None, bindings: None, children: Some(vec![
+                ContentNodeType::ElementNode(ElementType { element_ty: "span".into(), element_key: "Cd".into(), attrs: None, lens: None, bindings: None, children: Some(vec![
+                    ContentNodeType::ExpressionValueNode(ExprValue::LiteralString("hi".into()), "45daee35".into())
                 ])})
             ])})
         ];
@@ -363,6 +356,13 @@ mod tests {
         let output: ContentOutput = output_processing.into();
 
         assert!(res.is_ok());
+        assert_eq!(output.root_block.ops_vec, vec![
+            ElementOp::ElementOpen("div".into(), "Ab".into(), None, None, None),
+            ElementOp::ElementOpen("span".into(), "Ab.Cd".into(), None, None, None),
+            ElementOp::WriteValue(ExprValue::LiteralString("hi".into()), "Ab.Cd.45daee35".into()),
+            ElementOp::ElementClose("span".into()),
+            ElementOp::ElementClose("div".into())
+        ]);
 
     }
 }
