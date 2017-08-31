@@ -1,21 +1,27 @@
 
-use std::clone::Clone;
+use std::iter;
 
 use parser::ast::*;
 use parser::store::*;
 use parser::api::*;
 
 use processing::structs::*;
-use processing::scope::*;
+// use processing::scope::*;
 use processing::process_util::*;
 use processing::process_content::*;
+use processing::process_store::*;
+use processing::process_comp_def::*;
+use scope::context::*;
+use scope::bindings::*;
 
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
     root_block: BlockProcessingState,
     processing: DocumentProcessingState,
-    scope: ElementOpScope,
+    store_processing: StoreOutputProcessing,
+    compdef_processing: CompDefProcessorOutput,
+    // scope: ElementOpScope,
 }
 
 impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
@@ -35,357 +41,64 @@ impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
 
 impl<'input> ProcessDocument<'input> {
     pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
-        let processing = DocumentProcessingState::default();
-        let root_block = BlockProcessingState::default();
-        let scope = ElementOpScope::default();
 
         ProcessDocument {
             ast: ast,
-            root_block: root_block,
-            processing: processing,
-            scope: scope,
+            root_block: Default::default(),
+            processing: Default::default(),
+            store_processing: Default::default(),
+            compdef_processing: Default::default()
+            // scope: scope,
         }
-    }
-
-    pub fn collect_js_store_child_scope(&mut self,
-                                        reducer_key: &'input str,
-                                        nodes: &'input Vec<ScopeNodeType>,
-                                        reducer_key_prefix: Option<&str>)
-                                        -> DocumentProcessingResult<()> {
-
-        for ref node in nodes {
-            match *node {
-                &ScopeNodeType::LetNode(ref var_name, ref expr) => {
-                    let has_default_sym = self.processing.default_state_symbol.is_some();
-                    let has_default_reducer_key = self.processing.default_reducer_key.is_some();
-                    let has_expr = expr.is_some();
-
-                    let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
-
-                    if !has_default_sym {
-                        let sym =
-                            Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr.as_ref());
-                        // TODO: Include type
-                        self.processing.default_state_symbol = Some(sym);
-                    }
-
-                    if !has_default_reducer_key {
-                        self.processing.default_reducer_key = Some(var_name.to_owned());
-                    }
-
-                    let reducer_entry = self.processing
-                        .reducer_key_data
-                        .entry(var_name.to_owned())
-                        .or_insert_with(|| {
-                            ReducerKeyData::from_name(&format!("{}", var_name),
-                                                      var_ty.as_ref().map(Clone::clone))
-                        });
-
-                    if let &Some(ref expr) = expr {
-                        reducer_entry.default_expr = Some(expr.clone());
-
-                        self.processing
-                            .default_state_map
-                            .entry(var_name.to_owned())
-                            .or_insert_with(|| {
-                                let var_ty = Self::peek_var_ty(expr);
-                                (var_ty, Some(expr.clone()))
-                            });
-                    };
-                }
-                &ScopeNodeType::ActionNode(ref action_name, ref simple_expr, ref params) => {
-                    let mut scope = ElementOpScope::default();
-
-                    let action_path = format!("{}{}",
-                                              reducer_key_prefix.and_then(|prefix| {
-                                                      Some(format!("{}", prefix.to_uppercase()))
-                                                  })
-                                                  .and_then(|prefix| {
-                                                      Some(format!("{}.", prefix.to_uppercase()))
-                                                  })
-                                                  .unwrap_or_default(),
-                                              action_name);
-
-                    let mut action = ReducerActionData::from_name(&action_path, Some(reducer_key));
-                    if let &Some(ref simple_expr) = simple_expr {
-                        let ActionStateExprType::SimpleReducerKeyExpr(ref expr) = *simple_expr;
-
-                        if let Some(ref sym) = self.processing.default_state_symbol {
-                            action.state_ty = sym.ty().map(|s| s.clone());
-                        };
-
-                        if let &Some(ref params) = params {
-                            for param in params {
-                                scope.1.add_action_param(param);
-                            }
-                        };
-
-                        let resolution_mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        let action_expr = map_expr_using_scope(expr,
-                                                               &self.processing,
-                                                               &mut scope,
-                                                               &resolution_mode);
-
-                        let typed_expr = map_expr(&action_expr,
-                                                  &|node| match node {
-                                                      &ExprValue::DefaultVariableReference => {
-                                                          let sym =
-                                                              Symbol::action_state(action.state_ty
-                                                                  .as_ref());
-                                                          ExprValue::SymbolReference(sym)
-                                                      }
-                                                      &ExprValue::SymbolReference(ref sym) => {
-                                                          match sym.sym_ref() {
-                                                              &SymbolReferenceType::ResolvedReference(..) => node.clone(),
-                                                              &SymbolReferenceType::UnresolvedReference(ref key) => {
-                                        let action_param = Symbol::action_param(key);
-                                        ExprValue::SymbolReference(action_param)
-                                    }
-                                                          }
-                                                      }
-                                                      _ => node.clone(),
-                                                  });
-
-                        action.state_expr =
-                            Some(ActionStateExprType::SimpleReducerKeyExpr(typed_expr));
-                    };
-                    let reducer_entry = self.processing
-                        .reducer_key_data
-                        .entry(reducer_key.to_owned())
-                        .or_insert_with(|| {
-                            ReducerKeyData::from_name(&format!("{}", reducer_key), None)
-                        });
-
-                    if let Some(ref mut actions) = reducer_entry.actions {
-                        actions.push(action);
-                    };
-                }
-                &ScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                    self.collect_js_store_child_scope(scope_name, scope_nodes, reducer_key_prefix)?;
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-
-    #[allow(unused_variables)]
-    pub fn collect_js_store_api_scope(&mut self,
-                                      scope_name: &'input str,
-                                      nodes: &'input Vec<ApiNodeType>)
-                                      -> DocumentProcessingResult<()> {
-        for ref node in nodes {
-            match *node {
-                &ApiNodeType::ResourceNode(ref resource_data) => {
-                    let reducer_name: &'input str = &resource_data.resource_name;
-
-                    self.processing
-                        .reducer_key_data
-                        .entry(scope_name.to_owned())
-                        .or_insert_with(|| {
-                            ReducerKeyData::from_name(&format!("{}", scope_name), None)
-                        });
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-
-    #[inline]
-    fn peek_var_ty(expr: &ExprValue) -> Option<VarType> {
-        match *expr {
-            ExprValue::LiteralNumber(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::Number));
-            }
-            ExprValue::LiteralString(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::StringVar));
-            }
-            ExprValue::LiteralArray(Some(ref items)) => {
-                if !items.is_empty() {
-                    if let Some(ref first_item) = items.get(0) {
-                        if let Some(var_ty) = Self::peek_var_ty(first_item) {
-                            return Some(VarType::ArrayVar(Some(Box::new(var_ty))));
-                        }
-                        return Some(VarType::ArrayVar(None));
-                    };
-                };
-                return Some(VarType::ArrayVar(None));
-            }
-            _ => {}
-        };
-        None
-    }
-
-    pub fn collect_js_store_default_scope(&mut self,
-                                          nodes: &'input Vec<DefaultScopeNodeType>,
-                                          resolution_mode: &BareSymbolResolutionMode)
-                                          -> DocumentProcessingResult<()> {
-        for ref node in nodes {
-            match *node {
-                &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
-                    // Within the default scope let defines a new scope and it's default expression
-
-                    let has_default_sym = self.processing.default_state_symbol.is_some();
-                    let has_default_reducer_key = self.processing.default_reducer_key.is_some();
-                    let has_expr = expr.is_some();
-
-                    let var_ty = expr.as_ref().and_then(|expr| Self::peek_var_ty(expr));
-
-                    if !has_default_sym {
-                        let sym = Symbol::reducer_key_with_ty(var_name, var_ty.as_ref());
-                        // TODO: Restore type
-                        self.processing.default_state_symbol = Some(sym);
-                        // self.processing.default_state_symbol = Some(Symbol::reducer_key(var_name));
-                    }
-
-                    if !has_default_reducer_key {
-                        self.processing.default_reducer_key = Some(var_name.to_owned());
-                    }
-
-                    let reducer_entry = self.processing
-                        .reducer_key_data
-                        .entry(var_name.to_owned())
-                        .or_insert_with(|| {
-                            ReducerKeyData::from_name(&format!("{}", var_name),
-                                                      var_ty.as_ref().map(Clone::clone))
-                        });
-
-                    if let &Some(ref expr) = expr {
-                        reducer_entry.default_expr = Some(expr.clone());
-
-                        self.processing
-                            .default_state_map
-                            .entry(var_name.to_owned())
-                            .or_insert_with(|| {
-                                let var_ty = Self::peek_var_ty(expr);
-                                (var_ty, Some(expr.clone()))
-                            });
-                    };
-                }
-
-                &DefaultScopeNodeType::ApiRootNode(ref scope_name, ref api_nodes) => {
-                    if let &Some(ref api_nodes) = api_nodes {
-                        self.collect_js_store_api_scope(scope_name, api_nodes)?;
-                    }                            // processing_scope.2 = Some(sym.to_owned());
-
-                }
-                &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                    self.collect_js_store_child_scope(scope_name, scope_nodes, None)?;
-                }
-            }
-        }
-        Ok(())
     }
 
     #[allow(dead_code)]
     pub fn process_component_definition(&mut self,
+                                        ctx: &mut Context,
+                                        bindings: &mut BindingContext,
                                         component_data: &'input ComponentDefinitionType)
                                         -> DocumentProcessingResult<()> {
-        let name: &'input str = component_data.name.as_str();
-        let mut block = BlockProcessingState::default();
+        // let mut comp_output = CompDefProcessorOutput::default();
+        let mut comp_processor = CompDefProcessor::with_output(&mut self.compdef_processing);
+        comp_processor.push_component_definition_scope(ctx, &component_data.name, iter::empty());
 
-        if let Some(ref inputs) = component_data.inputs {
-            for input in inputs {
-                let prop_ref = Symbol::unresolved(input);
 
-                block.scope.1.props.insert(input.to_owned(), prop_ref);
-            }
-        };
+    //     if let Some(ref children) = component_data.children {
+    //         for ref child in children {
 
-        if let Some(ref children) = component_data.children {
-            for ref child in children {
-                match *child {
-                    &NodeType::ContentNode(ref content) => {
-                        let mut scope = block.scope.clone();
-                        if let Some(ref default_reducer_key) = self.processing
-                            .default_reducer_key {
-                            scope.0.append_action_scope(default_reducer_key);
-                        };
-
-                        let mut content_processor = ProcessContent::new(scope);
-                        let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                        content_processor.process_content_node(content,
-                                                  &self.processing,
-                                                  &mut block,
-                                                  None,
-                                                  &mode)?;
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        let comp = Component {
-            name: name.to_owned(),
-            ops: Some(block.ops_vec),
-            uses: None,
-            child_map: Default::default(),
-            symbol_map: block.scope.1.symbol_map.clone(),
-            props: block.scope.1.props.clone(),
-            events: Some(block.events_vec.clone()),
-        };
-
-        self.processing.comp_map.insert(name.to_owned(), comp);
 
         Ok(())
     }
 
-    pub fn process_nodes(&mut self,
-                         scope_prefixes: &ScopePrefixes,
-                         block: &mut BlockProcessingState)
-                         -> Result {
-        let mut processed_store = false;
-
-        let mut base_scope: ElementOpScope = Default::default();
-
-        // Process store related nodes first
-        for ref loc in self.ast.children.iter() {
-            match &loc.inner {
-                &NodeType::StoreNode(ref scope_nodes) => {
-                    // TODO: Allow more than one store?
-                    if !processed_store {
-                        let mode = BareSymbolResolutionMode::ReducerKeyThenProp;
-                        self.collect_js_store_default_scope(scope_nodes, &mode)?;
-
-                        // Update scope with default reducer key
-                        if let Some(ref default_reducer_key) = self.processing
-                            .default_reducer_key {
-                            base_scope.0.append_action_scope(default_reducer_key);
-                        };
-
-                        processed_store = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        for ref loc in self.ast.children.iter() {
-            match &loc.inner {
-                &NodeType::ComponentDefinitionNode(ref component_data) => {
-                    self.process_component_definition(component_data)?;
-                }
-                &NodeType::ContentNode(ref content) => {
-                    let mode = BareSymbolResolutionMode::PropThenReducerKey;
-                    // let mut content_processor = ProcessContent::with_root_node(content);
-                    let scope = base_scope.clone();
-                    let mut content_processor = ProcessContent::new(scope);
-                    // content_processor.process(&self.processing)?;
-                    content_processor.process_content_node(content, &self.processing, block, None, &mode)?;
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
 
     #[allow(unused_variables)]
-    pub fn process_document(&mut self) -> DocumentProcessingResult<()> {
+    pub fn process_document(&mut self, ctx: &mut Context, bindings: &mut BindingContext) -> DocumentProcessingResult<()> {
         let mut root_block = BlockProcessingState::default();
-        let base_scope: ScopePrefixes = Default::default();
+        // let base_scope: ScopePrefixes = Default::default();
 
-        self.process_nodes(&base_scope, &mut root_block)?;
+        // let mut store_processing = StoreOutputProcessing::default();
+        let mut process_store = ProcessStore::default();
+        let mut content_processor = ProcessContent::default();
+
+        // self.process_nodes(&base_scope, &mut root_block)?;
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::StoreNode(ref scope_nodes) = loc.inner {
+                for scope_node in scope_nodes {
+                    process_store.process_store_default_scope_node(
+                        &mut self.store_processing,
+                        ctx,
+                        bindings,
+                        scope_node)?;
+                }
+            };
+        }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::ContentNode(ref content_node) = loc.inner {
+                content_processor.process_block_content_node(ctx, bindings, content_node, &mut root_block, &mut self.processing, None)?;
+            };
+        }
+
         self.root_block = root_block;
         Ok(())
     }

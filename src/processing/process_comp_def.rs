@@ -4,6 +4,7 @@ use parser::ast::*;
 use scope::context::*;
 use scope::bindings::*;
 use processing::structs::*;
+use processing::process_content::*;
 
 
 type FormalProp<'a> = (&'a str);
@@ -89,6 +90,25 @@ impl<'out> CompDefProcessor<'out> {
     pub fn push_element_scope(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str) {
         ctx.push_child_scope();
         ctx.append_path_str(element_id);
+    }
+
+    pub fn process_component_definition<'a, I: IntoIterator<Item = &'a NodeType>>(&mut self,
+                                        processing: &mut DocumentProcessingState,
+                                        ctx: &mut Context,
+                                        bindings: &mut BindingContext,
+                                        component_ty: &str,
+                                        nodes: I)
+                                        -> Result
+    {
+        // let mut content_output = ContentOutputProcessing::default();
+        let mut content_processor = ProcessContent::default();
+        let mut block = BlockProcessingState::default();
+        for node in nodes {
+            if let &NodeType::ContentNode(ref content_node) = node {
+                content_processor.process_block_content_node(ctx, bindings, content_node, &mut block, processing, None)?;
+            };
+        };
+        Ok(())
     }
 }
 

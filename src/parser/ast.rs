@@ -2,12 +2,18 @@
 
 use linked_hash_map::LinkedHashMap;
 use parser::store::DefaultScopeNodeType;
-use parser::loc::Loc;
+pub use parser::loc::Loc;
 
 
 #[derive(Debug, Default)]
 pub struct Template {
     pub children: Vec<Loc<NodeType, (usize, usize)>>,
+}
+
+impl Template {
+    pub fn new(children: Vec<Loc<NodeType, (usize, usize)>>) -> Template {
+        Template { children: children }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

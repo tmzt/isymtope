@@ -37,3 +37,28 @@ pub fn map_lens_using_scope<'input>(ctx: &mut Context,
 
     None
 }
+
+#[inline]
+pub fn peek_var_ty(expr: &ExprValue) -> Option<VarType> {
+    match *expr {
+        ExprValue::LiteralNumber(..) => {
+            return Some(VarType::Primitive(PrimitiveVarType::Number));
+        }
+        ExprValue::LiteralString(..) => {
+            return Some(VarType::Primitive(PrimitiveVarType::StringVar));
+        }
+        ExprValue::LiteralArray(Some(ref items)) => {
+            if !items.is_empty() {
+                if let Some(ref first_item) = items.get(0) {
+                    if let Some(var_ty) = peek_var_ty(first_item) {
+                        return Some(VarType::ArrayVar(Some(Box::new(var_ty))));
+                    }
+                    return Some(VarType::ArrayVar(None));
+                };
+            };
+            return Some(VarType::ArrayVar(None));
+        }
+        _ => {}
+    };
+    None
+}

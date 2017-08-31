@@ -42,10 +42,10 @@ impl ProcessContent {
 
             for node in nodes {
                 self.process_block_content_node(
-                    &mut output.root_block,
                     ctx,
                     bindings,
                     node,
+                    &mut output.root_block,
                     processing,
                     None)?;
             }
@@ -54,11 +54,11 @@ impl ProcessContent {
 
     #[inline]
     pub fn process_block_content_node(&mut self,
-                                block: &mut BlockProcessingState,
                                 ctx: &mut Context,
                                 bindings: &mut BindingContext,
 
                                 node: &ContentNodeType,
+                                block: &mut BlockProcessingState,
                                 processing: &DocumentProcessingState,
                                 parent_tag: Option<&str>)
                                 -> DocumentProcessingResult<()> {
@@ -211,10 +211,10 @@ impl ProcessContent {
                         // Iterate over children
                         for ref child in children {
                             self.process_block_content_node(
-                                                      block,
                                                       ctx,
                                                       bindings,
                                                       child,
+                                                      block,
                                                       processing,
                                                       Some(&element_tag))?;
                         }
@@ -263,7 +263,7 @@ impl ProcessContent {
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
                         // FIXME: forvar resolve
-                        self.process_block_content_node(block, ctx, bindings, node, processing, None)?;
+                        self.process_block_content_node(ctx, bindings, node, block, processing, None)?;
                     }
                 };
 

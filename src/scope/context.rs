@@ -221,6 +221,18 @@ impl Context {
         };
     }
 
+    pub fn append_action_path_expr(&mut self, expr: &ExprValue) {
+        if let Some(scope) = self.scope_ref_mut() {
+            scope.append_action_path_expr(expr);
+        };
+    }
+
+    pub fn append_action_path_str(&mut self, s: &str) {
+        if let Some(scope) = self.scope_ref_mut() {
+            scope.append_action_path_str(s);
+        };
+    }
+
     // pub fn resolve_props<'p, I>(&mut self, props: I) -> SymbolResolver<'p, I>
     //     where I: Iterator<Item = PropValue<'p>>
     // {

@@ -10,7 +10,7 @@ use parser::store::*;
 use parser::util::*;
 
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct ReducerKeyData {
     pub reducer_key: String,
     pub default_expr: Option<ExprValue>,
@@ -29,7 +29,7 @@ impl ReducerKeyData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ReducerActionData {
     pub action_type: String,
     pub state_expr: Option<ActionStateExprType>,
