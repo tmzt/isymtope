@@ -10,7 +10,7 @@ use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
-use output::writers::ops_writers::output_writer::*;
+use output::writers::*;
 
 
 pub trait ElementOpsStreamWriter {

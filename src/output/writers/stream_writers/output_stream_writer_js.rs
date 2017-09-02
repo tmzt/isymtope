@@ -5,9 +5,7 @@ use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
-use output::stream_writers::output_writer::*;
-use output::stream_writers::output_stream_writer::*;
-use output::stream_writers::output_writer_js::*;
+use output::writers::*;
 
 
 // pub trait ElementOpsStreamWriterDynamic : ElementOpsStreamWriter {}
@@ -74,8 +72,7 @@ mod tests {
     use std::iter::empty;
     use scope::context::*;
     use scope::bindings::*;
-    use output::stream_writers::*;
-    use output::stream_writers::output_writer_js::*;
+    use output::writers::*;
 
 
     #[test]

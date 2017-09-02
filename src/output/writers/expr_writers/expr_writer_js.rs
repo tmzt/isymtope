@@ -5,7 +5,7 @@ use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
-use output::stream_writers::output_writer::*;
+use output::writers::*;
 
 
 #[derive(Debug, Default)]
@@ -103,7 +103,7 @@ mod tests {
     use std::io::Write;
     use scope::context::*;
     use scope::bindings::*;
-    use output::stream_writers::*;
+    use output::writers::*;
 
 
     #[test]

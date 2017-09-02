@@ -5,9 +5,7 @@ use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
-use output::stream_writers::output_writer::*;
-use output::stream_writers::output_stream_writer::*;
-use output::stream_writers::output_writer_html::*;
+use output::writers::*;
 
 
 pub trait ElementOpsStreamWriterStatic : ElementOpsStreamWriter {}
@@ -73,8 +71,7 @@ mod tests {
     use std::iter::empty;
     use scope::context::*;
     use scope::bindings::*;
-    use output::stream_writers::output_stream_writer::*;
-    use output::stream_writers::output_writer_html::*;
+    use output::writers::*;
 
 
     #[test]

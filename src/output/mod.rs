@@ -12,7 +12,7 @@ extern crate itertools;
 // pub mod client_ops_stream_writer;
 // pub mod client_ops_js_stream_writer;
 // pub mod client_ops_html_stream_writer;
-pub mod stream_writers;
+pub mod writers;
 
 pub use processing::structs::Result;
 
