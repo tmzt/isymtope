@@ -13,8 +13,11 @@ extern crate itertools;
 // pub mod client_ops_js_stream_writer;
 // pub mod client_ops_html_stream_writer;
 pub mod writers;
+pub mod page_writer;
 
 pub use processing::structs::Result;
+pub use self::writers::*;
+pub use self::page_writer::*;
 
 use std::io;
 use parser::ast::*;

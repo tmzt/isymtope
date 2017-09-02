@@ -5,42 +5,39 @@ use std::slice::Iter;
 
 use parser::ast::*;
 use processing::structs::*;
-use processing::scope::*;
 
-use output::client_html::*;
-use output::client_js::*;
-use output::client_js_value_writer::*;
-
+use output::writers::*;
 use scope::scope::*;
 use scope::context::*;
+use scope::bindings::*;
 
 
-pub struct FormatHtml<'input> {
+pub struct PageWriter<'input> {
     doc: &'input DocumentState<'input>,
-    output_html: WriteHtmlOpsContent<'input>,
-    output_js: WriteJsOps<'input>,
+    writers: DefaultOutputWritersBoth
 }
 
-impl<'input: 'scope, 'scope> FormatHtml<'input> {
+impl<'input> PageWriter<'input> {
     pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
-        FormatHtml {
+        PageWriter {
             doc: doc,
-            output_html: WriteHtmlOpsContent::with_doc(doc),
-            output_js: WriteJsOps::with_doc(doc),
+            writers: Default::default()
         }
     }
 
     #[allow(unused_variables)]
     pub fn write_js_event_actions(&self,
                                   w: &mut io::Write,
-                                  scope: &ElementOpScope,
+                                  ctx: &mut Context,
+                                  bindings: &BindingContext,
                                   action_ops: &Option<Vec<ActionOpNode>>)
                                   -> Result {
         if let &Some(ref action_ops) = action_ops {
             for ref action_op in action_ops {
                 match *action_op {
                     &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                        let action_ty = scope.0.make_action_type(action_key);
+                        // let action_ty = scope.0.make_action_type(action_key);
+                        let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
 
                         if let &Some(ref action_params) = action_params {
                             let action_params: PropVec =
@@ -50,7 +47,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                                     .collect();
 
                             write!(w, " store.dispatch(")?;
-                            write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
+                            // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
                             writeln!(w, ");")?;
                         } else {
                             writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
@@ -63,19 +60,16 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
     }
 
     #[allow(unused_variables)]
-    pub fn write_js_event_bindings(&self,
-                                   w: &mut io::Write,
-                                   events_iter: Iter<EventsItem>,
-                                   scope: &ElementOpScope)
-                                   -> Result {
+    pub fn write_js_event_bindings<I: IntoIterator<Item = EventsItem>>(&self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;
-        for &(ref element_key,
+        for (ref element_key,
               ref event_name,
               ref params,
               ref action_ops,
               ref event_scope,
               ref block_id) in events_iter {
-            let complete_key = scope.0.make_complete_element_key_with(element_key);
+            // let complete_key = scope.0.make_complete_element_key_with(element_key);
+            let complete_key = ctx.join_path(Some("."));
             let was_enterkey = event_name.as_ref()
                 .map_or(false, |event_name| event_name == "enterkey");
             let event_name = match event_name.as_ref().map(|s| s.as_str()) {
@@ -95,7 +89,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                 writeln!(w, "if (event.keyCode == 13) {{")?;
             };
 
-            self.write_js_event_actions(w, scope, action_ops)?;
+            self.write_js_event_actions(w, ctx, bindings, action_ops)?;
 
             if was_enterkey {
                 writeln!(w, "}}")?;
@@ -108,7 +102,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    pub fn write_html_document(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+    pub fn write_page(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         // Output
         write!(w, "{}", indoc!(r#"
             <!doctype HTML>
@@ -122,15 +116,15 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
                 <div id="root">
         "#))?;
 
-        let ops_iter = self.doc.root_block.ops_vec.iter();
-
-        let mut base_scope: ElementOpScope = Default::default();
         if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            base_scope.0.append_action_scope(default_reducer_key);
+            ctx.append_action_path_str(default_reducer_key);
+            // base_scope.0.append_action_scope(default_reducer_key);
         };
 
-        let mut events_vec: EventsVec = Default::default();
-        self.output_html.write_html_ops_content(w, ops_iter, base_scope, Some(&mut events_vec))?;
+        // let mut events_vec: EventsVec = Default::default();
+        // self.output_html.write_html_ops_content(w, ops_iter, base_scope, Some(&mut events_vec))?;
+        let ops_iter = self.doc.root_block.ops_vec.iter();
+        self.writers.html.write_element_ops(w, ctx, bindings, ops_iter)?;
 
         write!(w,
                "{}",
@@ -141,22 +135,20 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         "#))
             ?;
 
-        let base_scope: ElementOpScope = Default::default();
-
         // Define components
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
-            if let Some(ref ops) = comp_def.ops {
-                let mut scope = base_scope.clone();
-                let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-                scope.0.set_prefix_expr(&param_expr);
+            if let Some(ref ops) = comp_def.ops_iter() {
+                // let mut scope = base_scope.clone();
+                // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
+                // scope.0.set_prefix_expr(&param_expr);
 
-                self.output_js
-                    .write_js_incdom_component(w,
-                                               component_ty,
-                                               comp_def,
-                                               ops.iter(),
-                                               &mut self.doc,
-                                               &scope)?;
+                // self.output_js
+                //     .write_js_incdom_component(w,
+                //                                component_ty,
+                //                                comp_def,
+                //                                ops.iter(),
+                //                                &mut self.doc,
+                //                                &scope)?;
             };
         }
 
@@ -166,13 +158,16 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
         writeln!(w, "function render(store) {{")?;
 
         // Render content nodes as incdom calls
-        self.output_js
-            .write_js_incdom_ops_content(w,
-                                         ctx,
-                                         bindings,
-                                         self.doc.root_block.ops_vec.iter(),
-                                         &mut self.doc,
-                                         &base_scope)?;
+        // self.output_js
+        //     .write_js_incdom_ops_content(w,
+        //                                  ctx,
+        //                                  bindings,
+        //                                  self.doc.root_block.ops_vec.iter(),
+        //                                  &mut self.doc,
+        //                                  &base_scope)?;
+
+        let ops_iter = self.doc.root_block.ops_vec.iter();
+        self.writers.js.write_element_ops(w, ctx, bindings, ops_iter)?;
 
         writeln!(w, "}}")?;
 
@@ -191,7 +186,7 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         writeln!(w, "  // Define store")?;
-        self.output_js.write_js_store(w, &base_scope)?;
+        // self.output_js.write_js_store(w, &base_scope)?;
 
         write!(w,
                "{}",
@@ -209,31 +204,31 @@ impl<'input: 'scope, 'scope> FormatHtml<'input> {
             ?;
 
         // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
-        let keys_iter = self.output_html.keys_iter();
-        for key in keys_iter {
-            writeln!(w,
-                     "    markExisting(document.querySelector(\"[key='{}']\"));",
-                     key)
-                ?;
-        }
+        // let keys_iter = self.output_html.keys_iter();
+        // for key in keys_iter {
+        //     writeln!(w,
+        //              "    markExisting(document.querySelector(\"[key='{}']\"));",
+        //              key)
+        //         ?;
+        // }
 
         // Event handlers
-        if let Some(events_iter) = self.output_html.events_iter() {
-            self.write_js_event_bindings(w, events_iter, &base_scope)?;
-        }
+        // if let Some(events_iter) = self.output_html.events_iter() {
+        //     self.write_js_event_bindings(w, events_iter)?;
+        // }
 
         // Component event handlers
-        if let Some(comp_instances) = self.output_html.component_instances_iter() {
-            for &(ref complete_key, ref comp_ty) in comp_instances {
-                if let Some(ref comp) = self.doc.comp_map.get(comp_ty) {
-                    let mut scope = base_scope.clone();
-                    scope.0.append_key(complete_key);
-                    if let Some(ref events) = comp.events {
-                        self.write_js_event_bindings(w, events.iter(), &scope)?;
-                    };
-                }
-            }
-        }
+        // if let Some(comp_instances) = self.output_html.component_instances_iter() {
+        //     for &(ref complete_key, ref comp_ty) in comp_instances {
+        //         if let Some(ref comp) = self.doc.comp_map.get(comp_ty) {
+        //             // let mut scope = base_scope.clone();
+        //             // scope.0.append_key(complete_key);
+        //             // if let Some(ref events) = comp.events {
+        //             //     self.write_js_event_bindings(w, events.iter())?;
+        //             // };
+        //         }
+        //     }
+        // }
 
         write!(w,
                "{}",

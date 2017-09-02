@@ -306,6 +306,11 @@ impl Context {
         self.scope().join_action_path(self, s)
     }
 
+    pub fn join_action_path_with(&mut self, sep: Option<&str>, last: &str) -> String {
+        let key = self.scope().join_action_path(self, sep);
+        if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
+    }
+
     pub fn prop(&mut self, key: &str) -> Symbol {
         self.scope().prop(key)
     }
