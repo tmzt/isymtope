@@ -10,6 +10,7 @@ use scope::context::*;
 use scope::bindings::*;
 use output::stream_writers::output_writer::*;
 use output::stream_writers::output_stream_writer::*;
+use output::stream_writers::output_writer_js::*;
 
 
 // pub type PropIterator = IntoIter<Item = Prop>;
@@ -20,7 +21,7 @@ use output::stream_writers::output_stream_writer::*;
 pub struct ElementOpsStreamWriterJs {}
 
 // impl<X: ExprWriter> ElementOpsStreamWriter<X> for ElementOpsStreamWriterJs {
-impl<X: ExprWriter> ElementOpsStreamWriter for X {
+impl<X: ExprWriter<E = ExpressionWriterJs>> ElementOpsStreamWriter for X {
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
