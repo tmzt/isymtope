@@ -9,31 +9,6 @@ use scope::bindings::*;
 use output::writers::*;
 
 
-
-pub trait ElementOpsWriter {
-    type E: ExpressionWriter;
-    type S: ElementOpsStreamWriter<E = Self::E>;
-
-    fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result;
-    fn write_element_ops<'a, I: IntoIterator<Item = &'a ElementOp>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, ops: I) -> Result;
-}
-
-#[derive(Debug, Default)]
-pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
-    value_writer: V,
-    expression_writer: E,
-    stream_writer: S
-}
-
-impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
-    // type E = ExpressionWriterJs;
-    type E = E;
-
-    fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-        self.expression_writer.write_expr_to(w, &mut self.value_writer, ctx, bindings, expr)
-    }
-}
-
 fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer: &mut S, expression_writer: &mut S::E, value_writer: &mut <S::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
 
     let is_void = if let &ElementOp::ElementVoid(..) = op { true } else { false };
