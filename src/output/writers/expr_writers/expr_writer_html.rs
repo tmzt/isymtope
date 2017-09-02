@@ -13,10 +13,12 @@ pub struct ValueWriterHtml {}
 
 impl ValueWriter for ValueWriterHtml {
     fn write_literal_string(&mut self, w: &mut io::Write, s: &str) -> Result {
+        write!(w, "{}", s)?;
         Ok(())
     }
 
     fn write_literal_number(&mut self, w: &mut io::Write, n: &i32) -> Result {
+        write!(w, "{}", n)?;
         Ok(())
     }
 

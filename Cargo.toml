@@ -9,6 +9,7 @@ lalrpop = "0.13.1"
 
 [dependencies]
 broadcast = "0.1.0"
+difference = "1.0.0"
 error-chain = "0.10.0"
 hyper = "0.11.0"
 indoc = "0.1.15"

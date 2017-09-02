@@ -11,6 +11,8 @@ extern crate uuid;
 extern crate itertools;
 extern crate linked_hash_map;
 extern crate broadcast;
+#[macro_use(assert_diff)]
+extern crate difference;
 
 mod parser;
 mod scope;

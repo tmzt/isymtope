@@ -19,7 +19,8 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
-        let complete_key = ctx.join_path(Some("."));
+        // let complete_key = ctx.join_path(Some("."));
+        let complete_key = ctx.join_path_with(Some("."), element_key);
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         for (key, expr) in props {
@@ -61,6 +62,11 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
     {
         Ok(())
     }
+
+    fn write_op_element_value(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, element_key: &str) -> Result {
+        expression_writer.write_expr_to(w, value_writer, ctx, bindings, expr)?;
+        Ok(())
+    }
 }
 
 
@@ -87,7 +93,6 @@ mod tests {
 
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
-        ctx.append_path_str(&key);
         assert!(
             stream_writer.write_op_element_open(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
             stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span").is_ok()

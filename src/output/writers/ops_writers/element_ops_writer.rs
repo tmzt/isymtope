@@ -24,8 +24,9 @@ fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer:
                                     ref props,
                                     ref events,
                                     ref value_binding) => {
-                ctx.push_child_scope();
-                ctx.append_path_str(element_key);
+                // Only push prefixes for components and other cases where the prefix can vary when rendering.
+                // ctx.push_child_scope();
+                // ctx.append_path_str(element_key);
 
                 // let props = if output_component_contents {
                 //     props.as_ref().map(|props| props.iter().map(|p| ctx.reduce_expr()))
@@ -90,11 +91,11 @@ fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer:
                 //                       events,
                 //                       value_bindings)?;
 
-                if is_void {
-                    // Pop scope for self closing, this fixes issue with ElementVoid which
-                    // was not being emitted previously by the parser/processor code.
-                    ctx.pop_scope();
-                };
+                // if is_void {
+                //     // Pop scope for self closing, this fixes issue with ElementVoid which
+                //     // was not being emitted previously by the parser/processor code.
+                //     ctx.pop_scope();
+                // };
             }
 
             &ElementOp::ElementClose(ref element_tag) => {
@@ -107,7 +108,19 @@ fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer:
                     element_tag,
                 )?;
 
-                ctx.pop_scope();
+                // ctx.pop_scope();
+            }
+
+            &ElementOp::WriteValue(ref expr, ref element_key) => {
+                stream_writer.write_op_element_value(
+                    w,
+                    expression_writer,
+                    value_writer,
+                    ctx,
+                    bindings,
+                    expr,
+                    element_key
+                )?;
             }
 
             _ => {}

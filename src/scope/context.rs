@@ -289,6 +289,10 @@ impl Context {
         self.scope().join_path_as_expr(s)
     }
 
+    pub fn join_path_as_expr_with(&mut self, sep: Option<&str>, last: &str) -> ExprValue {
+        self.scope().join_path_as_expr_with(sep, last)
+    }
+
     pub fn join_path(&mut self, s: Option<&str>) -> String {
         self.scope().join_path(self, s)
     }

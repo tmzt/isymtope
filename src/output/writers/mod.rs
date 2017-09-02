@@ -58,10 +58,10 @@ mod tests {
     #[test]
     pub fn test_output_default_writers() {
         let mut ctx = Context::default();
-        ctx.append_path_str("Ab");
+        // ctx.append_path_str("Ab");
         let bindings = BindingContext::default();
 
-        let op_1 = ElementOp::ElementOpen("span".into(), "Cd".into(), None, None, None);
+        let op_1 = ElementOp::ElementOpen("span".into(), "Ab.Cd".into(), None, None, None);
         let op_2 = ElementOp::ElementClose("span".into());
 
         {
@@ -94,7 +94,7 @@ mod tests {
                 writer.write_element_op(&mut s, &mut ctx, &bindings, &op_2).is_ok()
             );
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", ["Ab", "Cd"].join("."));
+                IncrementalDOM.elementOpen("span", "Ab.Cd");
                 IncrementalDOM.elementClose("span");
             "#]));
         }
@@ -105,7 +105,7 @@ mod tests {
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &mut ctx, &bindings, ops.iter()).is_ok());
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", ["Ab", "Cd"].join("."));
+                IncrementalDOM.elementOpen("span", "Ab.Cd");
                 IncrementalDOM.elementClose("span");
             "#]));
         }
@@ -114,10 +114,10 @@ mod tests {
     #[test]
     pub fn test_output_default_writers_both() {
         let mut ctx = Context::default();
-        ctx.append_path_str("Ab");
+        // ctx.append_path_str("Ab");
         let bindings = BindingContext::default();
 
-        let op_1 = ElementOp::ElementOpen("span".into(), "Cd".into(), None, None, None);
+        let op_1 = ElementOp::ElementOpen("span".into(), "Ab.Cd".into(), None, None, None);
         let op_2 = ElementOp::ElementClose("span".into());
 
         {
@@ -133,7 +133,7 @@ mod tests {
             ]));
 
             assert_eq!(str::from_utf8(&s_js), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", ["Ab", "Cd"].join("."));
+                IncrementalDOM.elementOpen("span", "Ab.Cd");
                 IncrementalDOM.elementClose("span");
             "#]));
         }

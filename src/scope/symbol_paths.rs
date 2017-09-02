@@ -64,6 +64,41 @@ impl SymbolPathScope {
         let join_opt = s.map(|s| s.to_owned());
         ExprValue::Apply(ExprApplyOp::JoinString(join_opt), components)
     }
+
+    #[inline]
+    pub fn join_as_expr_with(&self, sep: Option<&str>, last: &str) -> ExprValue {
+        // Handle special case first
+        if self.0.is_none() {
+            return ExprValue::LiteralString(last.to_owned());
+        }
+
+        let expr_components: Option<Vec<Box<ExprValue>>> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
+            .map(|component| match component {
+                &SymbolPathComponent::StaticPathComponent(ref s) => Box::new(ExprValue::LiteralString(s.to_owned())),
+                &SymbolPathComponent::EvalPathComponent(ref expr) => Box::new(expr.to_owned())
+            }).collect());
+
+        let mut all_components: Vec<Box<ExprValue>> = Default::default();
+        if let Some(expr_components) = expr_components {
+            let has_len = expr_components.len() > 0;
+            if has_len {
+                all_components.extend(expr_components);
+            }
+        }
+        all_components.push(Box::new(ExprValue::LiteralString(last.to_owned())));
+
+        // let components = expr_components.and_then(|expr_components| {
+        //     let mut all_components: Vec<Box<ExprValue>> = Default::default();
+        //     if expr_components.len() > 0 {
+        //         all_components.extend(expr_components.iter());
+        //     }
+        //     all_components.push(Box::new(ExprValue::LiteralString(last.to_owned())));
+        //     Some(all_components)
+        // });
+
+        let join_opt = sep.map(|s| s.to_owned());
+        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(all_components))
+    }
 }
 
 #[cfg(test)]
