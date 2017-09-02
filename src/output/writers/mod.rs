@@ -31,9 +31,18 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> Expr
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriters {}
 
+pub type DefaultOutputWriterHtml = DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml>;
+pub type DefaultOutputWriterJs = DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs>;
+
 impl DefaultOutputWriters {
-    pub fn html() -> DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml> { Default::default() }
-    pub fn js() -> DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> { Default::default() }
+    pub fn html() -> DefaultOutputWriterHtml { Default::default() }
+    pub fn js() -> DefaultOutputWriterJs { Default::default() }
+}
+
+#[derive(Debug, Default)]
+pub struct DefaultOutputWritersBoth {
+    pub html: DefaultOutputWriterHtml,
+    pub js: DefaultOutputWriterJs
 }
 
 
@@ -102,4 +111,31 @@ mod tests {
         }
     }
 
+    #[test]
+    pub fn test_output_default_writers_both() {
+        let mut ctx = Context::default();
+        ctx.append_path_str("Ab");
+        let bindings = BindingContext::default();
+
+        let op_1 = ElementOp::ElementOpen("span".into(), "Cd".into(), None, None, None);
+        let op_2 = ElementOp::ElementClose("span".into());
+
+        {
+            let mut writers = DefaultOutputWritersBoth::default();
+            let mut s_html: Vec<u8> = Default::default();
+            let mut s_js: Vec<u8> = Default::default();
+            let ops = vec![op_1.clone(), op_2.clone()];
+            assert!(writers.html.write_element_ops(&mut s_html, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writers.js.write_element_ops(&mut s_js, &mut ctx, &bindings, ops.iter()).is_ok());
+
+            assert_eq!(str::from_utf8(&s_html), Ok(indoc![r#"
+            <span key="Ab.Cd"></span>"#
+            ]));
+
+            assert_eq!(str::from_utf8(&s_js), Ok(indoc![r#"
+                IncrementalDOM.elementOpen("span", ["Ab", "Cd"].join("."));
+                IncrementalDOM.elementClose("span");
+            "#]));
+        }
+    }
 }
