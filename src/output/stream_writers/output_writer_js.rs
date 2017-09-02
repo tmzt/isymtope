@@ -44,21 +44,24 @@ impl ValueWriter for ValueWriterJs {
         Ok(())
     }
 }
+impl DynamicValueWriter for ValueWriterJs {}
 
 #[derive(Debug, Default)]
 pub struct ExpressionWriterJs {}
 
-impl ExpressionWriter for ExpressionWriterJs {}
-impl DynamicExpressionWriter for ExpressionWriterJs {
-    fn write_dynamic_expression(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
-        self.write_expr(w, value_writer, ctx, bindings, left)?;
+// impl ExpressionWriter for ExpressionWriterJs {}
+impl ExpressionWriter for ExpressionWriterJs {
+    type V = ValueWriterJs;
+
+    fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+        self.write_expr_to(w, value_writer, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
-        self.write_expr(w, value_writer, ctx, bindings, right)?;
+        self.write_expr_to(w, value_writer, ctx, bindings, right)?;
 
         Ok(())
     }
 
-    fn write_dynamic_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
+    fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
                 write!(w, "[")?;
@@ -66,7 +69,7 @@ impl DynamicExpressionWriter for ExpressionWriterJs {
                 if let Some(arr) = arr {
                     for v in arr {
                         if !first { write!(w, ", ")?; }
-                        self.write_expr(w, value_writer, ctx, bindings, v)?;
+                        self.write_expr_to(w, value_writer, ctx, bindings, v)?;
                         first = false;
                     }
                 };
@@ -77,6 +80,20 @@ impl DynamicExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 }
+
+// #[derive(Debug, Default)]
+// pub struct WriterJs {
+//     value_writer: ValueWriterJs,
+//     expression_writer: ExpressionWriterJs
+// }
+
+// impl ExprWriter for WriterJs {
+//     type E = ExpressionWriterJs;
+
+//     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
+//         self.expression_writer.write_expr(w, ctx, bindings, expr)
+//     }
+// }
 
 
 #[cfg(test)]
@@ -105,10 +122,13 @@ mod tests {
         {
             let mut s: Vec<u8> = Default::default();
             let bindings = BindingContext::default();
-            let mut expr_writer = DefaultExpressionWriter::default();
+            // let mut expr_writer = DefaultExpressionWriter::default();
+            // let mut expr_writer = ExpressionWriterJs::default();
             let expr = ExprValue::Binding(binding.clone());
 
-            let res = expr_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+            let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs> = DefaultOutputWriter::default();
+
+            let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
             assert!(res.is_ok());
             assert_eq!(str::from_utf8(&s), Ok("store.getState().todo".into()));
         }
@@ -126,13 +146,37 @@ mod tests {
             Box::new(literal_string.clone())
         );
 
-        let mut value_writer = ValueWriterJs::default();
-        let mut expr_writer = ExpressionWriterJs::default();
+        // let mut value_writer = ValueWriterJs::default();
+        // let mut expr_writer = ExpressionWriterJs::default();
+        let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs> = DefaultOutputWriter::default();
+        
+        let mut s: Vec<u8> = Default::default();
+        let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
+        assert!(res.is_ok());
+        assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));        
+    }
+
+    #[test]
+    fn test_stream_writers_writerjs_write_dynamic_expression1() {
+        let bindings = BindingContext::default();
+        let mut ctx = Context::default();
+
+        let binding = BindingType::ReducerPathBinding("todo".into(), None);
+        let literal_string = ExprValue::LiteralString("test".into());
+
+        let expr = ExprValue::Expr(ExprOp::Add,
+            Box::new(ExprValue::Binding(binding.clone())),
+            Box::new(literal_string.clone())
+        );
 
         let mut s: Vec<u8> = Default::default();
-        let res = expr_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+        // let mut writer = WriterJs::default();
+        let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs> = DefaultOutputWriter::default();
+
+        let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
+        // let res = writer.write_page(&mut s, &mut ctx, &bindings, &expr);
+        // let res = writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
         assert!(res.is_ok());
         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
-        
     }
 }

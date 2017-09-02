@@ -37,9 +37,9 @@ impl ExpressionWriter for ExpressionWriterHtml {
     type V = ValueWriterHtml;
 
     fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
-        self.write_expr(w, value_writer, ctx, bindings, left)?;
+        self.write_expr(w, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
-        self.write_expr(w, value_writer, ctx, bindings, right)?;
+        self.write_expr(w, ctx, bindings, right)?;
 
         Ok(())
     }
@@ -52,7 +52,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
                 if let Some(arr) = arr {
                     for v in arr {
                         if !first { write!(w, ", ")?; }
-                        self.write_expr(w, value_writer, ctx, bindings, v)?;
+                        self.write_expr(w, ctx, bindings, v)?;
                         first = false;
                     }
                 };
