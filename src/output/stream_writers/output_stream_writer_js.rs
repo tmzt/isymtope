@@ -39,7 +39,7 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterJs {
         Ok(())
     }
 
-    fn write_op_element_close(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, element_tag: &str) -> Result {
         writeln!(w, "IncrementalDOM.elementClose(\"{}\");", element_tag)?;
         Ok(())
     }
@@ -94,7 +94,7 @@ mod tests {
         ctx.append_path_str(&key);
         assert!(
             stream_writer.write_op_element_open(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
-            stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key).is_ok()
+            stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span").is_ok()
         );
         assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
     }
