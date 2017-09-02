@@ -1,15 +1,23 @@
 
 use std::io;
+use std::iter;
 
 use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
+use output::stream_writers::output_stream_writer::*;
 
 
 pub trait ExprWriter {
     type E: ExpressionWriter;
     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
+}
+
+pub trait ElementOpsWriter {
+    // type S: ElementOpsStreamWriter;
+
+    fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &mut BindingContext, op: &ElementOp) -> Result;
 }
 
 fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
@@ -57,17 +65,101 @@ pub trait DynamicValueWriter : ValueWriter {}
 pub trait StaticValueWriter : ValueWriter {}
 
 #[derive(Debug, Default)]
-pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>> {
+pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
     value_writer: V,
-    expression_writer: E
+    expression_writer: E,
+    stream_writer: S
 }
 
-impl<V: ValueWriter, E: ExpressionWriter<V = V>> ExprWriter for DefaultOutputWriter<V, E> {
+impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
     // type E = ExpressionWriterJs;
     type E = E;
 
     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
         self.expression_writer.write_expr_to(w, &mut self.value_writer, ctx, bindings, expr)
+    }
+}
+
+impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ElementOpsWriter for DefaultOutputWriter<V, E, S> {
+    type S = S;
+
+    fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &mut BindingContext, op: &ElementOp) -> Result {
+        let is_void = if let &ElementOp::ElementVoid(..) = op { true } else { false };
+
+        match op {
+                &ElementOp::ElementOpen(ref element_tag,
+                                        ref element_key,
+                                        ref props,
+                                        ref events,
+                                        ref value_binding) |
+                &ElementOp::ElementVoid(ref element_tag,
+                                        ref element_key,
+                                        ref props,
+                                        ref events,
+                                        ref value_binding) => {
+                    ctx.push_child_scope();
+                    ctx.append_path_str(element_key);
+
+                    // let props = if output_component_contents {
+                    //     props.as_ref().map(|props| props.iter().map(|p| ctx.reduce_expr()))
+                    //     // props.as_ref().map(|p| map_props_using_scope(p.iter(), &scope))
+                    // } else {
+                    //     props.as_ref().map(|props| props.iter().map(|p| ctx.reduce_expr()))
+                    //     // props.as_ref().map(|p| map_prop_references(p.iter(), &scope))
+                    // };
+
+                    // let props = props.as_ref().map(|props| props.iter().filter_map(|p| p.1.as_ref().map(|expr| ctx.reduce_expr(expr))));
+
+
+                    // let prop_list = prop_list.as_ref().map(|s| s.iter().map(|s| &s));
+
+                    // let complete_key = scope.0.make_complete_element_key_with(element_key);
+                    // self.push_scope_as(scope.clone(), &complete_key);
+
+                    // let events = events.as_ref().map(|events| events.iter());
+                    // let value_binding = value_binding.as_ref().map(|s| s.clone());
+
+                    // let events = events.as_ref().map_or_else(|| iter::empty(), |v| v.iter());
+                    // let value_bindings = value_bindings.as_ref().map_or_else(|| iter::empty(), |v| v.iter());
+
+                    // self.stream_writer.write_op_element_open(
+                    //     w,
+                    //     self,
+                    //     ctx,
+                    //     bindings,
+                    //     element_key,
+                    //     element_tag,
+                    //     is_void,
+                    //     props,
+                    //     events,
+                    //     value_bindings
+                    // )?;
+
+
+
+                    // self.stream_writer
+                    //     .write_op_element(w,
+                    //                       op,
+                    //                       doc,
+                    //                       &scope,
+                    //                       &complete_key,
+                    //                       element_tag,
+                    //                       is_void,
+                    //                       props.as_ref().map(|s| s.iter()),
+                    //                       events,
+                    //                       value_bindings)?;
+
+                    if is_void {
+                        // Pop scope for self closing, this fixes issue with ElementVoid which
+                        // was not being emitted previously by the parser/processor code.
+                        ctx.pop_scope();
+                    };
+                },
+
+                _ => {}
+        };
+
+        Ok(())
     }
 }
 
