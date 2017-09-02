@@ -15,7 +15,8 @@ pub trait ExprWriter {
 }
 
 pub trait ElementOpsWriter {
-    // type S: ElementOpsStreamWriter;
+    type E: ExpressionWriter;
+    type S: ElementOpsStreamWriter<E = Self::E>;
 
     fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &mut BindingContext, op: &ElementOp) -> Result;
 }
@@ -80,7 +81,8 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> Expr
     }
 }
 
-impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ElementOpsWriter for DefaultOutputWriter<V, E, S> {
+impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter<E = E>> ElementOpsWriter for DefaultOutputWriter<V, E, S> {
+    type E = E;
     type S = S;
 
     fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &mut BindingContext, op: &ElementOp) -> Result {
@@ -121,6 +123,20 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> Elem
 
                     // let events = events.as_ref().map_or_else(|| iter::empty(), |v| v.iter());
                     // let value_bindings = value_bindings.as_ref().map_or_else(|| iter::empty(), |v| v.iter());
+
+                    self.stream_writer.write_op_element_open(
+                        w,
+                        &mut self.expression_writer,
+                        &mut self.value_writer,
+                        ctx,
+                        bindings,
+                        element_key,
+                        element_tag,
+                        is_void,
+                        iter::empty(),
+                        iter::empty(),
+                        iter::empty(),
+                    )?;
 
                     // self.stream_writer.write_op_element_open(
                     //     w,

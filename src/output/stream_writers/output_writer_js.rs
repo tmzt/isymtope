@@ -103,6 +103,7 @@ mod tests {
     use std::io::Write;
     use scope::context::*;
     use scope::bindings::*;
+    use output::stream_writers::*;
 
 
     #[test]
@@ -148,7 +149,8 @@ mod tests {
 
         // let mut value_writer = ValueWriterJs::default();
         // let mut expr_writer = ExpressionWriterJs::default();
-        let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+        // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+        let mut writer = DefaultOutputWriters::js();
         
         let mut s: Vec<u8> = Default::default();
         let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
@@ -171,7 +173,8 @@ mod tests {
 
         let mut s: Vec<u8> = Default::default();
         // let mut writer = WriterJs::default();
-        let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+        // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+        let mut writer = DefaultOutputWriters::js();
 
         let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
         // let res = writer.write_page(&mut s, &mut ctx, &bindings, &expr);
