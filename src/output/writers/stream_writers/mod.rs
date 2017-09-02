@@ -1,3 +1,8 @@
+pub mod output_stream_writer_html;
+pub mod output_stream_writer_js;
+
+pub use self::output_stream_writer_html::ElementOpsStreamWriterHtml;
+pub use self::output_stream_writer_js::ElementOpsStreamWriterJs;
 
 use std::io;
 
@@ -5,7 +10,7 @@ use parser::ast::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
-use output::stream_writers::output_writer::*;
+use output::writers::ops_writers::output_writer::*;
 
 
 pub trait ElementOpsStreamWriter {
