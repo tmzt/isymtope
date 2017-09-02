@@ -64,19 +64,6 @@ impl ExpressionWriter for ExpressionWriterHtml {
     }
 }
 
-// #[derive(Debug, Default)]
-// pub struct WriterJs {
-//     value_writer: Self::V,
-//     expression_writer: ExpressionWriterJs
-// }
-
-// impl ExprWriter for WriterJs {
-//     type V = ValueWriterJs;
-//     fn write_expr(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-//         self.expression_writer.write_expr(w, &mut self.value_writer, ctx, bindings, expr)
-//     }
-// }
-
 
 // #[cfg(test)]
 // mod tests {

@@ -1,11 +1,8 @@
 
 use std::io;
-use std::iter;
-use std::slice::Iter;
 
 use parser::ast::*;
 use processing::structs::*;
-use scope::scope::*;
 use scope::context::*;
 use scope::bindings::*;
 use output::stream_writers::output_writer::*;
@@ -13,14 +10,9 @@ use output::stream_writers::output_stream_writer::*;
 use output::stream_writers::output_writer_js::*;
 
 
-// pub type PropIterator = IntoIter<Item = Prop>;
-// pub type EventHandlerIterator = IntoIter<Item = EventHandler>;
-// pub type BindingIterator = IntoIterator<Item = ElementValueBinding>;
-
 #[derive(Debug, Clone, Default)]
 pub struct ElementOpsStreamWriterJs {}
 
-// impl<X: ExprWriter> ElementOpsStreamWriter<X> for ElementOpsStreamWriterJs {
 impl<X: ExprWriter<E = ExpressionWriterJs>> ElementOpsStreamWriter for X {
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
@@ -31,7 +23,6 @@ impl<X: ExprWriter<E = ExpressionWriterJs>> ElementOpsStreamWriter for X {
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
-        // let path_expr = ctx.scope_ref().unwrap().join_path_as_expr(Some("."));
         let path_expr = ctx.join_path_as_expr(Some("."));
         self.write_expr(w, ctx, bindings, &path_expr)?;
 
@@ -81,14 +72,9 @@ mod tests {
 
     #[test]
     pub fn test_output_stream_writers_js_ops1() {
-        // let scope = Scope::default();
         let mut ctx = Context::default();
         ctx.append_path_str("prefix");
         let bindings = BindingContext::default();
-
-        // let mut value_writer = ValueWriterJs::default();
-        // let mut expr_writer = ExpressionWriterJs::default();
-        // let mut stream_writer = ElementOpsStreamWriterJs::default();
 
         let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs> = DefaultOutputWriter::default();
 

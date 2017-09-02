@@ -1,21 +1,14 @@
 
 use std::io;
-use std::iter;
 
 use parser::ast::*;
 use processing::structs::*;
-// use processing::scope::*;
 use scope::context::*;
 use scope::bindings::*;
 
 
-// pub type PropIterator = IntoIterator<Item = Prop>;
-// pub type EventHandlerIterator = IntoIterator<Item = EventHandler>;
-// pub type BindingIterator = IntoIterator<Item = ElementValueBinding>;
-
 pub trait ExprWriter {
     type E: ExpressionWriter;
-    // fn write_expr(&mut self, w: &mut io::Write, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
 }
 
@@ -50,37 +43,8 @@ pub trait ExpressionWriter {
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
 }
 
-// // impl<V: ValueWriter, E: ExpressionWriter<V = V>> ExpressionWriter for E {
-// default impl<E: ExpressionWriter> ExpressionWriter for E {
-//     // default type V = V;
-//     // default fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
-//     // default fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
-
-//     default fn write_expr(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-//         if let &ExprValue::Expr(ref op, ref left, ref right) = expr {
-//             return self.write_expression(w, ctx, bindings, op, left, right);
-//         };
-
-//         if let &ExprValue::Apply(ref a_op, ref arr) = expr {
-//             let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
-//             return self.write_apply_expression(w, ctx, bindings, a_op, arr_iter);
-//         };
-
-//         self::common_write_expr(w, ctx, bindings, expr)
-//     }
-// }
-
-pub trait DynamicExpressionWriter : ExpressionWriter{
-    // type V: DynamicValueWriter;
-    // fn write_dynamic_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
-    // fn write_dynamic_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
-}
-
-pub trait StaticExpressionWriter : ExpressionWriter {
-    // type V: StaticValueWriter;
-    // fn write_static_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
-    // fn write_static_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
-}
+pub trait DynamicExpressionWriter : ExpressionWriter { }
+pub trait StaticExpressionWriter : ExpressionWriter { }
 
 pub trait ValueWriter {
     fn write_literal_string(&mut self, w: &mut io::Write, s: &str) -> Result;
@@ -91,21 +55,6 @@ pub trait ValueWriter {
 
 pub trait DynamicValueWriter : ValueWriter {}
 pub trait StaticValueWriter : ValueWriter {}
-
-pub trait OutputWriter {
-    type X: ExprWriter;
-}
-
-// #[derive(Debug, Default)]
-// pub struct DefaultExpressionWriter {}
-
-// impl<T:ExpressionWriter> ExprWriter for T {
-//     default fn write_expr(&mut self, w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-//         self::common_write_expr(w, value_writer, ctx, bindings, expr)
-//     }
-// }
-
-// impl ExpressionWriter for DefaultExpressionWriter {}
 
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>> {
@@ -121,27 +70,6 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>> ExprWriter for DefaultOutputWri
         self.expression_writer.write_expr_to(w, &mut self.value_writer, ctx, bindings, expr)
     }
 }
-
-
-// impl<V: ValueWriter, E: ExpressionWriter<V = V>> ExprWriter for E {
-//     type E = E;
-
-//     default fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-//         self.write_expr_to(w, value_writer, ctx, bindings, expr)
-
-//         // if let &ExprValue::Expr(ref op, ref left, ref right) = expr {
-//         //     return self.write_expression(w, ctx, bindings, op, left, right);
-//         // };
-
-//         // if let &ExprValue::Apply(ref a_op, ref arr) = expr {
-//         //     let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
-//         //     return self.write_apply_expression(w, ctx, bindings, a_op, arr_iter);
-//         // };
-
-//         // self::common_write_expr(w, ctx, bindings, expr)
-//         // Ok(())
-//     }
-// }
 
 
 #[cfg(test)]
@@ -201,11 +129,11 @@ mod tests {
         let mut value_writer = TestDynamicValueWriter::default();
         let mut s: Vec<u8> = Default::default();
 
-        // let mut expression_writer = DefaultExpressionWriter {};
-        // let binding = BindingType::ReducerPathBinding("todos".into(), None);
-        // let expr = ExprValue::Binding(binding.clone());
-        // assert!(expression_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr).is_ok());
-        // assert_eq!(value_writer.wrote_binding, Some(binding));
+        let mut expression_writer = TestDynamicExpressionWriter::default();
+        let binding = BindingType::ReducerPathBinding("todos".into(), None);
+        let expr = ExprValue::Binding(binding.clone());
+        assert!(expression_writer.write_expr_to(&mut s, &mut value_writer, &mut ctx, &bindings, &expr).is_ok());
+        assert_eq!(value_writer.wrote_binding, Some(binding));
     }
 
     #[test]

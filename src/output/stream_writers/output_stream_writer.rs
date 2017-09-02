@@ -1,18 +1,12 @@
 
 use std::io;
-use std::slice::Iter;
 
 use parser::ast::*;
 use processing::structs::*;
-use scope::scope::*;
 use scope::context::*;
 use scope::bindings::*;
 use output::stream_writers::output_writer::*;
 
-
-// pub type PropIterator = IntoIterator<Item = Prop>;
-// pub type EventHandlerIterator = IntoIterator<Item = EventHandler>;
-// pub type BindingIterator = IntoIterator<Item = ElementValueBinding>;
 
 pub trait ElementOpsStreamWriter {
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
