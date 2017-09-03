@@ -253,4 +253,9 @@ impl<'inp> DocumentState<'inp> {
         };
         None
     }
+
+    #[allow(dead_code)]
+    pub fn reducers_iter<'a>(&'a self) -> impl IntoIterator<Item = (&'a str, &'a ReducerKeyData)> {
+        self.reducer_key_data.iter().map(|r| (r.0.as_str(), r.1))
+    }
 }

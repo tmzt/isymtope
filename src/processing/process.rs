@@ -19,7 +19,7 @@ pub struct ProcessDocument<'input> {
     ast: &'input Template,
     root_block: BlockProcessingState,
     processing: DocumentProcessingState,
-    store_processing: StoreOutputProcessing,
+    // store_processing: StoreOutputProcessing,
     compdef_processing: CompDefProcessorOutput,
     // scope: ElementOpScope,
 }
@@ -46,7 +46,7 @@ impl<'input> ProcessDocument<'input> {
             ast: ast,
             root_block: Default::default(),
             processing: Default::default(),
-            store_processing: Default::default(),
+            // store_processing: Default::default(),
             compdef_processing: Default::default()
             // scope: scope,
         }
@@ -85,7 +85,7 @@ impl<'input> ProcessDocument<'input> {
             if let NodeType::StoreNode(ref scope_nodes) = loc.inner {
                 for scope_node in scope_nodes {
                     process_store.process_store_default_scope_node(
-                        &mut self.store_processing,
+                        &mut self.processing,
                         ctx,
                         bindings,
                         scope_node)?;

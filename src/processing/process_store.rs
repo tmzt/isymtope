@@ -9,26 +9,26 @@ use scope::context::*;
 use scope::bindings::*;
 
 
-#[derive(Debug, Default)]
-pub struct StoreOutputProcessing {
-    processing: DocumentProcessingState,
-    actions: Vec<ReducerActionData>
-}
+// #[derive(Debug, Default)]
+// pub struct StoreOutputProcessing {
+//     processing: DocumentProcessingState,
+//     actions: Vec<ReducerActionData>
+// }
 
-#[derive(Debug, Default)]
-pub struct StoreOutput {
-    processing: DocumentProcessingState,
-    actions: Vec<ReducerActionData>
-}
+// #[derive(Debug, Default)]
+// pub struct StoreOutput {
+//     processing: DocumentProcessingState,
+//     actions: Vec<ReducerActionData>
+// }
 
-impl Into<StoreOutput> for StoreOutputProcessing {
-    fn into(self) -> StoreOutput {
-        StoreOutput {
-            processing: self.processing,
-            actions: self.actions
-        }
-    }
-}
+// impl Into<StoreOutput> for StoreOutputProcessing {
+//     fn into(self) -> StoreOutput {
+//         StoreOutput {
+//             processing: self.processing,
+//             actions: self.actions
+//         }
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct ProcessStore {}
@@ -36,14 +36,15 @@ pub struct ProcessStore {}
 impl ProcessStore {
     #[inline]
     pub fn process_let_node(&mut self,
-                            output: &mut StoreOutputProcessing,
+                            // output: &mut StoreOutputProcessing,
+                            processing: &mut DocumentProcessingState,
                             ctx: &mut Context,
                             bindings: &mut BindingContext,
                             var_name: &str,
                             expr: Option<&ExprValue>)
                             -> DocumentProcessingResult<()> {
-        let has_default_sym = output.processing.default_state_symbol.is_some();
-        let has_default_reducer_key = output.processing.default_reducer_key.is_some();
+        let has_default_sym = processing.default_state_symbol.is_some();
+        let has_default_reducer_key = processing.default_reducer_key.is_some();
         let has_expr = expr.is_some();
 
         let var_ty = expr.as_ref().and_then(|expr| peek_var_ty(expr));
@@ -52,14 +53,14 @@ impl ProcessStore {
             let sym =
                 Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr);
             // TODO: Include type
-            output.processing.default_state_symbol = Some(sym);
+            processing.default_state_symbol = Some(sym);
         }
 
         if !has_default_reducer_key {
-            output.processing.default_reducer_key = Some(var_name.to_owned());
+            processing.default_reducer_key = Some(var_name.to_owned());
         }
 
-        let reducer_entry = output.processing
+        let reducer_entry = processing
             .reducer_key_data
             .entry(var_name.to_owned())
             .or_insert_with(|| {
@@ -70,7 +71,7 @@ impl ProcessStore {
         if let Some(expr) = expr {
             reducer_entry.default_expr = Some(expr.to_owned());
 
-            output.processing
+            processing
                 .default_state_map
                 .entry(var_name.to_owned())
                 .or_insert_with(|| {
@@ -83,7 +84,8 @@ impl ProcessStore {
     }
 
     pub fn process_action_node<'a, I: IntoIterator<Item = &'a str>>(&mut self,
-                            output: &mut StoreOutputProcessing,
+                            // output: &mut StoreOutputProcessing,
+                            processing: &mut DocumentProcessingState,
                             ctx: &mut Context,
                             bindings: &mut BindingContext,
                             action_name: &str,
@@ -91,21 +93,24 @@ impl ProcessStore {
                             params: I)
                             -> DocumentProcessingResult<()> {
         ctx.push_child_scope();
-        ctx.append_action_path_str(action_name);
+        // ctx.append_action_path_str(action_name);
 
         let action_path = ctx.join_action_path(Some("."));
-        let mut action = ReducerActionData::from_name(&action_path, Some(&action_path));
-        if let Some(ref sym) = output.processing.default_state_symbol {
+        let complete_path = ctx.join_action_path_with(Some("."), &action_name);
+        let mut action = ReducerActionData::from_name(&complete_path, Some(&action_path));
+        if let Some(ref sym) = processing.default_state_symbol {
             action.state_ty = sym.ty().map(|s| s.clone());
         }
 
         // TODO: Handle params
 
-        // let action_expr = ctx.reduce_expr_or_return_same(expr);
-        let typed_expr = ExprValue::LiteralString("".into());
-        action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(typed_expr));
+        if let Some(ref expr) = expr {
+            let action_expr = ctx.reduce_expr_or_return_same(expr);
+            // let typed_expr = ExprValue::LiteralString("".into());
+            action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(action_expr));
+        }
 
-        let reducer_entry = output.processing
+        let reducer_entry = processing
             .reducer_key_data
             .entry(action_path.to_owned())
             .or_insert_with(|| {
@@ -122,14 +127,15 @@ impl ProcessStore {
 
     #[inline]
     pub fn process_store_default_scope_node(&mut self,
-                                    output: &mut StoreOutputProcessing,
+                                    // output: &mut StoreOutputProcessing,
+                                    processing: &mut DocumentProcessingState,
                                     ctx: &mut Context,
                                     bindings: &mut BindingContext,
                                     node: &DefaultScopeNodeType)
                                     -> DocumentProcessingResult<()> {
         match node {
             &DefaultScopeNodeType::LetNode(ref var_name, ref expr) => {
-                self.process_let_node(output, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
+                self.process_let_node(processing, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
             }
 
             &DefaultScopeNodeType::ApiRootNode(ref scope_name, ref api_nodes) => {
@@ -139,9 +145,14 @@ impl ProcessStore {
             }
 
             &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
+                ctx.push_child_scope();
+                ctx.append_action_path_str(scope_name);
+
                 for scope_node in scope_nodes {
-                    self.process_store_child_scope_node(output, ctx, bindings, scope_name, scope_node)?;
+                    self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
+
+                ctx.pop_scope();
             }
             _ => {}
         };
@@ -150,7 +161,8 @@ impl ProcessStore {
 
     #[inline]
     pub fn process_store_child_scope_node(&mut self,
-                                    output: &mut StoreOutputProcessing,
+                                    // output: &mut StoreOutputProcessing,
+                                    processing: &mut DocumentProcessingState,
                                     ctx: &mut Context,
                                     bindings: &mut BindingContext,
                                     reducer_key: &str,
@@ -158,7 +170,7 @@ impl ProcessStore {
                                     -> DocumentProcessingResult<()> {
         match node {
             &ScopeNodeType::LetNode(ref var_name, ref expr) => {
-                self.process_let_node(output, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
+                self.process_let_node(processing, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
             }
 
             &ScopeNodeType::ActionNode(ref action_name, ref simple_expr, ref params) => {
@@ -167,9 +179,9 @@ impl ProcessStore {
                 if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) = simple_expr {
                     if let &Some(ref params) = params {
                         // let params = params.as_ref().map(|s| s.as_str());
-                        self.process_action_node(output, ctx, bindings, action_name, Some(expr), params.iter().map(|s| s.as_str()))?;
+                        self.process_action_node(processing, ctx, bindings, action_name, Some(expr), params.iter().map(|s| s.as_str()))?;
                     } else {
-                        self.process_action_node(output, ctx, bindings, action_name, Some(expr), iter::empty())?;
+                        self.process_action_node(processing, ctx, bindings, action_name, Some(expr), iter::empty())?;
                     };
                 }
             }
@@ -178,7 +190,7 @@ impl ProcessStore {
                 ctx.push_child_scope();
                 ctx.append_action_path_str(&scope_name);
                 for scope_node in scope_nodes {
-                    self.process_store_child_scope_node(output, ctx, bindings, scope_name, scope_node)?;
+                    self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
             }
             _ => {}
@@ -198,7 +210,8 @@ mod tests {
     pub fn test_processing_process_store_1() {
         let mut ctx = Context::default();
         let mut bindings = BindingContext::default();
-        let mut output = StoreOutputProcessing::default();
+        // let mut output = StoreOutputProcessing::default();
+        let mut processing = DocumentProcessingState::default();
         let mut process_store = ProcessStore::default();
 
         let store_nodes = vec![
@@ -213,7 +226,7 @@ mod tests {
         ];
 
         let res = process_store.process_store_default_scope_node(
-            &mut output,
+            &mut processing,
             &mut ctx,
             &mut bindings,
             &store_nodes[0]
@@ -221,17 +234,29 @@ mod tests {
         assert!(res.is_ok());
 
         let res = process_store.process_store_default_scope_node(
-            &mut output,
+            &mut processing,
             &mut ctx,
             &mut bindings,
             &store_nodes[1]
         );
         assert!(res.is_ok());
 
-        let output: StoreOutput = output.into();
-        assert!(output.processing.reducer_key_data.contains_key("todos"));
-        assert_eq!(output.processing.reducer_key_data.get("todos"), Some(
-            &ReducerKeyData { reducer_key: "todos".into(), default_expr: Some(ExprValue::LiteralNumber(0)), ty: Some(VarType::Primitive(PrimitiveVarType::Number)), actions: Some(vec![])  }
+        // let output: StoreOutput = output.into();
+        assert!(processing.reducer_key_data.contains_key("todos"));
+        assert!(!processing.reducer_key_data.contains_key("add"));
+        assert_eq!(processing.reducer_key_data.get("todos"), Some(
+            &ReducerKeyData { reducer_key: "todos".into(), default_expr: Some(ExprValue::LiteralNumber(0)), ty: Some(VarType::Primitive(PrimitiveVarType::Number)), actions: Some(vec![
+                ReducerActionData {
+                    action_type: "TODOS.ADD".into(),
+                    state_expr: Some(ActionStateExprType::SimpleReducerKeyExpr(ExprValue::Expr(
+                        ExprOp::Add,
+                        Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
+                        Box::new(ExprValue::SymbolReference(Symbol::unresolved("value")))
+                    ))),
+                    state_ty: Some(VarType::Primitive(PrimitiveVarType::Number)),
+                    default_scope_key: Some("todos".into())
+                }
+            ])}
         ));
     }
 }

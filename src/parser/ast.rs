@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
-use parser::store::DefaultScopeNodeType;
+pub use parser::store::*;
 pub use parser::loc::Loc;
 
 
