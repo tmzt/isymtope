@@ -2,16 +2,6 @@
 extern crate uuid;
 extern crate itertools;
 
-// pub mod client;
-// pub mod client_output;
-// pub mod client_html;
-// pub mod client_js;
-// pub mod client_js_value_writer;
-// pub mod client_misc;
-// pub mod client_ops_writer;
-// pub mod client_ops_stream_writer;
-// pub mod client_ops_js_stream_writer;
-// pub mod client_ops_html_stream_writer;
 pub mod writers;
 pub mod page_writer;
 pub mod store_writer;
@@ -23,8 +13,6 @@ pub use self::store_writer::*;
 
 use std::io;
 use parser::ast::*;
-
-// use self::client::ClientOutput;
 
 #[allow(dead_code)]
 pub fn write_client_html<'input>(w: &mut io::Write, template: &'input Template) -> Result {
