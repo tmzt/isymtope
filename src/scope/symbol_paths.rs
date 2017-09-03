@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::iter;
 use parser::ast::*;
 use scope::context::*;
 
@@ -99,6 +100,15 @@ impl SymbolPathScope {
         let join_opt = sep.map(|s| s.to_owned());
         ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(all_components))
     }
+
+    // pub fn static_path_components(&self) -> Option<impl IntoIterator<Item = String>> {
+    //     self.0.as_ref().map(|s|
+    //         s.iter().filter_map(|component| match component {
+    //             &SymbolPathComponent::StaticPathComponent(s) => Some(s.to_owned()),
+    //             _ => None
+    //         })
+    //     )
+    // }
 }
 
 #[cfg(test)]
