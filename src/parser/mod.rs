@@ -7,6 +7,10 @@ pub mod lexer;
 pub mod parser;
 pub mod util;
 
+pub use self::ast::*;
+pub use self::store::*;
+pub use self::util::*;
+
 use std::path::Path;
 use std::io::{self, Read};
 use std::fs;

@@ -1,9 +1,9 @@
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
+use parser::*;
 use scope::*;
+use processing::*;
 use output::*;
 
 

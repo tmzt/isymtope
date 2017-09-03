@@ -7,10 +7,9 @@ pub use self::ops_writers::*;
 pub use self::stream_writers::*;
 
 use std::io;
-use parser::ast::*;
-use scope::context::*;
-use scope::bindings::*;
-use processing::structs::*;
+use parser::*;
+use scope::*;
+use processing::*;
 
 
 #[derive(Debug, Default)]

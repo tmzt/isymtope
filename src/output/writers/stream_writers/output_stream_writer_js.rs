@@ -1,10 +1,9 @@
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
+use parser::*;
 use scope::*;
-use output::*;
+use processing::*;
 
 
 #[derive(Debug, Clone, Default)]

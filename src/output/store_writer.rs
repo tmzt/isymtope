@@ -1,10 +1,10 @@
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
-use output::*;
+use parser::*;
 use scope::*;
+use processing::*;
+use output::*;
 
 
 pub trait StoreWriter {

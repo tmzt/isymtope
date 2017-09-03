@@ -6,10 +6,9 @@ pub use self::output_stream_writer_js::ElementOpsStreamWriterJs;
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
+use parser::*;
+use scope::*;
+use processing::*;
 use output::writers::*;
 
 

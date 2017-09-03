@@ -6,8 +6,8 @@ pub use self::expr_writer_js::{ValueWriterJs, ExpressionWriterJs};
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
+use parser::*;
+use processing::*;
 use scope::*;
 
 
