@@ -239,7 +239,7 @@ impl Context {
     //     SymbolResolver::new(&mut self, props)
     // }
 
-    pub fn reduce_expr_to_string(&self, expr: &ExprValue) -> String {
+    pub fn reduce_expr_to_string(&mut self, expr: &ExprValue) -> String {
         match expr {
             &ExprValue::LiteralString(ref s) => format!("{}", s),
             &ExprValue::LiteralNumber(ref n) => format!("{}", n),
@@ -253,35 +253,85 @@ impl Context {
         }
     }
 
-    pub fn reduce_expr(&self, expr: &ExprValue) -> Option<ExprValue> {
+    pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {
         if expr.is_literal() { return Some(expr.clone()); }
         match expr {
             &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
-                let l_reduced = self.reduce_expr(&l_expr).unwrap_or_else(|| l_expr.clone());
-                let r_reduced = self.reduce_expr(&r_expr).unwrap_or_else(|| r_expr.clone());
+                let l_reduced = self.reduce_expr(&l_expr);
+                let r_reduced = self.reduce_expr(&r_expr);
+                let had_reduction = l_reduced.is_some() || r_reduced.is_some();
+
+                let l_reduced = l_reduced.unwrap_or_else(|| l_expr.clone());
+                let r_reduced = r_reduced.unwrap_or_else(|| r_expr.clone());
+
                 let l_string = match &l_reduced { &ExprValue::LiteralString(..) => true, _ => false };
                 let r_string = match &r_reduced { &ExprValue::LiteralString(..) => true, _ => false };
 
-                match (op, &l_reduced, &r_reduced) {
-                    (&ExprOp::Add, _, _) if (l_string || r_string) => {
-                        let l_string = self.reduce_expr_to_string(&l_reduced);
-                        let r_string = self.reduce_expr_to_string(&r_reduced);
-                        Some(ExprValue::LiteralString(format!("{}{}", l_string, r_string)))
+                match op {
+                    &ExprOp::Add if (l_string || r_string) => {
+                        return Some(ExprValue::Apply(
+                            ExprApplyOp::JoinString(None),
+                            Some(vec![
+                                Box::new(l_reduced),
+                                Box::new(r_reduced)
+                            ])
+                            // let l_string = self.reduce_expr_to_string(&l_reduced);
+                            // let r_string = self.reduce_expr_to_string(&r_reduced);
+                            // Some(ExprValue::LiteralString(format!("{}{}", l_string, r_string)))
+                        ))
                     }
+                    _ => {}
+                };
+
+                match (op, &l_reduced, &r_reduced) {
+                    // (&ExprOp::Add, _, _) if (l_string || r_string) => {
+                    //     Some(ExprValue::Apply(
+                    //         ExprApplyOp::JoinString(None),
+                    //         Some(vec![
+                    //             Box::new(l_reduced.clone()),
+                    //             Box::new(r_reduced.clone())
+                    //         ])
+                    //     ))
+                    //     // let l_string = self.reduce_expr_to_string(&l_reduced);
+                    //     // let r_string = self.reduce_expr_to_string(&r_reduced);
+                    //     // Some(ExprValue::LiteralString(format!("{}{}", l_string, r_string)))
+                    // }
 
                     (&ExprOp::Add, &ExprValue::LiteralNumber(ref l_num), &ExprValue::LiteralNumber(ref r_num)) => {
-                        Some(ExprValue::LiteralNumber(l_num + r_num))
+                        return Some(ExprValue::LiteralNumber(l_num + r_num))
                     }
 
+                    _ => {}
+                };
+
+                if had_reduction {
+                    // Return the partially reduced expression
+                    return Some(
+                        ExprValue::Expr(op.to_owned(), Box::new(l_reduced), Box::new(r_reduced))
+                    );
+                }
+
+                None
+            },
+
+            &ExprValue::SymbolReference(ref sym) => {
+                match sym.sym_ref() {
+                    &SymbolReferenceType::UnresolvedReference(ref key) => {
+                        if let Some(sym) = self.resolve_sym(key) {
+                            return Some(ExprValue::SymbolReference(sym));
+                        }
+                        None
+                    },
                     _ => None
                 }
-            },
+                // Some(ExprValue::LiteralString(format!("{:?}", resolved_sym)))
+            }
 
             _ => None
         }
     }
 
-    pub fn reduce_expr_or_return_same(&self, expr: &ExprValue) -> ExprValue {
+    pub fn reduce_expr_or_return_same(&mut self, expr: &ExprValue) -> ExprValue {
         self.reduce_expr(expr).unwrap_or(expr.clone())
     }
 
@@ -358,6 +408,40 @@ impl Context {
         let param = self.param(param_key);
         self.add_sym(key, param);
     }
+
+    /// References used within reducers and actions
+
+    pub fn add_action_state_binding(&mut self, key: &str) {
+        let binding = Symbol::binding(&BindingType::ActionStateBinding);
+        self.add_sym(key, binding);
+    }
+
+    pub fn reducer_path_ref(&mut self, reducer_path: &str) -> Symbol {
+        self.scope().reducer_path_ref(reducer_path)
+    }
+
+    pub fn add_reducer_path_ref(&mut self, key: &str, reducer_path: &str) {
+        let r = self.reducer_path_ref(reducer_path);
+        self.add_sym(key, r);
+    }
+
+    pub fn unbound_action_param(&mut self, key: &str) -> Symbol {
+        self.scope().unbound_action_param(key)
+    }
+
+    pub fn add_unbound_action_param(&mut self, key: &str) {
+        let unbound = self.unbound_action_param(key);
+        self.add_sym(key, unbound);
+    }
+
+    pub fn action_param_ref(&mut self, key: &str) -> Symbol {
+        self.scope().action_param_ref(key)
+    }
+
+    pub fn add_action_param_ref(&mut self, key: &str, action_param_key: &str) {
+        let r = self.action_param_ref(action_param_key);
+        self.add_sym(key, r);
+    }
 }
 
 #[cfg(test)]
@@ -375,7 +459,7 @@ mod tests {
         let expr2 = ExprValue::LiteralNumber(2);
         let expr = ExprValue::Expr(ExprOp::Add, Box::new(expr1), Box::new(expr2));
 
-        let ctx = Context::default();
+        let mut ctx = Context::default();
         
         assert_eq!(ctx.reduce_expr(&expr), Some(ExprValue::LiteralNumber(3)));
     }
@@ -450,6 +534,63 @@ mod tests {
         // We should resolve the symbol from the nearest scope where it is defined
         // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
     }
+
+
+    #[test]
+    pub fn test_context_reducers_and_actions() {
+        let mut ctx = Context::default();
+
+        // Define a new reducer `TODOS`
+        {
+            ctx.push_child_scope();
+            ctx.append_action_path_str("TODOS");
+        }
+
+        // Define an action within this reducer
+        {
+            ctx.push_child_scope();
+        }
+
+        // Make the current state available using the reducer key
+        {
+            ctx.add_action_state_binding("todos");
+        }
+
+        // Make the current state available as `state`
+        {
+            ctx.add_action_state_binding("state");
+        }
+
+        // Define an (unbound) action param `message` within this action
+        let action_scope_id = ctx.scope().id().to_owned();
+        {
+            ctx.add_unbound_action_param("message");
+        }
+
+        // Action ADD
+        {
+            ctx.push_child_scope();
+
+            // Reference an action param `message` within this action
+            assert_eq!(ctx.resolve_sym("message"),
+                // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
+                Some(Symbol::unbound_action_param("message", Some(&action_scope_id)))
+            );
+
+            // Reference the current state as local (state)
+            assert_eq!(ctx.resolve_sym("state"),
+                Some(Symbol::binding(&BindingType::ActionStateBinding))
+                // Some(Symbol::reducer_key("TODOS"))
+            );
+
+            // Reference the current state as local (todos)
+            assert_eq!(ctx.resolve_sym("todos"),
+                Some(Symbol::binding(&BindingType::ActionStateBinding))
+                // Some(Symbol::reducer_key("TODOS"))
+            );
+        }
+    }
+
 
     #[derive(Debug, Clone, Default)]
     struct TestProcessor2 {}

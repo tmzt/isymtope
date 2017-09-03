@@ -36,7 +36,7 @@ impl SymbolPathScope {
     }
 
     #[inline]
-    pub fn join_as_str(&self, ctx: &Context, s: Option<&str>) -> String {
+    pub fn join_as_str(&self, ctx: &mut Context, s: Option<&str>) -> String {
         let str_components: Option<Vec<String>> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
             .map(|component| match component {
                 &SymbolPathComponent::StaticPathComponent(ref s) => s.to_owned(),

@@ -62,6 +62,7 @@ pub enum VarType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
+    Binding(BindingType),
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
 
@@ -77,7 +78,8 @@ pub enum KeyReferenceType {
     InvocationProp(Option<Box<ExprValue>>),
     CurrentElementProp(String),
     CurrentReducerActionParam(String),
-    CurrentReducerActionState
+    CurrentReducerActionState,
+    UnboundReducerActionParam(String)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -109,6 +111,10 @@ impl Symbol {
         Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()),
                None,
                None)
+    }
+
+    pub fn binding(binding: &BindingType) -> Symbol {
+        Symbol(SymbolReferenceType::Binding(binding.to_owned()), None, None)
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
@@ -272,6 +278,15 @@ impl Symbol {
                None)
     }
 
+    /// References used within reducers and actions
+
+    pub fn unbound_action_param(key: &str, scope_id: Option<&str>) -> Symbol {
+        let key_ref = KeyReferenceType::UnboundFormalParam;
+        Self::ref_key_in_scope(key, key_ref, scope_id)
+    }
+
+    /// Accessors
+
     pub fn sym_ref(&self) -> &SymbolReferenceType {
         &self.0
     }
@@ -291,7 +306,9 @@ pub enum BindingType {
     ExpressionBinding(Box<ExprValue>),
     KeyInSymbolsBinding(String, String),
     ReducerPathBinding(String, Option<Vec<String>>),
-    LoopIndexBinding
+    LoopIndexBinding,
+    ActionStateBinding,
+    ActionParamBinding(String)
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;

@@ -65,7 +65,7 @@ impl Scope {
         self.action_path.append_str(s);
     }
 
-    pub fn join_path(&self, ctx: &Context, s: Option<&str>) -> String {
+    pub fn join_path(&self, ctx: &mut Context, s: Option<&str>) -> String {
         self.symbol_path.join_as_str(ctx, s)
     }
 
@@ -77,7 +77,7 @@ impl Scope {
         self.symbol_path.join_as_expr_with(sep, last)
     }
 
-    pub fn join_action_path(&self, ctx: &Context, s: Option<&str>) -> String {
+    pub fn join_action_path(&self, ctx: &mut Context, s: Option<&str>) -> String {
         self.action_path.join_as_str(ctx, s)
     }
 
@@ -95,6 +95,20 @@ impl Scope {
 
     pub fn unbound_formal_param(&self, key: &str) -> Symbol {
         Symbol::unbound_formal_param(key, Some(self.id()))
+    }
+
+    /// References used within reducers and actions
+
+    pub fn reducer_path_ref(&mut self, reducer_path: &str) -> Symbol {
+        Symbol::reducer_key(reducer_path)
+    }
+
+    pub fn unbound_action_param(&mut self, key: &str) -> Symbol {
+        Symbol::unbound_action_param(key, Some(self.id()))
+    }
+
+    pub fn action_param_ref(&mut self, key: &str) -> Symbol {
+        Symbol::action_param(key, self.id())
     }
 }
 

@@ -148,6 +148,12 @@ impl ProcessStore {
                 ctx.push_child_scope();
                 ctx.append_action_path_str(scope_name);
 
+                // Make the current state available using the reducer key (scope_name)
+                ctx.add_action_state_binding(scope_name);
+
+                // Make the current state available as `state`
+                ctx.add_action_state_binding("state");
+
                 for scope_node in scope_nodes {
                     self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
@@ -180,11 +186,13 @@ impl ProcessStore {
                 // let expr = if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) = simple_expr { Some(expr) } else { None };
                 // self.process_action_node(output, ctx, bindings, action_name, expr, params.as_ref())?;
                 if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) = simple_expr {
+                    let reduced_expr = ctx.reduce_expr_or_return_same(expr);
+
                     if let &Some(ref params) = params {
                         // let params = params.as_ref().map(|s| s.as_str());
-                        self.process_action_node(processing, ctx, bindings, action_name, Some(expr), params.iter().map(|s| s.as_str()))?;
+                        self.process_action_node(processing, ctx, bindings, action_name, Some(&reduced_expr), params.iter().map(|s| s.as_str()))?;
                     } else {
-                        self.process_action_node(processing, ctx, bindings, action_name, Some(expr), iter::empty())?;
+                        self.process_action_node(processing, ctx, bindings, action_name, Some(&reduced_expr), iter::empty())?;
                     };
                 }
             }
@@ -193,16 +201,13 @@ impl ProcessStore {
                 ctx.push_child_scope();
                 ctx.append_action_path_str(&scope_name);
 
+                // Make the current state available using the reducer key (scope_name)
+                ctx.add_action_state_binding(scope_name);
+
+                // Make the current state available as `state`
+                ctx.add_action_state_binding("state");
+
                 for scope_node in scope_nodes {
-                    // let complete_key = ctx.join_action_path(Some("."));
-                    // if let Some(scope_ref) = ctx.scope_ref() {
-                    //     let iter = scope_ref.symbol_path().static_path_components();
-                    //     if let Some(iter) = iter {
-                    //         bindings.add_reducer_key_and_path(scope_name, scope_name, iter);
-                    //     } else {
-                    //         bindings.add_reducer_key(scope_name, scope_name);
-                    //     };
-                    // };
                     self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
             }
@@ -263,7 +268,8 @@ mod tests {
                     action_type: "TODOS.ADD".into(),
                     state_expr: Some(ActionStateExprType::SimpleReducerKeyExpr(ExprValue::Expr(
                         ExprOp::Add,
-                        Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
+                        Box::new(ExprValue::SymbolReference(Symbol::binding(&BindingType::ActionStateBinding))),
+                        // Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
                         Box::new(ExprValue::SymbolReference(Symbol::unresolved("value")))
                     ))),
                     state_ty: Some(VarType::Primitive(PrimitiveVarType::Number)),
