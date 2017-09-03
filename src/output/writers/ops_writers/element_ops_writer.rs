@@ -121,6 +121,22 @@ fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer:
                 )?;
             }
 
+            &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, _) => {
+                stream_writer.write_op_element_instance_component(
+                    w,
+                    expression_writer,
+                    value_writer,
+                    ctx,
+                    bindings,
+                    component_ty,
+                    component_key,
+                    true,
+                    None,
+                    None,
+                    None
+                )?;
+            }
+
             _ => {}
     };
 

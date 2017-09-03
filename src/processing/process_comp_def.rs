@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::iter;
+
 use parser::ast::*;
 use scope::context::*;
 use scope::bindings::*;
@@ -20,40 +22,41 @@ type PropKeyRefVec = Vec<PropKeyRef>;
 #[derive(Debug, Clone, Default)]
 pub struct CompDefProcessorOutput {
     ty: Option<String>,
-    ops: Option<OpsVec>
+    block: BlockProcessingState
+    // ops: Option<OpsVec>
 }
 
 impl Into<Component> for CompDefProcessorOutput {
     fn into(self) -> Component {
-        Component::new_with_vec(self.ty.unwrap(), self.ops)
+        Component::new_with_vec(self.ty.unwrap(), Some(self.block.ops_vec))
     }
 }
 
-#[derive(Debug)]
-pub struct CompDefProcessor<'out> {
-    output: &'out mut CompDefProcessorOutput
+#[derive(Debug, Default)]
+pub struct CompDefProcessor {
+    // output: &'out mut CompDefProcessorOutput
 }
 
-impl<'out> CompDefProcessor<'out> {
-    pub fn with_output(output: &'out mut CompDefProcessorOutput) -> Self {
-        CompDefProcessor { output: output }
-    }
+impl CompDefProcessor {
+    // pub fn with_output(output: &'out mut CompDefProcessorOutput) -> Self {
+    //     CompDefProcessor { output: output }
+    // }
 
-    fn add_op(&mut self, op: ElementOp) {
-        if let Some(ref mut ops) = self.output.ops {
-            ops.push(op);
-        } else {
-            self.output.ops = Some(vec![op]);
-        }
-    }
+    // fn add_op(&mut self, op: ElementOp) {
+    //     if let Some(ref mut ops) = self.output.ops {
+    //         ops.push(op);
+    //     } else {
+    //         self.output.ops = Some(vec![op]);
+    //     }
+    // }
 
-    pub fn push_component_definition_scope<'a, I>(&mut self, ctx: &mut Context,component_ty: &str, formals: I)
+    pub fn push_component_definition_scope<'a, I>(&mut self, output: &mut CompDefProcessorOutput, ctx: &mut Context,component_ty: &str, formals: I)
         where I: IntoIterator<Item = &'a FormalProp<'a>>
     {
-        if self.output.ty.is_some() {
+        if output.ty.is_some() {
             panic!("Already have component defintion in this output.");
         }
-        self.output.ty = Some(component_ty.to_owned());
+        output.ty = Some(component_ty.to_owned());
 
         ctx.push_child_scope();
         for formal in formals {
@@ -61,7 +64,7 @@ impl<'out> CompDefProcessor<'out> {
         }
     }
 
-    pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, element_id: &str, element_ty: &str, props: Option<I>)
+    pub fn push_element_parameter_definition_scope<'a, I>(&mut self, block: &mut BlockProcessingState, ctx: &mut Context, element_id: &str, element_ty: &str, props: Option<I>)
         where I: IntoIterator<Item = &'a PropKeyRef> + Clone
     {
         // let props = props.map(|props| props.clone().into_iter());
@@ -76,7 +79,8 @@ impl<'out> CompDefProcessor<'out> {
         }).collect());
 
         let op = ElementOp::ElementVoid(element_ty.to_owned(), element_id.to_owned(), element_props, None, None);
-        self.add_op(op);
+        block.ops_vec.push(op);
+        // self.add_op(op);
 
         let parent_scope_id = ctx.scope().id().to_owned();
         ctx.push_child_scope();
@@ -93,21 +97,26 @@ impl<'out> CompDefProcessor<'out> {
     }
 
     pub fn process_component_definition<'a, I: IntoIterator<Item = &'a NodeType>>(&mut self,
+                                        output: &mut CompDefProcessorOutput,
                                         processing: &mut DocumentProcessingState,
                                         ctx: &mut Context,
                                         bindings: &mut BindingContext,
-                                        _component_ty: &str,
+                                        component_data: &ComponentDefinitionType,
                                         nodes: I)
                                         -> Result
     {
-        // let mut content_output = ContentOutputProcessing::default();
+        // Prepare scope with formal parameters
+        // TODO: Actually implement the formal parameters
+        self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
+
         let mut content_processor = ProcessContent::default();
-        let mut block = BlockProcessingState::default();
         for node in nodes {
             if let &NodeType::ContentNode(ref content_node) = node {
-                content_processor.process_block_content_node(ctx, bindings, content_node, &mut block, processing, None)?;
+                content_processor.process_block_content_node(ctx, bindings, content_node, &mut output.block, processing, None)?;
             };
         };
+
+        ctx.pop_scope();
         Ok(())
     }
 }
@@ -196,13 +205,13 @@ mod tests {
         // let element_param_defs_scope_id: String;
         {
             let mut ctx = Context::default();
-            let mut processor = CompDefProcessor::with_output(&mut output);
+            let mut processor = CompDefProcessor::default();
 
             // component Component(todo)
             // Create new component context with unbound formal prop (todo)
             {
                 let formals: FormalPropVec = vec![("todo")];
-                processor.push_component_definition_scope(&mut ctx, "Component", formals.iter());
+                processor.push_component_definition_scope(&mut output, &mut ctx, "Component", formals.iter());
             }
             comp_definition_scope_id = ctx.scope().id().to_owned();
 
@@ -221,7 +230,7 @@ mod tests {
                 let props: PropKeyRefVec = vec![
                     ("value".into(), "todo".into())
                 ];
-                processor.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", Some(props.iter()));
+                processor.push_element_parameter_definition_scope(&mut output.block, &mut ctx, "Pq", "input", Some(props.iter()));
             }
             // let element_pq_invocation_scope_id = ctx.scope().id().to_owned();
 

@@ -190,7 +190,7 @@ impl From<io::Error> for DocumentProcessingError {
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockProcessingState {
     pub block_id: String,
     // pub scope: ElementOpScope,

@@ -4,6 +4,7 @@ use std::io;
 use parser::*;
 use scope::*;
 use processing::*;
+use output::*;
 
 
 #[derive(Debug, Clone, Default)]
@@ -49,9 +50,15 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterJs {
         Ok(())
     }
 
-    fn write_op_element_instance_component<PropIter, EventIter, BindingIter>(&mut self, _w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, _element_tag: &str, _element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_instance_component<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
+        let instance_key = ctx.join_path_as_expr_with(Some("_"), element_key);
+
+        write!(w, "component_{}(", element_tag)?;
+        expression_writer.write_expr_to(w, value_writer, ctx, bindings, &instance_key)?;
+        write!(w, ", {{")?;
+        writeln!(w, "}});")?;
         Ok(())
     }
 
