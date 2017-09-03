@@ -3,8 +3,7 @@ use parser::ast::*;
 use parser::util::allocate_element_key;
 use processing::structs::*;
 use processing::process_util::*;
-use scope::context::*;
-use scope::bindings::*;
+use scope::*;
 
 
 #[derive(Debug, Default)]
@@ -67,13 +66,13 @@ impl ProcessContent {
                 ctx.push_child_scope();
                 ctx.append_path_str(&element_data.element_key);
                 let complete_key = ctx.join_path(Some("."));
-                let is_void = element_data.children.as_ref().map_or(false, |c| c.len() > 0);
+                // let is_void = element_data.children.as_ref().map_or(false, |c| c.len() > 0);
 
                 let element_tag = element_data.element_ty.to_lowercase();
 
                 // let attrs = element_data.attrs.as_ref().map(Clone::clone);
                 let lens = element_data.lens.as_ref().map(Clone::clone);
-                let element_bindings = element_data.bindings.as_ref().map(|s| s.clone());
+                // let element_bindings = element_data.bindings.as_ref().map(|s| s.clone());
 
                 // TODO: figure out when we want to pass along symbols or values
 
@@ -119,11 +118,6 @@ impl ProcessContent {
                                                            lens));
 
                 } else {
-                    // let mut scope = scope.clone();
-                    // ctx.append_path_str(&element_key);
-                    // scope.0.append_key(&element_key);
-                    // let complete_key = scope.0.complete_element_key();
-
                     // Treat this as an HTML element
                     // TODO: Support imported elements
 
@@ -135,10 +129,6 @@ impl ProcessContent {
                                         expr.clone()
                                     } else {
                                         ctx.reduce_expr_or_return_same(expr)
-                                        // map_expr_using_scope(expr,
-                                        //                      processing,
-                                        //                      &mut block.scope,
-                                        //                      resolution_mode)
                                     }
                                 });
 
@@ -158,8 +148,6 @@ impl ProcessContent {
                             if let &ElementBindingNodeType::ElementValueBindingNode(ref key) =
                                    element_binding {
                                 value_binding = Some(key.to_owned());
-                                // TODO
-                                // block.scope.1.add_element_value_binding(key, &complete_key);
                             };
                         }
 
@@ -204,8 +192,6 @@ impl ProcessContent {
                                                                   value_binding));
 
                         // Push scope
-                        // self.push_scope(scope.clone());
-                        // ctx.push_scope(scope.clone());
                         ctx.push_child_scope();
 
                         // Iterate over children
@@ -220,7 +206,6 @@ impl ProcessContent {
                         }
 
                         // Pop scope
-                        // self.pop_scope();
                         ctx.pop_scope();
 
                         // Push element close
@@ -235,17 +220,14 @@ impl ProcessContent {
                 }
             }
             &ContentNodeType::ExpressionValueNode(ref expr, ref value_key) => {
-                let mut scope = ctx.scope();
-                // let expr = map_expr_using_scope(expr, processing, &mut scope, resolution_mode);
                 let expr = ctx.reduce_expr_or_return_same(expr);
 
-                // let complete_key = scope.0.make_complete_element_key_with(&value_key);
                 let complete_key = ctx.join_path(Some("."));
                 let complete_key = format!("{}.{}", complete_key, value_key);
                 block.ops_vec.push(ElementOp::WriteValue(expr, complete_key.to_owned()));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
-                let mut scope = ctx.scope();
+                ctx.push_child_scope();
 
                 let block_id = allocate_element_key().replace("-", "_");
                 block.ops_vec.push(ElementOp::StartBlock(block_id.clone()));
@@ -255,10 +237,10 @@ impl ProcessContent {
                 let coll_expr = ctx.reduce_expr_or_return_same(coll_expr);
 
                 // Add forvar as a parameter in the symbol map
-                if let &Some(ref ele_key) = ele {
+                // if let &Some(ref ele_key) = ele {
                     // TODO
                     // scope.1.add_loop_var(ele_key);
-                }
+                // }
 
                 if let &Some(ref nodes) = nodes {
                     for ref node in nodes {
@@ -271,6 +253,8 @@ impl ProcessContent {
                 block.ops_vec.push(ElementOp::MapCollection(block_id.clone(),
                                                             ele.as_ref().map(Clone::clone),
                                                             coll_expr.clone()));
+
+                ctx.pop_scope();
             }
         }
         (Ok(()))
@@ -279,10 +263,10 @@ impl ProcessContent {
     #[inline]
     pub fn process_content_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self,
                                       ctx: &mut Context,
-                                      bindings: &mut BindingContext,
+                                      _bindings: &mut BindingContext,
 
                                       action_ops: I,
-                                      processing: &DocumentProcessingState)
+                                      _processing: &DocumentProcessingState)
                                       -> Vec<ActionOpNode> {
         action_ops.into_iter().map(|action_op| {
             match action_op {

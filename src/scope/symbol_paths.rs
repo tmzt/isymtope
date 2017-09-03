@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use std::iter;
 use parser::ast::*;
 use scope::context::*;
 

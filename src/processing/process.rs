@@ -2,17 +2,12 @@
 use std::iter;
 
 use parser::ast::*;
-use parser::store::*;
-use parser::api::*;
 
 use processing::structs::*;
-// use processing::scope::*;
-use processing::process_util::*;
 use processing::process_content::*;
 use processing::process_store::*;
 use processing::process_comp_def::*;
-use scope::context::*;
-use scope::bindings::*;
+use scope::*;
 
 
 pub struct ProcessDocument<'input> {
@@ -40,6 +35,7 @@ impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
 }
 
 impl<'input> ProcessDocument<'input> {
+    #[allow(dead_code)]
     pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
 
         ProcessDocument {
@@ -55,7 +51,7 @@ impl<'input> ProcessDocument<'input> {
     #[allow(dead_code)]
     pub fn process_component_definition(&mut self,
                                         ctx: &mut Context,
-                                        bindings: &mut BindingContext,
+                                        _bindings: &mut BindingContext,
                                         component_data: &'input ComponentDefinitionType)
                                         -> DocumentProcessingResult<()> {
         // let mut comp_output = CompDefProcessorOutput::default();
@@ -71,6 +67,7 @@ impl<'input> ProcessDocument<'input> {
     }
 
 
+    #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn process_document(&mut self, ctx: &mut Context, bindings: &mut BindingContext) -> DocumentProcessingResult<()> {
         let mut root_block = BlockProcessingState::default();

@@ -22,11 +22,11 @@ impl ValueWriter for ValueWriterHtml {
         Ok(())
     }
 
-    fn write_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_binding(&mut self, _w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
         Ok(())
     }
 
-    fn write_op(&mut self, w: &mut io::Write, op: &ExprOp) -> Result {
+    fn write_op(&mut self, _w: &mut io::Write, _op: &ExprOp) -> Result {
         Ok(())
     }
 }

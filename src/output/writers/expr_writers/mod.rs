@@ -5,13 +5,10 @@ pub use self::expr_writer_html::{ValueWriterHtml, ExpressionWriterHtml};
 pub use self::expr_writer_js::{ValueWriterJs, ExpressionWriterJs};
 
 use std::io;
-use std::iter;
 
 use parser::ast::*;
 use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
-use output::writers::*;
+use scope::*;
 
 
 pub trait ExprWriter {

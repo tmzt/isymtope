@@ -3,13 +3,10 @@ pub mod element_ops_writer;
 pub use self::element_ops_writer::*;
 
 use std::io;
-use std::iter;
 
-use parser::ast::*;
 use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
-use output::writers::*;
+use scope::*;
+use output::*;
 
 
 pub trait ElementOpsWriter {

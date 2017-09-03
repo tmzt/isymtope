@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use linked_hash_map::LinkedHashMap;
-
 use parser::ast::*;
 use scope::context::*;
 
@@ -39,7 +37,7 @@ impl BindingContext {
 
     pub fn resolve_sym(&self, sym: &Symbol) -> Option<&BindingType> {
         match sym.sym_ref() {
-            &SymbolReferenceType::ResolvedReference(ref sym_key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref scope_id)), _) => {
+            &SymbolReferenceType::ResolvedReference(ref sym_key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref _scope_id)), _) => {
                 match key_ref {
                     &KeyReferenceType::UnboundFormalParam => {
                         if let Some(binding) = self.resolve_binding(sym_key) {

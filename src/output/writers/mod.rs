@@ -34,6 +34,7 @@ pub struct DefaultOutputWriters {}
 pub type DefaultOutputWriterHtml = DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml>;
 pub type DefaultOutputWriterJs = DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs>;
 
+#[allow(dead_code)]
 impl DefaultOutputWriters {
     pub fn html() -> DefaultOutputWriterHtml { Default::default() }
     pub fn js() -> DefaultOutputWriterJs { Default::default() }

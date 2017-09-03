@@ -16,9 +16,9 @@ pub enum BareSymbolResolutionMode {
 
 #[inline]
 pub fn map_lens_using_scope<'input>(ctx: &mut Context,
-                                    bindings: &BindingContext,
+                                    _bindings: &BindingContext,
                                     lens: Option<&LensExprType>,
-                                    processing: &DocumentProcessingState)
+                                    _processing: &DocumentProcessingState)
                                     -> Option<LensExprType> {
     match lens {
         Some(&LensExprType::ForLens(ref ele_key, ref coll_sym)) => {

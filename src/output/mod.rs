@@ -15,7 +15,7 @@ use std::io;
 use parser::ast::*;
 
 #[allow(dead_code)]
-pub fn write_client_html<'input>(w: &mut io::Write, template: &'input Template) -> Result {
+pub fn write_client_html<'input>(_w: &mut io::Write, _template: &'input Template) -> Result {
     // let output = ClientOutput::from_template(template);
     // output.write_html(w)
 

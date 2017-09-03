@@ -4,9 +4,7 @@ use std::result;
 
 use linked_hash_map::LinkedHashMap;
 
-// use processing::scope::*;
 use parser::ast::*;
-use parser::store::*;
 use parser::util::*;
 
 
@@ -242,6 +240,7 @@ pub struct DocumentState<'inp> {
 }
 
 impl<'inp> DocumentState<'inp> {
+    #[allow(dead_code)]
     pub fn resolve_symbol_value(&self, sym: &Symbol) -> Option<ExprValue> {
         match sym.sym_ref() {
             &SymbolReferenceType::ResolvedReference(_, ResolvedSymbolType::ReducerKeyReference(ref reducer_key), _) => {

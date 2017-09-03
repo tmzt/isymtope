@@ -1,15 +1,12 @@
 
 use std::io;
 use std::iter;
-use std::slice::Iter;
 
 use parser::ast::*;
 use processing::structs::*;
 
-use output::writers::*;
-use scope::scope::*;
-use scope::context::*;
-use scope::bindings::*;
+use scope::*;
+use output::*;
 
 
 const STRING_HTML_OPEN_INCDOM_PAGE: &'static str = r#"
@@ -76,6 +73,7 @@ pub struct PageWriter<'input> {
 }
 
 impl<'input> PageWriter<'input> {
+    #[allow(dead_code)]
     pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
         PageWriter {
             doc: doc,
@@ -83,6 +81,7 @@ impl<'input> PageWriter<'input> {
         }
     }
 
+    #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn write_js_event_actions(&self,
                                   w: &mut io::Write,
@@ -117,6 +116,7 @@ impl<'input> PageWriter<'input> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn write_js_event_bindings<I: IntoIterator<Item = EventsItem>>(&self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;

@@ -22,7 +22,7 @@ impl ValueWriter for ValueWriterJs {
         Ok(())
     }
 
-    fn write_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ReducerPathBinding(ref key, ref paths) => {
                 let symbol_path = match paths {

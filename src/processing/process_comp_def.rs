@@ -96,7 +96,7 @@ impl<'out> CompDefProcessor<'out> {
                                         processing: &mut DocumentProcessingState,
                                         ctx: &mut Context,
                                         bindings: &mut BindingContext,
-                                        component_ty: &str,
+                                        _component_ty: &str,
                                         nodes: I)
                                         -> Result
     {

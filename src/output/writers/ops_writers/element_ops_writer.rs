@@ -2,11 +2,9 @@
 use std::io;
 use std::iter;
 
-use parser::ast::*;
 use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
-use output::writers::*;
+use scope::*;
+use output::*;
 
 
 fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer: &mut S, expression_writer: &mut S::E, value_writer: &mut <S::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
@@ -16,14 +14,14 @@ fn write_element_op<S: ElementOpsStreamWriter>(w: &mut io::Write, stream_writer:
     match op {
             &ElementOp::ElementOpen(ref element_tag,
                                     ref element_key,
-                                    ref props,
-                                    ref events,
-                                    ref value_binding) |
+                                    ref _props,
+                                    ref _events,
+                                    ref _value_binding) |
             &ElementOp::ElementVoid(ref element_tag,
                                     ref element_key,
-                                    ref props,
-                                    ref events,
-                                    ref value_binding) => {
+                                    ref _props,
+                                    ref _events,
+                                    ref _value_binding) => {
                 // Only push prefixes for components and other cases where the prefix can vary when rendering.
                 // ctx.push_child_scope();
                 // ctx.append_path_str(element_key);

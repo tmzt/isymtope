@@ -1,12 +1,9 @@
 
 use std::iter;
 use parser::ast::*;
-use parser::store::*;
 use processing::structs::*;
 use processing::process_util::*;
-use scope::scope::*;
-use scope::context::*;
-use scope::bindings::*;
+use scope::*;
 
 
 // #[derive(Debug, Default)]
@@ -35,17 +32,17 @@ pub struct ProcessStore {}
 
 impl ProcessStore {
     #[inline]
+    #[allow(dead_code)]
     pub fn process_let_node(&mut self,
                             // output: &mut StoreOutputProcessing,
                             processing: &mut DocumentProcessingState,
-                            ctx: &mut Context,
-                            bindings: &mut BindingContext,
+                            _ctx: &mut Context,
+                            _bindings: &mut BindingContext,
                             var_name: &str,
                             expr: Option<&ExprValue>)
                             -> DocumentProcessingResult<()> {
         let has_default_sym = processing.default_state_symbol.is_some();
         let has_default_reducer_key = processing.default_reducer_key.is_some();
-        let has_expr = expr.is_some();
 
         let var_ty = expr.as_ref().and_then(|expr| peek_var_ty(expr));
 
@@ -83,11 +80,12 @@ impl ProcessStore {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn process_action_node<'a, I: IntoIterator<Item = &'a str>>(&mut self,
                             // output: &mut StoreOutputProcessing,
                             processing: &mut DocumentProcessingState,
                             ctx: &mut Context,
-                            bindings: &mut BindingContext,
+                            _bindings: &mut BindingContext,
                             action_name: &str,
                             expr: Option<&ExprValue>,
                             params: I)
@@ -132,6 +130,7 @@ impl ProcessStore {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn process_store_default_scope_node(&mut self,
                                     // output: &mut StoreOutputProcessing,
                                     processing: &mut DocumentProcessingState,
@@ -144,58 +143,53 @@ impl ProcessStore {
                 self.process_let_node(processing, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
             }
 
-            &DefaultScopeNodeType::ApiRootNode(ref scope_name, ref api_nodes) => {
+            &DefaultScopeNodeType::ApiRootNode(ref _scope_name, ref _api_nodes) => {
                 // if let &Some(ref api_nodes) = api_nodes {
                 //     self.collect_js_store_api_scope(scope_name, api_nodes)?;
                 // }                            // processing_scope.2 = Some(sym.to_owned());
             }
 
             &DefaultScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                ctx.push_child_scope();
-                ctx.append_action_path_str(scope_name);
-
-                // Make the current state available using the reducer key (scope_name)
-                ctx.add_action_state_binding(scope_name);
-
-                // Make the current state available as `state`
-                ctx.add_action_state_binding("state");
-
                 for scope_node in scope_nodes {
                     self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
 
                 ctx.pop_scope();
             }
-            _ => {}
+            // _ => {}
         };
         Ok(())
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn process_store_child_scope_node(&mut self,
                                     // output: &mut StoreOutputProcessing,
                                     processing: &mut DocumentProcessingState,
                                     ctx: &mut Context,
                                     bindings: &mut BindingContext,
-                                    reducer_key: &str,
+                                    scope_name: &str,
                                     node: &ScopeNodeType)
                                     -> DocumentProcessingResult<()> {
+        ctx.push_child_scope();
+        ctx.append_action_path_str(scope_name);
+
+        // Make the current state available using the reducer key (scope_name)
+        ctx.add_action_state_binding(scope_name);
+
+        // Make the current state available as `state`
+        ctx.add_action_state_binding("state");
+
         match node {
             &ScopeNodeType::LetNode(ref var_name, ref expr) => {
                 self.process_let_node(processing, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
             }
 
             &ScopeNodeType::ActionNode(ref action_name, ref simple_expr, ref params) => {
-                let complete_key = ctx.join_action_path(Some("."));
-                // bindings.add_reducer_key_and_path(reducer_key, reducer_key);
-
-                // let expr = if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) = simple_expr { Some(expr) } else { None };
-                // self.process_action_node(output, ctx, bindings, action_name, expr, params.as_ref())?;
                 if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) = simple_expr {
                     let reduced_expr = ctx.reduce_expr_or_return_same(expr);
 
                     if let &Some(ref params) = params {
-                        // let params = params.as_ref().map(|s| s.as_str());
                         self.process_action_node(processing, ctx, bindings, action_name, Some(&reduced_expr), params.iter().map(|s| s.as_str()))?;
                     } else {
                         self.process_action_node(processing, ctx, bindings, action_name, Some(&reduced_expr), iter::empty())?;
@@ -204,21 +198,14 @@ impl ProcessStore {
             }
 
             &ScopeNodeType::ScopeNode(ref scope_name, ref scope_nodes) => {
-                ctx.push_child_scope();
-                ctx.append_action_path_str(&scope_name);
-
-                // Make the current state available using the reducer key (scope_name)
-                ctx.add_action_state_binding(scope_name);
-
-                // Make the current state available as `state`
-                ctx.add_action_state_binding("state");
-
                 for scope_node in scope_nodes {
                     self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
             }
             _ => {}
         };
+
+        ctx.pop_scope();
         Ok(())
     }
 }
