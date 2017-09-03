@@ -197,7 +197,8 @@ pub enum BindingType {
     ReducerPathBinding(String, Option<Vec<String>>),
     // LoopIndexBinding,
     ActionStateBinding,
-    ActionParamBinding(String)
+    ActionParamBinding(String),
+    ComponentKeyBinding
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;

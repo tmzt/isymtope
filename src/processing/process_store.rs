@@ -180,6 +180,9 @@ impl ProcessStore {
         // Make the current state available as `state`
         ctx.add_action_state_binding("state");
 
+        // Make the current state available as `value`
+        ctx.add_action_state_binding("value");
+
         match node {
             &ScopeNodeType::LetNode(ref var_name, ref expr) => {
                 self.process_let_node(processing, ctx, bindings, var_name.as_ref(), expr.as_ref())?;
@@ -231,8 +234,8 @@ mod tests {
                 ScopeNodeType::ActionNode("add".into(), Some(ActionStateExprType::SimpleReducerKeyExpr(ExprValue::Expr(
                     ExprOp::Add,
                     Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
-                    Box::new(ExprValue::SymbolReference(Symbol::unresolved("value")))
-                ))), None)
+                    Box::new(ExprValue::SymbolReference(Symbol::unresolved("entry")))
+                ))), Some(vec!["entry".into()]))
             ])
         ];
 
@@ -252,7 +255,6 @@ mod tests {
         );
         assert!(res.is_ok());
 
-        // let output: StoreOutput = output.into();
         assert!(processing.reducer_key_data.contains_key("todos"));
         assert!(!processing.reducer_key_data.contains_key("add"));
         assert_eq!(processing.reducer_key_data.get("todos"), Some(
@@ -262,8 +264,7 @@ mod tests {
                     state_expr: Some(ActionStateExprType::SimpleReducerKeyExpr(ExprValue::Expr(
                         ExprOp::Add,
                         Box::new(ExprValue::SymbolReference(Symbol::binding(&BindingType::ActionStateBinding))),
-                        // Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
-                        Box::new(ExprValue::SymbolReference(Symbol::unresolved("value")))
+                        Box::new(ExprValue::SymbolReference(Symbol::binding(&BindingType::ActionParamBinding("entry".into())))),
                     ))),
                     state_ty: Some(VarType::Primitive(PrimitiveVarType::Number)),
                     default_scope_key: Some("todos".into())

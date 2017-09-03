@@ -12,11 +12,24 @@ use scope::*;
 use processing::*;
 
 
+// pub trait OutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
+pub trait OutputWriter {
+    type V: ValueWriter;
+    type E: ExpressionWriter<V = Self::V>;
+    type S: ElementOpsStreamWriter;
+}
+
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
     value_writer: V,
     expression_writer: E,
     stream_writer: S
+}
+
+impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> OutputWriter for DefaultOutputWriter<V, E, S> {
+    type V = V;
+    type E = E;
+    type S = S;
 }
 
 impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
@@ -33,16 +46,30 @@ pub struct DefaultOutputWriters {}
 pub type DefaultOutputWriterHtml = DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml>;
 pub type DefaultOutputWriterJs = DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs>;
 
-#[allow(dead_code)]
-impl DefaultOutputWriters {
-    pub fn html() -> DefaultOutputWriterHtml { Default::default() }
-    pub fn js() -> DefaultOutputWriterJs { Default::default() }
+pub trait OutputWritersBoth {
+    type Html: OutputWriter;
+    type Js: OutputWriter;
+    // type ExpressionWriterJs: ExpressionWriter;
+    // type ExpressionWriterHtml: ExpressionWriter;
+
+    fn html(&mut self) -> &mut DefaultOutputWriterHtml;
+    fn js(&mut self) -> &mut DefaultOutputWriterJs;
 }
 
 #[derive(Debug, Default)]
 pub struct DefaultOutputWritersBoth {
     pub html: DefaultOutputWriterHtml,
     pub js: DefaultOutputWriterJs
+}
+
+impl OutputWritersBoth for DefaultOutputWritersBoth {
+    // type ExpressionWriterJs = ExpressionWriterJs;
+    // type ExpressionWriterHtml = ExpressionWriterHtml;
+    type Html = DefaultOutputWriterHtml;
+    type Js = DefaultOutputWriterJs;
+
+    fn html(&mut self) -> &mut DefaultOutputWriterHtml { &mut self.html }
+    fn js(&mut self) -> &mut DefaultOutputWriterJs { &mut self.js }
 }
 
 
@@ -64,8 +91,10 @@ mod tests {
         let op_1 = ElementOp::ElementOpen("span".into(), "Ab.Cd".into(), None, None, None);
         let op_2 = ElementOp::ElementClose("span".into());
 
+        let mut writers = DefaultOutputWritersBoth::default();
+
         {
-            let mut writer = DefaultOutputWriters::html();
+            let writer = writers.html();
             let mut s: Vec<u8> = Default::default();
             assert!(
                 writer.write_element_op(&mut s, &mut ctx, &bindings, &op_1).is_ok() &&
@@ -77,7 +106,7 @@ mod tests {
         }
 
         {
-            let mut writer = DefaultOutputWriters::html();
+            let writer = writers.html();
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &mut ctx, &bindings, ops.iter()).is_ok());
@@ -87,7 +116,7 @@ mod tests {
         }
 
         {
-            let mut writer = DefaultOutputWriters::js();
+            let writer = writers.js();
             let mut s: Vec<u8> = Default::default();
             assert!(
                 writer.write_element_op(&mut s, &mut ctx, &bindings, &op_1).is_ok() &&
@@ -100,7 +129,7 @@ mod tests {
         }
 
         {
-            let mut writer = DefaultOutputWriters::js();
+            let writer = writers.js();
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &mut ctx, &bindings, ops.iter()).is_ok());
@@ -125,8 +154,8 @@ mod tests {
             let mut s_html: Vec<u8> = Default::default();
             let mut s_js: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
-            assert!(writers.html.write_element_ops(&mut s_html, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert!(writers.js.write_element_ops(&mut s_js, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writers.html().write_element_ops(&mut s_html, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writers.js().write_element_ops(&mut s_js, &mut ctx, &bindings, ops.iter()).is_ok());
 
             assert_eq!(str::from_utf8(&s_html), Ok(indoc![r#"
             <span key="Ab.Cd"></span>"#

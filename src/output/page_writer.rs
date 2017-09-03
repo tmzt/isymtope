@@ -13,8 +13,10 @@ const STRING_HTML_OPEN_INCDOM_PAGE: &'static str = r#"
 <html>
     <head>
         <meta charset="utf-8" />
-        <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+        <!-- <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script> -->
+        <!-- <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script> -->
+        <script src="./pkg/redux@3.7.1/dist/redux.js"></script>
+        <script src="./pkg/incrementaldom@0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>"#;
 
@@ -55,6 +57,7 @@ const STRING_HTML_CLOSE_SCRIPT_IIFE: &'static str  = r#"
                     // Import nodes
                     markExisting([].slice.call(document.querySelectorAll("[key]")));
                     // Define store
+                    var store = Redux.createStore(rootReducer, {});
                     // Subscribe
                     store.subscribe(update.bind(null, document.querySelector('#root'), store));
                 });
@@ -68,7 +71,7 @@ const STRING_HTML_CLOSE_INCDOM_PAGE: &'static str  = r#"
 
 pub struct PageWriter<'input> {
     doc: &'input DocumentState<'input>,
-    writers: DefaultOutputWritersBoth
+    writers: DefaultOutputWritersBoth,
 }
 
 impl<'input> PageWriter<'input> {
@@ -161,7 +164,14 @@ impl<'input> PageWriter<'input> {
     #[allow(unused_variables)]
     pub fn write_component_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
-            if let Some(ref ops) = comp_def.ops_iter() {
+            ctx.push_child_scope();
+            let key_binding = ExprValue::Binding(BindingType::ComponentKeyBinding);
+            ctx.append_path_expr(&key_binding);
+            writeln!(w, "function component_{}(key, props) {{", comp_def.ty())?;
+
+            if let Some(ops_iter) = comp_def.ops_iter() {
+                self.writers.js.write_element_ops(w, ctx, bindings, ops_iter)?;
+
                 // let mut scope = base_scope.clone();
                 // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
                 // scope.0.set_prefix_expr(&param_expr);
@@ -174,6 +184,9 @@ impl<'input> PageWriter<'input> {
                 //                                &mut self.doc,
                 //                                &scope)?;
             };
+
+            writeln!(w, "}}")?;
+            ctx.pop_scope();
         }
         Ok(())
     }
@@ -244,6 +257,9 @@ impl<'input> PageWriter<'input> {
         self.write_component_definitions(w, ctx, bindings)?;
         self.write_render_definition(w, ctx, bindings)?;
         self.write_event_bindings(w, ctx, bindings)?;
+
+        let mut store_writer = StoreWriterJs::default();
+        store_writer.write_store(w, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
 
         write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
         Ok(())
@@ -323,8 +339,10 @@ mod tests {
 <html>
     <head>
         <meta charset="utf-8" />
-        <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+        <!-- <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script> -->
+        <!-- <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script> -->
+        <script src="./pkg/redux@3.7.1/dist/redux.js"></script>
+        <script src="./pkg/incrementaldom@0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
         <div id="root">
@@ -357,10 +375,14 @@ IncrementalDOM.elementClose("span");
 IncrementalDOM.elementClose("div");
                 }
 
+                var rootReducer = Redux.combineReducers({
+                });
+
                 document.addEventListener("DOMContentLoaded", function(event) {
                     // Import nodes
                     markExisting([].slice.call(document.querySelectorAll("[key]")));
                     // Define store
+                    var store = Redux.createStore(rootReducer, {});
                     // Subscribe
                     store.subscribe(update.bind(null, document.querySelector('#root'), store));
                 });

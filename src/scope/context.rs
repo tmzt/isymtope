@@ -314,6 +314,15 @@ impl Context {
                 None
             },
 
+            // TODO: Fix this in the new regime
+            &ExprValue::DefaultVariableReference => {
+                let key = "value";
+                if let Some(sym) = self.resolve_sym(key) {
+                    return Some(ExprValue::SymbolReference(sym));
+                }
+                None
+            }
+
             &ExprValue::SymbolReference(ref sym) => {
                 match sym.sym_ref() {
                     &SymbolReferenceType::UnresolvedReference(ref key) => {

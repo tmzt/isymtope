@@ -22,6 +22,10 @@ impl ValueWriter for ValueWriterJs {
         Ok(())
     }
 
+    // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result {
+    //     Ok(())
+    // }
+
     fn write_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ReducerPathBinding(ref key, ref paths) => {
@@ -36,6 +40,9 @@ impl ValueWriter for ValueWriterJs {
             }
             &BindingType::ActionParamBinding(ref key) => {
                 write!(w, "action.{}", key)?;
+            }
+            &BindingType::ComponentKeyBinding => {
+                write!(w, "key")?;
             }
             _ => {}
         };
@@ -70,19 +77,25 @@ impl ExpressionWriter for ExpressionWriterJs {
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
-                write!(w, "[")?;
-                let mut first = true;
-                if let Some(arr) = arr {
-                    for v in arr {
-                        if !first { write!(w, ", ")?; }
-                        self.write_expr_to(w, value_writer, ctx, bindings, v)?;
-                        first = false;
-                    }
-                };
-                write!(w, "].join(\"{}\")", sep.as_ref().map_or("", |s| s.as_str()))?;
+                self.write_array(w, value_writer, ctx, bindings, arr, None)?;
+                write!(w, ".join(\"{}\")", sep.as_ref().map_or("", |s| s.as_str()))?;
             },
             _ => {}
         };
+        Ok(())
+    }
+
+    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, _ty: Option<VarType>) -> Result {
+        write!(w, "[")?;
+        let mut first = true;
+        if let Some(arr) = arr {
+            for v in arr {
+                if !first { write!(w, ", ")?; }
+                self.write_expr_to(w, value_writer, ctx, bindings, v)?;
+                first = false;
+            }
+        };
+        write!(w, "]")?;
         Ok(())
     }
 }
@@ -153,13 +166,9 @@ mod tests {
             Box::new(literal_string.clone())
         );
 
-        // let mut value_writer = ValueWriterJs::default();
-        // let mut expr_writer = ExpressionWriterJs::default();
-        // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
-        let mut writer = DefaultOutputWriters::js();
-        
+        let mut writers = DefaultOutputWritersBoth::default();
         let mut s: Vec<u8> = Default::default();
-        let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
+        let res = writers.js().write_expr(&mut s, &mut ctx, &bindings, &expr);
         assert!(res.is_ok());
         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));        
     }
@@ -178,13 +187,9 @@ mod tests {
         );
 
         let mut s: Vec<u8> = Default::default();
-        // let mut writer = WriterJs::default();
-        // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
-        let mut writer = DefaultOutputWriters::js();
+        let mut writers = DefaultOutputWritersBoth::default();
 
-        let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
-        // let res = writer.write_page(&mut s, &mut ctx, &bindings, &expr);
-        // let res = writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+        let res = writers.js().write_expr(&mut s, &mut ctx, &bindings, &expr);
         assert!(res.is_ok());
         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
     }
