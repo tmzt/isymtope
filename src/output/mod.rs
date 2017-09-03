@@ -11,24 +11,35 @@ pub use self::writers::*;
 pub use self::page_writer::*;
 pub use self::store_writer::*;
 
-use std::io;
-use parser::ast::*;
-
-#[allow(dead_code)]
-pub fn write_client_html<'input>(_w: &mut io::Write, _template: &'input Template) -> Result {
-    // let output = ClientOutput::from_template(template);
-    // output.write_html(w)
-
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
     use std::io;
     use std::fs;
     use std::path::Path;
-    use super::Result;
     use ::broadcast::BroadcastWriter;
+
+    use super::*;
+    use parser::ast::*;
+    use processing::*;
+    use scope::*;
+
+
+    fn prepare_document<'a>(template: &'a Template) -> DocumentState<'a> {
+        let mut ctx = Context::default();
+        let mut bindings = BindingContext::default();
+        let mut processing = ProcessDocument::from_template(&template);
+        assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+        processing.into()
+    }
+
+    pub fn write_html_file<'input>(w: &mut io::Write, template: &'input Template) -> Result {
+        let mut ctx = Context::default();
+        let bindings = BindingContext::default();
+        let doc = prepare_document(template);
+        let mut page_writer = PageWriter::with_doc(&doc);
+        page_writer.write_page(w, &mut ctx, &bindings)
+    }
 
     fn test_write_html<'input>(src_file: &str, html_file: &str) -> Result {
         let source_path = format!("./res/tests/{}", src_file);
@@ -42,7 +53,7 @@ mod tests {
         let stdout = stdout.lock();
 
         let mut stream = BroadcastWriter::new(file, stdout);
-        super::write_client_html(&mut stream, &template)
+        write_html_file(&mut stream, &template)
     }
 
     // #[test]

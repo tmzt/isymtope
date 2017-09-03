@@ -8,4 +8,5 @@ pub mod process_content;
 pub mod process_comp_def;
 pub mod process_store;
 
+pub use self::structs::*;
 pub use self::process::ProcessDocument;
