@@ -117,7 +117,7 @@ mod tests {
                     ExprOp::Add,
                     Box::new(ExprValue::SymbolReference(Symbol::unresolved("todos"))),
                     Box::new(ExprValue::SymbolReference(Symbol::unresolved("value")))
-                ))), None)
+                ))), Some(vec!["value".into()]))
             ])
         ];
         let nodes: Vec<Loc<NodeType, (usize, usize)>> = vec![
@@ -153,7 +153,7 @@ mod tests {
         assert_diff!(str::from_utf8(&s).unwrap(),
 r#"  function todosReducer(state, action) {
 if ('undefined' !== typeof action && 'TODOS.ADD' == action.type) {
-  return +;
+  return state+action.value;
 }
     return state || 0;
   }

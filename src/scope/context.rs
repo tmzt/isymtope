@@ -438,6 +438,11 @@ impl Context {
         self.scope().action_param_ref(key)
     }
 
+    pub fn add_action_param(&mut self, key: &str) {
+        let r = self.action_param_ref(key);
+        self.add_sym(key, r);
+    }
+
     pub fn add_action_param_ref(&mut self, key: &str, action_param_key: &str) {
         let r = self.action_param_ref(action_param_key);
         self.add_sym(key, r);

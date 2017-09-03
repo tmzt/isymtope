@@ -21,6 +21,13 @@ pub trait ExprWriter {
 
 fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
     match expr {
+        &ExprValue::SymbolReference(ref sym) => {
+            match sym.sym_ref() {
+                &SymbolReferenceType::Binding(ref binding) => value_writer.write_binding(w, ctx, bindings, binding),
+                _ => Ok(())
+            }
+        }
+
         &ExprValue::Binding(ref binding) => value_writer.write_binding(w, ctx, bindings, binding),
         &ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
         &ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),

@@ -30,7 +30,13 @@ impl ValueWriter for ValueWriterJs {
                     _ => key.to_owned()
                 };
                 write!(w, "store.getState().{}", symbol_path)?;
-            },
+            }
+            &BindingType::ActionStateBinding => {
+                write!(w, "state")?;
+            }
+            &BindingType::ActionParamBinding(ref key) => {
+                write!(w, "action.{}", key)?;
+            }
             _ => {}
         };
         Ok(())

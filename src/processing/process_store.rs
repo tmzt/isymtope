@@ -95,6 +95,12 @@ impl ProcessStore {
         ctx.push_child_scope();
         // ctx.append_action_path_str(action_name);
 
+        // Add action params
+        for param in params {
+            // ctx.add_unbound_action_param(param);
+            ctx.add_action_param(param);
+        }
+
         let action_path = ctx.join_action_path(Some("."));
         let complete_path = ctx.join_action_path_with(Some("."), &action_name);
         let mut action = ReducerActionData::from_name(&complete_path, Some(&action_path));

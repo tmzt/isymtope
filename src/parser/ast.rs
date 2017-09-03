@@ -197,11 +197,12 @@ impl Symbol {
                value)
     }
 
-    pub fn action_param(key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
+    pub fn action_param(key: &str, _scope_id: &str) -> Symbol {
+        Symbol::binding(&BindingType::ActionParamBinding(key.to_owned()))
+        // let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
+        // Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
+        //        None,
+        //        None)
     }
 
     pub fn loop_idx(key: &str, block_id: &str, scope_id: &str) -> Symbol {
@@ -281,7 +282,8 @@ impl Symbol {
     /// References used within reducers and actions
 
     pub fn unbound_action_param(key: &str, scope_id: Option<&str>) -> Symbol {
-        let key_ref = KeyReferenceType::UnboundFormalParam;
+        // Symbol::binding(&BindingType::UnboundActionParam(key.to_owned()))
+        let key_ref = KeyReferenceType::UnboundReducerActionParam(key.to_owned());
         Self::ref_key_in_scope(key, key_ref, scope_id)
     }
 
