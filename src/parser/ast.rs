@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
 pub use parser::store::*;
@@ -11,6 +11,7 @@ pub struct Template {
 }
 
 impl Template {
+    #[allow(dead_code)]
     pub fn new(children: Vec<Loc<NodeType, (usize, usize)>>) -> Template {
         Template { children: children }
     }
@@ -43,14 +44,14 @@ pub enum ExprOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprApplyOp {
     JoinString(Option<String>),
-    Sum
+    // Sum
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveVarType {
     StringVar,
     Number,
-    Expr,
+    // Expr,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,43 +69,25 @@ pub enum SymbolReferenceType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyReferenceType {
-    ReducerKey(String),
-    FuncParam(i32),
-    FuncParamObjectProp(i32, String),
     UnboundFormalParam,
-    BlockMapIndex,
-    BlockMapObjectProp,
     ComponentProp(String),
     InvocationProp(Option<Box<ExprValue>>),
     CurrentElementProp(String),
-    CurrentReducerActionParam(String),
-    CurrentReducerActionState,
     UnboundReducerActionParam(String)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResolvedSymbolType {
     ReferenceToKeyInScope(KeyReferenceType, Option<String>),
-
     ReducerKeyReference(String),
     ParameterReference(String),
-    LocalVarReference(String),
-    GlobalVarReference(String),
-    ActionStateReference(Option<VarType>),
-    ActionParamReference(String),
-    LoopVarReference(String),
-    LoopIndexReference(String, String),
-    BlockParamReference(String),
     PropReference(String),
-    LensPropReference(String, Box<LensExprType>),
-    ForLensElementReference(String),
-    ElementValueReference(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
-pub type ValueMap = LinkedHashMap<String, ExprValue>;
+// pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
 impl Symbol {
     pub fn unresolved(key: &str) -> Symbol {
@@ -118,14 +101,6 @@ impl Symbol {
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
-        let resolved = ResolvedSymbolType::ReferenceToKeyInScope(key_ref, scope_id.map(|s| s.to_owned()));
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               None,
-               None)
-    }
-
-    pub fn ref_prop_in_scope(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
-        let key_ref = KeyReferenceType::ComponentProp(prop_key.to_owned());
         let resolved = ResolvedSymbolType::ReferenceToKeyInScope(key_ref, scope_id.map(|s| s.to_owned()));
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                None,
@@ -156,36 +131,11 @@ impl Symbol {
         Self::ref_key_in_scope(key, key_ref, scope_id)
     }
 
-    // /// Creates a reference to an unbound formal parameter the given scope.
-    // ///
-    // /// Typically will be used to reference an unbound formal parameter in the currently
-    // /// defined component and refers to the closest enclosing component definition.
-    // pub fn unbound_formal_param_ref(key: &str, scope_id: &str) -> Symbol {
-    //     // let key_ref = KeyReferenceType::UnboundFormalParamRef(key.to_owned());
-    //     let key_ref = KeyReferenceType::UnboundFormalParam;
-    //     Self::ref_key_in_scope(key, key_ref, Some(scope_id))
-    // }
-
     pub fn reducer_key(key: &str) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                None,
                None)
-    }
-
-    pub fn reducer_key_with_ty(key: &str, ty: Option<&VarType>) -> Symbol {
-        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        let ty = ty.map(|ty| ty.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               ty,
-               None)
-    }
-
-    pub fn reducer_key_with_value(key: &str, value: &ExprValue) -> Symbol {
-        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               None,
-               Some(Box::new(value.clone())))
     }
 
     pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
@@ -199,25 +149,6 @@ impl Symbol {
 
     pub fn action_param(key: &str, _scope_id: &str) -> Symbol {
         Symbol::binding(&BindingType::ActionParamBinding(key.to_owned()))
-        // let resolved = ResolvedSymbolType::ActionParamReference(key.to_owned());
-        // Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-        //        None,
-        //        None)
-    }
-
-    pub fn loop_idx(key: &str, block_id: &str, scope_id: &str) -> Symbol {
-        let var_key = format!("__{}_{}", key, block_id);
-        let resolved = ResolvedSymbolType::LoopIndexReference(key.to_owned(), block_id.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(var_key.clone(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    pub fn loop_var(key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::LoopVarReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
     }
 
     pub fn param(key: &str, scope_id: &str) -> Symbol {
@@ -227,54 +158,9 @@ impl Symbol {
                None)
     }
 
-    pub fn block_param(key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::BlockParamReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    // pub fn loop_var_with_value(key: &str, value: &ExprValue) -> Symbol {
-    //     let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-    //     let value = Some(Box::new(value.clone()));
-    //     Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved),
-    //            None,
-    //            value)
-    // }
-
     pub fn prop(prop_name: &str, scope_id: &str) -> Symbol {
         let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
         Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    // pub fn prop_with_value(prop_name: &str, value: &ExprValue) -> Symbol {
-    //     let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
-    //     let value = Some(Box::new(value.clone()));
-    //     // TODO: peek type
-    //     Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved),
-    //            None,
-    //            value)
-    // }
-
-    pub fn action_state(ty: Option<&VarType>, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ActionStateReference(ty.map(|ty| ty.to_owned()));
-        Symbol(SymbolReferenceType::ResolvedReference("state".to_owned(), resolved, Some(scope_id.to_owned())),
-               ty.map(|ty| ty.to_owned()),
-               None)
-    }
-
-    pub fn for_lens_element_key(key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ForLensElementReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    pub fn element_value_binding(key: &str, element_key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ElementValueReference(element_key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
                None,
                None)
     }
@@ -297,6 +183,7 @@ impl Symbol {
         self.1.as_ref()
     }
 
+    #[allow(dead_code)]
     pub fn value(&self) -> Option<&ExprValue> {
         self.2.as_ref().map(|b| b.as_ref())
     }
@@ -308,7 +195,7 @@ pub enum BindingType {
     ExpressionBinding(Box<ExprValue>),
     KeyInSymbolsBinding(String, String),
     ReducerPathBinding(String, Option<Vec<String>>),
-    LoopIndexBinding,
+    // LoopIndexBinding,
     ActionStateBinding,
     ActionParamBinding(String)
 }
@@ -329,8 +216,8 @@ pub enum ExprValue {
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
-    DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
+    // DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
+    // Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
     Undefined,
 }
 
@@ -346,6 +233,7 @@ impl ExprValue {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementExpr {
     Element(String, Option<String>, Option<Vec<Box<ExprValue>>>),
@@ -390,17 +278,14 @@ pub type PropVec = Vec<Prop>;
 
 pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
 pub type ElementValueBinding = Option<String>;
-pub type ElementBindings = (ElementValueBinding, Option<Vec<ElementEventBinding>>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(ElementEventBinding),
     ElementValueBindingNode(String),
 }
-pub type ElementBindingNodeVec = Vec<ElementBindingNodeType>;
 
 pub type PropKey = String;
-pub type PropList = Vec<PropKey>;
 pub type Prop = (String, Option<ExprValue>);
 
 #[derive(Debug, Clone, PartialEq)]
