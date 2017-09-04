@@ -12,32 +12,20 @@ use scope::*;
 use processing::*;
 
 
-// pub trait OutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
 pub trait OutputWriter {
-    // type V: ValueWriter;
     type E: ExpressionWriter;
-    // type S: ElementOpsStreamWriter;
-
-    // fn stream_writer(&mut self) -> &mut Self::S;
 }
 
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriter<E: ExpressionWriter> {
     value_writer: E::V,
-    expression_writer: E,
-    // stream_writer: S
+    expression_writer: E
 }
 
-// impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> OutputWriter for DefaultOutputWriter<E, S> {
 impl<V: ValueWriter, E: ExpressionWriter<V = V>> OutputWriter for DefaultOutputWriter<E> {
-    // type V = E::V;
     type E = E;
-    // type S = S;
-
-    // fn stream_writer(&mut self) -> &mut S { &mut self.stream_writer }
 }
 
-// impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
 impl<E: ExpressionWriter> ExprWriter for DefaultOutputWriter<E> {
     type E = E;
 
@@ -55,8 +43,6 @@ pub type DefaultOutputWriterJs = DefaultOutputWriter<ExpressionWriterJs>;
 pub trait OutputWritersBoth {
     type Html: OutputWriter;
     type Js: OutputWriter;
-    // type ExpressionWriterJs: ExpressionWriter;
-    // type ExpressionWriterHtml: ExpressionWriter;
 
     fn html(&mut self) -> &mut DefaultOutputWriterHtml;
     fn js(&mut self) -> &mut DefaultOutputWriterJs;
@@ -69,8 +55,6 @@ pub struct DefaultOutputWritersBoth {
 }
 
 impl OutputWritersBoth for DefaultOutputWritersBoth {
-    // type ExpressionWriterJs = ExpressionWriterJs;
-    // type ExpressionWriterHtml = ExpressionWriterHtml;
     type Html = DefaultOutputWriterHtml;
     type Js = DefaultOutputWriterJs;
 

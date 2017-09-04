@@ -7,16 +7,7 @@ use processing::*;
 use output::*;
 
 
-pub trait ElementOpsStreamWriterStatic : ElementOpsStreamWriter {}
-
-// #[derive(Debug, Clone, Default)]
-// pub struct ElementOpsStreamWriterHtml {}
-
-// impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
 impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
-    type O = Self;
-    // type O = DefaultOutputWriterHtml;
-    // type E = ExpressionWriterHtml;
 
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, _bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
@@ -96,16 +87,13 @@ mod tests {
         ctx.append_path_str("prefix");
         let bindings = BindingContext::default();
 
-        // let mut writer: DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml> = DefaultOutputWriter::default();
-        let mut value_writer = ValueWriterHtml::default();
-        let mut expr_writer = ExpressionWriterHtml::default();
-        let mut stream_writer = ElementOpsStreamWriterHtml::default();
+        let mut writer = DefaultOutputWriterHtml::default();
 
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
         assert!(
-            stream_writer.write_op_element_open(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
-            stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span").is_ok()
+            writer.write_op_element_open(&mut s, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
+            writer.write_op_element_close(&mut s, &mut ctx, &bindings, "span").is_ok()
         );
         assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
         <span key="prefix.key"></span>"#

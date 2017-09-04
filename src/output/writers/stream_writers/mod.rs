@@ -1,9 +1,6 @@
 pub mod output_stream_writer_html;
 pub mod output_stream_writer_js;
 
-// pub use self::output_stream_writer_html::ElementOpsStreamWriterHtml;
-// pub use self::output_stream_writer_js::ElementOpsStreamWriterJs;
-
 use std::io;
 
 use parser::*;
@@ -13,9 +10,6 @@ use output::writers::*;
 
 
 pub trait ElementOpsStreamWriter {
-    type O: OutputWriter;
-    // type E: ExpressionWriter;
-
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>;
     fn write_op_element_close(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str) -> Result;

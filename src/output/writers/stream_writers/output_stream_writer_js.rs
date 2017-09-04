@@ -7,16 +7,7 @@ use processing::*;
 use output::*;
 
 
-// #[derive(Debug, Clone, Default)]
-// pub struct ElementOpsStreamWriterJs {}
-
-// impl ElementOpsStreamWriter for ElementOpsStreamWriterJs {
-// impl ElementOpsStreamWriter for OutputWriter<E = ExpressionWriterJs> {
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
-    type O = Self;
-    // type S = Self;
-    // type O = DefaultOutputWriterJs;
-    // type E = ExpressionWriterJs;
 
     fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
@@ -92,15 +83,13 @@ mod tests {
         ctx.append_path_str("prefix");
         let bindings = BindingContext::default();
 
-        let mut value_writer = ValueWriterJs::default();
-        let mut expr_writer = ExpressionWriterJs::default();
-        let mut stream_writer = ElementOpsStreamWriterJs::default();
+        let mut writer = DefaultOutputWriterJs::default();
 
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
         assert!(
-            stream_writer.write_op_element_open(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
-            stream_writer.write_op_element_close(&mut s, &mut expr_writer, &mut value_writer, &mut ctx, &bindings, "span").is_ok()
+            writer.write_op_element_open(&mut s, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
+            writer.write_op_element_close(&mut s, &mut ctx, &bindings, "span").is_ok()
         );
         // assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
         assert_eq!(str::from_utf8(&s), Ok(indoc![r#"

@@ -146,7 +146,8 @@ mod tests {
             // let mut expr_writer = ExpressionWriterJs::default();
             let expr = ExprValue::Binding(binding.clone());
 
-            let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+            // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
+            let mut writer = DefaultOutputWriterJs::default();
 
             let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
             assert!(res.is_ok());

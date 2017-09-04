@@ -46,8 +46,6 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
 
                     self.write_op_element_open(
                         w,
-                        // self,
-                        // self as &mut <<O as OutputWriter>::S as ElementOpsStreamWriter>::O,
                         ctx,
                         bindings,
                         element_tag,
@@ -60,43 +58,38 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
 
                 }
 
-                // &ElementOp::ElementClose(ref element_tag) => {
-                //     output_writer.stream_writer().write_op_element_close(
-                //         w,
-                //         output_writer,
-                //         ctx,
-                //         bindings,
-                //         element_tag,
-                //     )?;
+                &ElementOp::ElementClose(ref element_tag) => {
+                    self.write_op_element_close(
+                        w,
+                        ctx,
+                        bindings,
+                        element_tag,
+                    )?;
+                }
 
-                //     // ctx.pop_scope();
-                // }
+                &ElementOp::WriteValue(ref expr, ref element_key) => {
+                    self.write_op_element_value(
+                        w,
+                        ctx,
+                        bindings,
+                        expr,
+                        element_key
+                    )?;
+                }
 
-                // &ElementOp::WriteValue(ref expr, ref element_key) => {
-                //     output_writer.stream_writer().write_op_element_value(
-                //         w,
-                //         output_writer,
-                //         ctx,
-                //         bindings,
-                //         expr,
-                //         element_key
-                //     )?;
-                // }
-
-                // &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, _) => {
-                //     output_writer.stream_writer().write_op_element_instance_component(
-                //         w,
-                //         output_writer,
-                //         ctx,
-                //         bindings,
-                //         component_ty,
-                //         component_key,
-                //         true,
-                //         None,
-                //         None,
-                //         None
-                //     )?;
-                // }
+                &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, _) => {
+                    self.write_op_element_instance_component(
+                        w,
+                        ctx,
+                        bindings,
+                        component_ty,
+                        component_key,
+                        true,
+                        None,
+                        None,
+                        None
+                    )?;
+                }
 
                 _ => {}
         };
