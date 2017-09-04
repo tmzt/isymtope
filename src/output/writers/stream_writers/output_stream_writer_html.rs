@@ -56,9 +56,12 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
         write!(w, "<div key=\"{}\" data-comp=\"{}\">", instance_key, element_tag)?;
         if let Some(comp) = doc.comp_map.get(element_tag) {
+            ctx.push_child_scope();
+            ctx.append_path_str(&instance_key);
             if let Some(ops_iter) = comp.ops_iter() {
                 self.write_element_ops(w, doc, ctx, bindings, ops_iter)?;
             }
+            ctx.pop_scope();
         };
 
         write!(w, "</div>")?;
