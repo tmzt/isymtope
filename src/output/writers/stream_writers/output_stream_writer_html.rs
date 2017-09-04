@@ -9,13 +9,16 @@ use output::*;
 
 pub trait ElementOpsStreamWriterStatic : ElementOpsStreamWriter {}
 
-#[derive(Debug, Clone, Default)]
-pub struct ElementOpsStreamWriterHtml {}
+// #[derive(Debug, Clone, Default)]
+// pub struct ElementOpsStreamWriterHtml {}
 
-impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
-    type E = ExpressionWriterHtml;
+// impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
+impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
+    type O = Self;
+    // type O = DefaultOutputWriterHtml;
+    // type E = ExpressionWriterHtml;
 
-    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, _bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, _bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
         let complete_key = ctx.join_path_with(Some("."), element_key);
@@ -38,31 +41,40 @@ impl ElementOpsStreamWriter for ElementOpsStreamWriterHtml {
         Ok(())
     }
 
-    fn write_op_element_close(&mut self, w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, element_tag: &str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, element_tag: &str) -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
-    fn write_op_element_start_block<PropIter: IntoIterator<Item = Prop>>(&mut self, _w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, _block_id: &str, _props: PropIter) -> Result {
+    fn write_op_element_start_block<PropIter: IntoIterator<Item = Prop>>(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _block_id: &str, _props: PropIter) -> Result {
         Ok(())
     }
 
-    fn write_op_element_end_block(&mut self, _w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, _block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _block_id: &str) -> Result {
         Ok(())
     }
 
-    fn write_op_element_map_collection_to_block(&mut self, _w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, _coll_expr: &ExprValue, _block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _coll_expr: &ExprValue, _block_id: &str) -> Result {
         Ok(())
     }
 
-    fn write_op_element_instance_component<PropIter, EventIter, BindingIter>(&mut self, _w: &mut io::Write, _expression_writer: &mut Self::E, _value_writer: &mut <Self::E as ExpressionWriter>::V, _ctx: &mut Context, _bindings: &BindingContext, _element_tag: &str, _element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_instance_component<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, _bindings: &BindingContext, _element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
+        let instance_key = ctx.join_path_with(Some("_"), element_key);
+
+        write!(w, "<div key=\"{}\">", instance_key)?;
+        write!(w, "</div>")?;
+
+        // write!(w, "component_{}(", element_tag)?;
+        // expression_writer.write_expr_to(w, value_writer, ctx, bindings, &instance_key)?;
+        // write!(w, ", {{")?;
+        // writeln!(w, "}});")?;
         Ok(())
     }
 
-    fn write_op_element_value(&mut self, w: &mut io::Write, expression_writer: &mut Self::E, value_writer: &mut <Self::E as ExpressionWriter>::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
-        expression_writer.write_expr_to(w, value_writer, ctx, bindings, expr)?;
+    fn write_op_element_value(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
+        self.write_expr(w, ctx, bindings, expr)?;
         Ok(())
     }
 }

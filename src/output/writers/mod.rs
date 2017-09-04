@@ -14,25 +14,31 @@ use processing::*;
 
 // pub trait OutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
 pub trait OutputWriter {
-    type V: ValueWriter;
-    type E: ExpressionWriter<V = Self::V>;
-    type S: ElementOpsStreamWriter;
+    // type V: ValueWriter;
+    type E: ExpressionWriter;
+    // type S: ElementOpsStreamWriter;
+
+    // fn stream_writer(&mut self) -> &mut Self::S;
 }
 
 #[derive(Debug, Default)]
-pub struct DefaultOutputWriter<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> {
-    value_writer: V,
+pub struct DefaultOutputWriter<E: ExpressionWriter> {
+    value_writer: E::V,
     expression_writer: E,
-    stream_writer: S
+    // stream_writer: S
 }
 
-impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> OutputWriter for DefaultOutputWriter<V, E, S> {
-    type V = V;
+// impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> OutputWriter for DefaultOutputWriter<E, S> {
+impl<V: ValueWriter, E: ExpressionWriter<V = V>> OutputWriter for DefaultOutputWriter<E> {
+    // type V = E::V;
     type E = E;
-    type S = S;
+    // type S = S;
+
+    // fn stream_writer(&mut self) -> &mut S { &mut self.stream_writer }
 }
 
-impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
+// impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> ExprWriter for DefaultOutputWriter<V, E, S> {
+impl<E: ExpressionWriter> ExprWriter for DefaultOutputWriter<E> {
     type E = E;
 
     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
@@ -43,8 +49,8 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>, S: ElementOpsStreamWriter> Expr
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriters {}
 
-pub type DefaultOutputWriterHtml = DefaultOutputWriter<ValueWriterHtml, ExpressionWriterHtml, ElementOpsStreamWriterHtml>;
-pub type DefaultOutputWriterJs = DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs>;
+pub type DefaultOutputWriterHtml = DefaultOutputWriter<ExpressionWriterHtml>;
+pub type DefaultOutputWriterJs = DefaultOutputWriter<ExpressionWriterJs>;
 
 pub trait OutputWritersBoth {
     type Html: OutputWriter;
