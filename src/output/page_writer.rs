@@ -33,11 +33,13 @@ const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
-                function markExisting(node, key, attrsArr) {
-                    IncrementalDOM.importNode(node);
-                    var data = node['__incrementalDOMData'];
-                    data.staticsApplied = true;
-                    data.newAttrs = new Blank();
+                function markExisting(nodes) {
+                    Array.prototype.slice.call(nodes).forEach(function(node) {
+                        IncrementalDOM.importNode(node);
+                        var data = node['__incrementalDOMData'];
+                        data.staticsApplied = true;
+                        data.newAttrs = new Blank();
+                    });
                 }
 
                 function update(root_el, store) {
@@ -55,7 +57,7 @@ const STRING_JS_CLOSE_RENDER: &'static str  = r#"                }
 const STRING_HTML_CLOSE_SCRIPT_IIFE: &'static str  = r#"
                 document.addEventListener("DOMContentLoaded", function(event) {
                     // Import nodes
-                    markExisting([].slice.call(document.querySelectorAll("[key]")));
+                    markExisting(document.querySelectorAll("[key]"));
                     // Define store
                     var store = Redux.createStore(rootReducer, {});
                     // Subscribe
@@ -170,7 +172,7 @@ impl<'input> PageWriter<'input> {
             writeln!(w, "function component_{}(key, props) {{", comp_def.ty())?;
 
             if let Some(ops_iter) = comp_def.ops_iter() {
-                self.writers.js.write_element_ops(w, ctx, bindings, ops_iter)?;
+                self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
 
                 // let mut scope = base_scope.clone();
                 // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
@@ -206,7 +208,7 @@ impl<'input> PageWriter<'input> {
         //                                  &base_scope)?;
 
         let ops_iter = self.doc.root_block.ops_vec.iter();
-        self.writers.js.write_element_ops(w, ctx, bindings, ops_iter)?;
+        self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
 
         write!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
@@ -240,7 +242,7 @@ impl<'input> PageWriter<'input> {
     pub fn write_root_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_HTML_OPEN_ROOT_DIV)?;
         let ops_iter = self.doc.root_block.ops_vec.iter();
-        self.writers.html.write_element_ops(w, ctx, bindings, ops_iter)?;
+        self.writers.html.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
         write!(w, "{}", self::STRING_HTML_CLOSE_ROOT_DIV)?;
         Ok(())
     }
@@ -354,11 +356,13 @@ mod tests {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
-                function markExisting(node, key, attrsArr) {
-                    IncrementalDOM.importNode(node);
-                    var data = node['__incrementalDOMData'];
-                    data.staticsApplied = true;
-                    data.newAttrs = new Blank();
+                function markExisting(nodes) {
+                    Array.prototype.slice.call(nodes).forEach(function(node) {
+                        IncrementalDOM.importNode(node);
+                        var data = node['__incrementalDOMData'];
+                        data.staticsApplied = true;
+                        data.newAttrs = new Blank();
+                    });
                 }
 
                 function update(root_el, store) {
@@ -380,7 +384,7 @@ IncrementalDOM.elementClose("div");
 
                 document.addEventListener("DOMContentLoaded", function(event) {
                     // Import nodes
-                    markExisting([].slice.call(document.querySelectorAll("[key]")));
+                    markExisting(document.querySelectorAll("[key]"));
                     // Define store
                     var store = Redux.createStore(rootReducer, {});
                     // Subscribe

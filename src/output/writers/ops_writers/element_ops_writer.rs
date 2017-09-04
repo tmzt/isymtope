@@ -28,7 +28,7 @@ use output::*;
 impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
     // type O = O;
 
-    fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
+    fn write_element_op(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
         // write_element_op(w, self, ctx, bindings, op)
         let is_void = if let &ElementOp::ElementVoid(..) = op { true } else { false };
 
@@ -80,6 +80,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
                 &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, _) => {
                     self.write_op_element_instance_component(
                         w,
+                        doc,
                         ctx,
                         bindings,
                         component_ty,
@@ -87,7 +88,8 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
                         true,
                         None,
                         None,
-                        None
+                        None,
+                        iter::empty()
                     )?;
                 }
 
@@ -97,9 +99,9 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
         Ok(())
     }
 
-    fn write_element_ops<'a, I: IntoIterator<Item = &'a ElementOp>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, ops: I) -> Result {
+    fn write_element_ops<'a, I: IntoIterator<Item = &'a ElementOp>>(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, ops: I) -> Result {
         for op in ops {
-            self.write_element_op(w, ctx, bindings, op)?;
+            self.write_element_op(w, doc, ctx, bindings, op)?;
         }
         Ok(())
     }

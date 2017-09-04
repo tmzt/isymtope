@@ -14,6 +14,6 @@ pub trait ElementOpsWriter {
     // type E: ExpressionWriter;
     // type S: ElementOpsStreamWriter<E = Self::E>;
 
-    fn write_element_op(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result;
-    fn write_element_ops<'a, I: IntoIterator<Item = &'a ElementOp>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, ops: I) -> Result;
+    fn write_element_op(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result;
+    fn write_element_ops<'a, I: IntoIterator<Item = &'a ElementOp>>(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, ops: I) -> Result;
 }

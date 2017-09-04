@@ -72,6 +72,14 @@ mod tests {
     use processing::structs::ElementOp;
 
 
+    fn create_document<'a>(template: &'a Template) -> DocumentState<'a> {
+        let mut ctx = Context::default();
+        let mut bindings = BindingContext::default();
+        let mut processing = ProcessDocument::from_template(&template);
+        assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+        processing.into()
+    }
+
     #[test]
     pub fn test_output_default_writers() {
         let mut ctx = Context::default();
@@ -81,14 +89,16 @@ mod tests {
         let op_1 = ElementOp::ElementOpen("span".into(), "Ab.Cd".into(), None, None, None);
         let op_2 = ElementOp::ElementClose("span".into());
 
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
         let mut writers = DefaultOutputWritersBoth::default();
 
         {
             let writer = writers.html();
             let mut s: Vec<u8> = Default::default();
             assert!(
-                writer.write_element_op(&mut s, &mut ctx, &bindings, &op_1).is_ok() &&
-                writer.write_element_op(&mut s, &mut ctx, &bindings, &op_2).is_ok()
+                writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
+                writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
             <span key="Ab.Cd"></span>"#
@@ -99,7 +109,7 @@ mod tests {
             let writer = writers.html();
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
-            assert!(writer.write_element_ops(&mut s, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
             <span key="Ab.Cd"></span>"#
             ]));
@@ -109,8 +119,8 @@ mod tests {
             let writer = writers.js();
             let mut s: Vec<u8> = Default::default();
             assert!(
-                writer.write_element_op(&mut s, &mut ctx, &bindings, &op_1).is_ok() &&
-                writer.write_element_op(&mut s, &mut ctx, &bindings, &op_2).is_ok()
+                writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
+                writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
                 IncrementalDOM.elementOpen("span", "Ab.Cd");
@@ -122,7 +132,7 @@ mod tests {
             let writer = writers.js();
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
-            assert!(writer.write_element_ops(&mut s, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
             assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
                 IncrementalDOM.elementOpen("span", "Ab.Cd");
                 IncrementalDOM.elementClose("span");
@@ -133,6 +143,8 @@ mod tests {
     #[test]
     pub fn test_output_default_writers_both() {
         let mut ctx = Context::default();
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
         // ctx.append_path_str("Ab");
         let bindings = BindingContext::default();
 
@@ -144,8 +156,8 @@ mod tests {
             let mut s_html: Vec<u8> = Default::default();
             let mut s_js: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
-            assert!(writers.html().write_element_ops(&mut s_html, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert!(writers.js().write_element_ops(&mut s_js, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writers.html().write_element_ops(&mut s_html, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
+            assert!(writers.js().write_element_ops(&mut s_js, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
 
             assert_eq!(str::from_utf8(&s_html), Ok(indoc![r#"
             <span key="Ab.Cd"></span>"#
