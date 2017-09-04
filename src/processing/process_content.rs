@@ -77,7 +77,7 @@ impl ProcessContent {
                 // TODO: figure out when we want to pass along symbols or values
 
                 // Try to locate a matching component
-                if let Some(..) = processing.comp_map.get(element_data.element_ty.as_str()) {
+                if let Some(comp) = processing.comp_map.get(&element_tag) {
 
                     // Attempt to map lens values
                     // FIXME
@@ -112,10 +112,13 @@ impl ProcessContent {
                     let component_ty = element_tag.to_owned();
                     block.ops_vec
                         .push(ElementOp::InstanceComponent(component_ty,
-                                                           complete_key,
+                                                           complete_key.clone(),
                                                            parent_tag.map(|s| s.to_owned()),
                                                            prop_list,
                                                            lens));
+
+                    // Add mapping from the instance_key to the component_ty
+                    block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned()));
 
                 } else {
                     // Treat this as an HTML element
@@ -138,7 +141,8 @@ impl ProcessContent {
                     });
 
                     // let mut props = element_data.attrs.as_ref().map(|s| s.clone());
-                    let mut events: Option<Vec<ElementEventBinding>> = Default::default();
+                    let mut event_handlers: EventHandlersVec = Default::default();
+                    // let mut events: EventsVec = Default::default();
                     let mut value_binding: ElementValueBinding = Default::default();
 
                     // Process bindings
@@ -155,29 +159,28 @@ impl ProcessContent {
 
                         // Loop through the event bindings
                         for element_binding in element_bindings {
-                            if let &ElementBindingNodeType::ElementEventBindingNode(ref event) =
+                            if let &ElementBindingNodeType::ElementEventBindingNode(ref event_handler) =
                                    element_binding {
-                                let mut event = event.clone();
+                                // let mut event = event.clone();
 
-                                event.2 = event.2.as_ref().map(|action_ops| {
-                                    self.process_content_action_ops(ctx,
-                                                                    bindings,
-                                                                    action_ops.iter(),
-                                                                    processing)
-                                });
+                                // event.2 = event.2.as_ref().map(|action_ops| {
+                                //     self.process_content_action_ops(ctx,
+                                //                                     bindings,
+                                //                                     action_ops.iter(),
+                                //                                     processing)
+                                // });
 
-                                block.events_vec.push((complete_key.clone(),
-                                                       event.0.as_ref().map(|s| s.to_owned()),
-                                                       event.1.as_ref().map(|s| s.to_owned()),
-                                                       event.2.as_ref().map(|s| s.to_owned()),
-                                                       None,
-                                                       Some(block.block_id.to_owned())));
-                                if !events.is_some() {
-                                    events = Some(Default::default());
-                                }
-                                if let Some(ref mut events) = events {
-                                    events.push(event.clone());
-                                }
+                                // block.events_vec.push((complete_key.clone(),
+                                //                        event.0.to_owned(),
+                                //                        event.1.to_owned(),
+                                //                        event.2.as_ref().map(|s| s.to_owned()),
+                                //                        None,
+                                //                        Some(block.block_id.to_owned())));
+
+                                event_handlers.push(event_handler.clone());
+
+                                let event = event_handler.create_event(&element_data.element_key, ctx.scope().id());
+                                block.events_vec.push(event);
                             };
                         }
                     }
@@ -185,10 +188,12 @@ impl ProcessContent {
                     // This should only be Some if there are actually children
                     if let Some(ref children) = element_data.children {
                         // Push element open
+                        let has_len = event_handlers.len() > 0;
+                        let event_handlers = if has_len { Some(event_handlers) } else { None };
                         block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
                                                                   complete_key.clone(),
                                                                   props,
-                                                                  events,
+                                                                  event_handlers,
                                                                   value_binding));
 
                         // Push scope
@@ -211,10 +216,12 @@ impl ProcessContent {
                         // Push element close
                         block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
                     } else {
+                        let has_len = event_handlers.len() > 0;
+                        let event_handlers = if has_len { Some(event_handlers) } else { None };
                         block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
                                                                   complete_key.clone(),
                                                                   props,
-                                                                  events,
+                                                                  event_handlers,
                                                                   value_binding));
                     }
                 }

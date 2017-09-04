@@ -12,32 +12,21 @@ use scope::*;
 
 pub struct ProcessDocument<'input> {
     ast: &'input Template,
-    root_block: BlockProcessingState,
     processing: DocumentProcessingState
 }
 
-impl<'inp> Into<DocumentState<'inp>> for ProcessDocument<'inp> {
-    fn into(self) -> DocumentState<'inp> {
-        DocumentState {
-            ast: self.ast,
-            root_block: self.root_block,
-            comp_map: self.processing.comp_map,
-            block_map: self.processing.block_map,
-            reducer_key_data: self.processing.reducer_key_data,
-            default_state_map: self.processing.default_state_map,
-            default_state_symbol: self.processing.default_state_symbol,
-            default_reducer_key: self.processing.default_reducer_key,
-        }
+impl<'inp> Into<Document> for ProcessDocument<'inp> {
+    fn into(self) -> Document {
+        self.processing.into()
     }
 }
 
 impl<'input> ProcessDocument<'input> {
     #[allow(dead_code)]
-    pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument<'inp> {
+    pub fn from_template<'inp>(ast: &'inp Template) -> ProcessDocument {
 
         ProcessDocument {
             ast: ast,
-            root_block: Default::default(),
             processing: Default::default()
         }
     }
@@ -94,7 +83,7 @@ impl<'input> ProcessDocument<'input> {
             };
         }
 
-        self.root_block = root_block;
+        self.processing.root_block = root_block;
         Ok(())
     }
 }

@@ -264,25 +264,39 @@ pub struct ComponentDefinitionType {
     pub children: Option<Vec<NodeType>>,
 }
 
-pub type EventHandler = (Option<String>, Option<EventHandlerParams>, Option<EventHandlerActionOps>);
+#[derive(Debug, Clone, PartialEq)]
+pub enum EventHandler {
+    Event(String, Option<EventHandlerParams>, Option<EventHandlerActionOps>),
+    DefaultEvent(Option<EventHandlerParams>, Option<EventHandlerActionOps>)
+}
+
 pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<EventHandler>;
-pub type EventsItem = (String,
-                       Option<String>,
-                       Option<EventHandlerParams>,
-                       Option<EventHandlerActionOps>,
-                       Option<String>,
-                       Option<String>);
+pub type EventsItem = (String, String, EventHandler);
 pub type EventsVec = Vec<EventsItem>;
 pub type PropVec = Vec<Prop>;
 
-pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
+impl EventHandler {
+    // pub fn event_name(&self) -> &str { &self.0 }
+    // pub fn params_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a str>> { self.1.as_ref().map(|v| v.iter().map(|s| s.as_str())) }
+    // pub fn action_ops_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ActionOpNode>> { self.2.as_ref().map(|v| v.iter()) }
+
+    // pub fn new(event_name: &str, params: Option<EventHandlerParams>, action_ops: Option<EventHandlerActionOps>) -> Self {
+    //     EventHandler(event_name.to_owned(), params, action_ops)
+    // }
+
+    pub fn create_event(&self, element_key: &str, scope_id: &str) -> EventsItem {
+        (element_key.to_owned(), scope_id.to_owned(), self.clone())
+    }
+}
+
+// pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
 pub type ElementValueBinding = Option<String>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementBindingNodeType {
-    ElementEventBindingNode(ElementEventBinding),
+    ElementEventBindingNode(EventHandler),
     ElementValueBindingNode(String),
 }
 

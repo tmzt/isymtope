@@ -49,16 +49,16 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         Ok(())
     }
 
-    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
+    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>, OpsIter: IntoIterator<Item = &'a ElementOp>
     {
         let instance_key = ctx.join_path_with(Some("_"), element_key);
 
         write!(w, "<div key=\"{}\" data-comp=\"{}\">", instance_key, element_tag)?;
-        if let Some(comp) = doc.comp_map.get(element_tag) {
+        if let Some(comp) = doc.get_component(element_tag) {
             ctx.push_child_scope();
             ctx.append_path_str(&instance_key);
-            if let Some(ops_iter) = comp.ops_iter() {
+            if let Some(ops_iter) = comp.root_block().ops_iter() {
                 self.write_element_ops(w, doc, ctx, bindings, ops_iter)?;
             }
             ctx.pop_scope();

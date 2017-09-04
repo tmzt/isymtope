@@ -5,11 +5,13 @@ extern crate itertools;
 pub mod writers;
 pub mod page_writer;
 pub mod store_writer;
+pub mod events_writer;
 
 pub use processing::structs::Result;
 pub use self::writers::*;
 pub use self::page_writer::*;
 pub use self::store_writer::*;
+pub use self::events_writer::*;
 
 
 #[cfg(test)]
@@ -25,7 +27,7 @@ mod tests {
     use scope::*;
 
 
-    fn prepare_document<'a>(template: &'a Template) -> DocumentState<'a> {
+    fn prepare_document<'a>(template: &'a Template) -> Document {
         let mut ctx = Context::default();
         let mut bindings = BindingContext::default();
         let mut processing = ProcessDocument::from_template(&template);

@@ -81,34 +81,28 @@ pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprVa
 
 type ElementOpsVec = Vec<ElementOp>;
 
+pub type ComponentKeyMapping = (String, String);
+pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
+
 #[derive(Debug, Clone)]
 pub struct Component {
     ty: String,
-    ops: Option<ElementOpsVec>,
+    block: Block,
+    // ops: Option<ElementOpsVec>,
     // pub uses: Option<Vec<String>>,
     // pub child_map: Option<ComponentMap>,
     // pub symbol_map: SymbolMap,
     // pub props: SymbolMap,
-    // pub events: Option<EventsVec>,
+    // events: Option<EventsVec>,
 }
 
-impl<'a> Component {
-    #[allow(dead_code)]
-    pub fn new<'ops, I>(ty: &str, ops: Option<I>) -> Self
-      where I: IntoIterator<Item = &'ops ElementOp>
-    {
-        let ops = ops.map(|ops| ops.into_iter().map(|op| op.clone()).collect());
-        Component {
-            ty: ty.to_owned(),
-            ops: ops
-        }
-    }
-
+impl Component {
     /// Consumes parameters and returns new Component
-    pub fn new_with_vec(ty: String, ops: Option<OpsVec>) -> Self {
+    pub fn new(ty: String, block: Block) -> Self {
         Component {
             ty: ty,
-            ops: ops
+            block: block
+            // events: events
         }
     }
 
@@ -116,9 +110,22 @@ impl<'a> Component {
     pub fn ty(&self) -> &str { &self.ty }
 
     #[allow(dead_code)]
-    pub fn ops_iter(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
-        self.ops.as_ref().map(|ops| ops.into_iter())
-    }
+    pub fn root_block<'a>(&'a self) -> &'a Block { &self.block }
+
+    // #[allow(dead_code)]
+    // pub fn ops_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
+    //     self.block.ops_iter()
+    // }
+
+    // #[allow(dead_code)]
+    // pub fn events_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a EventsItem>> {
+    //     self.block.events_iter()
+    // }
+
+    // #[allow(dead_code)]
+    // pub fn componentkey_mappings_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ComponentKeyMapping>> {
+    //     self.block.componentkey_mappings_iter()
+    // }
 }
 
 // Processing
@@ -193,9 +200,11 @@ impl From<io::Error> for DocumentProcessingError {
 #[derive(Debug, Clone)]
 pub struct BlockProcessingState {
     pub block_id: String,
+    pub child_blocks: Vec<Box<BlockProcessingState>>,
     // pub scope: ElementOpScope,
     pub ops_vec: OpsVec,
     pub events_vec: EventsVec,
+    pub compkey_mappings: ComponentKeyMappingVec
 }
 
 impl Default for BlockProcessingState {
@@ -203,10 +212,77 @@ impl Default for BlockProcessingState {
         let block_id = allocate_element_key();
         BlockProcessingState {
             block_id: block_id,
+            child_blocks: Default::default(),
             // scope: Default::default(),
             ops_vec: Default::default(),
             events_vec: Default::default(),
+            compkey_mappings: Default::default()
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Block {
+    block_id: String,
+    child_blocks: Option<BlockVec>,
+    ops: Option<OpsVec>,
+    events: Option<EventsVec>,
+    compkey_mappings: Option<ComponentKeyMappingVec>
+}
+
+pub type BlockVec = Vec<Block>;
+
+impl Into<Block> for BlockProcessingState {
+    fn into(self) -> Block {
+        let has_ops = self.ops_vec.len() > 0;
+        let has_events = self.events_vec.len() > 0;
+        let has_compkey_mappings = self.compkey_mappings.len() > 0;
+        let has_child_blocks = self.child_blocks.len() > 0;
+
+        let ops = if has_ops { Some(self.ops_vec) } else { None };
+        let events = if has_events { Some(self.events_vec) } else { None };
+        let compkey_mappings = if has_compkey_mappings { Some(self.compkey_mappings) } else { None };
+
+        let child_blocks: Option<BlockVec> = if has_child_blocks {
+            Some(self.child_blocks.into_iter().map(|child_block| {
+                let box child_block = child_block;
+                child_block.into()
+            }).collect())
+        } else {
+            None
+        };
+        
+        Block {
+            block_id: self.block_id,
+            child_blocks: child_blocks,
+            ops: ops,
+            events: events,
+            compkey_mappings: compkey_mappings
+        }
+    }
+}
+
+impl Block {
+    pub fn id(&self) -> &str { &self.block_id }
+
+    #[allow(dead_code)]
+    pub fn blocks_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a Block>> {
+        self.child_blocks.as_ref().map(|child_blocks| child_blocks.into_iter())
+    }
+
+    #[allow(dead_code)]
+    pub fn ops_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
+        self.ops.as_ref().map(|ops| ops.into_iter())
+    }
+
+    #[allow(dead_code)]
+    pub fn events_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a EventsItem>> {
+        self.events.as_ref().map(|events| events.into_iter())
+    }
+
+    #[allow(dead_code)]
+    pub fn componentkey_mappings_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ComponentKeyMapping>> {
+        self.compkey_mappings.as_ref().map(|compkey_mappings| compkey_mappings.into_iter())
     }
 }
 
@@ -217,9 +293,9 @@ pub struct ExprScopeProcessingState {
 
 #[derive(Debug, Default)]
 pub struct DocumentProcessingState {
-    root_block: BlockProcessingState,
+    pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
-    pub block_map: BlockMap,
+    // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
@@ -228,18 +304,33 @@ pub struct DocumentProcessingState {
 }
 
 #[derive(Debug)]
-pub struct DocumentState<'inp> {
-    pub ast: &'inp Template,
-    pub root_block: BlockProcessingState,
-    pub comp_map: ComponentMap,
-    pub block_map: BlockMap,
+pub struct Document {
+    root_block: Block,
+    comp_map: Option<ComponentMap>,
+    // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
 }
 
-impl<'inp> DocumentState<'inp> {
+impl<'inp> Into<Document> for DocumentProcessingState {
+    fn into(self) -> Document {
+        let has_comp_map = self.comp_map.len() > 0;
+        let comp_map = if has_comp_map { Some(self.comp_map) } else { None };
+
+        Document {
+            root_block: self.root_block.into(),
+            comp_map: comp_map,
+            reducer_key_data: self.reducer_key_data,
+            default_state_map: self.default_state_map,
+            default_state_symbol: self.default_state_symbol,
+            default_reducer_key: self.default_reducer_key,
+        }
+    }
+}
+
+impl Document {
     #[allow(dead_code)]
     pub fn resolve_symbol_value(&self, sym: &Symbol) -> Option<ExprValue> {
         match sym.sym_ref() {
@@ -256,5 +347,20 @@ impl<'inp> DocumentState<'inp> {
     #[allow(dead_code)]
     pub fn reducers_iter<'a>(&'a self) -> impl IntoIterator<Item = (&'a str, &'a ReducerKeyData)> {
         self.reducer_key_data.iter().map(|r| (r.0.as_str(), r.1))
+    }
+
+    #[allow(dead_code)]
+    pub fn root_block<'a>(&'a self) -> &'a Block {
+        &self.root_block
+    }
+
+    #[allow(dead_code)]
+    pub fn get_component_definitions<'a>(&'a self) -> Option<impl Iterator<Item = (&'a str, &'a Component)>> {
+        self.comp_map.as_ref().map(|comp_map| comp_map.iter().map(|c| (c.0.as_str(), c.1)))
+    }
+
+    #[allow(dead_code)]
+    pub fn get_component<'a>(&'a self, component_ty: &str) -> Option<&'a Component> {
+        self.comp_map.as_ref().map_or(None, |comp_map| comp_map.get(component_ty))
     }
 }

@@ -28,7 +28,7 @@ pub struct CompDefProcessorOutput {
 
 impl Into<Component> for CompDefProcessorOutput {
     fn into(self) -> Component {
-        Component::new_with_vec(self.ty.unwrap(), Some(self.block.ops_vec))
+        Component::new(self.ty.unwrap(), self.block.into())
     }
 }
 
@@ -176,7 +176,7 @@ mod tests {
         pub fn write_component<W>(&mut self, ctx: &mut Context, bindings: &BindingContext, ops_writer: &mut W, comp: &Component)
           where W: OpsWriter
         {
-            if let Some(ops_iter) = comp.ops_iter() {
+            if let Some(ops_iter) = comp.root_block().ops_iter() {
                 for op in ops_iter {
                     Self::write_op_to(ctx, bindings, ops_writer, op);
                     // ops_writer.write_op(op);
@@ -249,7 +249,7 @@ mod tests {
         let comp: Component = output.into();
         assert_eq!(comp.ty(), "Component");
         assert_eq!(
-            comp.ops_iter().map(|v| v.into_iter().cloned().collect()),
+            comp.root_block().ops_iter().map(|v| v.into_iter().cloned().collect()),
             Some(vec![
                 ElementOp::ElementVoid("input".into(), "Pq".into(), Some(vec![(
                     "value".into(),

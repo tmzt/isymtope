@@ -71,131 +71,46 @@ const STRING_HTML_CLOSE_INCDOM_PAGE: &'static str  = r#"
 </html>
 "#;
 
-pub struct PageWriter<'input> {
-    doc: &'input DocumentState<'input>,
+pub struct PageWriter<'doc> {
+    doc: &'doc Document,
     writers: DefaultOutputWritersBoth,
 }
 
-impl<'input> PageWriter<'input> {
+impl<'doc> PageWriter<'doc> {
     #[allow(dead_code)]
-    pub fn with_doc(doc: &'input DocumentState<'input>) -> Self {
+    pub fn with_doc(doc: &'doc Document) -> Self {
         PageWriter {
             doc: doc,
             writers: Default::default()
         }
     }
 
-    #[allow(dead_code)]
-    #[allow(unused_variables)]
-    pub fn write_js_event_actions(&self,
-                                  w: &mut io::Write,
-                                  ctx: &mut Context,
-                                  bindings: &BindingContext,
-                                  action_ops: &Option<Vec<ActionOpNode>>)
-                                  -> Result {
-        if let &Some(ref action_ops) = action_ops {
-            for ref action_op in action_ops {
-                match *action_op {
-                    &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                        // let action_ty = scope.0.make_action_type(action_key);
-                        let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
-
-                        if let &Some(ref action_params) = action_params {
-                            let action_params: PropVec =
-                                iter::once(("type".to_owned(),
-                                            Some(ExprValue::LiteralString(action_ty.to_owned()))))
-                                    .chain(action_params.iter().map(|s| s.clone()))
-                                    .collect();
-
-                            write!(w, " store.dispatch(")?;
-                            // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
-                            writeln!(w, ");")?;
-                        } else {
-                            writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    #[allow(unused_variables)]
-    pub fn write_js_event_bindings<I: IntoIterator<Item = EventsItem>>(&self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
-        writeln!(w, "      // Bind actions")?;
-        for (ref element_key,
-              ref event_name,
-              ref params,
-              ref action_ops,
-              ref event_scope,
-              ref block_id) in events_iter {
-            // let complete_key = scope.0.make_complete_element_key_with(element_key);
-            let complete_key = ctx.join_path(Some("."));
-            let was_enterkey = event_name.as_ref()
-                .map_or(false, |event_name| event_name == "enterkey");
-            let event_name = match event_name.as_ref().map(|s| s.as_str()) {
-                Some("enterkey") => "keydown",
-                Some(event_name) => event_name,
-                None => "click",
-            };
-
-            writeln!(w,
-                     "  document.querySelector(\"[key='{}']\").addEventListener(\"{}\", \
-                      function(event) {{",
-                     complete_key,
-                     event_name)
-                ?;
-
-            if was_enterkey {
-                writeln!(w, "if (event.keyCode == 13) {{")?;
-            };
-
-            self.write_js_event_actions(w, ctx, bindings, action_ops)?;
-
-            if was_enterkey {
-                writeln!(w, "}}")?;
-            };
-
-            writeln!(w, "  }});")?;
-        }
-        Ok(())
-    }
-
     #[inline]
     #[allow(unused_variables)]
     pub fn write_component_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        for (ref component_ty, ref comp_def) in self.doc.comp_map.iter() {
-            ctx.push_child_scope();
-            let key_binding = ExprValue::Binding(BindingType::ComponentKeyBinding);
-            ctx.append_path_expr(&key_binding);
-            writeln!(w, "function component_{}(key, props) {{", comp_def.ty())?;
+        if let Some(comp_iter) = self.doc.get_component_definitions() {
+            for (component_ty, comp_def) in comp_iter {
+                ctx.push_child_scope();
+                let key_binding = ExprValue::Binding(BindingType::ComponentKeyBinding);
+                ctx.append_path_expr(&key_binding);
+                writeln!(w, "function component_{}(key, props) {{", comp_def.ty())?;
 
-            if let Some(ops_iter) = comp_def.ops_iter() {
-                self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+                self.writers.js.write_block(w, self.doc, ctx, bindings, comp_def.root_block(), Some("div"), true)?;
 
-                // let mut scope = base_scope.clone();
-                // let param_expr = ExprValue::SymbolReference(Symbol::param("key_prefix"));
-                // scope.0.set_prefix_expr(&param_expr);
+                // if let Some(ops_iter) = comp_def.root_block().ops_iter() {
+                //     self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+                // };
 
-                // self.output_js
-                //     .write_js_incdom_component(w,
-                //                                component_ty,
-                //                                comp_def,
-                //                                ops.iter(),
-                //                                &mut self.doc,
-                //                                &scope)?;
-            };
-
-            writeln!(w, "}}")?;
-            ctx.pop_scope();
-        }
+                writeln!(w, "}}")?;
+                ctx.pop_scope();
+            }
+        };
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+    pub fn write_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
         write!(w, "{}", self::STRING_JS_OPEN_RENDER)?;
 
         // Render content nodes as incdom calls
@@ -207,8 +122,14 @@ impl<'input> PageWriter<'input> {
         //                                  &mut self.doc,
         //                                  &base_scope)?;
 
-        let ops_iter = self.doc.root_block.ops_vec.iter();
-        self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+        // if let Some(ops_iter) = block.ops_iter() {
+        //     self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+        // };
+
+        self.writers.js.write_block(w, self.doc, ctx, bindings, block, Some("div"), true)?;
+
+        // Event bindings
+        // self.write_block_event_bindings(w, block, ctx, bindings)?;
 
         write!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
@@ -216,10 +137,31 @@ impl<'input> PageWriter<'input> {
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        // Event handlers
-        // if let Some(events_iter) = self.output_html.events_iter() {
-        //     self.write_js_event_bindings(w, events_iter)?;
+    pub fn write_block_event_bindings(&mut self, w: &mut io::Write, block: &Block, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        // Root event handlers
+        if let Some(events_iter) = block.events_iter() {
+            self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
+        };
+
+        // // Child block event handlers
+        // if let Some(children) = block.blocks_iter() {
+        //     for child in children {
+        //         self.writers.js.write_event_bindings(w, child, ctx, bindings)?;
+        //     }
+        // }
+
+        // // Component event handlers
+        // if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
+        //     for compkey_mapping in compkey_mappings {
+        //         if let Some(comp) = self.doc.get_component(compkey_mapping.1.as_str()) {
+        //             self.writers.js.write_event_bindings(w, comp.root_block(), ctx, bindings)?;
+        //         }
+        //     }
+        // }
+
+        // // Root event handlers
+        // if let Some(events_iter) = self.writers.html.events_iter() {
+        //     self.write_js_event_bindings(w, ctx, bindings, events_iter)?;
         // }
 
         // Component event handlers
@@ -241,8 +183,9 @@ impl<'input> PageWriter<'input> {
     #[allow(unused_variables)]
     pub fn write_root_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_HTML_OPEN_ROOT_DIV)?;
-        let ops_iter = self.doc.root_block.ops_vec.iter();
-        self.writers.html.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+        if let Some(ops_iter) = self.doc.root_block().ops_iter() {
+            self.writers.html.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
+        };
         write!(w, "{}", self::STRING_HTML_CLOSE_ROOT_DIV)?;
         Ok(())
     }
@@ -253,12 +196,13 @@ impl<'input> PageWriter<'input> {
         write!(w, "{}", self::STRING_HTML_OPEN_SCRIPT_IIFE)?;
 
         writeln!(w, "/* {:?} */", self.doc.default_state_map)?;
-        writeln!(w, "/* {:?} */", self.doc.root_block.ops_vec)?;
+        writeln!(w, "/* {:?} */", self.doc.root_block().ops_iter().map(|v| v.into_iter().collect::<Vec<&ElementOp>>()))?;
+        writeln!(w, "/* {:?} */", self.doc.root_block().events_iter().map(|v| v.into_iter().collect::<Vec<&EventsItem>>()))?;
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
-        self.write_render_definition(w, ctx, bindings)?;
-        self.write_event_bindings(w, ctx, bindings)?;
+        self.write_block_render_definition(w, ctx, bindings, self.doc.root_block())?;
+        // self.write_event_bindings(w, self.doc.root_block(), ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
         store_writer.write_store(w, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
@@ -317,7 +261,7 @@ mod tests {
         Template { children: nodes }
     }
 
-    fn prepare_document<'a>(template: &'a Template) -> DocumentState<'a> {
+    fn prepare_document<'a>(template: &'a Template) -> Document {
         let mut ctx = Context::default();
         let mut bindings = BindingContext::default();
         let mut processing = ProcessDocument::from_template(&template);

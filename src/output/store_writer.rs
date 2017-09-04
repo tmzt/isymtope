@@ -126,7 +126,7 @@ mod tests {
         Template { children: nodes }
     }
 
-    fn prepare_document<'a>(template: &'a Template) -> DocumentState<'a> {
+    fn prepare_document<'a>(template: &'a Template) -> Document {
         let mut ctx = Context::default();
         let mut bindings = BindingContext::default();
         let mut processing = ProcessDocument::from_template(&template);

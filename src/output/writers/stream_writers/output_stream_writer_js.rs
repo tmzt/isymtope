@@ -46,7 +46,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         Ok(())
     }
 
-    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &DocumentState, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
+    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>, OpsIter: IntoIterator<Item = &'a ElementOp>
     {
         let instance_key = ctx.join_path_as_expr_with(Some("_"), element_key);

@@ -1,10 +1,12 @@
 pub mod expr_writers;
 pub mod ops_writers;
 pub mod stream_writers;
+pub mod block_writers;
 
 pub use self::expr_writers::*;
 pub use self::ops_writers::*;
 pub use self::stream_writers::*;
+pub use self::block_writers::*;
 
 use std::io;
 use parser::*;
@@ -19,7 +21,8 @@ pub trait OutputWriter {
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriter<E: ExpressionWriter> {
     value_writer: E::V,
-    expression_writer: E
+    expression_writer: E,
+    events: EventsVec
 }
 
 impl<V: ValueWriter, E: ExpressionWriter<V = V>> OutputWriter for DefaultOutputWriter<E> {
@@ -33,6 +36,21 @@ impl<E: ExpressionWriter> ExprWriter for DefaultOutputWriter<E> {
         self.expression_writer.write_expr_to(w, &mut self.value_writer, ctx, bindings, expr)
     }
 }
+
+// impl<E: ExpressionWriter> DefaultOutputWriter<E> {
+//     fn add_event(&mut self, ctx: &mut Context, bindings: &BindingContext, element_key: &str, event_handler: &EventHandler) -> Result {
+//         let complete_key = ctx.join_path_with(Some("."), element_key);
+//         let event = event_handler.create_event(&complete_key, ctx.scope().id());
+//         self.events.push(event);
+
+//         Ok(())
+//     }
+
+//     pub fn events_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a EventsItem>> {
+//         let len = self.events.len();
+//         if len > 0 { Some(self.events.iter()) } else { None}
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriters {}
@@ -72,7 +90,7 @@ mod tests {
     use processing::structs::ElementOp;
 
 
-    fn create_document<'a>(template: &'a Template) -> DocumentState<'a> {
+    fn create_document<'a>(template: &'a Template) -> Document {
         let mut ctx = Context::default();
         let mut bindings = BindingContext::default();
         let mut processing = ProcessDocument::from_template(&template);
