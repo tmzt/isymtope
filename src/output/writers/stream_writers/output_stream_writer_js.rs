@@ -9,7 +9,7 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
-    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
         if !is_void {
@@ -20,8 +20,19 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
         let path_expr = ctx.join_path_as_expr_with(Some("."), element_key);
         self.write_expr(w, ctx, bindings, &path_expr)?;
-        // write_js_func_params(scope, w)?;
-        writeln!(w, ");")?;
+        write!(w, ", [")?;
+
+        let mut first_item = true;
+        for ref prop in props {
+            if let Some(ref expr) = prop.1 {
+                if !first_item { write!(w, ", ")?; }
+                first_item = false;
+                write!(w, "\"{}\", ", &prop.0)?;
+                self.write_expr(w, ctx, bindings, &expr)?;
+            };
+        }
+
+        writeln!(w, "]);")?;
 
         Ok(())
     }
