@@ -179,7 +179,7 @@ impl ProcessContent {
 
                                 event_handlers.push(event_handler.clone());
 
-                                let event = event_handler.create_event(&element_data.element_key, ctx.scope().id());
+                                let event = event_handler.create_event(&complete_key, ctx.scope().id());
                                 block.events_vec.push(event);
                             };
                         }

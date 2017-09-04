@@ -2,7 +2,8 @@
 use std::io;
 use std::iter;
 
-use processing::structs::*;
+use parser::*;
+use processing::*;
 use scope::*;
 use output::*;
 
@@ -35,27 +36,52 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
         match op {
                 &ElementOp::ElementOpen(ref element_tag,
                                         ref element_key,
-                                        ref _props,
-                                        ref _events,
+                                        ref props,
+                                        ref events,
                                         ref _value_binding) |
                 &ElementOp::ElementVoid(ref element_tag,
                                         ref element_key,
-                                        ref _props,
-                                        ref _events,
+                                        ref props,
+                                        ref events,
                                         ref _value_binding) => {
 
-                    self.write_op_element_open(
-                        w,
-                        ctx,
-                        bindings,
-                        element_tag,
-                        element_key,
-                        is_void,
-                        iter::empty(),
-                        iter::empty(),
-                        iter::empty(),
-                    )?;
+                    let mut props: Vec<Prop> = props.as_ref().map_or_else(|| Default::default(), |v| v.clone());
 
+                    if element_tag == "a" {
+                        let has_events = events.as_ref().map_or(false, |v| v.len() > 0);
+                        if has_events {
+                            props.insert(0, ("href".into(), Some(ExprValue::LiteralString("#".into()))));
+                        }
+                    }
+
+                    // let has_props = props.as_ref().map_or(false, |v| v.len() > 0);
+                    let has_props = !props.is_empty();
+
+                    if has_props {
+                        self.write_op_element_open(
+                            w,
+                            ctx,
+                            bindings,
+                            element_tag,
+                            element_key,
+                            is_void,
+                            props.into_iter(),
+                            iter::empty(),
+                            iter::empty(),
+                        )?;
+                    } else {
+                        self.write_op_element_open(
+                            w,
+                            ctx,
+                            bindings,
+                            element_tag,
+                            element_key,
+                            is_void,
+                            iter::empty(),
+                            iter::empty(),
+                            iter::empty(),
+                        )?;
+                    };
                 }
 
                 &ElementOp::ElementClose(ref element_tag) => {

@@ -21,14 +21,14 @@ fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mu
         &ExprValue::SymbolReference(ref sym) => {
             match sym.sym_ref() {
                 &SymbolReferenceType::Binding(ref binding) => value_writer.write_binding(w, ctx, bindings, binding),
-                _ => Ok(())
+                _ => value_writer.write_undefined(w)
             }
         }
 
         &ExprValue::Binding(ref binding) => value_writer.write_binding(w, ctx, bindings, binding),
         &ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
         &ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),
-        _ => Ok(())
+        _ => value_writer.write_undefined(w)
     }
 }
 
@@ -71,6 +71,7 @@ pub trait ValueWriter {
     // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result;
     fn write_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result;
     fn write_op(&mut self, w: &mut io::Write, op: &ExprOp) -> Result;
+    fn write_undefined(&mut self, w: &mut io::Write) -> Result;
 }
 
 pub trait DynamicValueWriter : ValueWriter {}
@@ -106,6 +107,10 @@ mod tests {
         }
 
         fn write_op(&mut self, w: &mut io::Write, op: &ExprOp) -> Result {
+            Ok(())
+        }
+
+        fn write_undefined(&mut self, w: &mut io::Write) -> Result {
             Ok(())
         }
     }

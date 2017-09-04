@@ -51,6 +51,10 @@ const STRING_JS_OPEN_RENDER: &'static str  = r#"
                 function render(store) {
 "#;
 
+const STRING_JS_OPEN_ROOT_BINDINGS_DEF: &'static str  = r#"
+                function root_bindings(store) {
+"#;
+
 const STRING_JS_CLOSE_RENDER: &'static str  = r#"                }
 "#;
 
@@ -62,6 +66,8 @@ const STRING_HTML_CLOSE_SCRIPT_IIFE: &'static str  = r#"
                     var store = Redux.createStore(rootReducer, {});
                     // Subscribe
                     store.subscribe(update.bind(null, document.querySelector('#root'), store));
+                    // Bind events
+                    root_bindings(store);
                 });
             })();
         </script>"#;
@@ -93,15 +99,17 @@ impl<'doc> PageWriter<'doc> {
                 ctx.push_child_scope();
                 let key_binding = ExprValue::Binding(BindingType::ComponentKeyBinding);
                 ctx.append_path_expr(&key_binding);
-                writeln!(w, "function component_{}(key, props) {{", comp_def.ty())?;
 
+                writeln!(w, "                function component_{}(key, props) {{", component_ty)?;
                 self.writers.js.write_block(w, self.doc, ctx, bindings, comp_def.root_block(), Some("div"), true)?;
+                writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
 
-                // if let Some(ops_iter) = comp_def.root_block().ops_iter() {
-                //     self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
-                // };
+                writeln!(w, "                function component_bindings_{}(key, store, props) {{", component_ty)?;
+                if let Some(events_iter) = comp_def.root_block().events_iter() {
+                    self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
+                };
+                writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
 
-                writeln!(w, "}}")?;
                 ctx.pop_scope();
             }
         };
@@ -110,72 +118,36 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
+    pub fn write_root_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_JS_OPEN_RENDER)?;
-
-        // Render content nodes as incdom calls
-        // self.output_js
-        //     .write_js_incdom_ops_content(w,
-        //                                  ctx,
-        //                                  bindings,
-        //                                  self.doc.root_block.ops_vec.iter(),
-        //                                  &mut self.doc,
-        //                                  &base_scope)?;
-
-        // if let Some(ops_iter) = block.ops_iter() {
-        //     self.writers.js.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
-        // };
-
-        self.writers.js.write_block(w, self.doc, ctx, bindings, block, Some("div"), true)?;
-
-        // Event bindings
-        // self.write_block_event_bindings(w, block, ctx, bindings)?;
-
+        self.writers.js.write_block(w, self.doc, ctx, bindings, self.doc.root_block(), Some("div"), true)?;
         write!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_block_event_bindings(&mut self, w: &mut io::Write, block: &Block, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        // Root event handlers
+    pub fn write_block_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
+        //Bind component events
+        if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
+            for compkey_mapping in compkey_mappings {
+                writeln!(w, "component_bindings_{}(\"{}\", store, {{}});", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
+            }
+        };
+
+        // Bind block events
         if let Some(events_iter) = block.events_iter() {
             self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
         };
+        Ok(())
+    }
 
-        // // Child block event handlers
-        // if let Some(children) = block.blocks_iter() {
-        //     for child in children {
-        //         self.writers.js.write_event_bindings(w, child, ctx, bindings)?;
-        //     }
-        // }
-
-        // // Component event handlers
-        // if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
-        //     for compkey_mapping in compkey_mappings {
-        //         if let Some(comp) = self.doc.get_component(compkey_mapping.1.as_str()) {
-        //             self.writers.js.write_event_bindings(w, comp.root_block(), ctx, bindings)?;
-        //         }
-        //     }
-        // }
-
-        // // Root event handlers
-        // if let Some(events_iter) = self.writers.html.events_iter() {
-        //     self.write_js_event_bindings(w, ctx, bindings, events_iter)?;
-        // }
-
-        // Component event handlers
-        // if let Some(comp_instances) = self.output_html.component_instances_iter() {
-        //     for &(ref complete_key, ref comp_ty) in comp_instances {
-        //         if let Some(ref comp) = self.doc.comp_map.get(comp_ty) {
-        //             // let mut scope = base_scope.clone();
-        //             // scope.0.append_key(complete_key);
-        //             // if let Some(ref events) = comp.events {
-        //             //     self.write_js_event_bindings(w, events.iter())?;
-        //             // };
-        //         }
-        //     }
-        // }
+    #[inline]
+    #[allow(unused_variables)]
+    pub fn write_root_bindings_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        writeln!(w, "{}", self::STRING_JS_OPEN_ROOT_BINDINGS_DEF)?;
+        self.write_block_event_bindings(w, ctx, bindings, self.doc.root_block())?;
+        writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }
 
@@ -201,8 +173,8 @@ impl<'doc> PageWriter<'doc> {
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
-        self.write_block_render_definition(w, ctx, bindings, self.doc.root_block())?;
-        // self.write_event_bindings(w, self.doc.root_block(), ctx, bindings)?;
+        self.write_root_block_render_definition(w, ctx, bindings)?;
+        self.write_root_bindings_definition(w, ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
         store_writer.write_store(w, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;

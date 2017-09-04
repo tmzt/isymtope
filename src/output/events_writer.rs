@@ -13,35 +13,52 @@ pub trait EventsWriter {
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result;
 }
 
-#[allow(dead_code)]
-#[allow(unused_variables)]
-fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
-    for action_op in action_ops {
-        match action_op {
-            &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                // let action_ty = scope.0.make_action_type(action_key);
-                let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
+pub trait EventActionOpsWriter {
+    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result;
+}
 
-                if let &Some(ref action_params) = action_params {
-                    let action_params: PropVec =
-                        iter::once(("type".to_owned(),
-                                    Some(ExprValue::LiteralString(action_ty.to_owned()))))
-                            .chain(action_params.iter().map(|s| s.clone()))
-                            .collect();
+impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter for E {
 
-                    write!(w, " store.dispatch(")?;
-                    // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
-                    writeln!(w, ");")?;
-                } else {
-                    writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
+    #[allow(dead_code)]
+    #[allow(unused_variables)]
+    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
+        for action_op in action_ops {
+            match action_op {
+                &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+                    // let action_ty = scope.0.make_action_type(action_key);
+                    let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
+
+                    if let &Some(ref action_params) = action_params {
+                        let action_params: PropVec =
+                            iter::once(("type".to_owned(),
+                                        Some(ExprValue::LiteralString(action_ty.to_owned()))))
+                                .chain(action_params.iter().map(|s| s.clone()))
+                                .collect();
+
+                        write!(w, " store.dispatch({{")?;
+
+                        let mut first_item = true;
+                        for ref prop in action_params {
+                            if let Some(ref expr) = prop.1 {
+                                if !first_item { write!(w, ", ")?; }
+                                first_item = false;
+                                write!(w, "\"{}\": ", &prop.0)?;
+                                self.write_expr(w, ctx, bindings, &expr)?;
+                            };
+                        }
+                        // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
+                        writeln!(w, "}});")?;
+                    } else {
+                        writeln!(w, " store.dispatch({{\"type\": \"{}\"}}); ", action_ty)?;
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 
-impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventsWriter for E {
+impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWriter> EventsWriter for E {
 
     #[allow(dead_code)]
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
@@ -75,7 +92,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventsWriter for E {
 
             match &event.2 {
                 &EventHandler::Event(_, _, Some(ref action_ops)) | &EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
-                    write_event_action_ops(w, ctx, bindings, action_ops.iter())?;
+                    self.write_event_action_ops(w, ctx, bindings, action_ops.iter())?;
                 }
                 _ => {}
             }

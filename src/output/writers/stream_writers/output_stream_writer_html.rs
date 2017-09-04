@@ -9,16 +9,17 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
-    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, _bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
         where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
     {
         let complete_key = ctx.join_path_with(Some("."), element_key);
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         for (key, expr) in props {
-            if let Some(ref _expr) = expr {
-                write!(w, " {}=", key)?;
-                // self.write_element_attribute_expr_value(w, key, expr, doc, scope)?;
+            if let Some(ref expr) = expr {
+                write!(w, " {}=\"", key)?;
+                self.write_expr(w, ctx, bindings, expr)?;
+                write!(w, "\"")?;
             }
         }
 

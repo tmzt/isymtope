@@ -34,6 +34,11 @@ impl ValueWriter for ValueWriterHtml {
     fn write_op(&mut self, _w: &mut io::Write, _op: &ExprOp) -> Result {
         Ok(())
     }
+
+    fn write_undefined(&mut self, w: &mut io::Write) -> Result {
+        write!(w, "[undefined]")?;
+        Ok(())
+    }
 }
 impl StaticValueWriter for ValueWriterHtml {}
 

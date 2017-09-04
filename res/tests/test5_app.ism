@@ -19,7 +19,7 @@ component new_todo (entry) {
         input(value="") bind entry {}
     }
     p (class="actions") {
-        a (href="#add") click || { dispatch add(entry: entry); } { "Add" }
+        a () click || { dispatch add(entry: entry); } { "Add" }
     }
 }
 

@@ -56,6 +56,11 @@ impl ValueWriter for ValueWriterJs {
         };
         Ok(())
     }
+
+    fn write_undefined(&mut self, w: &mut io::Write) -> Result {
+        write!(w, "undefined")?;
+        Ok(())
+    }
 }
 impl DynamicValueWriter for ValueWriterJs {}
 
