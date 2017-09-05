@@ -77,6 +77,12 @@ impl<'input> ProcessDocument<'input> {
             };
         }
 
+        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+            ctx.append_action_path_str(default_reducer_key);
+            let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
+            ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
+        };
+
         for ref loc in self.ast.children.iter() {
             if let NodeType::ContentNode(ref content_node) = loc.inner {
                 content_processor.process_block_content_node(ctx, bindings, content_node, &mut root_block, &mut self.processing, None)?;

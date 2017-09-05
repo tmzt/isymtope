@@ -26,7 +26,7 @@ use output::*;
 //     }
 // }
 
-impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
+impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOpsWriter for O {
     // type O = O;
 
     fn write_element_op(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
@@ -65,7 +65,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
                             element_tag,
                             element_key,
                             is_void,
-                            props.into_iter(),
+                            props.iter(),
                             iter::empty(),
                             iter::empty(),
                         )?;
@@ -103,20 +103,16 @@ impl<O: OutputWriter + ElementOpsStreamWriter> ElementOpsWriter for O {
                     )?;
                 }
 
-                &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, _) => {
-                    self.write_op_element_instance_component(
-                        w,
-                        doc,
-                        ctx,
-                        bindings,
-                        component_ty,
-                        component_key,
-                        true,
-                        None,
-                        None,
-                        None,
-                        iter::empty()
-                    )?;
+                &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, ref lens) => {
+                    match lens {
+                        &Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
+                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, component_key, iter::empty(), iter::empty(), iter::empty())?;
+                        }
+
+                        _ => {
+                            self.write_op_element_instance_component(w, doc, ctx, bindings, component_ty, component_key, true, None, None, None)?;
+                        }
+                    }
                 }
 
                 _ => {}

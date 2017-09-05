@@ -16,10 +16,11 @@ impl<O: OutputWriter + ElementOpsWriter + ElementOpsStreamWriter + EventsWriter>
         // Render opening enclosing tag
         if let Some(enclosing_tag) = enclosing_tag {
             self.write_op_element_open(w, ctx, bindings, enclosing_tag, block.id(), false, None, None, None)?;
-        } else {
-            ctx.push_child_scope();
-            ctx.append_path_str(block.id());
         };
+
+        // Push block scope
+        // ctx.push_child_scope();
+        // ctx.append_path_str(block.id());
 
         // Render ops
         if let Some(ops_iter) = block.ops_iter() {
@@ -36,9 +37,8 @@ impl<O: OutputWriter + ElementOpsWriter + ElementOpsStreamWriter + EventsWriter>
         // Render closing enclosing tag
         if let Some(enclosing_tag) = enclosing_tag {
             self.write_op_element_close(w, ctx, bindings, enclosing_tag)?;
-        } else {
-            ctx.pop_scope();
         };
+        // ctx.pop_scope();
 
         Ok(())
     }

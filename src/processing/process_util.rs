@@ -17,25 +17,24 @@ pub enum BareSymbolResolutionMode {
 #[inline]
 pub fn map_lens_using_scope<'input>(ctx: &mut Context,
                                     _bindings: &BindingContext,
-                                    lens: Option<&LensExprType>,
-                                    _processing: &DocumentProcessingState)
-                                    -> Option<LensExprType> {
+                                    lens: &LensExprType)
+                                    -> LensExprType {
     match lens {
-        Some(&LensExprType::ForLens(ref ele_key, ref coll_sym)) => {
-            let ele_key = ele_key.as_ref().map(|s| s.clone());
-            if let Some(resolved) = ctx.resolve_unresolved_sym_object(coll_sym) {
-                return Some(LensExprType::ForLens(ele_key, resolved));
+        &LensExprType::ForLens(ref ele_key, ref coll_expr) => {
+            let ele_key = ele_key.as_ref().map(|s| s.to_owned());
+            if let Some(coll_expr) = ctx.reduce_expr(coll_expr) {
+                return LensExprType::ForLens(ele_key, coll_expr);
             };
         }
-        Some(&LensExprType::GetLens(ref sym)) => {
-            if let Some(resolved) = ctx.resolve_unresolved_sym_object(sym) {
-                return Some(LensExprType::GetLens(resolved));
+        &LensExprType::GetLens(ref prop_expr) => {
+            if let Some(prop_expr) = ctx.reduce_expr(prop_expr) {
+                return LensExprType::GetLens(prop_expr);
             };
         }
-        _ => {}
+        // _ => {}
     };
 
-    None
+    lens.to_owned()
 }
 
 #[inline]

@@ -21,13 +21,7 @@ impl BindingContext {
     }
 
     pub fn add_reducer_key(&mut self, key: &str, reducer_key: &str) {
-        let binding = BindingType::ReducerPathBinding(reducer_key.to_owned(), None);
-        self.binding_map.insert(key.to_owned(), binding);
-    }
-
-    pub fn add_reducer_key_and_path<'a, I: IntoIterator<Item = &'a str>>(&mut self, key: &str, reducer_key: &str, reducer_path: I) {
-        let reducer_path = Some(reducer_path.into_iter().map(|s| s.to_owned()).collect());
-        let binding = BindingType::ReducerPathBinding(reducer_key.to_owned(), reducer_path);
+        let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
         self.binding_map.insert(key.to_owned(), binding);
     }
 
@@ -150,10 +144,10 @@ mod tests {
         let mut bindings = BindingContext::default();
         bindings.add_reducer_key("todo", "todo");
 
-        assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::ReducerPathBinding("todo".into(), None)));
+        assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::ReducerPathBinding("todo".into())));
         let sym = Symbol::unbound_formal_param("todo", Some("s1"));
 
-        assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into(), None)));
+        assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into())));
     }
 
     #[test]
@@ -167,7 +161,7 @@ mod tests {
 
         let binding_iter = SymbolBindingResolver::new(&mut bindings, symbols.iter());
         assert_eq!(binding_iter.collect::<Vec<BindingType>>(), vec![
-            BindingType::ReducerPathBinding("todo".into(), None)
+            BindingType::ReducerPathBinding("todo".into())
         ]);
 
         // assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into(), None)));

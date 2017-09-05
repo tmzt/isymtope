@@ -9,8 +9,8 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
-    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
-        where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
+    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         if !is_void {
             write!(w, "IncrementalDOM.elementOpen(\"{}\", ", element_tag)?;
@@ -57,10 +57,11 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         Ok(())
     }
 
-    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
-        where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>, OpsIter: IntoIterator<Item = &'a ElementOp>
+    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let instance_key = ctx.join_path_as_expr_with(Some("_"), element_key);
+        let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
+        // self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, &instance_key, is_void, props, events, binding)?;
 
         write!(w, "component_{}(", element_tag)?;
         self.write_expr(w, ctx, bindings, &instance_key)?;
@@ -73,6 +74,30 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         write!(w, "IncrementalDOM.text(")?;
         self.write_expr(w, ctx, bindings, expr)?;
         writeln!(w, ");")?;
+        Ok(())
+    }
+}
+
+impl ElementOpsUtilWriter for DefaultOutputWriterJs {
+    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    {
+        // write!(w, "component_{}(", component_ty)?;
+        // self.write_expr(w, ctx, bindings, &instance_key)?;
+        // write!(w, ", {{")?;
+        // writeln!(w, "}});")?;
+        Ok(())
+    }
+
+    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    {
+        // let map_index = ExprValue::Binding(BindingType::MapIndexBinding);
+        // let map_item = ExprValue::Binding(BindingType::MapItemBinding);
+
+        write!(w, "(")?;
+        self.write_expr(w, ctx, bindings, coll_expr)?;
+        writeln!(w, ").forEach(function(item, idx) {{ component_{}(key + \".\" + idx + \".{}\", {{}}); }});", component_ty, instance_key)?;
         Ok(())
     }
 }

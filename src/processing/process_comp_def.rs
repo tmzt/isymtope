@@ -274,7 +274,7 @@ mod tests {
         assert_eq!(ops_writer.ops_iter().cloned().collect::<OpsVec>(), vec![
                 ElementOp::ElementVoid("input".into(), "Pq".into(), Some(vec![(
                     "value".into(),
-                    Some(ExprValue::Binding((BindingType::ReducerPathBinding("todo".into(), None))))
+                    Some(ExprValue::Binding((BindingType::ReducerPathBinding("todo".into()))))
                 )]), None, None)
         ]);
     }

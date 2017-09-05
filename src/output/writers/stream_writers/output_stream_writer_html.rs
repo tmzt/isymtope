@@ -9,14 +9,14 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
-    fn write_op_element_open<PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
-        where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>
+    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let complete_key = ctx.join_path_with(Some("."), element_key);
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
-        for (key, expr) in props {
-            if let Some(ref expr) = expr {
+        for &(ref key, ref expr) in props {
+            if let &Some(ref expr) = expr {
                 write!(w, " {}=\"", key)?;
                 self.write_expr(w, ctx, bindings, expr)?;
                 write!(w, "\"")?;
@@ -50,13 +50,29 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         Ok(())
     }
 
-    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter, OpsIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter, ops: OpsIter) -> Result
-        where PropIter : IntoIterator<Item = Prop>, EventIter: IntoIterator<Item = EventHandler>, BindingIter: IntoIterator<Item = ElementValueBinding>, OpsIter: IntoIterator<Item = &'a ElementOp>
+    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let instance_key = ctx.join_path_with(Some("_"), element_key);
+        let instance_key = ctx.join_path_with(Some("."), element_key);
+        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, &instance_key, is_void, props, events, binding)?;
+        Ok(())
+    }
 
-        write!(w, "<div key=\"{}\" data-comp=\"{}\">", instance_key, element_tag)?;
-        if let Some(comp) = doc.get_component(element_tag) {
+    fn write_op_element_value(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
+        self.write_expr(w, ctx, bindings, expr)?;
+        Ok(())
+    }
+}
+
+impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
+    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    {
+        if let Some(enclosing_tag) = enclosing_tag {
+            write!(w, "<{} key=\"{}\" data-comp=\"{}\">", enclosing_tag, instance_key, component_ty)?;
+        };
+
+        if let Some(comp) = doc.get_component(component_ty) {
             ctx.push_child_scope();
             ctx.append_path_str(&instance_key);
             if let Some(ops_iter) = comp.root_block().ops_iter() {
@@ -65,17 +81,35 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
             ctx.pop_scope();
         };
 
-        write!(w, "</div>")?;
-
-        // write!(w, "component_{}(", element_tag)?;
-        // expression_writer.write_expr_to(w, value_writer, ctx, bindings, &instance_key)?;
-        // write!(w, ", {{")?;
-        // writeln!(w, "}});")?;
+        if let Some(enclosing_tag) = enclosing_tag {
+            write!(w, "</{}>", enclosing_tag)?;
+        };
         Ok(())
     }
 
-    fn write_op_element_value(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
-        self.write_expr(w, ctx, bindings, expr)?;
+    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    {
+        let mut props: PropVec = props.into_iter().map(|s| s.to_owned()).collect();
+        let events: Vec<EventHandler> = events.into_iter().map(|s| s.to_owned()).collect();
+        let binding: Vec<ElementValueBinding> = binding.into_iter().map(|s| s.to_owned()).collect();
+
+        let map_item = ExprValue::Binding(BindingType::MapItemBinding);
+        props.insert(0, (coll_item_key.to_owned(), Some(map_item)));
+
+        if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
+            for (idx, ref item) in arr.iter().enumerate() {
+                ctx.push_child_scope();
+                ctx.append_path_str(&format!("{}", idx));
+
+                // let map_item = Symbol::binding(BindingType::MapItemBinding);
+                // ctx.add_sym(coll_item_key, &map_item);
+
+                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key, false, props.iter(), events.iter(), binding.iter())?;
+
+                ctx.pop_scope();
+            }
+        };
         Ok(())
     }
 }

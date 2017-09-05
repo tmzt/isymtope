@@ -148,7 +148,7 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
 
         let mut expression_writer = TestDynamicExpressionWriter::default();
-        let binding = BindingType::ReducerPathBinding("todos".into(), None);
+        let binding = BindingType::ReducerPathBinding("todos".into());
         let expr = ExprValue::Binding(binding.clone());
         assert!(expression_writer.write_expr_to(&mut s, &mut value_writer, &mut ctx, &bindings, &expr).is_ok());
         assert_eq!(value_writer.wrote_binding, Some(binding));
@@ -162,7 +162,7 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
 
         let mut expression_writer = TestDynamicExpressionWriter::default();
-        let binding = BindingType::ReducerPathBinding("todos".into(), None);
+        let binding = BindingType::ReducerPathBinding("todos".into());
 
         let left = ExprValue::Binding(binding.clone());
         let right = ExprValue::LiteralString("test".into());

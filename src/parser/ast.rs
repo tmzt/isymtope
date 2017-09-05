@@ -194,7 +194,10 @@ impl Symbol {
 pub enum BindingType {
     ExpressionBinding(Box<ExprValue>),
     KeyInSymbolsBinding(String, String),
-    ReducerPathBinding(String, Option<Vec<String>>),
+    // ReducerPathBinding(String, Option<Vec<String>>),
+    ReducerPathBinding(String),
+    MapItemBinding,
+    MapIndexBinding,
     // LoopIndexBinding,
     ActionStateBinding,
     ActionParamBinding(String),
@@ -243,8 +246,8 @@ pub enum ElementExpr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LensExprType {
-    ForLens(Option<String>, Symbol),
-    GetLens(Symbol),
+    ForLens(Option<String>, ExprValue),
+    GetLens(ExprValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]

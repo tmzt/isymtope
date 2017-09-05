@@ -28,11 +28,7 @@ impl ValueWriter for ValueWriterJs {
 
     fn write_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
-            &BindingType::ReducerPathBinding(ref key, ref paths) => {
-                let symbol_path = match paths {
-                    &Some(ref paths) => format!("{}.{}", key, paths.join(".")),
-                    _ => key.to_owned()
-                };
+            &BindingType::ReducerPathBinding(ref symbol_path) => {
                 write!(w, "store.getState().{}", symbol_path)?;
             }
             &BindingType::ActionStateBinding => {
@@ -134,7 +130,7 @@ mod tests {
     fn test_stream_writers_value_writer_js_write_binding1() {
         let mut value_writer = ValueWriterJs::default();
         let mut ctx = Context::default();
-        let binding = BindingType::ReducerPathBinding("todo".into(), None);
+        let binding = BindingType::ReducerPathBinding("todo".into());
 
         {
             let mut s: Vec<u8> = Default::default();
@@ -164,7 +160,7 @@ mod tests {
     fn test_stream_writers_value_writer_js_write_dynamic_expression1() {
         let bindings = BindingContext::default();
         let mut ctx = Context::default();
-        let binding = BindingType::ReducerPathBinding("todo".into(), None);
+        let binding = BindingType::ReducerPathBinding("todo".into());
         let literal_string = ExprValue::LiteralString("test".into());
 
         let expr = ExprValue::Expr(ExprOp::Add,
@@ -184,7 +180,7 @@ mod tests {
         let bindings = BindingContext::default();
         let mut ctx = Context::default();
 
-        let binding = BindingType::ReducerPathBinding("todo".into(), None);
+        let binding = BindingType::ReducerPathBinding("todo".into());
         let literal_string = ExprValue::LiteralString("test".into());
 
         let expr = ExprValue::Expr(ExprOp::Add,
