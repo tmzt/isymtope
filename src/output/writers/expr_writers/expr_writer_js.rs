@@ -26,7 +26,7 @@ impl ValueWriter for ValueWriterJs {
     //     Ok(())
     // }
 
-    fn write_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_simple_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ReducerPathBinding(ref symbol_path) => {
                 write!(w, "store.getState().{}", symbol_path)?;
@@ -39,6 +39,15 @@ impl ValueWriter for ValueWriterJs {
             }
             &BindingType::ComponentKeyBinding => {
                 write!(w, "key")?;
+            }
+            &BindingType::ComponentPropBinding(ref key) => {
+                write!(w, "props.{}", key)?;
+            }
+            &BindingType::MapIndexBinding => {
+                write!(w, "idx")?;
+            }
+            &BindingType::MapItemBinding => {
+                write!(w, "item")?;
             }
             _ => {}
         };
@@ -99,6 +108,20 @@ impl ExpressionWriter for ExpressionWriterJs {
         write!(w, "]")?;
         Ok(())
     }
+
+    fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+        match binding {
+            &BindingType::DOMElementAttributeBinding(ref complete_key, ref attr_name) => {
+                let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
+                write!(w, "document.querySelector(\"[key='\" + ")?;
+                self.write_expr_to(w, value_writer, ctx, bindings, &path_expr)?;
+                write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
+                Ok(())
+            },
+            _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
+        }
+    }
+
 }
 
 // #[derive(Debug, Default)]
@@ -127,7 +150,7 @@ mod tests {
 
 
     #[test]
-    fn test_stream_writers_value_writer_js_write_binding1() {
+    fn test_stream_writers_value_writer_js_write_simple_binding1() {
         let mut value_writer = ValueWriterJs::default();
         let mut ctx = Context::default();
         let binding = BindingType::ReducerPathBinding("todo".into());
@@ -135,7 +158,7 @@ mod tests {
         {
             let mut s: Vec<u8> = Default::default();
             let bindings = BindingContext::default();
-            let res = value_writer.write_binding(&mut s, &mut ctx, &bindings, &binding);
+            let res = value_writer.write_simple_binding(&mut s, &mut ctx, &bindings, &binding);
             assert!(res.is_ok());
             assert_eq!(str::from_utf8(&s), Ok("store.getState().todo".into()));
         }

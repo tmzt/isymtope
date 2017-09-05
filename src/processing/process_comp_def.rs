@@ -51,7 +51,7 @@ impl CompDefProcessor {
     // }
 
     pub fn push_component_definition_scope<'a, I>(&mut self, output: &mut CompDefProcessorOutput, ctx: &mut Context,component_ty: &str, formals: I)
-        where I: IntoIterator<Item = &'a FormalProp<'a>>
+        where I: IntoIterator<Item = FormalProp<'a>>
     {
         if output.ty.is_some() {
             panic!("Already have component defintion in this output.");
@@ -60,15 +60,19 @@ impl CompDefProcessor {
 
         ctx.push_child_scope();
         for formal in formals {
-            ctx.add_unbound_formal_param(formal);
+            let binding = BindingType::ComponentPropBinding(formal.to_owned());
+            ctx.add_sym(formal, Symbol::binding(&binding));
+            // ctx.add_unbound_formal_param(formal);
         }
     }
 
     pub fn push_element_parameter_definition_scope<'a, I>(&mut self, block: &mut BlockProcessingState, ctx: &mut Context, element_id: &str, element_ty: &str, props: Option<I>)
-        where I: IntoIterator<Item = &'a PropKeyRef> + Clone
+        where I: IntoIterator<Item = PropKeyRef> + Clone
     {
+        let props: Option<Vec<PropKeyRef>> = props.map(|props| props.into_iter().collect());
+
         // let props = props.map(|props| props.clone().into_iter());
-        let element_props = props.as_ref().map(|props| props.clone().into_iter().map(|prop| {
+        let element_props = props.as_ref().map(|props| props.iter().map(|prop| {
             let key = &prop.0;
             let ref_key = &prop.1;
             let value_sym = ctx.resolve_sym(ref_key);
@@ -107,7 +111,13 @@ impl CompDefProcessor {
     {
         // Prepare scope with formal parameters
         // TODO: Actually implement the formal parameters
-        self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
+        if let Some(ref props) = component_data.inputs {
+            self.push_component_definition_scope(output, ctx, &component_data.name, props.iter().map(|s| (s.as_str()) ));
+            // self.push_component_definition_scope(output, ctx, &component_data.name, Some(props.iter().map(|s| (s.to_owned(), s.to_owned()) )));
+        } else {
+            self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
+        };
+        // self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
 
         let mut content_processor = ProcessContent::default();
         for node in nodes {
@@ -210,8 +220,8 @@ mod tests {
             // component Component(todo)
             // Create new component context with unbound formal prop (todo)
             {
-                let formals: FormalPropVec = vec![("todo")];
-                processor.push_component_definition_scope(&mut output, &mut ctx, "Component", formals.iter());
+                let formals: Vec<String> = vec!["todo".into()];
+                processor.push_component_definition_scope(&mut output, &mut ctx, "Component", formals.iter().map(|s| (s.as_str())));
             }
             comp_definition_scope_id = ctx.scope().id().to_owned();
 
@@ -230,7 +240,7 @@ mod tests {
                 let props: PropKeyRefVec = vec![
                     ("value".into(), "todo".into())
                 ];
-                processor.push_element_parameter_definition_scope(&mut output.block, &mut ctx, "Pq", "input", Some(props.iter()));
+                processor.push_element_parameter_definition_scope(&mut output.block, &mut ctx, "Pq", "input", Some(props.into_iter()));
             }
             // let element_pq_invocation_scope_id = ctx.scope().id().to_owned();
 

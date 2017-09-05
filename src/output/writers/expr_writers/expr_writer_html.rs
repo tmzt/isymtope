@@ -27,7 +27,7 @@ impl ValueWriter for ValueWriterHtml {
     //     Ok(())
     // }
 
-    fn write_binding(&mut self, _w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
+    fn write_simple_binding(&mut self, _w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
         Ok(())
     }
 
@@ -77,6 +77,10 @@ impl ExpressionWriter for ExpressionWriterHtml {
 
     fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
         write!(w, "[array]")?;
+        Ok(())
+    }
+
+    fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         Ok(())
     }
 }

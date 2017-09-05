@@ -340,6 +340,35 @@ impl Context {
         }
     }
 
+    pub fn map_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, props: I) -> Vec<Prop> {
+        props.into_iter().map(|prop| {
+            if let Some(expr) = prop.1.as_ref().and_then(|expr| self.reduce_expr(expr)) { return (prop.0.to_owned(), Some(expr)); }
+            prop.to_owned()
+        }).collect()
+    }
+
+    pub fn map_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, action_ops: I) -> Vec<ActionOpNode> {
+        action_ops.into_iter().map(|action_op| match action_op {
+            &ActionOpNode::DispatchAction(ref action_ty, ref props) => {
+                ActionOpNode::DispatchAction(action_ty.to_owned(), props.as_ref().map(|v| self.map_props(v.iter())))
+            }
+        }).collect()
+    }
+
+    pub fn map_event_handler_symbols(&mut self, event_handler: &EventHandler) -> EventHandler {
+        match event_handler {
+            &EventHandler::Event(ref event_name, ref params, ref action_ops) => {
+                let action_ops = action_ops.as_ref().map(|action_ops| self.map_action_ops(action_ops.into_iter()));
+                EventHandler::Event(event_name.to_owned(), params.to_owned(), action_ops)
+            }
+            
+            &EventHandler::DefaultEvent(ref params, ref action_ops) => {
+                let action_ops = action_ops.as_ref().map(|action_ops| self.map_action_ops(action_ops.into_iter()));
+                EventHandler::DefaultEvent(params.to_owned(), action_ops)
+            }
+        }
+    }
+
     pub fn reduce_expr_or_return_same(&mut self, expr: &ExprValue) -> ExprValue {
         self.reduce_expr(expr).unwrap_or(expr.clone())
     }

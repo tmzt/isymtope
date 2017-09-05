@@ -201,7 +201,9 @@ pub enum BindingType {
     // LoopIndexBinding,
     ActionStateBinding,
     ActionParamBinding(String),
-    ComponentKeyBinding
+    ComponentKeyBinding,
+    ComponentPropBinding(String),
+    DOMElementAttributeBinding(String, String)
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;

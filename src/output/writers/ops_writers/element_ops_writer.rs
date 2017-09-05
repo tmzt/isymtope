@@ -106,7 +106,8 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                 &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, ref lens) => {
                     match lens {
                         &Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
-                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, component_key, iter::empty(), iter::empty(), iter::empty())?;
+                            let props = vec![(coll_key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];
+                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, component_key, props.iter(), iter::empty(), iter::empty())?;
                         }
 
                         _ => {

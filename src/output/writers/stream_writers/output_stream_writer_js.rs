@@ -92,12 +92,30 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
+        let path_expr = ctx.join_path_as_expr_with(Some("."), instance_key);
+        // let complete_key = ctx.join_path(Some("."));
         // let map_index = ExprValue::Binding(BindingType::MapIndexBinding);
         // let map_item = ExprValue::Binding(BindingType::MapItemBinding);
 
         write!(w, "(")?;
         self.write_expr(w, ctx, bindings, coll_expr)?;
-        writeln!(w, ").forEach(function(item, idx) {{ component_{}(key + \".\" + idx + \".{}\", {{}}); }});", component_ty, instance_key)?;
+        write!(w, ").forEach(function(item, idx) {{ component_{}(", component_ty)?;
+        self.write_expr(w, ctx, bindings, &path_expr)?;
+        write!(w, " + \".\" + idx, {{")?;
+
+        let mut first_item = true;
+        for ref prop in props.into_iter() {
+            if let Some(ref expr) = prop.1 {
+                if !first_item { write!(w, ", ")?; }
+                first_item = false;
+                write!(w, "\"{}\": ", &prop.0)?;
+                self.write_expr(w, ctx, bindings, &expr)?;
+            };
+        }
+        writeln!(w, "}}); }});")?;
+
+        // writeln!(w, ").forEach(function(item, idx) {{ component_{}(\"{}.\" + idx + \".{}\", {{}}); }});", component_ty, complete_key, instance_key)?;
+        // writeln!(w, ").forEach(function(item, idx) {{ component_{}(key + \".\" + idx + \".{}\", {{}}); }});", component_ty, instance_key)?;
         Ok(())
     }
 }

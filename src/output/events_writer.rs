@@ -72,7 +72,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
 
             match &event.2 {
                 &EventHandler::Event(ref event_name, ref params, ref action_ops) => {
-                    final_event_name = if event_name == "enterkey" { was_enterkey = true; "onkeydown".into() } else { event_name.to_owned() };
+                    final_event_name = if event_name == "enterkey" { was_enterkey = true; "keydown".into() } else { event_name.to_owned() };
                 }
 
                 &EventHandler::DefaultEvent(ref params, ref action_ops) => {

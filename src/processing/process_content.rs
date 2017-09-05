@@ -158,6 +158,14 @@ impl ProcessContent {
 
                         //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
 
+                        // Handle special case
+                        if element_tag == "input" {
+                            if let Some(ref key) = value_binding {
+                                let binding = BindingType::DOMElementAttributeBinding(complete_key.to_owned(), "value".into());
+                                ctx.add_sym(key, Symbol::binding(&binding));
+                            };
+                        }
+
                         // Loop through the event bindings
                         for element_binding in element_bindings {
                             if let &ElementBindingNodeType::ElementEventBindingNode(ref event_handler) =
@@ -178,10 +186,11 @@ impl ProcessContent {
                                 //                        None,
                                 //                        Some(block.block_id.to_owned())));
 
-                                event_handlers.push(event_handler.clone());
-
+                                let event_handler = ctx.map_event_handler_symbols(event_handler);
                                 let event = event_handler.create_event(&complete_key, ctx.scope().id());
+
                                 block.events_vec.push(event);
+                                event_handlers.push(event_handler);
                             };
                         }
                     }
