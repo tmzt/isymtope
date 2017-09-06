@@ -23,9 +23,9 @@ pub fn map_lens_using_scope<'input>(ctx: &mut Context,
                 return LensExprType::ForLens(ele_key, coll_expr);
             };
         }
-        &LensExprType::GetLens(ref prop_expr) => {
+        &LensExprType::GetLens(ref prop_key, ref prop_expr) => {
             if let Some(prop_expr) = ctx.reduce_expr(prop_expr) {
-                return LensExprType::GetLens(prop_expr);
+                return LensExprType::GetLens(prop_key.to_owned(), prop_expr);
             };
         }
         // _ => {}

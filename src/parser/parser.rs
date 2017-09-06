@@ -10827,7 +10827,7 @@ fn __action36<
     (_, prop, _): (usize, String, usize),
 ) -> LensExprType
 {
-    LensExprType::GetLens(ExprValue::SymbolReference(Symbol::unresolved(&prop)))
+    LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop)))
 }
 
 fn __action37<

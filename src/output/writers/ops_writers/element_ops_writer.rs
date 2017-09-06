@@ -110,6 +110,11 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                             self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, component_key, props.iter(), iter::empty(), iter::empty())?;
                         }
 
+                        &Some(LensExprType::GetLens(ref key, _)) => {
+                            let props = vec![(key.to_owned(), Some(ExprValue::Binding(BindingType::ComponentPropBinding(key.to_owned()))))];
+                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, component_key, false, props.iter(), iter::empty(), iter::empty())?;
+                        }
+
                         _ => {
                             self.write_op_element_instance_component(w, doc, ctx, bindings, component_ty, component_key, true, None, None, None)?;
                         }

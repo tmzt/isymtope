@@ -7,6 +7,10 @@ store {
     todos {
         action add(entry) => value + entry;
     }
+
+    entry {
+        action clear => ""
+    }
 }
 
 component todo_text_input (todo) {

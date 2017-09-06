@@ -352,7 +352,7 @@ pub enum ElementExpr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LensExprType {
     ForLens(Option<String>, ExprValue),
-    GetLens(ExprValue),
+    GetLens(String, ExprValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]

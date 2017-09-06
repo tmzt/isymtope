@@ -90,7 +90,7 @@ impl ProcessContent {
                         .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
 
                     match lens {
-                        Some(LensExprType::GetLens(_)) => {
+                        Some(LensExprType::GetLens(_, _)) => {
                             if !prop_list.is_some() {
                                 prop_list = Some(Default::default());
                             }
