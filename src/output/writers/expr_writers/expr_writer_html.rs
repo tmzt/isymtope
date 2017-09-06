@@ -81,8 +81,25 @@ impl ExpressionWriter for ExpressionWriterHtml {
     }
 
     fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+        match binding {
+            &BindingType::ComponentPropBinding(ref key) => {
+                if let Some(sym) = ctx.resolve_sym(key) {
+                    self.write_symbol(w, value_writer, ctx,  bindings, &sym)?;
+                };
+            }
+
+            _ => {}
+        };
         Ok(())
     }
+
+    fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+        if let Some(ref expr) = sym.value() {
+            self.write_expr_to(w, value_writer, ctx, bindings, expr)?;
+        };
+        Ok(())
+    }
+
 }
 
 

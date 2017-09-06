@@ -5,6 +5,7 @@ use linked_hash_map::LinkedHashMap;
 use parser::ast::*;
 use scope::scope::*;
 use scope::symbols::*;
+use processing::*;
 
 
 pub type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
@@ -232,6 +233,64 @@ impl Context {
                 "undefined".to_owned()
             }
         }
+    }
+
+    pub fn reduce_expr_and_resolve_to_string(&mut self, doc: &Document, expr: &ExprValue) -> Option<String> {
+        if let Some(expr) = self.reduce_expr_and_resolve(doc, expr) {
+            return Some(self.reduce_expr_to_string(&expr));
+        };
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn reduce_expr_and_resolve(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
+        if expr.is_literal() { return Some(expr.clone()); }
+        match expr {
+            &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
+                let l_reduced = self.reduce_expr_and_resolve(doc, l_expr);
+                let r_reduced = self.reduce_expr_and_resolve(doc, r_expr);
+
+                match (op, &l_reduced, &r_reduced) {
+                    (&ExprOp::Add, &Some(ref l_reduced), &Some(ref r_reduced)) if l_reduced.peek_is_string() || r_reduced.peek_is_string() => {
+                        let l_str = self.reduce_expr_and_resolve_to_string(doc, l_reduced).unwrap_or("undefined".to_owned());
+                        let r_str = self.reduce_expr_and_resolve_to_string(doc, r_reduced).unwrap_or("undefined".to_owned());
+                        return Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)));
+                    }
+
+                    _ => {}
+                };
+                
+            },
+
+            &ExprValue::SymbolReference(ref sym) => {
+                match sym.sym_ref() {
+                    &SymbolReferenceType::Binding(ref binding) => {
+                        if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
+                            if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                                if let Some(ref expr) = reducer_data.default_expr {
+                                    return self.reduce_expr(expr);
+                                };
+                            };
+                        };
+                    }
+                    _ => {}
+                };
+                // Some(ExprValue::LiteralString(format!("{:?}", resolved_sym)))
+            }
+
+            &ExprValue::Binding(ref binding) => {
+                if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
+                    if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                        if let Some(ref expr) = reducer_data.default_expr {
+                            return self.reduce_expr(expr);
+                        };
+                    };
+                };
+            }
+
+            _ => {}
+        };
+        self.reduce_expr(expr)
     }
 
     pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {

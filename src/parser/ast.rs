@@ -62,9 +62,10 @@ pub enum VarType {
 
 impl VarType {
     #[allow(dead_code)]
-    pub fn string_array() -> VarType {
-        VarType::ArrayVar(Some(Box::new(VarType::Primitive(PrimitiveVarType::StringVar))))
-    }
+    pub fn string() -> VarType { VarType::Primitive(PrimitiveVarType::StringVar) }
+
+    #[allow(dead_code)]
+    pub fn string_array() -> VarType { VarType::ArrayVar(Some(Box::new(VarType::Primitive(PrimitiveVarType::StringVar)))) }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -101,6 +102,12 @@ impl Symbol {
         Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()),
                None,
                None)
+    }
+
+    pub fn with_value(self, expr: ExprValue) -> Self {
+        let mut sym = self;
+        sym.2 = Some(Box::new(expr));
+        sym
     }
 
     pub fn binding(binding: &BindingType) -> Symbol {
@@ -303,11 +310,35 @@ impl ExprValue {
     #[inline]
     #[allow(dead_code)]
     pub fn peek_is_array(&self) -> bool {
-        if self.is_array() { return true; }
-        if let Some(VarType::ArrayVar(..)) = self.peek_ty() {
-            return true;
+        match self {
+            &ExprValue::LiteralString(..) => true,
+
+            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
+                l_expr.peek_is_array() || r_expr.peek_is_array()
+            }
+
+            &ExprValue::SymbolReference(ref sym) => {
+                if let Some(&VarType::ArrayVar(..)) = sym.ty() { true } else { false }
+            }
+
+            _ => false
         }
-        return false;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn peek_is_string(&self) -> bool {
+        match self {
+            &ExprValue::LiteralString(..) => true,
+
+            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
+                l_expr.peek_is_string() || r_expr.peek_is_string()
+            }
+
+            &ExprValue::SymbolReference(ref sym) if sym.ty() == Some(&VarType::string()) => true,
+
+            _ => false
+        }
     }
 }
 

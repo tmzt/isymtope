@@ -97,13 +97,17 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
         let map_item = ExprValue::Binding(BindingType::MapItemBinding);
         props.insert(0, (coll_item_key.to_owned(), Some(map_item)));
 
+        // Attempt to resolve coll_expr
+        let reduced_expr = ctx.reduce_expr_and_resolve(doc, coll_expr);
+        let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
+
         if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
-            for (idx, ref item) in arr.iter().enumerate() {
+            for (idx, item) in arr.iter().enumerate() {
                 ctx.push_child_scope();
                 ctx.append_path_str(&format!("{}", idx));
 
-                // let map_item = Symbol::binding(BindingType::MapItemBinding);
-                // ctx.add_sym(coll_item_key, &map_item);
+                let map_item = Symbol::binding(&BindingType::MapItemBinding).with_value(item.to_owned());
+                ctx.add_sym(coll_item_key, map_item);
 
                 self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key, false, props.iter(), events.iter(), binding.iter())?;
 
