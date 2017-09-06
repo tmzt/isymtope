@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use parser::ast::*;
 use parser::util::allocate_element_key;
@@ -69,6 +69,7 @@ impl Scope {
         self.symbol_path.join_as_str(ctx, s)
     }
 
+    #[allow(dead_code)]
     pub fn join_path_as_expr(&self, s: Option<&str>) -> ExprValue {
         self.symbol_path.join_as_expr(s)
     }
@@ -85,30 +86,9 @@ impl Scope {
         self.action_path.join_as_expr(s)
     }
 
-    pub fn prop(&self, key: &str) -> Symbol {
-        Symbol::prop(key, self.id())
-    }
-
-    pub fn param(&self, key: &str) -> Symbol {
-        Symbol::param(key, self.id())
-    }
-
+    #[allow(dead_code)]
     pub fn unbound_formal_param(&self, key: &str) -> Symbol {
         Symbol::unbound_formal_param(key, Some(self.id()))
-    }
-
-    /// References used within reducers and actions
-
-    pub fn reducer_path_ref(&mut self, reducer_path: &str) -> Symbol {
-        Symbol::reducer_key(reducer_path)
-    }
-
-    pub fn unbound_action_param(&mut self, key: &str) -> Symbol {
-        Symbol::unbound_action_param(key, Some(self.id()))
-    }
-
-    pub fn action_param_ref(&mut self, key: &str) -> Symbol {
-        Symbol::action_param(key, self.id())
     }
 }
 

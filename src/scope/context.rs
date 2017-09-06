@@ -1,11 +1,10 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
 
 use parser::ast::*;
 use scope::scope::*;
 use scope::symbols::*;
-
 
 
 pub type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
@@ -116,13 +115,6 @@ impl Context {
         self.push_scope(scope);
     }
 
-    pub fn resolve_unresolved_sym_object(&mut self, sym: &Symbol) -> Option<Symbol> {
-        if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
-            return self.resolve_sym(key);
-        };
-        None
-    }
-
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
         let scope = self.scope();
         let map_id = scope.map_id();
@@ -139,19 +131,7 @@ impl Context {
         None
     }
 
-    pub fn resolve_sym_starting_at(&mut self, key: &str, map_id: &str) -> Option<Symbol> {
-        let mut cur_map = self.symbol_maps.get(map_id);
-        while let Some(map) = cur_map {
-            if let Some(sym) = map.get_sym(key) {
-                return Some(sym.to_owned());
-            };
-
-            cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
-        };
-
-        None
-    }
-
+    #[allow(dead_code)]
     pub fn eval_sym(&mut self, sym: &Symbol) -> Option<ExprValue> {
 
         // let mut cur_sym = sym;
@@ -221,6 +201,7 @@ impl Context {
         };
     }
 
+    #[allow(dead_code)]
     pub fn append_action_path_expr(&mut self, expr: &ExprValue) {
         if let Some(scope) = self.scope_ref_mut() {
             scope.append_action_path_expr(expr);
@@ -373,6 +354,7 @@ impl Context {
         self.reduce_expr(expr).unwrap_or(expr.clone())
     }
 
+    #[allow(dead_code)]
     pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
         self.scope().join_path_as_expr(s)
     }
@@ -390,6 +372,7 @@ impl Context {
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
 
+    #[allow(dead_code)]
     pub fn join_action_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
         self.scope().join_action_path_as_expr(s)
     }
@@ -403,27 +386,15 @@ impl Context {
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
 
-    pub fn prop(&mut self, key: &str) -> Symbol {
-        self.scope().prop(key)
-    }
-
-    pub fn param(&mut self, key: &str) -> Symbol {
-        self.scope().param(key)
-    }
-
+    #[allow(dead_code)]
     pub fn unbound_formal_param(&mut self, key: &str) -> Symbol {
         self.scope().unbound_formal_param(key)
     }
 
+    #[allow(dead_code)]
     pub fn add_unbound_formal_param(&mut self, key: &str) {
         let formal = self.unbound_formal_param(key);
         self.add_sym(key, formal);
-    }
-
-    /// Add prop to component that refers to a key defined in another scope.
-    pub fn add_component_prop_ref(&mut self, key: &str, prop_key: &str, scope_id: Option<&str>) {
-        let prop = Symbol::component_prop(key, prop_key, scope_id);
-        self.add_sym(key, prop);
     }
 
     /// Add prop to element that refers to a key defined in another scope.
@@ -432,60 +403,18 @@ impl Context {
         self.add_sym(key, prop);
     }
 
-    pub fn add_prop(&mut self, prop_key: &str) {
-        let prop = self.prop(prop_key);
-        self.add_sym(prop_key, prop);
-    }
-
+    #[allow(dead_code)]
     pub fn add_invocation_prop(&mut self, key: &str, expr: Option<&ExprValue>) {
         let invocation_prop = Symbol::invocation_prop(key, expr);
         self.add_sym(key, invocation_prop);
     }
 
-    pub fn add_param_ref_to(&mut self, key: &str, param_key: &str) {
-        let param = self.param(param_key);
-        self.add_sym(key, param);
-    }
-
-    /// References used within reducers and actions
-
-    pub fn add_action_state_binding(&mut self, key: &str) {
-        let binding = Symbol::binding(&BindingType::ActionStateBinding);
-        self.add_sym(key, binding);
-    }
-
-    pub fn reducer_path_ref(&mut self, reducer_path: &str) -> Symbol {
-        self.scope().reducer_path_ref(reducer_path)
-    }
-
-    pub fn add_reducer_path_ref(&mut self, key: &str, reducer_path: &str) {
-        let r = self.reducer_path_ref(reducer_path);
-        self.add_sym(key, r);
-    }
-
-    pub fn unbound_action_param(&mut self, key: &str) -> Symbol {
-        self.scope().unbound_action_param(key)
-    }
-
-    pub fn add_unbound_action_param(&mut self, key: &str) {
-        let unbound = self.unbound_action_param(key);
-        self.add_sym(key, unbound);
-    }
-
-    pub fn action_param_ref(&mut self, key: &str) -> Symbol {
-        self.scope().action_param_ref(key)
-    }
-
     pub fn add_action_param(&mut self, key: &str) {
-        let r = self.action_param_ref(key);
-        self.add_sym(key, r);
-    }
-
-    pub fn add_action_param_ref(&mut self, key: &str, action_param_key: &str) {
-        let r = self.action_param_ref(action_param_key);
-        self.add_sym(key, r);
+        let binding = BindingType::ActionParamBinding(key.to_owned());
+        self.add_sym(key, Symbol::binding(&binding));
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -542,7 +471,7 @@ mod tests {
             ctx.push_child_scope();
             ctx.append_path_str("Lm");
             // ctx.add_sym("abc", ctx.prop("xyz3"));
-            ctx.add_param_ref_to("abc", "xyz3");
+            // ctx.add_param_ref_to("abc", "xyz3");
         }
 
         // Lm.No
@@ -551,8 +480,8 @@ mod tests {
             ctx.append_path_str("No");
             // ctx.add_sym("abc", ctx.prop("xyz2"));
             // ctx.add_sym("def", ctx.prop("def2"));
-            ctx.add_param_ref_to("abc", "xyz2");
-            ctx.add_param_ref_to("def", "def2");
+            // ctx.add_param_ref_to("abc", "xyz2");
+            // ctx.add_param_ref_to("def", "def2");
         }
 
         // Lm.No.Pq
@@ -560,7 +489,7 @@ mod tests {
             ctx.push_child_scope();
             ctx.append_path_str("Pq");
             // ctx.add_sym("abc", ctx.prop("xyz3"));
-            ctx.add_param_ref_to("abc", "xyz3");
+            // ctx.add_param_ref_to("abc", "xyz3");
         }
 
         // The joined path (dynamic) should be a string join operation
@@ -594,30 +523,30 @@ mod tests {
             ctx.push_child_scope();
         }
 
-        // Make the current state available using the reducer key
+        // Make the current state available using the reducer key, and as `state`, and `value`.
         {
-            ctx.add_action_state_binding("todos");
+            let binding = BindingType::ActionStateBinding;
+            let sym = Symbol::binding(&binding);
+            ctx.add_sym("todos", sym.clone());
+            ctx.add_sym("state", sym.clone());
+            ctx.add_sym("value", sym.clone());
         }
 
-        // Make the current state available as `state`
-        {
-            ctx.add_action_state_binding("state");
-        }
-
-        // Define an (unbound) action param `message` within this action
+        // Define an action param `entry` within this action
         let action_scope_id = ctx.scope().id().to_owned();
         {
-            ctx.add_unbound_action_param("message");
+            ctx.add_action_param("entry")
         }
 
         // Action ADD
         {
             ctx.push_child_scope();
 
-            // Reference an action param `message` within this action
-            assert_eq!(ctx.resolve_sym("message"),
+            // Reference an action param `entry` within this action
+            assert_eq!(ctx.resolve_sym("entry"),
                 // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
-                Some(Symbol::unbound_action_param("message", Some(&action_scope_id)))
+                Some(Symbol::binding(&BindingType::ActionParamBinding("entry".into())))
+                // Some(Symbol::unbound_action_param("message", Some(&action_scope_id)))
             );
 
             // Reference the current state as local (state)
@@ -631,6 +560,13 @@ mod tests {
                 Some(Symbol::binding(&BindingType::ActionStateBinding))
                 // Some(Symbol::reducer_key("TODOS"))
             );
+
+            // Reference the current state as local (state)
+            assert_eq!(ctx.resolve_sym("value"),
+                Some(Symbol::binding(&BindingType::ActionStateBinding))
+                // Some(Symbol::reducer_key("TODOS"))
+            );
+
         }
     }
 
@@ -835,36 +771,5 @@ mod tests {
 
         // We should resolve the symbol from the nearest scope where it is defined
         // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
-    }
-
-
-    #[derive(Debug, Clone, Default)]
-    struct TestOutputWriter {}
-
-    impl TestOutputWriter {
-        pub fn push_component_instance_scope(&mut self, ctx: &mut Context, element_id: &str) {
-            ctx.push_child_scope();
-            ctx.append_path_str(element_id);
-            ctx.add_param_ref_to("todo", "todo");
-            // ctx.add_sym("todo", ctx.param("todo"));
-        }
-    }
-
-    #[test]
-    pub fn test_context_output_writer() {
-        let mut ctx = Context::default();
-        let mut output = TestOutputWriter::default();
-
-        // Comp1
-        output.push_component_instance_scope(&mut ctx, "Comp1");
-
-        // The joined path (dynamic) should be a string join operation
-        let expr = ctx.join_path_as_expr(Some("."));
-        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-            Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-        ])));
-
-        // The local var (param) should resolve to a param
-        // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
     }
 }
