@@ -26,7 +26,7 @@ impl ValueWriter for ValueWriterJs {
     //     Ok(())
     // }
 
-    fn write_simple_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_simple_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ReducerPathBinding(ref symbol_path) => {
                 write!(w, "store.getState().{}", symbol_path)?;
@@ -77,6 +77,14 @@ impl ExpressionWriter for ExpressionWriterJs {
     type V = ValueWriterJs;
 
     fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+        if left.peek_is_array() || right.peek_is_array() {
+            self.write_expr_to(w, value_writer, ctx, bindings, left)?;
+            write!(w, ".concat(")?;
+            self.write_expr_to(w, value_writer, ctx, bindings, right)?;
+            write!(w, ")")?;
+            return Ok(())
+        };
+
         self.write_expr_to(w, value_writer, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
         self.write_expr_to(w, value_writer, ctx, bindings, right)?;
@@ -118,6 +126,13 @@ impl ExpressionWriter for ExpressionWriterJs {
                 write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
                 Ok(())
             },
+            &BindingType::DOMInputElementValueBinding(ref complete_key) => {
+                let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
+                write!(w, "document.querySelector(\"[key='\" + ")?;
+                self.write_expr_to(w, value_writer, ctx, bindings, &path_expr)?;
+                write!(w, " + \"']\").value")?;
+                Ok(())
+            }
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
         }
     }

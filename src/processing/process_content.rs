@@ -161,7 +161,7 @@ impl ProcessContent {
                         // Handle special case
                         if element_tag == "input" {
                             if let Some(ref key) = value_binding {
-                                let binding = BindingType::DOMElementAttributeBinding(complete_key.to_owned(), "value".into());
+                                let binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
                                 ctx.add_sym(key, Symbol::binding(&binding));
                             };
                         }

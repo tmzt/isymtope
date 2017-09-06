@@ -22,8 +22,11 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         self.write_expr(w, ctx, bindings, &path_expr)?;
         write!(w, ", [")?;
 
+        let mut props: PropVec = props.into_iter().map(|e| e.to_owned()).collect();
+        props.insert(0, ("key".into(), Some(path_expr.clone())));
+
         let mut first_item = true;
-        for ref prop in props {
+        for ref prop in props.iter() {
             if let Some(ref expr) = prop.1 {
                 if !first_item { write!(w, ", ")?; }
                 first_item = false;
@@ -66,7 +69,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         write!(w, "component_{}(", element_tag)?;
         self.write_expr(w, ctx, bindings, &instance_key)?;
         write!(w, ", {{")?;
-        writeln!(w, "}});")?;
+        writeln!(w, "}}, store);")?;
         Ok(())
     }
 

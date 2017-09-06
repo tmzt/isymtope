@@ -60,6 +60,13 @@ pub enum VarType {
     Primitive(PrimitiveVarType),
 }
 
+impl VarType {
+    #[allow(dead_code)]
+    pub fn string_array() -> VarType {
+        VarType::ArrayVar(Some(Box::new(VarType::Primitive(PrimitiveVarType::StringVar))))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
@@ -98,6 +105,10 @@ impl Symbol {
 
     pub fn binding(binding: &BindingType) -> Symbol {
         Symbol(SymbolReferenceType::Binding(binding.to_owned()), None, None)
+    }
+
+    pub fn typed_binding(binding: &BindingType, ty: &VarType) -> Symbol {
+        Symbol(SymbolReferenceType::Binding(binding.to_owned()), Some(ty.to_owned()), None)
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
@@ -203,7 +214,8 @@ pub enum BindingType {
     ActionParamBinding(String),
     ComponentKeyBinding,
     ComponentPropBinding(String),
-    DOMElementAttributeBinding(String, String)
+    DOMElementAttributeBinding(String, String),
+    DOMInputElementValueBinding(String)
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;
@@ -218,6 +230,7 @@ pub enum ExprValue {
     SymbolReference(Symbol),
     SymbolPathReference(Vec<Symbol>),
     Binding(BindingType),
+    TypedBinding(BindingType, VarType),
 
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
@@ -236,6 +249,65 @@ impl ExprValue {
             &ExprValue::LiteralNumber(..) => true,
             _ => false,
         }
+    }
+
+    #[inline]
+    pub fn is_array(&self) -> bool {
+        match self {
+            &ExprValue::LiteralArray(..) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn is_literal_string(&self) -> bool {
+        match self {
+            &ExprValue::LiteralString(..) => true,
+            _ => false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn peek_ty(&self) -> Option<VarType> {
+        match self {
+            &ExprValue::LiteralNumber(..) => {
+                return Some(VarType::Primitive(PrimitiveVarType::Number));
+            }
+
+            &ExprValue::LiteralString(..) => {
+                return Some(VarType::Primitive(PrimitiveVarType::StringVar));
+            }
+
+            &ExprValue::LiteralArray(Some(ref items)) => {
+                if !items.is_empty() {
+                    if let Some(ref first_item) = items.get(0) {
+                        if let Some(var_ty) = first_item.peek_ty() {
+                            return Some(VarType::ArrayVar(Some(Box::new(var_ty))));
+                        }
+                        return Some(VarType::ArrayVar(None));
+                    };
+                };
+                return Some(VarType::ArrayVar(None));
+            }
+
+            &ExprValue::SymbolReference(ref sym) => {
+                if let Some(ty) = sym.ty() { return Some(ty.to_owned()); }
+            }
+
+            _ => {}
+        };
+        None
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn peek_is_array(&self) -> bool {
+        if self.is_array() { return true; }
+        if let Some(VarType::ArrayVar(..)) = self.peek_ty() {
+            return true;
+        }
+        return false;
     }
 }
 

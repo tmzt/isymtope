@@ -100,11 +100,12 @@ impl<'doc> PageWriter<'doc> {
                 let key_binding = ExprValue::Binding(BindingType::ComponentKeyBinding);
                 ctx.append_path_expr(&key_binding);
 
-                writeln!(w, "                function component_{}(key, props) {{", component_ty)?;
+                writeln!(w, "                function component_{}(key, props, store) {{", component_ty)?;
                 self.writers.js.write_block(w, self.doc, ctx, bindings, comp_def.root_block(), Some("div"), true)?;
+                writeln!(w, "                  component_bindings_{}(key, props, store);", component_ty)?;
                 writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
 
-                writeln!(w, "                function component_bindings_{}(key, store, props) {{", component_ty)?;
+                writeln!(w, "                function component_bindings_{}(key, props, store) {{", component_ty)?;
                 if let Some(events_iter) = comp_def.root_block().events_iter() {
                     self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
                 };
@@ -131,7 +132,7 @@ impl<'doc> PageWriter<'doc> {
         //Bind component events
         if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
             for compkey_mapping in compkey_mappings {
-                writeln!(w, "component_bindings_{}(\"{}\", store, {{}});", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
+                writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
             }
         };
 
@@ -164,6 +165,23 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
+    pub fn write_element_rendering_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        ctx.push_child_scope();
+        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
+            ctx.append_action_path_str(default_reducer_key);
+        };
+
+        // Define components
+        self.write_component_definitions(w, ctx, bindings)?;
+        self.write_root_block_render_definition(w, ctx, bindings)?;
+        self.write_root_bindings_definition(w, ctx, bindings)?;
+
+        ctx.pop_scope();
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
     pub fn write_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_HTML_OPEN_SCRIPT_IIFE)?;
 
@@ -171,10 +189,7 @@ impl<'doc> PageWriter<'doc> {
         writeln!(w, "/* {:?} */", self.doc.root_block().ops_iter().map(|v| v.into_iter().collect::<Vec<&ElementOp>>()))?;
         writeln!(w, "/* {:?} */", self.doc.root_block().events_iter().map(|v| v.into_iter().collect::<Vec<&EventsItem>>()))?;
 
-        // Define components
-        self.write_component_definitions(w, ctx, bindings)?;
-        self.write_root_block_render_definition(w, ctx, bindings)?;
-        self.write_root_bindings_definition(w, ctx, bindings)?;
+        self.write_element_rendering_script_html(w, ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
         store_writer.write_store(w, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
