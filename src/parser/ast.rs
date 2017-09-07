@@ -72,6 +72,7 @@ impl VarType {
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
     Binding(BindingType),
+    InitialValue(Box<Symbol>, Box<Symbol>),
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
 
@@ -97,6 +98,12 @@ pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 pub type SymbolMap = LinkedHashMap<String, Symbol>;
 // pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
+impl Into<Symbol> for BindingType {
+    fn into(self) -> Symbol {
+        Symbol(SymbolReferenceType::Binding(self), None, None)
+    }
+}
+
 impl Symbol {
     pub fn unresolved(key: &str) -> Symbol {
         Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()),
@@ -116,6 +123,10 @@ impl Symbol {
 
     pub fn typed_binding(binding: &BindingType, ty: &VarType) -> Symbol {
         Symbol(SymbolReferenceType::Binding(binding.to_owned()), Some(ty.to_owned()), None)
+    }
+
+    pub fn initial_value(initial: &Symbol, after: &Symbol) -> Symbol {
+        Symbol(SymbolReferenceType::InitialValue(Box::new(initial.to_owned()), Box::new(after.to_owned())), None, None)
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
@@ -238,7 +249,6 @@ pub enum ExprValue {
     SymbolPathReference(Vec<Symbol>),
     Binding(BindingType),
     TypedBinding(BindingType, VarType),
-
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
@@ -400,12 +410,12 @@ impl EventHandler {
 }
 
 // pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
-pub type ElementValueBinding = Option<String>;
+pub type ElementValueBinding = Option<(String, Symbol)>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(EventHandler),
-    ElementValueBindingNode(String),
+    ElementValueBindingNode(String, Symbol),
 }
 
 pub type PropKey = String;

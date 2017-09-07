@@ -10921,7 +10921,7 @@ fn __action44<
     (_, key, _): (usize, String, usize),
 ) -> ElementBindingNodeType
 {
-    ElementBindingNodeType::ElementValueBindingNode(key.to_owned())
+    ElementBindingNodeType::ElementValueBindingNode(key.to_owned(), Symbol::unresolved(&key))
 }
 
 fn __action45<

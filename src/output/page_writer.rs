@@ -91,6 +91,20 @@ impl<'doc> PageWriter<'doc> {
         }
     }
 
+    pub fn push_content_context(&mut self, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        ctx.push_child_scope();
+        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
+            ctx.append_action_path_str(default_reducer_key);
+        };
+
+        for (_, reducer_data) in self.doc.reducer_key_data.iter() {
+            let reducer_key = reducer_data.reducer_key.to_owned();
+            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
+            ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
+        Ok(())
+    }
+
     #[inline]
     #[allow(unused_variables)]
     pub fn write_component_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
@@ -121,7 +135,7 @@ impl<'doc> PageWriter<'doc> {
     #[allow(unused_variables)]
     pub fn write_root_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_JS_OPEN_RENDER)?;
-        self.writers.js.write_block(w, self.doc, ctx, bindings, self.doc.root_block(), Some("div"), true)?;
+        self.writers.js.write_block(w, self.doc, ctx, bindings, self.doc.root_block(), None, true)?;
         write!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }
@@ -155,21 +169,22 @@ impl<'doc> PageWriter<'doc> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_root_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        self.push_content_context(ctx, bindings)?;
+
         write!(w, "{}", self::STRING_HTML_OPEN_ROOT_DIV)?;
         if let Some(ops_iter) = self.doc.root_block().ops_iter() {
             self.writers.html.write_element_ops(w, self.doc, ctx, bindings, ops_iter)?;
         };
         write!(w, "{}", self::STRING_HTML_CLOSE_ROOT_DIV)?;
+
+        ctx.pop_scope();
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
     pub fn write_element_rendering_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        ctx.push_child_scope();
-        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            ctx.append_action_path_str(default_reducer_key);
-        };
+        self.push_content_context(ctx, bindings)?;
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;

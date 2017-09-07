@@ -9,7 +9,7 @@ store {
     }
 
     entry {
-        action clear => ""
+        action clear => "";
     }
 }
 

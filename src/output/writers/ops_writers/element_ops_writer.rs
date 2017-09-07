@@ -38,12 +38,12 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                                         ref element_key,
                                         ref props,
                                         ref events,
-                                        ref _value_binding) |
+                                        ref value_binding) |
                 &ElementOp::ElementVoid(ref element_tag,
                                         ref element_key,
                                         ref props,
                                         ref events,
-                                        ref _value_binding) => {
+                                        ref value_binding) => {
 
                     let mut props: Vec<Prop> = props.as_ref().map_or_else(|| Default::default(), |v| v.clone());
 
@@ -52,6 +52,21 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                         if has_events {
                             props.insert(0, ("href".into(), Some(ExprValue::LiteralString("#".into()))));
                         }
+                    }
+
+                    if element_tag == "input" {
+                        if let &Some(ref value_binding) = value_binding {
+                            let value_sym = match value_binding.1.sym_ref() {
+                                &SymbolReferenceType::InitialValue(box ref initial, _) => initial.to_owned(),
+                                _ => value_binding.1.to_owned()
+                            };
+
+                            props.push(("value".into(), Some(ExprValue::SymbolReference(value_sym))));
+
+                            // if let Some(sym) = ctx.resolve_sym(&value_binding.0) {
+                            //     props.push(("value".into(), Some(ExprValue::SymbolReference(sym))));
+                            // };
+                        };
                     }
 
                     // let has_props = props.as_ref().map_or(false, |v| v.len() > 0);
@@ -67,7 +82,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                             is_void,
                             props.iter(),
                             iter::empty(),
-                            iter::empty(),
+                            iter::once(value_binding),
                         )?;
                     } else {
                         self.write_op_element_open(
@@ -79,7 +94,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                             is_void,
                             iter::empty(),
                             iter::empty(),
-                            iter::empty(),
+                            iter::once(value_binding),
                         )?;
                     };
                 }
@@ -107,12 +122,13 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                     match lens {
                         &Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
                             let props = vec![(coll_key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];
-                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, component_key, props.iter(), iter::empty(), iter::empty())?;
+                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props.iter(), iter::empty(), iter::empty())?;
                         }
 
                         &Some(LensExprType::GetLens(ref key, _)) => {
-                            let props = vec![(key.to_owned(), Some(ExprValue::Binding(BindingType::ComponentPropBinding(key.to_owned()))))];
-                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, component_key, false, props.iter(), iter::empty(), iter::empty())?;
+                            let expr = if let Some(sym) = ctx.resolve_sym(key) { ExprValue::SymbolReference(sym) } else { ExprValue::Binding(BindingType::ComponentPropBinding(key.to_owned())) };
+                            let props = vec![(key.to_owned(), Some(expr))];
+                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.iter(), iter::empty(), iter::empty())?;
                         }
 
                         _ => {

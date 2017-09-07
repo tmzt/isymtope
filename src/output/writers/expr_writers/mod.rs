@@ -44,9 +44,7 @@ pub trait ExpressionWriter {
         };
 
         if let &ExprValue::SymbolReference(ref sym) = expr {
-            if let &SymbolReferenceType::Binding(ref binding) = sym.sym_ref() {
-                return self.write_binding(w, value_writer, ctx, bindings, binding);
-            }
+            return self.write_symbol(w, value_writer, ctx, bindings, sym);
         };
 
         if let &ExprValue::Binding(ref binding) = expr {
@@ -61,7 +59,14 @@ pub trait ExpressionWriter {
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
     fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result;
     fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result;
-    fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result;
+
+    fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+        match sym.sym_ref() {
+            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+            &SymbolReferenceType::InitialValue(box ref initial, _) => self.write_symbol(w, value_writer, ctx, bindings, sym),
+            _ => value_writer.write_undefined(w)
+        }
+    }
 }
 
 pub trait DynamicExpressionWriter : ExpressionWriter { }

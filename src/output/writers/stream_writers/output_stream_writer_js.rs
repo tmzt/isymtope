@@ -37,6 +37,22 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
         writeln!(w, "]);")?;
 
+        // Handle special case
+        if element_tag == "input" {
+            for value_binding in binding {
+                if let &Some((ref key, ref sym)) = value_binding {
+                    if let &SymbolReferenceType::InitialValue(box ref initial, box ref element) = sym.sym_ref() {
+                        let expr = ExprValue::SymbolReference(element.to_owned());
+                        self.write_expr(w, ctx, bindings, &expr)?;
+                        write!(w, " = ")?;
+                        let expr = ExprValue::SymbolReference(initial.to_owned());
+                        self.write_expr(w, ctx, bindings, &expr)?;
+                        writeln!(w, ";")?;
+                    };
+                };
+            }
+        };
+
         Ok(())
     }
 
@@ -60,17 +76,11 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         Ok(())
     }
 
-    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
-        // self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, &instance_key, is_void, props, events, binding)?;
-
-        write!(w, "component_{}(", element_tag)?;
-        self.write_expr(w, ctx, bindings, &instance_key)?;
-        write!(w, ", {{")?;
-        writeln!(w, "}}, store);")?;
-        Ok(())
+        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding)
     }
 
     fn write_op_element_value(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
@@ -82,20 +92,31 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 }
 
 impl ElementOpsUtilWriter for DefaultOutputWriterJs {
-    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, _is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, _is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        // write!(w, "component_{}(", component_ty)?;
-        // self.write_expr(w, ctx, bindings, &instance_key)?;
-        // write!(w, ", {{")?;
-        // writeln!(w, "}});")?;
+        let instance_key = instance_key.as_expr();
+        write!(w, "component_{}(", component_ty)?;
+        self.write_expr(w, ctx, bindings, &instance_key)?;
+        write!(w, ", {{")?;
+        let mut first_item = true;
+        for ref prop in props.into_iter() {
+            if let Some(ref expr) = prop.1 {
+                if !first_item { write!(w, ", ")?; }
+                first_item = false;
+                write!(w, "\"{}\": ", &prop.0)?;
+                self.write_expr(w, ctx, bindings, &expr)?;
+            };
+        }
+        writeln!(w, "}}, store);")?;
         Ok(())
     }
 
-    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let path_expr = ctx.join_path_as_expr_with(Some("."), instance_key);
+        let instance_key = instance_key.as_static_string();
+        let path_expr = ctx.join_path_as_expr_with(Some("."), &instance_key);
         // let complete_key = ctx.join_path(Some("."));
         // let map_index = ExprValue::Binding(BindingType::MapIndexBinding);
         // let map_item = ExprValue::Binding(BindingType::MapItemBinding);

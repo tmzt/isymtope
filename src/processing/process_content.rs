@@ -90,10 +90,14 @@ impl ProcessContent {
                         .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
 
                     match lens {
-                        Some(LensExprType::GetLens(_, _)) => {
+                        Some(LensExprType::GetLens(ref prop_key, _)) => {
                             if !prop_list.is_some() {
                                 prop_list = Some(Default::default());
                             }
+
+                            if let Some(ref mut prop_list) = prop_list {
+                                prop_list.push(prop_key.to_owned());
+                            };
                         }
                         Some(LensExprType::ForLens(ref ele_key, _)) => {
                             if !prop_list.is_some() {
@@ -145,26 +149,34 @@ impl ProcessContent {
                     let mut event_handlers: EventHandlersVec = Default::default();
                     // let mut events: EventsVec = Default::default();
                     let mut value_binding: ElementValueBinding = Default::default();
+                    let mut event_value_binding: ElementValueBinding = Default::default();
 
                     // Process bindings
                     if let Some(ref element_bindings) = element_data.bindings {
                         // Loop through value bindings first
                         for element_binding in element_bindings {
-                            if let &ElementBindingNodeType::ElementValueBindingNode(ref key) =
-                                   element_binding {
-                                value_binding = Some(key.to_owned());
+                            if let &ElementBindingNodeType::ElementValueBindingNode(ref key, ref sym) = element_binding {
+                                let resolved_sym = ctx.resolve_symbol_to_symbol(sym);
+                                value_binding = Some((key.to_owned(), resolved_sym));
+
+                                // Handle special case
+                                // if element_tag == "input" {
+                                //     let binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
+                                //     // ctx.add_sym(key, Symbol::binding(&binding));
+                                //     event_value_binding = Some((key.to_owned(), Symbol::binding(&binding)));
+                                // };
                             };
                         }
 
                         //                     param.1 = param.1.as_ref().map(|expr| map_expr_using_scope(expr, processing, &mut block.scope, resolution_mode));
 
-                        // Handle special case
-                        if element_tag == "input" {
-                            if let Some(ref key) = value_binding {
-                                let binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
-                                ctx.add_sym(key, Symbol::binding(&binding));
-                            };
-                        }
+                        // // Handle special case
+                        // if element_tag == "input" {
+                        //     if let Some(ref value_binding) = value_binding {
+                        //         let binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
+                        //         ctx.add_sym(&value_binding.0, Symbol::binding(&binding));
+                        //     };
+                        // }
 
                         // Loop through the event bindings
                         for element_binding in element_bindings {
@@ -186,11 +198,38 @@ impl ProcessContent {
                                 //                        None,
                                 //                        Some(block.block_id.to_owned())));
 
+                                // Push scope valid inside the event handlers, which will include value bindings, if any.
+                                ctx.push_child_scope();
+
+                                // Handle special case
+                                if element_tag == "input" {
+                                    // if let Some(ref value_binding) = value_binding {
+                                    //     let dom_binding: Symbol = BindingType::DOMInputElementValueBinding(complete_key.to_owned()).into();
+                                    //     let sym = match ctx.resolve_sym(&value_binding.0) {
+                                    //         Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
+                                    //         _ => dom_binding
+                                    //     };
+                                    //     ctx.add_sym(&value_binding.0, sym);
+                                    // };
+
+                                    value_binding = value_binding.as_ref().map(|value_binding| {
+                                        let dom_binding: Symbol = BindingType::DOMInputElementValueBinding(complete_key.to_owned()).into();
+                                        let sym = match ctx.resolve_sym(&value_binding.0) {
+                                            Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
+                                            _ => dom_binding
+                                        };
+                                        ctx.add_sym(&value_binding.0, sym.clone());
+                                        (value_binding.0.to_owned(), sym)
+                                    });
+                                }
+
                                 let event_handler = ctx.map_event_handler_symbols(event_handler);
                                 let event = event_handler.create_event(&complete_key, ctx.scope().id());
 
                                 block.events_vec.push(event);
                                 event_handlers.push(event_handler);
+
+                                ctx.pop_scope();
                             };
                         }
                     }

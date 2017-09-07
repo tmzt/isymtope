@@ -138,7 +138,11 @@ impl ExpressionWriter for ExpressionWriterJs {
     }
 
     fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
-        Ok(())
+        match sym.sym_ref() {
+            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
+            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+            _ => Ok(())
+        }
     }
 
 }

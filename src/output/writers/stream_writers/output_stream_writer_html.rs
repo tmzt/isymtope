@@ -54,7 +54,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = ctx.join_path_with(Some("."), element_key);
-        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, &instance_key, is_void, props, events, binding)?;
+        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Static(&instance_key), is_void, props, events, binding)?;
         Ok(())
     }
 
@@ -65,11 +65,13 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 }
 
 impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
-    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
+    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, is_void: bool, _props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
+        let instance_key = instance_key.as_static_string();
+
         if let Some(enclosing_tag) = enclosing_tag {
-            write!(w, "<{} key=\"{}\" data-comp=\"{}\">", enclosing_tag, instance_key, component_ty)?;
+            write!(w, "<{} key=\"{}\" data-comp=\"{}\">", enclosing_tag, &instance_key, component_ty)?;
         };
 
         if let Some(comp) = doc.get_component(component_ty) {
@@ -87,7 +89,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
         Ok(())
     }
 
-    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: &str, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let mut props: PropVec = props.into_iter().map(|s| s.to_owned()).collect();
@@ -109,7 +111,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
                 let map_item = Symbol::binding(&BindingType::MapItemBinding).with_value(item.to_owned());
                 ctx.add_sym(coll_item_key, map_item);
 
-                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key, false, props.iter(), events.iter(), binding.iter())?;
+                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key.clone(), false, props.iter(), events.iter(), binding.iter())?;
 
                 ctx.pop_scope();
             }

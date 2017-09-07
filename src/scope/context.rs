@@ -133,6 +133,14 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn resolve_symbol_to_symbol(&mut self, sym: &Symbol) -> Symbol {
+        if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
+            if let Some(sym) = self.resolve_sym(key) { return sym; }
+        };
+        sym.clone()
+    }
+
+    #[allow(dead_code)]
     pub fn eval_sym(&mut self, sym: &Symbol) -> Option<ExprValue> {
 
         // let mut cur_sym = sym;
@@ -264,6 +272,11 @@ impl Context {
 
             &ExprValue::SymbolReference(ref sym) => {
                 match sym.sym_ref() {
+                    &SymbolReferenceType::InitialValue(_, box ref after) => {
+                        let expr = ExprValue::SymbolReference(after.to_owned());
+                        return self.reduce_expr_and_resolve(doc, &expr);
+                    }
+
                     &SymbolReferenceType::Binding(ref binding) => {
                         if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
                             if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
