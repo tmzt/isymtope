@@ -63,7 +63,7 @@ pub trait ExpressionWriter {
     fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
         match sym.sym_ref() {
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
-            &SymbolReferenceType::InitialValue(box ref initial, _) => self.write_symbol(w, value_writer, ctx, bindings, sym),
+            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
             _ => value_writer.write_undefined(w)
         }
     }
@@ -101,10 +101,6 @@ mod tests {
         fn write_literal_number(&mut self, w: &mut io::Write, n: &i32) -> Result {
             Ok(())
         }
-
-        // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result {
-        //     Ok(())
-        // }
 
         fn write_simple_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
             if (!self.wrote_binding.is_some()) {
@@ -153,7 +149,6 @@ mod tests {
             Ok(())
         }
     }
-    // impl DynamicExpressionWriter for TestDynamicExpressionWriter {}
 
     #[test]
     fn test_output_writer_default_expression_writer_write_binding_expression() {

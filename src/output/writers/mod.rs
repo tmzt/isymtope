@@ -37,21 +37,6 @@ impl<E: ExpressionWriter> ExprWriter for DefaultOutputWriter<E> {
     }
 }
 
-// impl<E: ExpressionWriter> DefaultOutputWriter<E> {
-//     fn add_event(&mut self, ctx: &mut Context, bindings: &BindingContext, element_key: &str, event_handler: &EventHandler) -> Result {
-//         let complete_key = ctx.join_path_with(Some("."), element_key);
-//         let event = event_handler.create_event(&complete_key, ctx.scope().id());
-//         self.events.push(event);
-
-//         Ok(())
-//     }
-
-//     pub fn events_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a EventsItem>> {
-//         let len = self.events.len();
-//         if len > 0 { Some(self.events.iter()) } else { None}
-//     }
-// }
-
 #[derive(Debug, Default)]
 pub struct DefaultOutputWriters {}
 

@@ -56,16 +56,9 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
 
                     if element_tag == "input" {
                         if let &Some(ref value_binding) = value_binding {
-                            let value_sym = match value_binding.1.sym_ref() {
-                                &SymbolReferenceType::InitialValue(box ref initial, _) => initial.to_owned(),
-                                _ => value_binding.1.to_owned()
+                            if let &SymbolReferenceType::InitialValue(box ref initial, _) = value_binding.1.sym_ref() {
+                                props.push(("value".into(), Some(ExprValue::SymbolReference(initial.to_owned()))));
                             };
-
-                            props.push(("value".into(), Some(ExprValue::SymbolReference(value_sym))));
-
-                            // if let Some(sym) = ctx.resolve_sym(&value_binding.0) {
-                            //     props.push(("value".into(), Some(ExprValue::SymbolReference(sym))));
-                            // };
                         };
                     }
 

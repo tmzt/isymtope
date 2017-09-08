@@ -1,10 +1,7 @@
 
 use std::io;
 
-use parser::ast::*;
 use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
 use output::writers::*;
 
 
@@ -21,10 +18,6 @@ impl ValueWriter for ValueWriterJs {
         write!(w, "{}", n)?;
         Ok(())
     }
-
-    // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result {
-    //     Ok(())
-    // }
 
     fn write_simple_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
@@ -146,20 +139,6 @@ impl ExpressionWriter for ExpressionWriterJs {
     }
 
 }
-
-// #[derive(Debug, Default)]
-// pub struct WriterJs {
-//     value_writer: ValueWriterJs,
-//     expression_writer: ExpressionWriterJs
-// }
-
-// impl ExprWriter for WriterJs {
-//     type E = ExpressionWriterJs;
-
-//     fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-//         self.expression_writer.write_expr(w, ctx, bindings, expr)
-//     }
-// }
 
 
 #[cfg(test)]

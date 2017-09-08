@@ -64,11 +64,8 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;
         for event in events_iter {
-        // for &(ref element_key, ref scope_id, ref event_handler) in events_iter {
             let final_event_name: String;
             let mut was_enterkey = false;
-
-            // let complete_key = ctx.join_path_with(Some("."), &event.0);
 
             match &event.2 {
                 &EventHandler::Event(ref event_name, ref params, ref action_ops) => {

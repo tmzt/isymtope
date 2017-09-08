@@ -117,9 +117,6 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
     {
         let instance_key = instance_key.as_static_string();
         let path_expr = ctx.join_path_as_expr_with(Some("."), &instance_key);
-        // let complete_key = ctx.join_path(Some("."));
-        // let map_index = ExprValue::Binding(BindingType::MapIndexBinding);
-        // let map_item = ExprValue::Binding(BindingType::MapItemBinding);
 
         write!(w, "(")?;
         self.write_expr(w, ctx, bindings, coll_expr)?;
@@ -137,9 +134,6 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
             };
         }
         writeln!(w, "}}); }});")?;
-
-        // writeln!(w, ").forEach(function(item, idx) {{ component_{}(\"{}.\" + idx + \".{}\", {{}}); }});", component_ty, complete_key, instance_key)?;
-        // writeln!(w, ").forEach(function(item, idx) {{ component_{}(key + \".\" + idx + \".{}\", {{}}); }});", component_ty, instance_key)?;
         Ok(())
     }
 }

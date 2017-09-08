@@ -22,11 +22,6 @@ impl ValueWriter for ValueWriterHtml {
         Ok(())
     }
 
-    // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result {
-    //     write!(w, "[array]")?;
-    //     Ok(())
-    // }
-
     fn write_simple_binding(&mut self, _w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
         Ok(())
     }
