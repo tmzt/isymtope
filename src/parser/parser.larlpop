@@ -31,7 +31,8 @@ ContentNodeType : ContentNodeType = {
 
     ElementNode,
     <num:LitNum> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralNumber(num), allocate_element_key()),
-    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit), allocate_element_key())
+    <lit:LitStr> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralString(lit), allocate_element_key()),
+    <lit:LitBool> => ContentNodeType::ExpressionValueNode(ExprValue::LiteralBool(lit), allocate_element_key())
 };
 
 // Store defines a default scope which restricts the type of nodes allowed
@@ -96,6 +97,9 @@ ExprValue : ExprValue =
 {
 //    "(" <expr:ExprValue> ")" => expr.clone(),
     "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),
+    // "{" <key: Id> ":" <expr:ExprValue> "}" => ExprValue::LiteralObject(Some(vec![(key.into(), Some(expr.to_owned()))])),
+    "{" <props:CommaList<ObjectProp>> "}" => ExprValue::LiteralObject(Some(props.clone())),
+
     "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
     
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
@@ -114,18 +118,31 @@ ExprFactor : ExprValue =
 ExprTerm : ExprValue =
 {
     <n:LitNum> => ExprValue::LiteralNumber(n),
+    <b:LitBool> => ExprValue::LiteralBool(b),
 //    "(" <ExprValue> ")",
     ValueKeyword => ExprValue::DefaultVariableReference,
-    <ident:Id> => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
-    <varpath:VarPath> => {
-        let sym_path = varpath.iter().map(|ref ident| Symbol::unresolved(ident)).collect();
-        ExprValue::SymbolPathReference(sym_path)
+    <path:AtLeastOneOf<".", Id>> => {
+        let ident = path.join(".");
+        match path.len() {
+            1 => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
+            _ => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
+        } 
     },
+    // <ident:Id> => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
+    // <varpath:VarPath> => {
+    //     let sym_path = varpath.iter().map(|ref ident| Symbol::unresolved(ident)).collect();
+    //     ExprValue::SymbolPathReference(sym_path)
+    // },
     <s:LitStr> => ExprValue::LiteralString(s),
 };
 
+// SymPath : ExprValue =
+// {
+//     <path:r"[a-zA-Z_][a-zA-Z0-9_]\.[a-zA-Z_][a-zA-Z0-9_.]*"> => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
+// };
+
 ActionOpNode: ActionOpNode = {
-    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ColonProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
+    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ObjectProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
 };
 
 AtLeastOne<T> : Vec<T> = {
@@ -136,6 +153,23 @@ AtLeastOne<T> : Vec<T> = {
     }
 };
 
+AtLeastOneOf<S, T> : Vec<T> = {
+    <v:(<T> S)*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
+};
+
+// AtLeastOneDot<T> : Vec<T> = {
+//     <v:(<T> ".")*> <a:T> "." <b:T> => {
+//         let mut v = v;
+//         v.push(a);
+//         v.push(b);
+//         v
+//     }
+// };
+
 // VarPath : String = {
 //     <v:(<Id> ".")*> <part:Id> => {
 //         let mut parts = v.join(".");
@@ -144,13 +178,13 @@ AtLeastOne<T> : Vec<T> = {
 //     }
 // };
 
-VarPath : Vec<String> = {
-    <v:(<Id> ".")+> <e:Id> => {
-        let mut v = v;
-        v.push(e);
-        v
-    }
-};
+// VarPath : Vec<String> = {
+//     <v:(<Id> ".")+> <e:Id> => {
+//         let mut v = v;
+//         v.push(e);
+//         v
+//     }
+// };
 
 CommaList<T> : Vec<T> = {
     <v:(<T> ",")*> <e:T?> => {
@@ -181,7 +215,7 @@ ElementProp: Prop = {
 };
 
 #[inline]
-ColonProp: Prop = {
+ObjectProp: Prop = {
     ValueKeyword ":" <val:ExprValue> => { ("value".into(), Some(val)) },
     <ident:Id> ":" <val:ExprValue> => { (ident.into(), Some(val)) }
 };
@@ -336,6 +370,7 @@ extern {
         Id => Token::Identifier(<String>),
         LitNum => Token::LiteralNumber(<i32>),
         LitStr => Token::LiteralString(<String>),
+        LitBool => Token::LiteralBool(<bool>),
         UseKeyword => Token::UseKeyword,
         LetKeyword => Token::LetKeyword,
         ForKeyword => Token::ForKeyword,
@@ -357,6 +392,9 @@ extern {
         PatchKeyword => Token::PatchKeyword,
 
         EventKeyword => Token::EventKeyword,
-        DispatchKeyword => Token::DispatchKeyword
+        DispatchKeyword => Token::DispatchKeyword,
+
+        // TrueKeyword => Token::LiteralBool(true),
+        // FalseKeyword => Token::LiteralBool(false),
     }
 }

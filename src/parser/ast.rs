@@ -71,7 +71,9 @@ impl VarType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
+    UnresolvedPathReference(String),
     Binding(BindingType),
+    MemberPath(Box<Symbol>, Option<Vec<String>>),
     InitialValue(Box<Symbol>, Box<Symbol>),
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
@@ -111,6 +113,13 @@ impl Symbol {
                None)
     }
 
+    #[allow(dead_code)]
+    pub fn unresolved_path(path: &str) -> Symbol {
+        Symbol(SymbolReferenceType::UnresolvedPathReference(path.to_owned()),
+               None,
+               None)
+    }
+
     pub fn with_value(self, expr: ExprValue) -> Self {
         let mut sym = self;
         sym.2 = Some(Box::new(expr));
@@ -127,6 +136,10 @@ impl Symbol {
 
     pub fn initial_value(initial: &Symbol, after: &Symbol) -> Symbol {
         Symbol(SymbolReferenceType::InitialValue(Box::new(initial.to_owned()), Box::new(after.to_owned())), None, None)
+    }
+
+    pub fn member_path_from(first: Symbol, rest: Vec<String>) -> Symbol {
+        Symbol(SymbolReferenceType::MemberPath(Box::new(first), Some(rest)), None, None)
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
@@ -244,6 +257,8 @@ pub enum ExprValue {
     LiteralNumber(i32),
     LiteralString(String),
     LiteralArray(Option<Vec<ExprValue>>),
+    LiteralObject(Option<Vec<Prop>>),
+    LiteralBool(bool),
     DefaultVariableReference,
     SymbolReference(Symbol),
     SymbolPathReference(Vec<Symbol>),

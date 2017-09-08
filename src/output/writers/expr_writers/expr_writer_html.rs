@@ -22,6 +22,11 @@ impl ValueWriter for ValueWriterHtml {
         Ok(())
     }
 
+    fn write_literal_bool(&mut self, w: &mut io::Write, b: bool) -> Result {
+        if b { write!(w, "true")?; } else { write!(w, "false")?; }
+        Ok(())
+    }
+
     fn write_simple_binding(&mut self, _w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
         Ok(())
     }
@@ -75,6 +80,10 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        Ok(())
+    }
+
     fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ComponentPropBinding(ref key) => {
@@ -96,6 +105,15 @@ impl ExpressionWriter for ExpressionWriterHtml {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+
+            &SymbolReferenceType::MemberPath(..) => {
+                write!(w, "[{:?}]", sym)?;
+                // if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym) {
+                //     self.write_expr_to(w, value_writer, ctx, bindings, expr)?;
+                // }
+                Ok(())
+            }
+
             _ => Ok(())
         }
     }

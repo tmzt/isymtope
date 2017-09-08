@@ -20,6 +20,7 @@ fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mu
     match expr {
         &ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
         &ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),
+        &ExprValue::LiteralBool(b) => value_writer.write_literal_bool(w, b),
         _ => value_writer.write_undefined(w)
     }
 }
@@ -43,6 +44,11 @@ pub trait ExpressionWriter {
             return self.write_array(w, value_writer, ctx, bindings, arr_iter, None);
         };
 
+        if let &ExprValue::LiteralObject(ref props) = expr {
+            let props_iter = props.as_ref().map(|arr| arr.iter());
+            return self.write_props(w, value_writer, ctx, bindings, props_iter);
+        };
+
         if let &ExprValue::SymbolReference(ref sym) = expr {
             return self.write_symbol(w, value_writer, ctx, bindings, sym);
         };
@@ -58,6 +64,7 @@ pub trait ExpressionWriter {
     fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
     fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result;
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result;
     fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result;
 
     fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
@@ -75,6 +82,7 @@ pub trait StaticExpressionWriter : ExpressionWriter { }
 pub trait ValueWriter {
     fn write_literal_string(&mut self, w: &mut io::Write, s: &str) -> Result;
     fn write_literal_number(&mut self, w: &mut io::Write, n: &i32) -> Result;
+    fn write_literal_bool(&mut self, w: &mut io::Write, b: bool) -> Result;
     // fn write_literal_array<'a, I: IntoIterator<Item = &'a ExprValue>> (&mut self, w: &mut io::Write, iter: I, ty: Option<VarType>) -> Result;
     fn write_simple_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result;
     fn write_op(&mut self, w: &mut io::Write, op: &ExprOp) -> Result;
@@ -99,6 +107,10 @@ mod tests {
         }
 
         fn write_literal_number(&mut self, w: &mut io::Write, n: &i32) -> Result {
+            Ok(())
+        }
+
+        fn write_literal_bool(&mut self, w: &mut io::Write, b: bool) -> Result {
             Ok(())
         }
 
@@ -138,6 +150,10 @@ mod tests {
         }
 
         fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
+            Ok(())
+        }
+
+        fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
             Ok(())
         }
 

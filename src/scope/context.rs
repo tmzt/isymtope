@@ -137,6 +137,40 @@ impl Context {
         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
             if let Some(sym) = self.resolve_sym(key) { return sym; }
         };
+
+        if let &SymbolReferenceType::UnresolvedPathReference(ref path) = sym.sym_ref() {
+            let mut splitter = path.split(".").map(|s| s.to_owned());
+            let first = splitter.next();
+            if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
+                let rest: Vec<_> = splitter.collect();
+                let len = rest.len();
+                if len > 0 {
+                    return Symbol::member_path_from(first, rest);
+                };
+            };
+        };
+
+
+
+            // let mut parts: Vec<String> = path.split(".").map(|s| s.to_owned()).collect();
+            // let first = parts.pop_back().and_then(|s| self.resolve_sym(s));
+            // if let Some(first) = first {
+
+            // }
+            // let rest = parts.pop()
+            // let len = parts.len();
+            
+            // if len > 0 {
+            //     let first = parts[0];
+            //     if let Some(sym) = self.resolve_sym(&first) {
+            //         if len > 1 {
+
+            //         }
+            //     }
+
+
+            //     if let Some(sym) = self.resolve_sym(key) { return sym; }
+            // }
         sym.clone()
     }
 
@@ -251,6 +285,81 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn resolve_member_path_in_expr<'a, I: IntoIterator<Item = &'a str>>(&mut self, doc: &Document, expr: &ExprValue, rest: I) -> Option<ExprValue> {
+        let mut rest = rest.into_iter();
+        let key = rest.next();
+        if let Some(key) = key {
+            match expr {
+                &ExprValue::LiteralObject(Some(ref props)) => {
+                    let prop = props.iter().filter(|p| p.0.as_str() == key).next();
+                    if let Some(prop) = prop {
+                        if let Some(ref prop_expr) = prop.1 {
+                            return self.resolve_member_path_in_expr(doc, prop_expr, rest);
+                        };
+                        // cur_expr = Some(prop.1);
+                    };
+                },
+                _ => { }
+            }
+        };
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+        match sym.sym_ref() {
+            &SymbolReferenceType::InitialValue(_, box ref after) => {
+                let expr = ExprValue::SymbolReference(after.to_owned());
+                return self.reduce_expr_and_resolve(doc, &expr);
+            }
+
+            &SymbolReferenceType::Binding(ref binding) => {
+                if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
+                    if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                        if let Some(ref expr) = reducer_data.default_expr {
+                            return self.reduce_expr(expr);
+                        };
+                    };
+                };
+            }
+
+            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
+                if let Some(first_expr) = self.resolve_symbol_to_expr(doc, first) {
+                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
+                    if let Some(rest_iter) = rest_iter {
+                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
+                    };
+
+                    return self.reduce_expr_and_resolve(doc, &first_expr);
+
+                    // // let mut cur_expr: Option<&ExprValue> = Some(&first_expr);
+                    // if let Some(mut rest) = rest.as_ref().map(|rest| rest.iter()) {
+                    //     while cur_expr.is_some() {
+                    //         match cur_expr {
+                    //             Some(&ExprValue::LiteralObject(Some(ref props))) => {
+                    //                 let prop = rest.next()
+                    //                     .and_then(|key| props.iter().filter(|p| p.0.as_str() == key).next());
+                    //                 if let Some(prop) = prop {
+                    //                     // cur_expr = Some(prop.1);
+                    //                 };
+                    //             },
+
+                    //             _ => break;
+                    //         }
+                    //     }
+                    // };
+                    // if let Some(cur_expr) = cur_expr {
+                    //     return Some(cur_expr.to_owned());
+                    // };
+                };
+            }
+
+            _ => {}
+        };
+        None
+    }
+
+    #[allow(dead_code)]
     pub fn reduce_expr_and_resolve(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
         if expr.is_literal() { return Some(expr.clone()); }
         match expr {
@@ -271,24 +380,8 @@ impl Context {
             },
 
             &ExprValue::SymbolReference(ref sym) => {
-                match sym.sym_ref() {
-                    &SymbolReferenceType::InitialValue(_, box ref after) => {
-                        let expr = ExprValue::SymbolReference(after.to_owned());
-                        return self.reduce_expr_and_resolve(doc, &expr);
-                    }
-
-                    &SymbolReferenceType::Binding(ref binding) => {
-                        if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
-                            if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                                if let Some(ref expr) = reducer_data.default_expr {
-                                    return self.reduce_expr(expr);
-                                };
-                            };
-                        };
-                    }
-                    _ => {}
-                };
-                // Some(ExprValue::LiteralString(format!("{:?}", resolved_sym)))
+                let expr = self.resolve_symbol_to_expr(doc, sym);
+                if expr.is_some() { return expr; }
             }
 
             &ExprValue::Binding(ref binding) => {
@@ -383,7 +476,22 @@ impl Context {
                             return Some(ExprValue::SymbolReference(sym));
                         }
                         None
-                    },
+                    }
+
+                    &SymbolReferenceType::UnresolvedPathReference(ref path) => {
+                        let mut splitter = path.split(".").map(|s| s.to_owned());
+                        let first = splitter.next();
+                        if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
+                            let rest: Vec<_> = splitter.collect();
+                            let len = rest.len();
+                            if len > 0 {
+                                return Some(ExprValue::SymbolReference(Symbol::member_path_from(first, rest)));
+                            };
+                            return Some(ExprValue::SymbolReference(first));
+                        };
+                        None
+                    }
+
                     _ => None
                 }
                 // Some(ExprValue::LiteralString(format!("{:?}", resolved_sym)))

@@ -77,6 +77,7 @@ pub enum Token {
     Identifier(String),
     LiteralNumber(i32),
     LiteralString(String),
+    LiteralBool(bool),
     VariableReference(String),
 }
 

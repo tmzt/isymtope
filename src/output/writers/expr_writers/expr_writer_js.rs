@@ -19,6 +19,11 @@ impl ValueWriter for ValueWriterJs {
         Ok(())
     }
 
+    fn write_literal_bool(&mut self, w: &mut io::Write, b: bool) -> Result {
+        if b { write!(w, "true")?; } else { write!(w, "false")?; }
+        Ok(())
+    }
+
     fn write_simple_binding(&mut self, w: &mut io::Write, _ctx: &mut Context, _bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ReducerPathBinding(ref symbol_path) => {
@@ -110,6 +115,23 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        write!(w, "{{")?;
+        if let Some(props) = props {
+            let mut first = true;
+            for prop in props {
+                if !first { write!(w, ", ")?; }
+                write!(w, "\"{}\": ", &prop.0)?;
+                if let Some(ref v) = prop.1 {
+                    self.write_expr_to(w, value_writer, ctx, bindings, v)?;
+                }
+                first = false;
+            };
+        };
+        write!(w, "}}")?;
+        Ok(())
+    }
+
     fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::DOMElementAttributeBinding(ref complete_key, ref attr_name) => {
@@ -134,6 +156,18 @@ impl ExpressionWriter for ExpressionWriterJs {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+            &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
+                self.write_symbol(w, value_writer, ctx, bindings, first)?;
+                if let &Some(ref parts) = parts {
+                    // let mut first = true;
+                    for part in parts.iter() {
+                        // if !first { write!(w, ", ")?; }
+                        write!(w, ".{}", part)?;
+                        // first = false;
+                    };
+                };
+                Ok(())
+            }
             _ => Ok(())
         }
     }

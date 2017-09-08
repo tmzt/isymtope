@@ -145,6 +145,9 @@ impl<'input> Lexer<'input> {
             "event" => Token::EventKeyword,
             "dispatch" => Token::DispatchKeyword,
 
+            "true" => Token::LiteralBool(true),
+            "false" => Token::LiteralBool(false),
+
             identifier => Token::Identifier(identifier.into()),
         };
 
