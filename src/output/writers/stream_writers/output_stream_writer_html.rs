@@ -9,7 +9,7 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
-    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let complete_key = ctx.join_path_with(Some("."), element_key);
@@ -18,7 +18,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         for &(ref key, ref expr) in props {
             if let &Some(ref expr) = expr {
                 write!(w, " {}=\"", key)?;
-                self.write_expr(w, ctx, bindings, expr)?;
+                self.write_expr(w, doc, ctx, bindings, expr)?;
                 write!(w, "\"")?;
             }
         }
@@ -33,20 +33,20 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         Ok(())
     }
 
-    fn write_op_element_close(&mut self, w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, element_tag: &str) -> Result {
+    fn write_op_element_close(&mut self, w: &mut io::Write, doc: &Document, _ctx: &mut Context, _bindings: &BindingContext, element_tag: &str) -> Result {
         write!(w, "</{}>", element_tag)?;
         Ok(())
     }
 
-    fn write_op_element_start_block<PropIter: IntoIterator<Item = Prop>>(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _block_id: &str, _props: PropIter) -> Result {
+    fn write_op_element_start_block<PropIter: IntoIterator<Item = Prop>>(&mut self, _w: &mut io::Write, doc: &Document, _ctx: &mut Context, _bindings: &BindingContext, _block_id: &str, _props: PropIter) -> Result {
         Ok(())
     }
 
-    fn write_op_element_end_block(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _block_id: &str) -> Result {
+    fn write_op_element_end_block(&mut self, _w: &mut io::Write, doc: &Document, _ctx: &mut Context, _bindings: &BindingContext, _block_id: &str) -> Result {
         Ok(())
     }
 
-    fn write_op_element_map_collection_to_block(&mut self, _w: &mut io::Write, __ctx: &mut Context, _bindings: &BindingContext, _coll_expr: &ExprValue, _block_id: &str) -> Result {
+    fn write_op_element_map_collection_to_block(&mut self, _w: &mut io::Write, doc: &Document, _ctx: &mut Context, _bindings: &BindingContext, _coll_expr: &ExprValue, _block_id: &str) -> Result {
         Ok(())
     }
 
@@ -58,8 +58,8 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         Ok(())
     }
 
-    fn write_op_element_value(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
-        self.write_expr(w, ctx, bindings, expr)?;
+    fn write_op_element_value(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
+        self.write_expr(w, doc, ctx, bindings, expr)?;
         Ok(())
     }
 }
@@ -131,8 +131,19 @@ mod tests {
     use output::writers::*;
 
 
+    fn create_document<'a>(template: &'a Template) -> Document {
+        let mut ctx = Context::default();
+        let mut bindings = BindingContext::default();
+        let mut processing = ProcessDocument::from_template(&template);
+        assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+        processing.into()
+    }
+
     #[test]
     pub fn test_output_stream_writers_html_ops1() {
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
+
         let mut ctx = Context::default();
         ctx.append_path_str("prefix");
         let bindings = BindingContext::default();
@@ -142,8 +153,8 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
         assert!(
-            writer.write_op_element_open(&mut s, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
-            writer.write_op_element_close(&mut s, &mut ctx, &bindings, "span").is_ok()
+            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
+            writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
         );
         assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
         <span key="prefix.key"></span>"#

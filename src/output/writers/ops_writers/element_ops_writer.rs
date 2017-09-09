@@ -68,6 +68,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                     if has_props {
                         self.write_op_element_open(
                             w,
+                            doc,
                             ctx,
                             bindings,
                             element_tag,
@@ -80,6 +81,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                     } else {
                         self.write_op_element_open(
                             w,
+                            doc,
                             ctx,
                             bindings,
                             element_tag,
@@ -95,6 +97,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                 &ElementOp::ElementClose(ref element_tag) => {
                     self.write_op_element_close(
                         w,
+                        doc,
                         ctx,
                         bindings,
                         element_tag,
@@ -104,6 +107,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                 &ElementOp::WriteValue(ref expr, ref element_key) => {
                     self.write_op_element_value(
                         w,
+                        doc,
                         ctx,
                         bindings,
                         expr,

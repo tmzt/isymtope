@@ -21,7 +21,7 @@ component todo_item (todo) {
     li (class="completed") {
         div (class="view") {
             input(class="toggle", type="checkbox", checked=todo.completed, value=todo.completed) {}
-            label { (todo) }
+            label { (todo.text) }
             button(class="destroy") {}
         }
      }

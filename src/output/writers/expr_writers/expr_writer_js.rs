@@ -74,26 +74,26 @@ pub struct ExpressionWriterJs {}
 impl ExpressionWriter for ExpressionWriterJs {
     type V = ValueWriterJs;
 
-    fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+    fn write_expression(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
         if left.peek_is_array() || right.peek_is_array() {
-            self.write_expr_to(w, value_writer, ctx, bindings, left)?;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
             write!(w, ".concat(")?;
-            self.write_expr_to(w, value_writer, ctx, bindings, right)?;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
             write!(w, ")")?;
             return Ok(())
         };
 
-        self.write_expr_to(w, value_writer, ctx, bindings, left)?;
+        self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
-        self.write_expr_to(w, value_writer, ctx, bindings, right)?;
+        self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
 
         Ok(())
     }
 
-    fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
+    fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
-                self.write_array(w, value_writer, ctx, bindings, arr, None)?;
+                self.write_array(w, doc, value_writer, ctx, bindings, arr, None)?;
                 write!(w, ".join(\"{}\")", sep.as_ref().map_or("", |s| s.as_str()))?;
             },
             _ => {}
@@ -101,13 +101,13 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
-    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, _ty: Option<VarType>) -> Result {
+    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, _ty: Option<VarType>) -> Result {
         write!(w, "[")?;
         let mut first = true;
         if let Some(arr) = arr {
             for v in arr {
                 if !first { write!(w, ", ")?; }
-                self.write_expr_to(w, value_writer, ctx, bindings, v)?;
+                self.write_expr_to(w, doc, value_writer, ctx, bindings, v)?;
                 first = false;
             }
         };
@@ -115,7 +115,7 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
-    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
         write!(w, "{{")?;
         if let Some(props) = props {
             let mut first = true;
@@ -123,7 +123,7 @@ impl ExpressionWriter for ExpressionWriterJs {
                 if !first { write!(w, ", ")?; }
                 write!(w, "\"{}\": ", &prop.0)?;
                 if let Some(ref v) = prop.1 {
-                    self.write_expr_to(w, value_writer, ctx, bindings, v)?;
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, v)?;
                 }
                 first = false;
             };
@@ -132,19 +132,19 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
-    fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::DOMElementAttributeBinding(ref complete_key, ref attr_name) => {
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
                 write!(w, "document.querySelector(\"[key='\" + ")?;
-                self.write_expr_to(w, value_writer, ctx, bindings, &path_expr)?;
+                self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
                 write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
                 Ok(())
             },
             &BindingType::DOMInputElementValueBinding(ref complete_key) => {
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
                 write!(w, "document.querySelector(\"[key='\" + ")?;
-                self.write_expr_to(w, value_writer, ctx, bindings, &path_expr)?;
+                self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
                 write!(w, " + \"']\").value")?;
                 Ok(())
             }
@@ -152,18 +152,15 @@ impl ExpressionWriter for ExpressionWriterJs {
         }
     }
 
-    fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+    fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
         match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
-            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
+            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
             &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
-                self.write_symbol(w, value_writer, ctx, bindings, first)?;
+                self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
                 if let &Some(ref parts) = parts {
-                    // let mut first = true;
                     for part in parts.iter() {
-                        // if !first { write!(w, ", ")?; }
                         write!(w, ".{}", part)?;
-                        // first = false;
                     };
                 };
                 Ok(())
@@ -180,13 +177,23 @@ mod tests {
     use super::*;
     use std::str;
     use std::io::Write;
-    use scope::context::*;
-    use scope::bindings::*;
-    use output::writers::*;
+    use scope::*;
+    use output::*;
 
+
+    fn create_document<'a>(template: &'a Template) -> Document {
+        let mut ctx = Context::default();
+        let mut bindings = BindingContext::default();
+        let mut processing = ProcessDocument::from_template(&template);
+        assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+        processing.into()
+    }
 
     #[test]
     fn test_stream_writers_value_writer_js_write_simple_binding1() {
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
+
         let mut value_writer = ValueWriterJs::default();
         let mut ctx = Context::default();
         let binding = BindingType::ReducerPathBinding("todo".into());
@@ -209,7 +216,7 @@ mod tests {
             // let mut writer: DefaultOutputWriter<ValueWriterJs, ExpressionWriterJs, ElementOpsStreamWriterJs> = DefaultOutputWriter::default();
             let mut writer = DefaultOutputWriterJs::default();
 
-            let res = writer.write_expr(&mut s, &mut ctx, &bindings, &expr);
+            let res = writer.write_expr(&mut s, &doc, &mut ctx, &bindings, &expr);
             assert!(res.is_ok());
             assert_eq!(str::from_utf8(&s), Ok("store.getState().todo".into()));
         }
@@ -217,6 +224,9 @@ mod tests {
 
     #[test]
     fn test_stream_writers_value_writer_js_write_dynamic_expression1() {
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
+
         let bindings = BindingContext::default();
         let mut ctx = Context::default();
         let binding = BindingType::ReducerPathBinding("todo".into());
@@ -229,13 +239,16 @@ mod tests {
 
         let mut writers = DefaultOutputWritersBoth::default();
         let mut s: Vec<u8> = Default::default();
-        let res = writers.js().write_expr(&mut s, &mut ctx, &bindings, &expr);
+        let res = writers.js().write_expr(&mut s, &doc, &mut ctx, &bindings, &expr);
         assert!(res.is_ok());
         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));        
     }
 
     #[test]
     fn test_stream_writers_writerjs_write_dynamic_expression1() {
+        let template = Template::new(vec![]);
+        let doc = create_document(&template);
+
         let bindings = BindingContext::default();
         let mut ctx = Context::default();
 
@@ -250,7 +263,7 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
         let mut writers = DefaultOutputWritersBoth::default();
 
-        let res = writers.js().write_expr(&mut s, &mut ctx, &bindings, &expr);
+        let res = writers.js().write_expr(&mut s, &doc, &mut ctx, &bindings, &expr);
         assert!(res.is_ok());
         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
     }

@@ -11,7 +11,7 @@ pub trait StoreWriter {
     // type E: ExprWriter;
     type O: OutputWriter;
 
-    fn write_store<'a, I: IntoIterator<Item = (&'a str, &'a ReducerKeyData)>>(&mut self, w: &mut io::Write, output_writer: &mut Self::O, ctx: &mut Context, bindings: &BindingContext, reducers: I) -> Result;
+    fn write_store<'a, I: IntoIterator<Item = (&'a str, &'a ReducerKeyData)>>(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut Self::O, ctx: &mut Context, bindings: &BindingContext, reducers: I) -> Result;
 }
 
 #[derive(Debug, Default)]
@@ -19,7 +19,7 @@ pub struct StoreWriterJs {}
 
 impl StoreWriterJs {
     #[inline]
-    pub fn write_reducer_action(&mut self, w: &mut io::Write, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, _reducer: &ReducerKeyData, action: &ReducerActionData) -> Result {
+    pub fn write_reducer_action(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, _reducer: &ReducerKeyData, action: &ReducerActionData) -> Result {
         let action_key = ctx.join_action_path_with(Some("."), &action.action_type);
 
         writeln!(w, "                  /* action: {:?} */", action)?;
@@ -31,7 +31,7 @@ impl StoreWriterJs {
                         action_key)
                 ?;
             write!(w, "                    return ")?;
-            output_writer.write_expr(w, ctx, bindings, expr)?;
+            output_writer.write_expr(w, doc, ctx, bindings, expr)?;
             // expression_writer.write_expr_to(w, value_writer, ctx, bindings, expr)?;
             writeln!(w, ";")?;
             writeln!(w, "                  }}")?;
@@ -41,7 +41,7 @@ impl StoreWriterJs {
     }
 
     #[inline]
-    pub fn write_reducer_definition(&mut self, w: &mut io::Write, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, reducer: &ReducerKeyData) -> Result {
+    pub fn write_reducer_definition(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, reducer: &ReducerKeyData) -> Result {
         ctx.push_child_scope();
 
         let complete_key = ctx.join_action_path_with(Some("_"), &reducer.reducer_key);
@@ -50,14 +50,14 @@ impl StoreWriterJs {
 
         if let Some(ref actions) = reducer.actions {
             for ref action in actions {
-                self.write_reducer_action(w, output_writer, ctx, bindings, reducer, action)?;
+                self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, action)?;
             }
         };
 
         // Default expression used to initialize state
         write!(w, "                  return state || ")?;
         if let Some(ref expr) = reducer.default_expr {
-            output_writer.write_expr(w, ctx, bindings, expr)?;
+            output_writer.write_expr(w, doc, ctx, bindings, expr)?;
         } else {
             write!(w, "null")?;
         }
@@ -70,7 +70,7 @@ impl StoreWriterJs {
     }
 
     #[inline]
-    fn write_root_reducer_definition<'a, I: IntoIterator<Item = &'a str>>(&mut self, w: &mut io::Write, _output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, _bindings: &BindingContext, keys: I) -> Result {
+    fn write_root_reducer_definition<'a, I: IntoIterator<Item = &'a str>>(&mut self, w: &mut io::Write, _doc: &Document, _output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, _bindings: &BindingContext, keys: I) -> Result {
         writeln!(w, "")?;
         writeln!(w, "                var rootReducer = Redux.combineReducers({{")?;
         for reducer_key in keys {
@@ -85,14 +85,14 @@ impl StoreWriterJs {
 impl StoreWriter for StoreWriterJs {
     type O = DefaultOutputWriterJs;
 
-    fn write_store<'a, I: IntoIterator<Item = (&'a str, &'a ReducerKeyData)>>(&mut self, w: &mut io::Write, output_writer: &mut Self::O, ctx: &mut Context, bindings: &BindingContext, reducers: I) -> Result {
+    fn write_store<'a, I: IntoIterator<Item = (&'a str, &'a ReducerKeyData)>>(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut Self::O, ctx: &mut Context, bindings: &BindingContext, reducers: I) -> Result {
         let mut keys: Vec<String> = Default::default();
 
         for (_, reducer) in reducers {
-            self.write_reducer_definition(w, output_writer, ctx, bindings, reducer)?;
+            self.write_reducer_definition(w, doc, output_writer, ctx, bindings, reducer)?;
             keys.push(reducer.reducer_key.to_owned());
         }
-        self.write_root_reducer_definition(w, output_writer, ctx, bindings, keys.iter().map(|s| s.as_str()))?;
+        self.write_root_reducer_definition(w, doc, output_writer, ctx, bindings, keys.iter().map(|s| s.as_str()))?;
         Ok(())
     }
 }
@@ -150,7 +150,7 @@ mod tests {
         let mut writers = DefaultOutputWritersBoth::default();
         let mut store_writer = StoreWriterJs::default();
         let reducer_iter = doc.reducers_iter();
-        let res = store_writer.write_store(&mut s, writers.js(), &mut ctx, &bindings, reducer_iter);
+        let res = store_writer.write_store(&mut s, &doc, writers.js(), &mut ctx, &bindings, reducer_iter);
         assert!(res.is_ok());
         assert_diff!(str::from_utf8(&s).unwrap(),
 r#"

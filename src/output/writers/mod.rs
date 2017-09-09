@@ -32,8 +32,8 @@ impl<V: ValueWriter, E: ExpressionWriter<V = V>> OutputWriter for DefaultOutputW
 impl<E: ExpressionWriter> ExprWriter for DefaultOutputWriter<E> {
     type E = E;
 
-    fn write_expr(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-        self.expression_writer.write_expr_to(w, &mut self.value_writer, ctx, bindings, expr)
+    fn write_expr(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
+        self.expression_writer.write_expr_to(w, doc, &mut self.value_writer, ctx, bindings, expr)
     }
 }
 

@@ -48,15 +48,15 @@ pub struct ExpressionWriterHtml {}
 impl ExpressionWriter for ExpressionWriterHtml {
     type V = ValueWriterHtml;
 
-    fn write_expression(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
-        self.write_expr_to(w, value_writer, ctx, bindings, left)?;
+    fn write_expression(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+        self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
-        self.write_expr_to(w, value_writer, ctx, bindings, right)?;
+        self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
 
         Ok(())
     }
 
-    fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
+    fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
                 write!(w, "[")?;
@@ -64,7 +64,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
                 if let Some(arr) = arr {
                     for v in arr {
                         if !first { write!(w, ", ")?; }
-                        self.write_expr_to(w, value_writer, ctx, bindings, v)?;
+                        self.write_expr_to(w, doc, value_writer, ctx, bindings, v)?;
                         first = false;
                     }
                 };
@@ -75,20 +75,20 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
-    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
+    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
         write!(w, "[array]")?;
         Ok(())
     }
 
-    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
         Ok(())
     }
 
-    fn write_binding(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+    fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ComponentPropBinding(ref key) => {
                 if let Some(sym) = ctx.resolve_sym(key) {
-                    self.write_symbol(w, value_writer, ctx,  bindings, &sym)?;
+                    self.write_symbol(w, doc, value_writer, ctx,  bindings, &sym)?;
                 };
             }
 
@@ -97,20 +97,27 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
-    fn write_symbol(&mut self, w: &mut io::Write, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+    fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
         if let Some(ref expr) = sym.value() {
-            self.write_expr_to(w, value_writer, ctx, bindings, expr)?;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
         };
 
         match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, value_writer, ctx, bindings, after),
-            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, value_writer, ctx, bindings, binding),
+            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
+            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
 
-            &SymbolReferenceType::MemberPath(..) => {
-                write!(w, "[{:?}]", sym)?;
-                // if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym) {
-                //     self.write_expr_to(w, value_writer, ctx, bindings, expr)?;
-                // }
+            &SymbolReferenceType::MemberPath(ref first, ref parts) => {
+                // self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
+                // if let &Some(ref parts) = parts {
+                //     for v in parts {
+                //         write!(w, ".{}", v)?;
+                //     }
+                // };
+                
+                // write!(w, "[{:?}]", sym)?;
+                if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym) {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+                }
                 Ok(())
             }
 
@@ -151,7 +158,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
 //             let mut expr_writer = ExpressionWriterJs::default();
 //             let expr = ExprValue::Binding(binding.clone());
 
-//             let res = expr_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+//             let res = expr_writer.write_expr(&mut s, doc, &mut value_writer, &mut ctx, &bindings, &expr);
 //             assert!(res.is_ok());
 //             assert_eq!(str::from_utf8(&s), Ok("store.getState().todo".into()));
 //         }
@@ -173,7 +180,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
 //         let mut expr_writer = ExpressionWriterJs::default();
 
 //         let mut s: Vec<u8> = Default::default();
-//         let res = expr_writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+//         let res = expr_writer.write_expr(&mut s, doc, &mut value_writer, &mut ctx, &bindings, &expr);
 //         assert!(res.is_ok());
 //         assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
         
@@ -194,7 +201,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
 
 //         let mut s: Vec<u8> = Default::default();
 //         let mut writer = WriterJs::default();
-//         // let res = writer.write_expr(&mut s, &mut value_writer, &mut ctx, &bindings, &expr);
+//         // let res = writer.write_expr(&mut s, doc, &mut value_writer, &mut ctx, &bindings, &expr);
 //         // assert!(res.is_ok());
 //         // assert_eq!(str::from_utf8(&s), Ok("store.getState().todo+\"test\"".into()));
         

@@ -121,7 +121,7 @@ impl<'doc> PageWriter<'doc> {
 
                 writeln!(w, "                function component_bindings_{}(key, props, store) {{", component_ty)?;
                 if let Some(events_iter) = comp_def.root_block().events_iter() {
-                    self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
+                    self.writers.js.write_event_bindings(w, self.doc, ctx, bindings, events_iter)?;
                 };
                 writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
 
@@ -152,7 +152,7 @@ impl<'doc> PageWriter<'doc> {
 
         // Bind block events
         if let Some(events_iter) = block.events_iter() {
-            self.writers.js.write_event_bindings(w, ctx, bindings, events_iter)?;
+            self.writers.js.write_event_bindings(w, &self.doc, ctx, bindings, events_iter)?;
         };
         Ok(())
     }
@@ -207,7 +207,7 @@ impl<'doc> PageWriter<'doc> {
         self.write_element_rendering_script_html(w, ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
-        store_writer.write_store(w, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
+        store_writer.write_store(w, &self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
 
         write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
         Ok(())

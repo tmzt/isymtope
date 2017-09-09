@@ -10,18 +10,18 @@ use output::*;
 
 pub trait EventsWriter {
     // fn write_event_binding(&self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, event: &EventsItem) -> Result;
-    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result;
+    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result;
 }
 
 pub trait EventActionOpsWriter {
-    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result;
+    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result;
 }
 
 impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter for E {
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
+    fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
         for action_op in action_ops {
             match action_op {
                 &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
@@ -43,7 +43,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
                                 if !first_item { write!(w, ", ")?; }
                                 first_item = false;
                                 write!(w, "\"{}\": ", &prop.0)?;
-                                self.write_expr(w, ctx, bindings, &expr)?;
+                                self.write_expr(w, doc, ctx, bindings, &expr)?;
                             };
                         }
                         // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
@@ -61,7 +61,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
 impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWriter> EventsWriter for E {
 
     #[allow(dead_code)]
-    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
+    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;
         for event in events_iter {
             let final_event_name: String;
@@ -80,7 +80,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             let path_expr = ctx.join_path_as_expr_with(Some("."), &event.0);
 
             write!(w, "document.querySelector(\"[key='\" + ")?;
-            self.write_expr(w, ctx, bindings, &path_expr)?;
+            self.write_expr(w, doc, ctx, bindings, &path_expr)?;
             write!(w, " + \"']\").addEventListener(\"{}\", function(event) {{", final_event_name)?;
 
             if was_enterkey {
@@ -89,7 +89,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
 
             match &event.2 {
                 &EventHandler::Event(_, _, Some(ref action_ops)) | &EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
-                    self.write_event_action_ops(w, ctx, bindings, action_ops.iter())?;
+                    self.write_event_action_ops(w, doc, ctx, bindings, action_ops.iter())?;
                 }
                 _ => {}
             }
