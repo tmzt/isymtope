@@ -229,6 +229,18 @@ impl Symbol {
     pub fn value(&self) -> Option<&ExprValue> {
         self.2.as_ref().map(|b| b.as_ref())
     }
+
+    #[allow(dead_code)]
+    pub fn resolved_key(&self) -> Option<&str> {
+        match self.sym_ref() {
+            &SymbolReferenceType::ResolvedReference(ref key, _, _) => Some(key),
+            &SymbolReferenceType::Binding(ref binding) => match binding {
+                &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key),
+                _ => None
+            }
+            _ => None
+        }
+    }
 }
 
 /// Bindings

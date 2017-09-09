@@ -115,7 +115,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
                 // };
                 
                 // write!(w, "[{:?}]", sym)?;
-                if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym) {
+                if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym, None) {
                     self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
                 }
                 Ok(())

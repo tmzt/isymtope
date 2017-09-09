@@ -42,6 +42,97 @@ impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct ScopeSymbolIter<'a> {
+    ctx: &'a mut Context,
+    scope_id: Option<String>,
+    key: String
+}
+
+impl<'a> ScopeSymbolIter<'a>
+{
+    #[allow(dead_code)]
+    pub fn new(ctx: &'a mut Context, key: &str, scope_id: &str) -> Self {
+        // let scope_id = ctx.scope_ref().map(|scope| scope.id().to_owned());
+        // let scope_id = ctx.scope_ref().unwrap().id().to_owned();
+        let scope_id = Some(scope_id.to_owned());
+        let key = key.to_owned();
+
+        ScopeSymbolIter {
+            ctx: ctx,
+            scope_id: scope_id,
+            key: key
+        }
+
+    }
+}
+
+pub enum ScopeSymbolState {
+    NoSymbol,
+    InterimSymbol(Symbol),
+    FinalSymbol(Symbol)
+}
+
+impl<'a> Iterator for ScopeSymbolIter<'a>
+{
+    type Item = ScopeSymbolState;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.scope_id.is_none() { return None; }
+        let key = self.key.to_owned();
+
+        let scope_id = self.scope_id.as_ref().map(|s| s.to_owned());
+        let map_id = scope_id.as_ref().and_then(|scope_id| self.ctx.get_scope(scope_id)).map(|scope| scope.map_id().to_owned());
+        let parent_id = scope_id.as_ref().and_then(|scope_id| self.ctx.get_scope(scope_id)).and_then(|scope| scope.parent_id().map(|s| s.to_owned()));
+
+        // let next_key = Some(key.to_owned());
+
+        // Prepare next iteration
+        self.scope_id = parent_id.clone();
+
+        let sym = map_id.as_ref()
+            .and_then(|map_id| self.ctx.get_map(map_id))
+            .and_then(|map| map.get_sym(&key)).map(|s| s.to_owned());
+
+        if sym.is_some() {
+            let next_key = match sym {
+                Some(ref sym) => {
+                    match sym.sym_ref() {
+                        &SymbolReferenceType::Binding(ref binding) => {
+                            match binding {
+                                &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
+                                &BindingType::MapItemBinding => {
+                                    // let scope = self.get_scope(&scope_id);
+                                    None
+                                }
+                                _ => None
+                            }
+                        },
+                        _ => None
+                    }
+                },
+                _ => None
+            };
+
+            if let Some(sym) = sym {
+                if let Some(next_key) = next_key {
+                    self.key = next_key;
+                    return Some(ScopeSymbolState::InterimSymbol(sym));
+                } else {
+                    return Some(ScopeSymbolState::FinalSymbol(sym));
+                };
+            };
+        };
+
+        if parent_id.is_none() { return None; }
+
+        Some(ScopeSymbolState::NoSymbol)
+    }
+}
+
+
+
 #[derive(Debug)]
 pub struct Context {
     // base_scope: Scope,
@@ -91,6 +182,14 @@ impl Context {
         self.scope_ref().unwrap().clone()
     }
 
+    pub fn get_scope(&mut self, scope_id: &str) -> Option<&Scope> {
+        self.scopes.get(scope_id)
+    }
+
+    pub fn get_map(&mut self, map_id: &str) -> Option<&Symbols> {
+        self.symbol_maps.get(map_id)
+    }
+
     pub fn create_child_scope(&mut self) -> Scope {
         let parent_scope = self.scope();
         let parent_map_id = parent_scope.map_id().to_owned();
@@ -116,22 +215,6 @@ impl Context {
         self.push_scope(scope);
     }
 
-    pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
-        let scope = self.scope();
-        let map_id = scope.map_id();
-
-        let mut cur_map = self.symbol_maps.get(map_id);
-        while let Some(map) = cur_map {
-            if let Some(sym) = map.get_sym(key) {
-                return Some(sym.to_owned());
-            };
-
-            cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
-        };
-
-        None
-    }
-
     #[allow(dead_code)]
     pub fn resolve_symbol_to_symbol(&mut self, sym: &Symbol) -> Symbol {
         if let &SymbolReferenceType::UnresolvedReference(ref key) = sym.sym_ref() {
@@ -149,30 +232,189 @@ impl Context {
                 };
             };
         };
-
-
-
-            // let mut parts: Vec<String> = path.split(".").map(|s| s.to_owned()).collect();
-            // let first = parts.pop_back().and_then(|s| self.resolve_sym(s));
-            // if let Some(first) = first {
-
-            // }
-            // let rest = parts.pop()
-            // let len = parts.len();
-            
-            // if len > 0 {
-            //     let first = parts[0];
-            //     if let Some(sym) = self.resolve_sym(&first) {
-            //         if len > 1 {
-
-            //         }
-            //     }
-
-
-            //     if let Some(sym) = self.resolve_sym(key) { return sym; }
-            // }
         sym.clone()
     }
+
+    pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
+        let scope = self.scope();
+        let map_id = scope.map_id();
+
+        let mut cur_map = self.symbol_maps.get(map_id);
+        while let Some(map) = cur_map {
+            if let Some(sym) = map.get_sym(key) {
+                return Some(sym.to_owned());
+            };
+
+            cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn get_sym(&mut self, key: &str) -> Option<&Symbol> {
+        let map_id = self.map_id().to_owned();
+        if let Some(map) = self.symbol_maps.get(&map_id) {
+            return map.get_sym(key)
+        };
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn get_sym_in_scope(&mut self, key: &str, scope_id: &str) -> Option<&Symbol> {
+        let map_id = self.get_scope(scope_id).unwrap().map_id().to_owned();
+        if let Some(map) = self.symbol_maps.get(&map_id) {
+            return map.get_sym(key);
+        };
+        None
+        // let map_id = self.get_scope(scope_id).map(|scope| scope.map_id().to_owned());
+        // if let Some(map) = map_id.and_then(|map_id| self.symbol_maps.get(&map_id)) {
+        //     return map.get_sym(key)
+        // };
+        // None
+    }
+
+    #[allow(dead_code)]
+    pub fn follow_sym_starting_at(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
+        let iter = ScopeSymbolIter::new(self, key, scope_id);
+        // let mut res: Option<ScopeSymbolState> = None;
+        for sym in iter {
+            if let ScopeSymbolState::FinalSymbol(sym) = sym {
+                return Some(sym);
+            };
+        }
+        None
+    }
+
+    // #[allow(dead_code)]
+    // pub fn follow_sym_starting_at(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
+    //     let mut cur = Some((key.to_owned(), scope_id.to_owned()));
+    //     loop {
+    //         let cur_key = cur.0.to_owned();
+    //         let cur_scope_id = cur.1.to_owned();
+
+    //         let next = self.get_scope(&cur_scope_id).map(|s| (s.map_id().to_owned(), s.parent_id().map(|s| s.to_owned())));
+    //         // let map = next.as_ref().and_then(|next| self.symbol_maps.get(&next.0).map(|s| s.to_owned()));
+    //         // let sym = map.as_ref().and_then(|map| map.get_sym(&cur_key)).map(|s| s.to_owned());
+
+    //         let map = next.as_ref().and_then(|next| self.symbol_maps.get(&next.0).map(|s| s.to_owned()));
+    //         let sym = map.as_ref().and_then(|map| map.get_sym(&cur_key)).map(|s| s.to_owned());
+
+    //         let next_scope_id = next.as_ref().map(|next| next.0.to_owned());
+
+    //         let next_key = match sym {
+    //             Some(ref sym) => {
+    //                 match sym.sym_ref() {
+    //                     &SymbolReferenceType::Binding(ref binding) => {
+    //                         match binding {
+    //                             &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
+    //                             &BindingType::MapItemBinding => {
+    //                                 // let scope = self.get_scope(&scope_id);
+    //                                 None
+    //                             }
+    //                             _ => None
+    //                         }
+    //                     },
+    //                     _ => None
+    //                 }
+    //             },
+    //             _ => None
+    //         };
+
+    //         if next_key.is_none() {
+    //             return sym;
+    //         };
+
+
+    //     }
+    // }
+
+    // #[allow(dead_code)]
+    // pub fn follow_sym_starting_at_x(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
+    //     // let mut cur_scope_id = Some(scope_id.to_owned());
+    //     let mut cur_scope_id = scope_id.to_owned();
+    //     // let mut next_scope_id = self.get_scope(scope_id).and_then(|s| s.parent_id().map(|s| s.to_owned()));
+    //     // let mut cur_key = Some(key.to_owned());
+    //     let mut cur_key = key.to_owned();
+    //     // let mut cur_scope = self.get_scope(scope_id);
+    //     // while let Some(scope_id) = cur_scope_id.as_ref().map(|s| s.as_str()) {
+    //     loop {
+    //         // let next_scope_id = cur_scope_id.as_ref().map(|s| s.as_str()).and_then(|scope_id| self.get_scope(scope_id))
+    //         //     .and_then(|s| s.parent_id()).map(|s| s.to_owned());
+
+    //         // let key = cur_key.as_ref().map(|s| s.to_owned());
+
+    //         // let map_id = map.map_id().to_owned();, self.scope_ref().unwrap().id()
+    //         let key = cur_key.to_owned();
+    //         if let Some(sym) = self.get_sym_in_scope(&key, &scope_id) {
+    //             let next_key = match sym.sym_ref() {
+    //                 &SymbolReferenceType::Binding(ref binding) => {
+    //                     match binding {
+    //                         &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
+    //                         &BindingType::MapItemBinding => {
+    //                             // let scope = self.get_scope(&scope_id);
+    //                             None
+    //                         }
+    //                         _ => None
+    //                     }
+    //                 },
+    //                 _ => None
+    //             };
+
+    //             if next_key.is_none() {
+    //                 return Some(sym.to_owned());
+    //             }
+
+    //             cur_key = next_key;
+    //         };
+
+    //         if next_scope_id.is_none() { break; }
+    //         cur_scope_id = next_scope_id;
+
+    //         // cur_scope_id = next_scope_id;
+    //         // cur_scope_id = if let Some(parent_id) = scope.parent_id() { self.get_scope(parent_id) } else { None };
+
+    //         // cur_scope = if let Some(parent_id) = scope.parent_id() { self.get_scope(parent_id) } else { None };
+
+    //         // cur_scope = scope.parent_id().and_then(|id| self.get_scope(id));
+    //         // cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
+    //     };
+
+    //     None
+    // }
+
+    #[allow(dead_code)]
+    pub fn map_id(&mut self) -> &str {
+        self.scope_ref().unwrap().map_id()
+    }
+
+    #[allow(dead_code)]
+    pub fn parent_map_id(&mut self) -> Option<&str> {
+        let map_id = self.map_id().to_owned();
+        self.symbol_maps.get(&map_id).unwrap().parent_map_id()
+    }
+
+    // #[allow(dead_code)]
+    // pub fn resolve_sym_from_parent(&mut self, key: &str) -> Option<Symbol> {
+    //     let parent_id = self.parent_map_id().map(|s| s.to_owned());
+    //     if let Some(parent_id) = parent_id {
+    //         if let Some((_, sym)) = self.search_sym_starting_at(key, &parent_id) {
+    //             return Some(sym.to_owned());
+    //         };
+    //         // return self.resolve_sym_starting_at(key, &parent_id);
+    //     };
+
+    //     None
+    // }
+
+    // pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
+    //     let map_id = self.map_id().to_owned();
+    //     if let Some((_, sym)) = self.search_sym_starting_at(key, &map_id) {
+    //         return Some(sym.to_owned());
+    //     };
+
+    //     None
+    // }
 
     #[allow(dead_code)]
     pub fn eval_sym(&mut self, sym: &Symbol) -> Option<ExprValue> {
@@ -306,7 +548,7 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol, starting_map_id: Option<&str>) -> Option<ExprValue> {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => {
                 let expr = ExprValue::SymbolReference(after.to_owned());
@@ -321,10 +563,18 @@ impl Context {
                         };
                     };
                 };
+
+                if let Some(resolved_key) = sym.resolved_key() {
+                    let map_id = self.map_id().to_owned();
+                    if let Some(sym) = self.follow_sym_starting_at(resolved_key, &map_id) {
+                        let parent_map_id = self.parent_map_id().unwrap().to_owned();
+                        return self.resolve_symbol_to_expr(doc, &sym, Some(&parent_map_id));
+                    }
+                };
             }
 
             &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                if let Some(first_expr) = self.resolve_symbol_to_expr(doc, first) {
+                if let Some(first_expr) = self.resolve_symbol_to_expr(doc, first, None) {
                     let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
                     if let Some(rest_iter) = rest_iter {
                         return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
@@ -380,7 +630,7 @@ impl Context {
             },
 
             &ExprValue::SymbolReference(ref sym) => {
-                let expr = self.resolve_symbol_to_expr(doc, sym);
+                let expr = self.resolve_symbol_to_expr(doc, sym, None);
                 if expr.is_some() { return expr; }
             }
 
@@ -747,6 +997,40 @@ mod tests {
                 // Some(Symbol::reducer_key("TODOS"))
             );
 
+        }
+    }
+
+    #[test]
+    pub fn test_context_component_props() {
+        let mut ctx = Context::default();
+
+        // Define a new reducer path binding (todos)
+        {
+            let binding = BindingType::ReducerPathBinding("TODOS".into());
+            ctx.add_sym("todos", Symbol::binding(&binding));
+        }
+
+        // Define a forlens (not supported in Context yet)
+        {
+            ctx.push_child_scope();
+        }
+
+        // Define a ComponentPropBinding
+        {
+            ctx.push_child_scope();
+            let binding = BindingType::ComponentPropBinding("todos".into());
+            ctx.add_sym("todo", Symbol::binding(&binding));
+        }
+
+        let scope_id = ctx.scope_ref().unwrap().id().to_owned();
+
+        // Scope
+        {
+            ctx.push_child_scope();
+            assert_eq!(
+                ctx.follow_sym_starting_at("todo", &scope_id),
+                Some(Symbol::binding(&BindingType::ReducerPathBinding("TODOS".into())))
+            );
         }
     }
 

@@ -11,18 +11,22 @@ pub struct Scope {
     scope_id: String,
     map_id: String,
 
+    parent_id: Option<String>,
+
     symbol_path: SymbolPathScope,
     action_path: SymbolPathScope
 }
 
 impl Scope {
-    pub fn new(map_id: &str, symbol_path: Option<SymbolPathScope>, action_path: Option<SymbolPathScope>) -> Scope {
+    pub fn new(map_id: &str, parent_id: Option<&str>, symbol_path: Option<SymbolPathScope>, action_path: Option<SymbolPathScope>) -> Scope {
         let scope_id = allocate_element_key();
         let symbol_path = symbol_path.map_or_else(|| Default::default(), |symbol_path| symbol_path);
         let action_path = action_path.map_or_else(|| Default::default(), |action_path| action_path);
+        let parent_id = parent_id.map(|parent_id| parent_id.to_owned());
         Scope {
             scope_id: scope_id,
             map_id: map_id.to_owned(),
+            parent_id: parent_id,
             symbol_path: symbol_path,
             action_path: action_path
         }
@@ -32,22 +36,33 @@ impl Scope {
         let scope_id = allocate_element_key();
         let symbol_path = parent_scope.symbol_path().clone();
         let action_path = parent_scope.action_path().clone();
+        let parent_id = Some(parent_scope.id().to_owned()); 
         Scope {
             scope_id: scope_id,
             map_id: map_id.to_owned(),
+            parent_id: parent_id,
             symbol_path: symbol_path,
             action_path: action_path
         }
     }
 
     pub fn with_map_id(map_id: &str) -> Scope {
-        Scope::new(map_id, None, None)
+        Scope::new(map_id, None, None, None)
     }
 
     pub fn id(&self) -> &str { &self.scope_id }
     pub fn map_id(&self) -> &str { &self.map_id }
+    pub fn parent_id(&self) -> Option<&str> { self.parent_id.as_ref().map(|s| s.as_str()) }
     pub fn symbol_path(&self) -> &SymbolPathScope { &self.symbol_path }
     pub fn action_path(&self) -> &SymbolPathScope { &self.action_path }
+
+    // pub fn get_sym(&self, key: &str) -> Option<&Symbol> {
+    //     let map_id = self.map_id();
+    //     if let Some(map) = self.symbol_maps.get(map_id) {
+    //         return map.get_sym(key)
+    //     };
+    //     None
+    // }
 
     pub fn append_path_expr(&mut self, expr: &ExprValue) {
         self.symbol_path.append_expr(expr);
