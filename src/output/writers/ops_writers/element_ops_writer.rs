@@ -74,7 +74,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                             element_tag,
                             element_key,
                             is_void,
-                            props.iter(),
+                            props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))),
                             iter::empty(),
                             iter::once(value_binding),
                         )?;
@@ -119,13 +119,13 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                     match lens {
                         &Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
                             let props = vec![(coll_key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];
-                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props.iter(), iter::empty(), iter::empty())?;
+                            self.write_map_collection_to_component(w, doc, ctx, bindings, coll_key, coll_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), iter::empty(), iter::empty())?;
                         }
 
                         &Some(LensExprType::GetLens(ref key, _)) => {
                             let expr = if let Some(sym) = ctx.resolve_sym(key) { ExprValue::SymbolReference(sym) } else { ExprValue::Binding(BindingType::ComponentPropBinding(key.to_owned())) };
                             let props = vec![(key.to_owned(), Some(expr))];
-                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.iter(), iter::empty(), iter::empty())?;
+                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), iter::empty(), iter::empty())?;
                         }
 
                         _ => {

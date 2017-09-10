@@ -103,26 +103,27 @@ impl ExpressionWriter for ExpressionWriterHtml {
         };
 
         match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
-            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
-
-            &SymbolReferenceType::MemberPath(ref first, ref parts) => {
-                // self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
-                // if let &Some(ref parts) = parts {
-                //     for v in parts {
-                //         write!(w, ".{}", v)?;
-                //     }
-                // };
-                
-                // write!(w, "[{:?}]", sym)?;
-                if let Some(expr) = ctx.resolve_symbol_to_expr(doc, sym, None) {
-                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
-                }
-                Ok(())
+            &SymbolReferenceType::InitialValue(_, box ref after) => {
+                self.write_symbol(w, doc, value_writer, ctx, bindings, after)?;
             }
 
-            _ => Ok(())
-        }
+            &SymbolReferenceType::Binding(ref binding) => {
+                self.write_binding(w, doc, value_writer, ctx, bindings, binding)?;
+            }
+
+            &SymbolReferenceType::MemberPath(ref first, ref parts) => {
+                self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
+            }
+
+            _ => {}
+        };
+
+        if let Some(expr) = ctx.eval_sym(doc, sym) {
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+
+        };
+
+        Ok(())
     }
 
 }

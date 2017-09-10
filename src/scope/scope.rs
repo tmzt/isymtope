@@ -100,11 +100,6 @@ impl Scope {
     pub fn join_action_path_as_expr(&self, s: Option<&str>) -> ExprValue {
         self.action_path.join_as_expr(s)
     }
-
-    #[allow(dead_code)]
-    pub fn unbound_formal_param(&self, key: &str) -> Symbol {
-        Symbol::unbound_formal_param(key, Some(self.id()))
-    }
 }
 
 

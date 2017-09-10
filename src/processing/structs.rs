@@ -88,6 +88,7 @@ pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
 pub struct Component {
     ty: String,
     block: Block,
+    formal_props: Option<FormalPropVec>
     // ops: Option<ElementOpsVec>,
     // pub uses: Option<Vec<String>>,
     // pub child_map: Option<ComponentMap>,
@@ -98,10 +99,11 @@ pub struct Component {
 
 impl Component {
     /// Consumes parameters and returns new Component
-    pub fn new(ty: String, block: Block) -> Self {
+    pub fn new(ty: String, block: Block, formal_props: Option<FormalPropVec>) -> Self {
         Component {
             ty: ty,
-            block: block
+            block: block,
+            formal_props: formal_props
             // events: events
         }
     }
@@ -111,6 +113,14 @@ impl Component {
 
     #[allow(dead_code)]
     pub fn root_block<'a>(&'a self) -> &'a Block { &self.block }
+
+    pub fn formal_props_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = FormalPropRef<'a>>> {
+        self.formal_props.as_ref().map(|v| v.into_iter().map(|s| (s.as_str())))
+    }
+
+    // pub fn actual_props_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = ActualPropRef<'a>>> {
+    //     self.formal_props.as_ref().map(|v| v.into_iter().map(|p| (p.0.as_str(), p.1.as_ref().map(|e| e)))
+    // }
 
     // #[allow(dead_code)]
     // pub fn ops_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
@@ -284,11 +294,6 @@ impl Block {
     pub fn componentkey_mappings_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ComponentKeyMapping>> {
         self.compkey_mappings.as_ref().map(|compkey_mappings| compkey_mappings.into_iter())
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ExprScopeProcessingState {
-    pub symbol_map: SymbolMap,
 }
 
 #[derive(Debug, Default)]

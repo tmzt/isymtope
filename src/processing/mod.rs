@@ -10,3 +10,4 @@ pub mod process_store;
 
 pub use self::structs::*;
 pub use self::process::ProcessDocument;
+pub use self::process_content::ProcessContent;

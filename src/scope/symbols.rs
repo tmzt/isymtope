@@ -2,6 +2,7 @@
 
 use parser::ast::*;
 use parser::util::allocate_element_key;
+use scope::*;
 
 
 #[derive(Debug, Clone)]
@@ -35,11 +36,23 @@ impl Symbols {
     }
 
     pub fn add_sym(&mut self, key: &str, sym: Symbol) {
-        self.symbol_map.insert(key.to_owned(), sym);
+        self.symbol_map.insert(key.to_owned(), SymbolValueEntry::Symbol(sym));
+    }
+
+    pub fn add_value(&mut self, key: &str, expr: ExprValue) {
+        self.symbol_map.insert(key.to_owned(), SymbolValueEntry::Value(expr));
+    }
+
+    pub fn get_value_entry(&self, key: &str) -> Option<&SymbolValueEntry> {
+        self.symbol_map.get(key)
     }
 
     pub fn get_sym(&self, key: &str) -> Option<&Symbol> {
-        self.symbol_map.get(key)
+        self.symbol_map.get(key).and_then(|r| match r { &SymbolValueEntry::Symbol(ref s) => Some(s), _ => None })
+    }
+
+    pub fn get_value(&self, key: &str) -> Option<&ExprValue> {
+        self.symbol_map.get(key).and_then(|r| match r { &SymbolValueEntry::Value(ref s) => Some(s), _ => None })
     }
 }
 

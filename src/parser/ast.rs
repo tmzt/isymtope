@@ -97,7 +97,6 @@ pub enum ResolvedSymbolType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
-pub type SymbolMap = LinkedHashMap<String, Symbol>;
 // pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
 impl Into<Symbol> for BindingType {
@@ -420,7 +419,6 @@ pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<EventHandler>;
 pub type EventsItem = (String, String, EventHandler);
 pub type EventsVec = Vec<EventsItem>;
-pub type PropVec = Vec<Prop>;
 
 impl EventHandler {
     // pub fn event_name(&self) -> &str { &self.0 }
@@ -447,6 +445,29 @@ pub enum ElementBindingNodeType {
 
 pub type PropKey = String;
 pub type Prop = (String, Option<ExprValue>);
+pub type PropVec = Vec<Prop>;
+
+pub type FormalProp = (String);
+pub type FormalPropVec = Vec<FormalProp>;
+
+pub type FormalPropRef<'a> = (&'a str);
+
+pub type ActualPropRef<'a> = (&'a str, Option<&'a ExprValue>);
+
+// pub trait PropRefs {
+//     fn formal_refs<'a>(&'a self) -> impl IntoIterator<Item = FormalPropRef<'a>>;
+//     fn actual_refs<'a>(&'a self) -> impl IntoIterator<Item = ActualPropRef<'a>>;
+// }
+
+// impl PropRefs for PropVec {
+//     fn formal_refs<'a>(&'a self) -> impl IntoIterator<Item = FormalPropRef<'a>> {
+//         self.iter().map(|p| (&p.0, p.1.map(|s| &s)))
+//     }
+
+//     fn actual_refs<'a>(&'a self) -> impl IntoIterator<Item = ActualPropRef<'a>> {
+//         self.iter().map(|p| (&p.0, p.1.map(|s| &s)))
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementType {

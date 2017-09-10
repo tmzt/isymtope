@@ -10,7 +10,7 @@ use output::*;
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
     fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         if !is_void {
             write!(w, "IncrementalDOM.elementOpen(\"{}\", ", element_tag)?;
@@ -22,7 +22,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         self.write_expr(w, doc, ctx, bindings, &path_expr)?;
         write!(w, ", [")?;
 
-        let mut props: PropVec = props.into_iter().map(|e| e.to_owned()).collect();
+        let mut props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
         props.insert(0, ("key".into(), Some(path_expr.clone())));
 
         let mut first_item = true;
@@ -77,7 +77,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
     }
 
     fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
         self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding)
@@ -93,7 +93,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
 impl ElementOpsUtilWriter for DefaultOutputWriterJs {
     fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, _is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = instance_key.as_expr();
         write!(w, "component_{}(", component_ty)?;
@@ -113,7 +113,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
     }
 
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = &'a Prop>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = instance_key.as_static_string();
         let path_expr = ctx.join_path_as_expr_with(Some("."), &instance_key);

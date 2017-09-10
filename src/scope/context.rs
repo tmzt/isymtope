@@ -8,39 +8,15 @@ use scope::symbols::*;
 use processing::*;
 
 
+#[derive(Debug, Clone)]
+pub enum SymbolValueEntry {
+    Value(ExprValue),
+    Symbol(Symbol)
+}
+
+pub type SymbolMap = LinkedHashMap<String, SymbolValueEntry>;
+
 pub type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
-
-#[derive(Debug)]
-pub struct SymbolResolver<'a, I: Iterator<Item = PropValue<'a>>> {
-    ctx: &'a mut Context,
-    iter: I
-}
-
-impl<'a, I: Iterator<Item = PropValue<'a>>> SymbolResolver<'a, I>
-{
-    pub fn new(ctx: &'a mut Context, iter: I) -> Self {
-        SymbolResolver { ctx: ctx, iter: iter }
-    }
-}
-
-impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolResolver<'a, I>
-{
-    type Item = Prop;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(prop) = self.iter.next() {
-            let key = prop.0.to_owned();
-            let expr = &prop.1;
-            let resolved_sym = self.ctx.resolve_sym(&key);
-            if let Some(resolved_sym) = resolved_sym {
-                let expr = ExprValue::SymbolReference(resolved_sym);
-                return Some((key, Some(expr)));
-            }; 
-            return Some((key, expr.map(|p| p.clone())));
-        };
-        None
-    }
-}
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -54,8 +30,6 @@ impl<'a> ScopeSymbolIter<'a>
 {
     #[allow(dead_code)]
     pub fn new(ctx: &'a mut Context, key: &str, scope_id: &str) -> Self {
-        // let scope_id = ctx.scope_ref().map(|scope| scope.id().to_owned());
-        // let scope_id = ctx.scope_ref().unwrap().id().to_owned();
         let scope_id = Some(scope_id.to_owned());
         let key = key.to_owned();
 
@@ -95,33 +69,31 @@ impl<'a> Iterator for ScopeSymbolIter<'a>
             .and_then(|map_id| self.ctx.get_map(map_id))
             .and_then(|map| map.get_sym(&key)).map(|s| s.to_owned());
 
-        if sym.is_some() {
-            let next_key = match sym {
-                Some(ref sym) => {
-                    match sym.sym_ref() {
-                        &SymbolReferenceType::Binding(ref binding) => {
-                            match binding {
-                                &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
-                                &BindingType::MapItemBinding => {
-                                    // let scope = self.get_scope(&scope_id);
-                                    None
-                                }
-                                _ => None
+        let next_key = match sym.as_ref().map(|sym| sym.sym_ref()) {
+            Some(sym_ref) => {
+                match sym_ref {
+                    &SymbolReferenceType::Binding(ref binding) => {
+                        match binding {
+                            &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
+                            &BindingType::MapItemBinding => {
+                                // let scope = self.get_scope(&scope_id);
+                                None
                             }
-                        },
-                        _ => None
-                    }
-                },
-                _ => None
-            };
+                            _ => None
+                        }
+                    },
+                    _ => None
+                }
+            },
+            _ => None
+        };
 
-            if let Some(sym) = sym {
-                if let Some(next_key) = next_key {
-                    self.key = next_key;
-                    return Some(ScopeSymbolState::InterimSymbol(sym));
-                } else {
-                    return Some(ScopeSymbolState::FinalSymbol(sym));
-                };
+        if let Some(sym) = sym {
+            if let Some(next_key) = next_key {
+                self.key = next_key;
+                return Some(ScopeSymbolState::InterimSymbol(sym));
+            } else {
+                return Some(ScopeSymbolState::FinalSymbol(sym));
             };
         };
 
@@ -191,15 +163,13 @@ impl Context {
     }
 
     pub fn create_child_scope(&mut self) -> Scope {
-        let parent_scope = self.scope();
-        let parent_map_id = parent_scope.map_id().to_owned();
-        // let symbol_path = parent_scope.symbol_path().clone();
+        let parent_map_id = self.scope_ref().unwrap().map_id().to_owned();
 
         let symbols = Symbols::new(Some(&parent_map_id));
         let map_id = symbols.map_id().to_owned();
         self.add_symbol_map(symbols);
 
-        Scope::new_from_parent(&map_id, &parent_scope)
+        Scope::new_from_parent(&map_id, self.scope_ref().unwrap())
     }
 
     pub fn push_scope(&mut self, scope: Scope) {
@@ -286,103 +256,6 @@ impl Context {
         None
     }
 
-    // #[allow(dead_code)]
-    // pub fn follow_sym_starting_at(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
-    //     let mut cur = Some((key.to_owned(), scope_id.to_owned()));
-    //     loop {
-    //         let cur_key = cur.0.to_owned();
-    //         let cur_scope_id = cur.1.to_owned();
-
-    //         let next = self.get_scope(&cur_scope_id).map(|s| (s.map_id().to_owned(), s.parent_id().map(|s| s.to_owned())));
-    //         // let map = next.as_ref().and_then(|next| self.symbol_maps.get(&next.0).map(|s| s.to_owned()));
-    //         // let sym = map.as_ref().and_then(|map| map.get_sym(&cur_key)).map(|s| s.to_owned());
-
-    //         let map = next.as_ref().and_then(|next| self.symbol_maps.get(&next.0).map(|s| s.to_owned()));
-    //         let sym = map.as_ref().and_then(|map| map.get_sym(&cur_key)).map(|s| s.to_owned());
-
-    //         let next_scope_id = next.as_ref().map(|next| next.0.to_owned());
-
-    //         let next_key = match sym {
-    //             Some(ref sym) => {
-    //                 match sym.sym_ref() {
-    //                     &SymbolReferenceType::Binding(ref binding) => {
-    //                         match binding {
-    //                             &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
-    //                             &BindingType::MapItemBinding => {
-    //                                 // let scope = self.get_scope(&scope_id);
-    //                                 None
-    //                             }
-    //                             _ => None
-    //                         }
-    //                     },
-    //                     _ => None
-    //                 }
-    //             },
-    //             _ => None
-    //         };
-
-    //         if next_key.is_none() {
-    //             return sym;
-    //         };
-
-
-    //     }
-    // }
-
-    // #[allow(dead_code)]
-    // pub fn follow_sym_starting_at_x(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
-    //     // let mut cur_scope_id = Some(scope_id.to_owned());
-    //     let mut cur_scope_id = scope_id.to_owned();
-    //     // let mut next_scope_id = self.get_scope(scope_id).and_then(|s| s.parent_id().map(|s| s.to_owned()));
-    //     // let mut cur_key = Some(key.to_owned());
-    //     let mut cur_key = key.to_owned();
-    //     // let mut cur_scope = self.get_scope(scope_id);
-    //     // while let Some(scope_id) = cur_scope_id.as_ref().map(|s| s.as_str()) {
-    //     loop {
-    //         // let next_scope_id = cur_scope_id.as_ref().map(|s| s.as_str()).and_then(|scope_id| self.get_scope(scope_id))
-    //         //     .and_then(|s| s.parent_id()).map(|s| s.to_owned());
-
-    //         // let key = cur_key.as_ref().map(|s| s.to_owned());
-
-    //         // let map_id = map.map_id().to_owned();, self.scope_ref().unwrap().id()
-    //         let key = cur_key.to_owned();
-    //         if let Some(sym) = self.get_sym_in_scope(&key, &scope_id) {
-    //             let next_key = match sym.sym_ref() {
-    //                 &SymbolReferenceType::Binding(ref binding) => {
-    //                     match binding {
-    //                         &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
-    //                         &BindingType::MapItemBinding => {
-    //                             // let scope = self.get_scope(&scope_id);
-    //                             None
-    //                         }
-    //                         _ => None
-    //                     }
-    //                 },
-    //                 _ => None
-    //             };
-
-    //             if next_key.is_none() {
-    //                 return Some(sym.to_owned());
-    //             }
-
-    //             cur_key = next_key;
-    //         };
-
-    //         if next_scope_id.is_none() { break; }
-    //         cur_scope_id = next_scope_id;
-
-    //         // cur_scope_id = next_scope_id;
-    //         // cur_scope_id = if let Some(parent_id) = scope.parent_id() { self.get_scope(parent_id) } else { None };
-
-    //         // cur_scope = if let Some(parent_id) = scope.parent_id() { self.get_scope(parent_id) } else { None };
-
-    //         // cur_scope = scope.parent_id().and_then(|id| self.get_scope(id));
-    //         // cur_map = map.parent_map_id().and_then(|id| self.symbol_maps.get(id));
-    //     };
-
-    //     None
-    // }
-
     #[allow(dead_code)]
     pub fn map_id(&mut self) -> &str {
         self.scope_ref().unwrap().map_id()
@@ -417,47 +290,52 @@ impl Context {
     // }
 
     #[allow(dead_code)]
-    pub fn eval_sym(&mut self, sym: &Symbol) -> Option<ExprValue> {
+    pub fn eval_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<ExprValue> {
+        match binding {
+            &BindingType::ReducerPathBinding(ref reducer_path) => {
+                if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                    if let Some(ref expr) = reducer_data.default_expr {
+                        return self.reduce_expr(expr);
+                    };
+                };
+            }
+            _ => {}
+        };
 
-        // let mut cur_sym = sym;
-        // match sym.sym_ref() {
-        //     &SymbolReferenceType::ResolvedReference(ref key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref scope_id)), _) => {
-        //         match key_ref {
-        //             &KeyReferenceType::UnboundFormalParam => {
-        //                 if let Some(ref ref_sym) = self.resolve_sym_starting_at(key, scope_id) {
-        //                     return self.eval_sym(ref_sym);
-        //                 };
-
-        //             },
-        //             _ => ()
-        //         };
-        //     },
-
-        //     _ => {}
+        // if let Some(resolved_key) = sym.resolved_key() {
+        //     let scope_id = self.scope_ref().unwrap().id().to_owned();
+        //     if let Some(sym) = self.follow_sym_starting_at(resolved_key, &scope_id) {
+        //         return self.eval_sym(doc, &sym);
+        //     }
         // };
 
-        // let map_id = self.scope().map_id().to_owned();
-        // let mut cur_map = self.symbol_maps.get(&map_id);
-        let mut cur_sym = Some(sym);
+        None
+    }
 
-        while let Some(sym) = cur_sym {
-            match sym.sym_ref() {
-                &SymbolReferenceType::ResolvedReference(ref sym_key, ResolvedSymbolType::ReferenceToKeyInScope(ref key_ref, Some(ref scope_id)), _) => {
-                    match key_ref {
-                        &KeyReferenceType::UnboundFormalParam => {
-                            // cur_map = self.symbol_maps.get(scope_id);
-                            if let Some(map) = self.symbol_maps.get(scope_id) {
-                                cur_sym = map.get_sym(sym_key);
-                            }
-                            continue;
-                        }
+    #[allow(dead_code)]
+    pub fn eval_sym(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+        match sym.sym_ref() {
+            &SymbolReferenceType::InitialValue(_, box ref after) => {
+                let expr = ExprValue::SymbolReference(after.to_owned());
+                return self.reduce_expr_and_resolve(doc, &expr);
+            }
 
-                        _ => { break; }
+            &SymbolReferenceType::Binding(ref binding) => {
+                return self.eval_binding(doc, binding);
+            }
+
+            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
+                if let Some(first_expr) = self.eval_sym(doc, first) {
+                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
+                    if let Some(rest_iter) = rest_iter {
+                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
                     };
-                }
 
-                _ => {}
-            };
+                    return self.reduce_expr_and_resolve(doc, &first_expr);
+                };
+            }
+
+            _ => {}
         };
 
         None
@@ -548,7 +426,7 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol, starting_map_id: Option<&str>) -> Option<ExprValue> {
+    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol, starting_scope_id: Option<&str>) -> Option<ExprValue> {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => {
                 let expr = ExprValue::SymbolReference(after.to_owned());
@@ -565,10 +443,9 @@ impl Context {
                 };
 
                 if let Some(resolved_key) = sym.resolved_key() {
-                    let map_id = self.map_id().to_owned();
-                    if let Some(sym) = self.follow_sym_starting_at(resolved_key, &map_id) {
-                        let parent_map_id = self.parent_map_id().unwrap().to_owned();
-                        return self.resolve_symbol_to_expr(doc, &sym, Some(&parent_map_id));
+                    let scope_id = self.scope_ref().unwrap().id().to_owned();
+                    if let Some(sym) = self.follow_sym_starting_at(resolved_key, &scope_id) {
+                        return self.eval_sym(doc, &sym);
                     }
                 };
             }
@@ -817,23 +694,6 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn unbound_formal_param(&mut self, key: &str) -> Symbol {
-        self.scope().unbound_formal_param(key)
-    }
-
-    #[allow(dead_code)]
-    pub fn add_unbound_formal_param(&mut self, key: &str) {
-        let formal = self.unbound_formal_param(key);
-        self.add_sym(key, formal);
-    }
-
-    /// Add prop to element that refers to a key defined in another scope.
-    pub fn add_element_prop_ref(&mut self, key: &str, prop_key: &str, scope_id: Option<&str>) {
-        let prop = Symbol::element_prop(key, prop_key, scope_id);
-        self.add_sym(key, prop);
-    }
-
-    #[allow(dead_code)]
     pub fn add_invocation_prop(&mut self, key: &str, expr: Option<&ExprValue>) {
         let invocation_prop = Symbol::invocation_prop(key, expr);
         self.add_sym(key, invocation_prop);
@@ -849,8 +709,10 @@ impl Context {
 #[cfg(test)]
 mod tests {
     use std::iter::*;
-    use parser::ast::*;
-    use scope::context::*;
+    use parser::*;
+    use scope::*;
+    use scope::symbols::*;
+    use processing::*;
 
 
     // Expressions
@@ -1000,9 +862,28 @@ mod tests {
         }
     }
 
+    fn create_document_with_data<'a>(template: &'a Template, reducer_key: &str, default_expr: ExprValue) -> Document {
+        let mut ctx = Context::default();
+        let mut bindings = BindingContext::default();
+        // let mut processing = ProcessDocument::from_template(&template);
+        let mut state = DocumentProcessingState::default();
+        state.reducer_key_data = Default::default();
+
+        let mut reducer = ReducerKeyData::default();
+        reducer.default_expr = Some(default_expr);
+
+        state.reducer_key_data.insert(reducer_key.to_owned(), reducer);
+        // state.reducer_key_data.default_expr = Some(default_expr);
+        state.default_reducer_key = Some(reducer_key.to_owned());
+        // assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+        state.into()
+    }
+
     #[test]
     pub fn test_context_component_props() {
         let mut ctx = Context::default();
+        let template = Template::new(vec![]);
+        let doc = create_document_with_data(&template, "TODOS".into(), ExprValue::LiteralArray(Some(vec![ExprValue::LiteralString("One".into())])));
 
         // Define a new reducer path binding (todos)
         {
@@ -1024,7 +905,28 @@ mod tests {
 
         let scope_id = ctx.scope_ref().unwrap().id().to_owned();
 
-        // Scope
+        // Add reducer path binding
+        {
+            ctx.push_child_scope();
+            assert_eq!(
+                ctx.follow_sym_starting_at("todo", &scope_id),
+                Some(Symbol::binding(&BindingType::ReducerPathBinding("TODOS".into())))
+            );
+        }
+
+        // Assert default expression
+        {
+            assert!(doc.reducer_key_data.contains_key("TODOS"));
+            assert_eq!(doc.reducer_key_data.get("TODOS").unwrap().default_expr, Some(ExprValue::LiteralArray(Some(vec![ExprValue::LiteralString("One".into())]))));
+        }
+
+        // Evaluate reducer path binding
+        {
+            let sym  = Symbol::binding(&BindingType::ReducerPathBinding("TODOS".into()));
+            assert_eq!(ctx.eval_sym(&doc, &sym), Some(ExprValue::LiteralArray(Some(vec![ExprValue::LiteralString("One".into())]))));
+        }
+
+        // Resolve reducer path symbol
         {
             ctx.push_child_scope();
             assert_eq!(
@@ -1034,206 +936,131 @@ mod tests {
         }
     }
 
+    // type FormalProp<'a> = (&'a str);
+    // type FormalPropVec<'a> = Vec<FormalProp<'a>>;
 
-    #[derive(Debug, Clone, Default)]
-    struct TestProcessor2 {}
+    // type PropKeyRef = (String, String);
+    // type PropKeyRefVec = Vec<PropKeyRef>;
 
-    #[derive(Debug, Clone, Default)]
-    struct TestOutput2 {}
+    // type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
+    // type PropValueVec<'a> = Vec<PropValue<'a>>;
 
-    type FormalProp<'a> = (&'a str);
-    type FormalPropVec<'a> = Vec<FormalProp<'a>>;
+    // impl TestOutput2 {
+    //     pub fn push_component_instance_invocation_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, props: I)
+    //       where I: IntoIterator<Item = &'a PropValue<'a>>
+    //     {
+    //         // let parent_scope_id = ctx.scope().id().to_owned();
+    //         ctx.push_child_scope();
+    //         for prop in props {
+    //             ctx.add_invocation_prop(&prop.0, prop.1);
+    //         }
+    //     }
 
-    type PropKeyRef = (String, String);
-    type PropKeyRefVec = Vec<PropKeyRef>;
+    //     pub fn push_component_instance_scope(&mut self, ctx: &mut Context, instance_id: &str, _component_ty: &str) {
+    //         ctx.push_child_scope();
+    //         ctx.append_path_str(instance_id);
+    //     }
 
-    type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
-    type PropValueVec<'a> = Vec<PropValue<'a>>;
+    //     pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str, props: I)
+    //       where I: IntoIterator<Item = &'a PropKeyRef>
+    //     {
+    //         let parent_scope_id = ctx.scope().id().to_owned();
+    //         ctx.push_child_scope();
+    //         ctx.append_path_str(element_id);
+    //         for prop in props {
+    //             ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
+    //         }
+    //     }
+    // }
 
-    impl TestProcessor2 {
-        pub fn push_component_definition_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, formals: I)
-          where I: IntoIterator<Item = &'a FormalProp<'a>>
-        {
-            ctx.push_child_scope();
-            for formal in formals {
-                ctx.add_unbound_formal_param(formal);
-            }
-        }
+    // #[test]
+    // pub fn test_context_scope_component_nesting1() {
+    //     let mut ctx = Context::default();
+    //     let mut output = TestOutput2::default();
 
-        pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, _element_id: &str, _element_ty: &str, props: I)
-          where I: IntoIterator<Item = &'a PropKeyRef>
-        {
-            let parent_scope_id = ctx.scope().id().to_owned();
-            ctx.push_child_scope();
-            for prop in props {
-                ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
-            }
-        }
+    //     // Lm
+    //     // Element: Lm()
+    //     // Invokes: CompNo(todo = store.getState().todo)
+    //     {
+    //         ctx.push_child_scope();
+    //         ctx.append_path_str("Lm");
 
-        pub fn push_element_scope(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str) {
-            ctx.push_child_scope();
-            ctx.append_path_str(element_id);
-        }
-    }
+    //         // Our element path should be (Lm)
+    //         let expr = ctx.join_path_as_expr(Some("."));
+    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+    //             Box::new(ExprValue::LiteralString("Lm".to_owned()))
+    //         ])));
+    //     }
+    //     // let lm_element_scope_id = ctx.scope().id().to_owned();
 
-    impl TestOutput2 {
-        pub fn push_component_instance_invocation_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, props: I)
-          where I: IntoIterator<Item = &'a PropValue<'a>>
-        {
-            // let parent_scope_id = ctx.scope().id().to_owned();
-            ctx.push_child_scope();
-            for prop in props {
-                ctx.add_invocation_prop(&prop.0, prop.1);
-            }
-        }
+    //     // Lm
+    //     // Comp1 definition (loaded)
+    //     // {
+    //     //     output.push_component_definition_param_bindings_scope(&mut ctx);
+    //     // }
 
-        pub fn push_component_instance_scope(&mut self, ctx: &mut Context, instance_id: &str, _component_ty: &str) {
-            ctx.push_child_scope();
-            ctx.append_path_str(instance_id);
-        }
+    //     // Lm
+    //     // Invoke: CompNo(todo = store.getState().todo)
+    //     {
+    //         let todo_value = ExprValue::SymbolReference(Symbol::reducer_key("todo"));
+    //         let props: PropValueVec = vec![
+    //             ("todo".into(), Some(&todo_value))
+    //         ];
+    //         output.push_component_instance_invocation_scope(&mut ctx, "Component1", props.iter());
 
-        pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str, props: I)
-          where I: IntoIterator<Item = &'a PropKeyRef>
-        {
-            let parent_scope_id = ctx.scope().id().to_owned();
-            ctx.push_child_scope();
-            ctx.append_path_str(element_id);
-            for prop in props {
-                ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
-            }
-        }
-    }
+    //         // Our element path should still be the same (Lm)
+    //         let expr = ctx.join_path_as_expr(Some("."));
+    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+    //             Box::new(ExprValue::LiteralString("Lm".to_owned()))
+    //         ])));
+    //     }
 
-    #[test]
-    pub fn test_context_scope_component_processing1() {
-        let mut ctx = Context::default();
-        let mut processor = TestProcessor2::default();
+    //     // Lm.Comp1
+    //     // Component contents will be output
+    //     {
+    //         // let parent_scope_id = ctx.scope().id().to_owned();
+    //         output.push_component_instance_scope(&mut ctx, "Comp1", "Component1");
 
-        // component Component(todo)
-        // Create new component context with unbound formal prop (todo)
-        {
-            let formals: FormalPropVec = vec![("todo")];
-            processor.push_component_definition_scope(&mut ctx, "Component", formals.iter());
-        }
-        let comp_definition_scope_id = ctx.scope().id().to_owned();
+    //         // The joined path (dynamic) should be a string join operation
+    //         let expr = ctx.join_path_as_expr(Some("."));
+    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+    //             Box::new(ExprValue::LiteralString("Lm".to_owned())),
+    //             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
+    //         ])));
 
-        // within Component definition
-        {
-            // The local (todo) should be an unbound formal prop (todo)
-            assert_eq!(ctx.resolve_sym("todo"),
-                // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
-                Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
-            );
-        }
+    //         // The local (todo) should resolve to a reducer key reference (todo)
+    //         // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
+    //         assert_eq!(ctx.resolve_sym("todo"),
+    //             // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
+    //             Some(Symbol::invocation_prop("todo", Some(&ExprValue::SymbolReference(Symbol::reducer_key("todo")))))
+    //         );
+    //     }
 
-        // element Pq invocation
-        {
-            let props: PropKeyRefVec = vec![
-                ("value".into(), "todo".into())
-            ];
-            processor.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", props.iter());
-        }
-        // let element_pq_invocation_scope_id = ctx.scope().id().to_owned();
+    //     // Lm.Comp1.Pq
+    //     // Element within component definition
+    //     // Element parameter definition scope
+    //     {
+    //         let props: PropKeyRefVec = vec![
+    //             ("value".into(), "todo".into())
+    //         ];
+    //         output.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", props.iter());
+    //     }
 
-        // element Pq scope
-        {
-            processor.push_element_scope(&mut ctx, "Pq", "input");
+    //     // The joined path (dynamic) should be a string join operation
+    //     let expr = ctx.join_path_as_expr(Some("."));
+    //     assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
+    //         Box::new(ExprValue::LiteralString("Lm".to_owned())),
+    //         Box::new(ExprValue::LiteralString("Comp1".to_owned())),
+    //         Box::new(ExprValue::LiteralString("Pq".to_owned()))
+    //     ])));
 
-            // The local (todo) should still be an unbound formal param (todo)
-            assert_eq!(ctx.resolve_sym("todo"),
-                Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
-            );
-        }
-    }
+    //     // The local var (param) should resolve to a param
+    //     // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
 
-    #[test]
-    pub fn test_context_scope_component_nesting1() {
-        let mut ctx = Context::default();
-        let mut output = TestOutput2::default();
+    //     // We should resolve the symbol from the nearest scope where it is defined
+    //     // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz3")));
 
-        // Lm
-        // Element: Lm()
-        // Invokes: CompNo(todo = store.getState().todo)
-        {
-            ctx.push_child_scope();
-            ctx.append_path_str("Lm");
-
-            // Our element path should be (Lm)
-            let expr = ctx.join_path_as_expr(Some("."));
-            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-                Box::new(ExprValue::LiteralString("Lm".to_owned()))
-            ])));
-        }
-        // let lm_element_scope_id = ctx.scope().id().to_owned();
-
-        // Lm
-        // Comp1 definition (loaded)
-        // {
-        //     output.push_component_definition_param_bindings_scope(&mut ctx);
-        // }
-
-        // Lm
-        // Invoke: CompNo(todo = store.getState().todo)
-        {
-            let todo_value = ExprValue::SymbolReference(Symbol::reducer_key("todo"));
-            let props: PropValueVec = vec![
-                ("todo".into(), Some(&todo_value))
-            ];
-            output.push_component_instance_invocation_scope(&mut ctx, "Component1", props.iter());
-
-            // Our element path should still be the same (Lm)
-            let expr = ctx.join_path_as_expr(Some("."));
-            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-                Box::new(ExprValue::LiteralString("Lm".to_owned()))
-            ])));
-        }
-
-        // Lm.Comp1
-        // Component contents will be output
-        {
-            // let parent_scope_id = ctx.scope().id().to_owned();
-            output.push_component_instance_scope(&mut ctx, "Comp1", "Component1");
-
-            // The joined path (dynamic) should be a string join operation
-            let expr = ctx.join_path_as_expr(Some("."));
-            assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-                Box::new(ExprValue::LiteralString("Lm".to_owned())),
-                Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-            ])));
-
-            // The local (todo) should resolve to a reducer key reference (todo)
-            // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
-            assert_eq!(ctx.resolve_sym("todo"),
-                // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
-                Some(Symbol::invocation_prop("todo", Some(&ExprValue::SymbolReference(Symbol::reducer_key("todo")))))
-            );
-        }
-
-        // Lm.Comp1.Pq
-        // Element within component definition
-        // Element parameter definition scope
-        {
-            let props: PropKeyRefVec = vec![
-                ("value".into(), "todo".into())
-            ];
-            output.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", props.iter());
-        }
-
-        // The joined path (dynamic) should be a string join operation
-        let expr = ctx.join_path_as_expr(Some("."));
-        assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-            Box::new(ExprValue::LiteralString("Lm".to_owned())),
-            Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-            Box::new(ExprValue::LiteralString("Pq".to_owned()))
-        ])));
-
-        // The local var (param) should resolve to a param
-        // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
-
-        // We should resolve the symbol from the nearest scope where it is defined
-        // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz3")));
-
-        // We should resolve the symbol from the nearest scope where it is defined
-        // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
-    }
+    //     // We should resolve the symbol from the nearest scope where it is defined
+    //     // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
+    // }
 }
