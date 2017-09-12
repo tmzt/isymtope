@@ -57,11 +57,11 @@ impl CompDefProcessor {
         output.ty = Some(component_ty.to_owned());
 
         ctx.push_child_scope();
-        // for formal in formals {
-        //     let binding = BindingType::ComponentPropBinding(formal.to_owned());
-        //     ctx.add_sym(formal, Symbol::binding(&binding));
-        //     // ctx.add_unbound_formal_param(formal);
-        // }
+        for formal in formals {
+            let binding = BindingType::ComponentPropBinding(formal.to_owned());
+            ctx.add_sym(formal, Symbol::binding(&binding));
+            // ctx.add_unbound_formal_param(formal);
+        }
     }
 
     pub fn push_element_parameter_definition_scope<'a, I>(&mut self, block: &mut BlockProcessingState, ctx: &mut Context, element_id: &str, element_ty: &str, props: Option<I>)
@@ -115,6 +115,7 @@ impl CompDefProcessor {
 
             // Add formal parameters
             for prop in props {
+                ctx.add_sym(prop, Symbol::binding(&BindingType::ComponentPropBinding(prop.to_owned())) );
                 output.formal_props.push((prop.to_owned()));
             }
         } else {

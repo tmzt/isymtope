@@ -74,10 +74,15 @@ impl<'a> Iterator for ScopeSymbolIter<'a>
                 match sym_ref {
                     &SymbolReferenceType::Binding(ref binding) => {
                         match binding {
+                            // &BindingType::ComponentFormalProp => {
+                            //     // Special case, ignore this symbol and continue resolving
+                            //     return Some(ScopeSymbolState::InterimSymbol(Symbol::binding(&BindingType::ComponentFormalProp)));
+                            // }
+
                             &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
                             &BindingType::MapItemBinding => {
-                                // let scope = self.get_scope(&scope_id);
-                                None
+                                // Special case, ignore this symbol and continue resolving
+                                return Some(ScopeSymbolState::InterimSymbol(Symbol::binding(&BindingType::MapItemBinding)));
                             }
                             _ => None
                         }
@@ -107,7 +112,7 @@ impl<'a> Iterator for ScopeSymbolIter<'a>
 
 #[derive(Debug)]
 pub struct Context {
-    // base_scope: Scope,
+    base_scope_id: String,
     scopes: LinkedHashMap<String, Scope>,
     symbol_maps: LinkedHashMap<String, Symbols>
 }
@@ -123,8 +128,10 @@ impl Default for Context {
 
 impl Context {
     pub fn new(base_scope: Scope, symbols: Symbols) -> Self {
+        let base_scope_id = base_scope.id().to_owned();
+
         let mut ctx = Context {
-            // base_scope: base_scope,
+            base_scope_id: base_scope_id,
             scopes: Default::default(),
             symbol_maps: Default::default()
         };
@@ -231,21 +238,16 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn get_sym_in_scope(&mut self, key: &str, scope_id: &str) -> Option<&Symbol> {
-        let map_id = self.get_scope(scope_id).unwrap().map_id().to_owned();
+    pub fn get_value(&mut self, key: &str) -> Option<&ExprValue> {
+        let map_id = self.map_id().to_owned();
         if let Some(map) = self.symbol_maps.get(&map_id) {
-            return map.get_sym(key);
+            return map.get_value(key)
         };
         None
-        // let map_id = self.get_scope(scope_id).map(|scope| scope.map_id().to_owned());
-        // if let Some(map) = map_id.and_then(|map_id| self.symbol_maps.get(&map_id)) {
-        //     return map.get_sym(key)
-        // };
-        // None
     }
 
     #[allow(dead_code)]
-    pub fn follow_sym_starting_at(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
+    pub fn resolve_key_from_scope(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
         let iter = ScopeSymbolIter::new(self, key, scope_id);
         // let mut res: Option<ScopeSymbolState> = None;
         for sym in iter {
@@ -289,58 +291,6 @@ impl Context {
     //     None
     // }
 
-    #[allow(dead_code)]
-    pub fn eval_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<ExprValue> {
-        match binding {
-            &BindingType::ReducerPathBinding(ref reducer_path) => {
-                if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                    if let Some(ref expr) = reducer_data.default_expr {
-                        return self.reduce_expr(expr);
-                    };
-                };
-            }
-            _ => {}
-        };
-
-        // if let Some(resolved_key) = sym.resolved_key() {
-        //     let scope_id = self.scope_ref().unwrap().id().to_owned();
-        //     if let Some(sym) = self.follow_sym_starting_at(resolved_key, &scope_id) {
-        //         return self.eval_sym(doc, &sym);
-        //     }
-        // };
-
-        None
-    }
-
-    #[allow(dead_code)]
-    pub fn eval_sym(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
-        match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => {
-                let expr = ExprValue::SymbolReference(after.to_owned());
-                return self.reduce_expr_and_resolve(doc, &expr);
-            }
-
-            &SymbolReferenceType::Binding(ref binding) => {
-                return self.eval_binding(doc, binding);
-            }
-
-            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                if let Some(first_expr) = self.eval_sym(doc, first) {
-                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                    if let Some(rest_iter) = rest_iter {
-                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
-                    };
-
-                    return self.reduce_expr_and_resolve(doc, &first_expr);
-                };
-            }
-
-            _ => {}
-        };
-
-        None
-    }
-
     pub fn add_symbol_map(&mut self, map: Symbols) {
         self.symbol_maps.insert(map.map_id().to_owned(), map);
     }
@@ -349,6 +299,13 @@ impl Context {
         let map_id = self.scope().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_sym(key, sym);
+        };
+    }
+
+    pub fn add_value(&mut self, key: &str, expr: ExprValue) {
+        let map_id = self.scope().map_id().to_owned();
+        if let Some(map) = self.symbol_maps.get_mut(&map_id) {
+            map.add_value(key, expr);
         };
     }
 
@@ -398,7 +355,7 @@ impl Context {
     }
 
     pub fn reduce_expr_and_resolve_to_string(&mut self, doc: &Document, expr: &ExprValue) -> Option<String> {
-        if let Some(expr) = self.reduce_expr_and_resolve(doc, expr) {
+        if let Some(expr) = self.eval_expr(doc, expr) {
             return Some(self.reduce_expr_to_string(&expr));
         };
         None
@@ -426,73 +383,76 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_symbol_to_expr(&mut self, doc: &Document, sym: &Symbol, starting_scope_id: Option<&str>) -> Option<ExprValue> {
-        match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => {
-                let expr = ExprValue::SymbolReference(after.to_owned());
-                return self.reduce_expr_and_resolve(doc, &expr);
-            }
-
-            &SymbolReferenceType::Binding(ref binding) => {
-                if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
-                    if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                        if let Some(ref expr) = reducer_data.default_expr {
-                            return self.reduce_expr(expr);
-                        };
-                    };
-                };
-
-                if let Some(resolved_key) = sym.resolved_key() {
-                    let scope_id = self.scope_ref().unwrap().id().to_owned();
-                    if let Some(sym) = self.follow_sym_starting_at(resolved_key, &scope_id) {
-                        return self.eval_sym(doc, &sym);
-                    }
-                };
-            }
-
-            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                if let Some(first_expr) = self.resolve_symbol_to_expr(doc, first, None) {
-                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                    if let Some(rest_iter) = rest_iter {
-                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
-                    };
-
-                    return self.reduce_expr_and_resolve(doc, &first_expr);
-
-                    // // let mut cur_expr: Option<&ExprValue> = Some(&first_expr);
-                    // if let Some(mut rest) = rest.as_ref().map(|rest| rest.iter()) {
-                    //     while cur_expr.is_some() {
-                    //         match cur_expr {
-                    //             Some(&ExprValue::LiteralObject(Some(ref props))) => {
-                    //                 let prop = rest.next()
-                    //                     .and_then(|key| props.iter().filter(|p| p.0.as_str() == key).next());
-                    //                 if let Some(prop) = prop {
-                    //                     // cur_expr = Some(prop.1);
-                    //                 };
-                    //             },
-
-                    //             _ => break;
-                    //         }
-                    //     }
-                    // };
-                    // if let Some(cur_expr) = cur_expr {
-                    //     return Some(cur_expr.to_owned());
-                    // };
-                };
-            }
-
-            _ => {}
+    pub fn eval_key(&mut self, doc: &Document, key: &str) -> Option<ExprValue> {
+        let scope_id = self.scope_ref().unwrap().id().to_owned();
+        if let Some(sym) = self.resolve_key_from_scope(key, &scope_id) {
+                return self.eval_sym(doc, &sym);
         };
         None
     }
 
     #[allow(dead_code)]
-    pub fn reduce_expr_and_resolve(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
+    pub fn eval_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<ExprValue> {
+        match binding {
+            &BindingType::ReducerPathBinding(ref reducer_path) => {
+                if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                    if let Some(ref expr) = reducer_data.default_expr {
+                        return self.reduce_expr(expr);
+                    };
+                };
+            }
+            _ => {}
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_sym(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+        if let Some(resolved_key) = sym.resolved_key() {
+            if let Some(expr) = self.get_value(resolved_key) {
+                return Some(expr.to_owned());
+            };
+
+            let scope_id = self.scope_ref().unwrap().id().to_owned();
+            if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
+                return self.eval_sym(doc, &sym);
+            }
+        };
+
+        match sym.sym_ref() {
+            &SymbolReferenceType::InitialValue(_, box ref after) => {
+                return self.eval_sym(doc, after);
+            }
+
+            &SymbolReferenceType::Binding(ref binding) => {
+                return self.eval_binding(doc, binding);
+            }
+
+            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
+                if let Some(first_expr) = self.eval_sym(doc, first) {
+                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
+                    if let Some(rest_iter) = rest_iter {
+                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
+                    };
+
+                    return self.eval_expr(doc, &first_expr);
+                };
+            }
+
+            _ => {}
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_expr(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
         if expr.is_literal() { return Some(expr.clone()); }
         match expr {
             &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
-                let l_reduced = self.reduce_expr_and_resolve(doc, l_expr);
-                let r_reduced = self.reduce_expr_and_resolve(doc, r_expr);
+                let l_reduced = self.eval_expr(doc, l_expr);
+                let r_reduced = self.eval_expr(doc, r_expr);
 
                 match (op, &l_reduced, &r_reduced) {
                     (&ExprOp::Add, &Some(ref l_reduced), &Some(ref r_reduced)) if l_reduced.peek_is_string() || r_reduced.peek_is_string() => {
@@ -504,21 +464,21 @@ impl Context {
                     _ => {}
                 };
                 
-            },
+            }
 
             &ExprValue::SymbolReference(ref sym) => {
-                let expr = self.resolve_symbol_to_expr(doc, sym, None);
-                if expr.is_some() { return expr; }
+                return self.eval_sym(doc, sym);
             }
 
             &ExprValue::Binding(ref binding) => {
-                if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
-                    if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                        if let Some(ref expr) = reducer_data.default_expr {
-                            return self.reduce_expr(expr);
-                        };
-                    };
-                };
+                return self.eval_binding(doc, binding);
+                // if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
+                //     if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
+                //         if let Some(ref expr) = reducer_data.default_expr {
+                //             return self.reduce_expr(expr);
+                //         };
+                //     };
+                // };
             }
 
             _ => {}
@@ -909,7 +869,7 @@ mod tests {
         {
             ctx.push_child_scope();
             assert_eq!(
-                ctx.follow_sym_starting_at("todo", &scope_id),
+                ctx.resolve_key_from_scope("todo", &scope_id),
                 Some(Symbol::binding(&BindingType::ReducerPathBinding("TODOS".into())))
             );
         }
@@ -930,7 +890,7 @@ mod tests {
         {
             ctx.push_child_scope();
             assert_eq!(
-                ctx.follow_sym_starting_at("todo", &scope_id),
+                ctx.resolve_key_from_scope("todo", &scope_id),
                 Some(Symbol::binding(&BindingType::ReducerPathBinding("TODOS".into())))
             );
         }

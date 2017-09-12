@@ -240,6 +240,13 @@ impl Symbol {
             _ => None
         }
     }
+
+    pub fn is_transparent(&self) -> bool {
+        match self.sym_ref() {
+            &SymbolReferenceType::Binding(ref binding) => binding.is_transparent(),
+            _ => false
+        }
+    }
 }
 
 /// Bindings
@@ -255,9 +262,19 @@ pub enum BindingType {
     ActionStateBinding,
     ActionParamBinding(String),
     ComponentKeyBinding,
+    // ComponentFormalProp,
     ComponentPropBinding(String),
     DOMElementAttributeBinding(String, String),
     DOMInputElementValueBinding(String)
+}
+
+impl BindingType {
+    pub fn is_transparent(&self) -> bool {
+        match self {
+            &BindingType::MapItemBinding => true,
+            _ => false
+        }
+    }
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;

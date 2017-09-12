@@ -149,7 +149,7 @@ impl ProcessContent {
                     let mut event_handlers: EventHandlersVec = Default::default();
                     // let mut events: EventsVec = Default::default();
                     let mut value_binding: ElementValueBinding = Default::default();
-                    let mut event_value_binding: ElementValueBinding = Default::default();
+                    let event_value_binding: ElementValueBinding = Default::default();
 
                     // Process bindings
                     if let Some(ref element_bindings) = element_data.bindings {

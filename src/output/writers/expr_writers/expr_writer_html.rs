@@ -81,14 +81,28 @@ impl ExpressionWriter for ExpressionWriterHtml {
     }
 
     fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        write!(w, "{{")?;
+        if let Some(props) = props {
+            let mut first = true;
+            for prop in props {
+                if !first { write!(w, ", ")?; }
+                write!(w, "\"{}\": ", &prop.0)?;
+                if let Some(ref v) = prop.1 {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, v)?;
+                }
+                first = false;
+            };
+        };
+        write!(w, "}}")?;
         Ok(())
     }
 
     fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ComponentPropBinding(ref key) => {
-                if let Some(sym) = ctx.resolve_sym(key) {
-                    self.write_symbol(w, doc, value_writer, ctx,  bindings, &sym)?;
+                // if let Some(sym) = ctx.resolve_sym(key) {
+                if let Some(expr) = ctx.eval_key(doc, key) {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
                 };
             }
 
@@ -100,6 +114,10 @@ impl ExpressionWriter for ExpressionWriterHtml {
     fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
         if let Some(ref expr) = sym.value() {
             self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+        };
+
+        if let Some(expr) = ctx.eval_sym(doc, sym) {
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;            
         };
 
         match sym.sym_ref() {
@@ -118,6 +136,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
             _ => {}
         };
 
+        // write!(w, "{:?}", sym)?;
         if let Some(expr) = ctx.eval_sym(doc, sym) {
             self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
 
