@@ -1,9 +1,10 @@
 // #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
+use itertools::Itertools;
 
-use parser::ast::*;
-use scope::scope::*;
+use parser::*;
+use scope::*;
 use scope::symbols::*;
 use processing::*;
 
@@ -199,17 +200,25 @@ impl Context {
         };
 
         if let &SymbolReferenceType::UnresolvedPathReference(ref path) = sym.sym_ref() {
-            let mut splitter = path.split(".").map(|s| s.to_owned());
-            let first = splitter.next();
-            if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
-                let rest: Vec<_> = splitter.collect();
-                let len = rest.len();
-                if len > 0 {
-                    return Symbol::member_path_from(first, rest);
-                };
-            };
+            if let Some(sym) = self.resolve_path_reference_to_symbol(path) { return sym; }
         };
         sym.clone()
+    }
+
+    pub fn resolve_path_reference_to_symbol(&mut self, path: &str) -> Option<Symbol> {
+        if path.contains(".") {
+            let mut splitter = path.split(".");
+            let first = splitter.next();
+            if let Some(first) = first.and_then(|s| self.resolve_sym(s)) {
+                let rest = splitter.join(".");
+                return Some(Symbol::member_path(first, &rest));
+            }
+        } else {
+            if let Some(sym) = self.resolve_sym(path) {
+                return Some(sym);
+            }
+        }
+        None
     }
 
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
@@ -362,27 +371,6 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_member_path_in_expr<'a, I: IntoIterator<Item = &'a str>>(&mut self, doc: &Document, expr: &ExprValue, rest: I) -> Option<ExprValue> {
-        let mut rest = rest.into_iter();
-        let key = rest.next();
-        if let Some(key) = key {
-            match expr {
-                &ExprValue::LiteralObject(Some(ref props)) => {
-                    let prop = props.iter().filter(|p| p.0.as_str() == key).next();
-                    if let Some(prop) = prop {
-                        if let Some(ref prop_expr) = prop.1 {
-                            return self.resolve_member_path_in_expr(doc, prop_expr, rest);
-                        };
-                        // cur_expr = Some(prop.1);
-                    };
-                },
-                _ => { }
-            }
-        };
-        None
-    }
-
-    #[allow(dead_code)]
     pub fn eval_key(&mut self, doc: &Document, key: &str) -> Option<ExprValue> {
         let scope_id = self.scope_ref().unwrap().id().to_owned();
         if let Some(sym) = self.resolve_key_from_scope(key, &scope_id) {
@@ -430,14 +418,31 @@ impl Context {
             }
 
             &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                if let Some(first_expr) = self.eval_sym(doc, first) {
-                    let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                    if let Some(rest_iter) = rest_iter {
-                        return self.resolve_member_path_in_expr(doc, &first_expr, rest_iter);
+                let first_expr = self.eval_sym(doc, first);
+                // let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
+                if let Some(first_expr) = first_expr {
+                    if let &Some(ref rest) = rest {
+                        if let Some(expr) = first_expr.member_ref(rest.as_str()) {
+                            return self.eval_expr(doc, &expr);
+                        };
                     };
-
+                        // if let Some(rest_iter) = rest_iter {
+                    //     return resolve_member_with_parts(first_expr, rest_iter);
+                    // }
                     return self.eval_expr(doc, &first_expr);
                 };
+
+                // if let Some(first_expr) = self.eval_sym(doc, first) {
+                //     let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
+                //     if let Some(rest_iter) = rest_iter {
+                //         let member_resolver = MemberResolver::new_with_parts(&first_expr, rest_iter);
+                //         if let Some(expr) = member_resolver.resolve_member().map(|e| e.to_owned()) {
+                //             return self.eval_expr(doc, &expr);
+                //         }
+                //     };
+
+                //     return self.eval_expr(doc, &first_expr);
+                // };
             }
 
             _ => {}
@@ -566,17 +571,21 @@ impl Context {
                     }
 
                     &SymbolReferenceType::UnresolvedPathReference(ref path) => {
-                        let mut splitter = path.split(".").map(|s| s.to_owned());
-                        let first = splitter.next();
-                        if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
-                            let rest: Vec<_> = splitter.collect();
-                            let len = rest.len();
-                            if len > 0 {
-                                return Some(ExprValue::SymbolReference(Symbol::member_path_from(first, rest)));
-                            };
-                            return Some(ExprValue::SymbolReference(first));
+                        if let Some(sym) = self.resolve_path_reference_to_symbol(path) {
+                            return Some(ExprValue::SymbolReference(sym));
                         };
                         None
+                        // let mut splitter = path.split(".").map(|s| s.to_owned());
+                        // let first = splitter.next();
+                        // if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
+                        //     let rest: Vec<_> = splitter.collect();
+                        //     let len = rest.len();
+                        //     if len > 0 {
+                        //         return Some(ExprValue::SymbolReference(Symbol::member_path_from(first, rest)));
+                        //     };
+                        //     return Some(ExprValue::SymbolReference(first));
+                        // };
+                        // None
                     }
 
                     _ => None

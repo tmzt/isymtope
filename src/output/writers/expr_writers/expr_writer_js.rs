@@ -159,9 +159,10 @@ impl ExpressionWriter for ExpressionWriterJs {
             &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
                 self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
                 if let &Some(ref parts) = parts {
-                    for part in parts.iter() {
-                        write!(w, ".{}", part)?;
-                    };
+                    write!(w, ".{}", parts)?;
+                    // for part in parts.iter() {
+                    //     write!(w, ".{}", part)?;
+                    // };
                 };
                 Ok(())
             }

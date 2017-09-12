@@ -1,7 +1,7 @@
 // #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
-pub use parser::store::*;
+pub use parser::*;
 pub use parser::loc::Loc;
 
 
@@ -73,7 +73,7 @@ pub enum SymbolReferenceType {
     UnresolvedReference(String),
     UnresolvedPathReference(String),
     Binding(BindingType),
-    MemberPath(Box<Symbol>, Option<Vec<String>>),
+    MemberPath(Box<Symbol>, Option<String>),
     InitialValue(Box<Symbol>, Box<Symbol>),
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
@@ -137,8 +137,8 @@ impl Symbol {
         Symbol(SymbolReferenceType::InitialValue(Box::new(initial.to_owned()), Box::new(after.to_owned())), None, None)
     }
 
-    pub fn member_path_from(first: Symbol, rest: Vec<String>) -> Symbol {
-        Symbol(SymbolReferenceType::MemberPath(Box::new(first), Some(rest)), None, None)
+    pub fn member_path(first: Symbol, path: &str) -> Symbol {
+        Symbol(SymbolReferenceType::MemberPath(Box::new(first), Some(path.to_owned())), None, None)
     }
 
     pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
@@ -278,122 +278,6 @@ impl BindingType {
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;
-
-/// Simple expression (parameter value)
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExprValue {
-    LiteralNumber(i32),
-    LiteralString(String),
-    LiteralArray(Option<Vec<ExprValue>>),
-    LiteralObject(Option<Vec<Prop>>),
-    LiteralBool(bool),
-    DefaultVariableReference,
-    SymbolReference(Symbol),
-    SymbolPathReference(Vec<Symbol>),
-    Binding(BindingType),
-    TypedBinding(BindingType, VarType),
-    Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
-    Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
-    ContentNode(Box<ContentNodeType>),
-    // DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    // Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    Undefined,
-}
-
-impl ExprValue {
-    #[inline]
-    pub fn is_literal(&self) -> bool {
-        match self {
-            &ExprValue::LiteralArray(..) |
-            &ExprValue::LiteralString(..) |
-            &ExprValue::LiteralNumber(..) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_array(&self) -> bool {
-        match self {
-            &ExprValue::LiteralArray(..) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn is_literal_string(&self) -> bool {
-        match self {
-            &ExprValue::LiteralString(..) => true,
-            _ => false,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn peek_ty(&self) -> Option<VarType> {
-        match self {
-            &ExprValue::LiteralNumber(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::Number));
-            }
-
-            &ExprValue::LiteralString(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::StringVar));
-            }
-
-            &ExprValue::LiteralArray(Some(ref items)) => {
-                if !items.is_empty() {
-                    if let Some(ref first_item) = items.get(0) {
-                        if let Some(var_ty) = first_item.peek_ty() {
-                            return Some(VarType::ArrayVar(Some(Box::new(var_ty))));
-                        }
-                        return Some(VarType::ArrayVar(None));
-                    };
-                };
-                return Some(VarType::ArrayVar(None));
-            }
-
-            &ExprValue::SymbolReference(ref sym) => {
-                if let Some(ty) = sym.ty() { return Some(ty.to_owned()); }
-            }
-
-            _ => {}
-        };
-        None
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn peek_is_array(&self) -> bool {
-        match self {
-            &ExprValue::LiteralString(..) => true,
-
-            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
-                l_expr.peek_is_array() || r_expr.peek_is_array()
-            }
-
-            &ExprValue::SymbolReference(ref sym) => {
-                if let Some(&VarType::ArrayVar(..)) = sym.ty() { true } else { false }
-            }
-
-            _ => false
-        }
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn peek_is_string(&self) -> bool {
-        match self {
-            &ExprValue::LiteralString(..) => true,
-
-            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
-                l_expr.peek_is_string() || r_expr.peek_is_string()
-            }
-
-            &ExprValue::SymbolReference(ref sym) if sym.ty() == Some(&VarType::string()) => true,
-
-            _ => false
-        }
-    }
-}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]

@@ -1,4 +1,5 @@
 pub mod token;
+pub mod expr_value;
 pub mod ast;
 pub mod loc;
 pub mod store;
@@ -6,10 +7,13 @@ pub mod api;
 pub mod lexer;
 pub mod parser;
 pub mod util;
+pub mod member;
 
 pub use self::ast::*;
+pub use self::expr_value::*;
 pub use self::store::*;
 pub use self::util::*;
+pub use self::member::*;
 
 use std::path::Path;
 use std::io::{self, Read};
