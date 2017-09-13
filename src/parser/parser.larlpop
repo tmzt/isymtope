@@ -96,11 +96,9 @@ ExprOp : ExprOp =
 ExprValue : ExprValue =
 {
 //    "(" <expr:ExprValue> ")" => expr.clone(),
+
     "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),
     // "{" <key: Id> ":" <expr:ExprValue> "}" => ExprValue::LiteralObject(Some(vec![(key.into(), Some(expr.to_owned()))])),
-    "{" <props:CommaList<ObjectProp>> "}" => ExprValue::LiteralObject(Some(props.clone())),
-
-    "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
     
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
     <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
@@ -117,6 +115,10 @@ ExprFactor : ExprValue =
 
 ExprTerm : ExprValue =
 {
+    "(" <expr:ExprValue> ")" => ExprValue::Group(Some(Box::new(expr.into()))),
+    "{" <props:CommaList<ObjectProp>> "}" => ExprValue::LiteralObject(Some(props.clone())),
+    "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
+
     <n:LitNum> => ExprValue::LiteralNumber(n),
     <b:LitBool> => ExprValue::LiteralBool(b),
 //    "(" <ExprValue> ")",

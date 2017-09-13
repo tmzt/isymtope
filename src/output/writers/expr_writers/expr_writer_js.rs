@@ -83,6 +83,15 @@ impl ExpressionWriter for ExpressionWriterJs {
             return Ok(())
         };
 
+        if left.peek_is_object() && right.peek_is_object() {
+            write!(w, "Object.assign({{}}, ")?;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
+            write!(w, ", ")?;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
+            write!(w, ")")?;
+            return Ok(())
+        };
+
         self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
         value_writer.write_op(w, op)?;
         self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
@@ -150,6 +159,15 @@ impl ExpressionWriter for ExpressionWriterJs {
             }
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
         }
+    }
+
+    fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
+        write!(w, "(")?;
+        if let Some(ref inner_expr) = inner_expr {
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, inner_expr)?;
+        };
+        write!(w, ")")?;
+        Ok(())
     }
 
     fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {

@@ -3,6 +3,7 @@ use parser::*;
 /// Simple expression (parameter value)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprValue {
+    Group(Option<Box<ExprValue>>),
     LiteralNumber(i32),
     LiteralString(String),
     LiteralArray(Option<Vec<ExprValue>>),
@@ -85,7 +86,7 @@ impl ExprValue {
     #[allow(dead_code)]
     pub fn peek_is_array(&self) -> bool {
         match self {
-            &ExprValue::LiteralString(..) => true,
+            &ExprValue::LiteralArray(..) => true,
 
             &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
                 l_expr.peek_is_array() || r_expr.peek_is_array()
@@ -93,6 +94,24 @@ impl ExprValue {
 
             &ExprValue::SymbolReference(ref sym) => {
                 if let Some(&VarType::ArrayVar(..)) = sym.ty() { true } else { false }
+            }
+
+            _ => false
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn peek_is_object(&self) -> bool {
+        match self {
+            &ExprValue::LiteralObject(..) => true,
+
+            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
+                l_expr.peek_is_object() || r_expr.peek_is_object()
+            }
+
+            &ExprValue::SymbolReference(ref sym) => {
+                if let Some(&VarType::ObjectVar) = sym.ty() { true } else { false }
             }
 
             _ => false

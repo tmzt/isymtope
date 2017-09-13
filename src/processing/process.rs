@@ -85,8 +85,13 @@ impl<'input> ProcessDocument<'input> {
 
         for (_, reducer_data) in self.processing.reducer_key_data.iter() {
             let reducer_key = reducer_data.reducer_key.to_owned();
+            // let ty = reducer_data.ty
             let binding = BindingType::ReducerPathBinding(reducer_key.clone());
-            ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+            if let Some(ref ty) = reducer_data.ty {
+                ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
+            } else {
+                ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+            }
         }
 
         for ref loc in self.ast.children.iter() {

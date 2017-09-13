@@ -57,6 +57,7 @@ pub enum PrimitiveVarType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     ArrayVar(Option<Box<VarType>>),
+    ObjectVar,
     Primitive(PrimitiveVarType),
 }
 

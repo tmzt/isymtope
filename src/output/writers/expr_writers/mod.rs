@@ -53,6 +53,11 @@ pub trait ExpressionWriter {
             return self.write_symbol(w, doc, value_writer, ctx, bindings, sym);
         };
 
+        if let &ExprValue::Group(ref inner_expr) = expr {
+            let inner_expr = match inner_expr { &Some(box ref e) => Some(e), _ => None };
+            return self.write_group(w, doc, value_writer, ctx, bindings, inner_expr);
+        };
+
         if let &ExprValue::Binding(ref binding) = expr {
             return self.write_binding(w, doc, value_writer, ctx, bindings, binding);
         };
@@ -66,6 +71,7 @@ pub trait ExpressionWriter {
     fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result;
     fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result;
     fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result;
+    fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result;
 
     fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
         match sym.sym_ref() {
@@ -158,6 +164,10 @@ mod tests {
         }
 
         fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+            Ok(())
+        }
+
+        fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
             Ok(())
         }
 
