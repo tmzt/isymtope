@@ -426,23 +426,8 @@ impl Context {
                             return self.eval_expr(doc, &expr);
                         };
                     };
-                        // if let Some(rest_iter) = rest_iter {
-                    //     return resolve_member_with_parts(first_expr, rest_iter);
-                    // }
                     return self.eval_expr(doc, &first_expr);
                 };
-
-                // if let Some(first_expr) = self.eval_sym(doc, first) {
-                //     let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                //     if let Some(rest_iter) = rest_iter {
-                //         let member_resolver = MemberResolver::new_with_parts(&first_expr, rest_iter);
-                //         if let Some(expr) = member_resolver.resolve_member().map(|e| e.to_owned()) {
-                //             return self.eval_expr(doc, &expr);
-                //         }
-                //     };
-
-                //     return self.eval_expr(doc, &first_expr);
-                // };
             }
 
             _ => {}

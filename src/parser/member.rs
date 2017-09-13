@@ -118,10 +118,10 @@ impl<'a : 'b, 'b, I: IntoIterator<Item = &'b str>> MemberResolver<'a, 'b, I> {
     }
 }
 
-pub fn resolve_member_in_expr<'a, 'b>(expr: &'a ExprValue, path: &'b str) -> Option<&'a ExprValue> {
-        let member_resolver = MemberResolver::new_with_parts(expr, path.split("."));
-        member_resolver.resolve_member()
-}
+// fn resolve_member_in_expr<'a, 'b>(expr: &'a ExprValue, path: &'b str) -> Option<&'a ExprValue> {
+//         let member_resolver = MemberResolver::new_with_parts(expr, path.split("."));
+//         member_resolver.resolve_member()
+// }
 
 
 #[cfg(test)]
@@ -175,29 +175,29 @@ mod tests {
         assert_eq!(res, Some(&ExprValue::LiteralString("y1".into())));
     }
 
-    #[test]
-    pub fn test_resolve_member_in_expr2() {
-        let obj = ExprValue::LiteralObject(Some(vec![
-            ("a".into(), Some(ExprValue::LiteralObject(Some(vec![
-                ("b".into(), Some(ExprValue::LiteralString("y1".into())))
-            ]))))
-        ]));
+    // #[test]
+    // pub fn test_resolve_member_in_expr2() {
+    //     let obj = ExprValue::LiteralObject(Some(vec![
+    //         ("a".into(), Some(ExprValue::LiteralObject(Some(vec![
+    //             ("b".into(), Some(ExprValue::LiteralString("y1".into())))
+    //         ]))))
+    //     ]));
 
-        let path = "a.b";
-        let res = resolve_member_in_expr(&obj, &path);
-        assert_eq!(res, Some(&ExprValue::LiteralString("y1".into())));
-    }
+    //     let path = "a.b";
+    //     let res = resolve_member_in_expr(&obj, &path);
+    //     assert_eq!(res, Some(&ExprValue::LiteralString("y1".into())));
+    // }
 
-    #[test]
-    pub fn test_resolve_member_in_expr3() {
-        let obj = ExprValue::LiteralObject(Some(vec![
-            ("a".into(), Some(ExprValue::LiteralObject(Some(vec![
-                ("b".into(), Some(ExprValue::LiteralString("y1".into())))
-            ]))))
-        ]));
+    // #[test]
+    // pub fn test_resolve_member_in_expr3() {
+    //     let obj = ExprValue::LiteralObject(Some(vec![
+    //         ("a".into(), Some(ExprValue::LiteralObject(Some(vec![
+    //             ("b".into(), Some(ExprValue::LiteralString("y1".into())))
+    //         ]))))
+    //     ]));
 
-        let res = resolve_member_in_expr(&obj, "a.b");
-        assert_eq!(res, Some(&ExprValue::LiteralString("y1".into())));
-    }
+    //     let res = resolve_member_in_expr(&obj, "a.b");
+    //     assert_eq!(res, Some(&ExprValue::LiteralString("y1".into())));
+    // }
 
 }
