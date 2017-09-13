@@ -535,7 +535,12 @@ impl Context {
                 }
 
                 None
-            },
+            }
+
+            &ExprValue::LiteralObject(ref props) => {
+                let props = props.as_ref().map(|props| self.map_props(props.iter()));
+                Some(ExprValue::LiteralObject(props))
+            }
 
             // TODO: Fix this in the new regime
             &ExprValue::DefaultVariableReference => {

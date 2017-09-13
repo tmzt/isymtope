@@ -77,11 +77,17 @@ impl<'input> ProcessDocument<'input> {
             };
         }
 
-        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
-            ctx.append_action_path_str(default_reducer_key);
-            let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
-            ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
-        };
+        // if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+        //     ctx.append_action_path_str(default_reducer_key);
+        //     let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
+        //     ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
+        // };
+
+        for (_, reducer_data) in self.processing.reducer_key_data.iter() {
+            let reducer_key = reducer_data.reducer_key.to_owned();
+            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
+            ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
 
         for ref loc in self.ast.children.iter() {
             if let NodeType::ContentNode(ref content_node) = loc.inner {

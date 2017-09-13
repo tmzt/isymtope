@@ -29,7 +29,7 @@ component todo_item (todo) {
 
 component new_todo (entry) {
     input(class="new-todo", placeholder="What needs to be done?", autofocus="autofocus") bind entry
-        enterkey || { dispatch add(entry: entry); } {}
+        enterkey || { dispatch add(entry: {text: entry}); } {}
 }
 
 link(rel="stylesheet", href="./node_modules/todomvc-common/base.css", type="text/css") {}

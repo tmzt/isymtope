@@ -125,8 +125,12 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                         &Some(LensExprType::GetLens(ref key, ref expr)) => {
                             // let expr = if let Some(sym) = ctx.resolve_sym(key) { ExprValue::SymbolReference(sym) } else { ExprValue::Binding(BindingType::ComponentPropBinding(key.to_owned())) };
                             // let props = vec![(key.to_owned(), Some(expr))];
-                            let props = vec![(key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];
-                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), iter::empty(), iter::empty(), Some(LensItemType::GetLens(key, expr)))?;
+                            // let props = vec![(key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];
+                            // self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), iter::empty(), iter::empty(), Some(LensItemType::GetLens(key, expr)))?;
+
+                            let props = vec![(key.as_str(), Some(expr))].into_iter();
+                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props, iter::empty(), iter::empty(), Some(LensItemType::GetLens(key, expr)))?;
+
                             // self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props.as_ref().map(|p| p.into_iter().map(|s| s.as_str())), iter::empty(), iter::empty(), Some(LensItemType::GetLens(&expr)))?;
                         }
 
