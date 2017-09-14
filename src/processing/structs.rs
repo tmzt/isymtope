@@ -258,14 +258,14 @@ pub struct DocumentProcessingState {
     pub has_default_state_key: bool,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
-    pub action_tys: ReducerActionTypeMap
+    pub action_type_data: ReducerActionTypeMap
 }
 
 impl DocumentProcessingState {
     pub fn insert_prop_type(&mut self, complete_key: &str, param_key: &str, ty: &VarType) -> Result {
-        let action_ty_data = self.action_tys.entry(complete_key.to_owned()).or_insert(Default::default());
+        let param_tys = self.action_type_data.entry(complete_key.to_owned()).or_insert(Default::default());
 
-        match action_ty_data.entry(param_key.to_owned()) {
+        match param_tys.entry(param_key.to_owned()) {
             Entry::Occupied(o) => {
                 if let &Some(ref existing_ty) = o.get() {
                     if existing_ty != ty {
@@ -290,7 +290,7 @@ pub struct Document {
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
-    pub action_tys: ReducerActionTypeMap
+    pub action_type_data: ReducerActionTypeMap
 }
 
 impl<'inp> Into<Document> for DocumentProcessingState {
@@ -306,7 +306,7 @@ impl<'inp> Into<Document> for DocumentProcessingState {
             default_state_map: self.default_state_map,
             default_state_symbol: self.default_state_symbol,
             default_reducer_key: self.default_reducer_key,
-            action_tys: self.action_tys
+            action_type_data: self.action_type_data
         }
     }
 }
@@ -326,9 +326,11 @@ impl Document {
     }
 
     #[allow(dead_code)]
-    pub fn get_action_param_ty(&mut self, reducer_Key: &str, action_key: &str, param_key: &str) -> Option<&VarType> {
-        if let &Some(action_ty_data) = self.action_tys.get(reducer_key)) {
-            if let Some(param_ty_data) = action_ty_data.get(action_key)
+    pub fn get_action_param_ty(&self, complete_key: &str, param_name: &str) -> Option<&VarType> {
+        if let Some(param_tys) = self.action_type_data.get(complete_key) {
+            if let Some(ty) = param_tys.get(param_name) {
+                return ty.as_ref();
+            }
         }
         None
     }

@@ -644,6 +644,42 @@ impl Context {
         lens.to_owned()
     }
 
+    pub fn map_reducer_expression(&mut self, doc: &Document, complete_key: &str, expr: &ExprValue) -> ExprValue {
+        match expr {
+            &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
+                let l_expr = self.map_reducer_expression(doc, complete_key, l_expr);
+                let r_expr = self.map_reducer_expression(doc, complete_key, r_expr);
+                ExprValue::Expr(op.to_owned(), Box::new(l_expr), Box::new(r_expr))
+            }
+
+            &ExprValue::Apply(ref op, ref arr) => {
+                let arr = arr.as_ref().map(|arr| arr.into_iter().map(|item| Box::new(self.map_reducer_expression(doc, complete_key, item))).collect());
+                ExprValue::Apply(op.to_owned(), arr)
+            }
+
+            &ExprValue::SymbolReference(ref sym) => {
+                if let &SymbolReferenceType::Binding(BindingType::ActionParamBinding(ref param_name)) = sym.sym_ref() {
+                    if let Some(ty) = doc.get_action_param_ty(complete_key, param_name) {
+                        return ExprValue::SymbolReference(sym.replace_type(ty));
+                    };
+                };
+                expr.clone()
+            }
+
+            &ExprValue::Binding(ref binding) => {
+                if let &BindingType::ActionParamBinding(ref param_name) = binding {
+                    if let Some(ty) = doc.get_action_param_ty(complete_key, param_name) {
+                        return ExprValue::SymbolReference(Symbol::typed_binding(binding, ty));
+                    };
+                };
+                expr.clone()
+            }
+
+            _ => expr.clone()
+        }
+
+    }
+
     pub fn reduce_expr_or_return_same(&mut self, expr: &ExprValue) -> ExprValue {
         self.reduce_expr(expr).unwrap_or(expr.clone())
     }

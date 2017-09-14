@@ -25,13 +25,16 @@ impl StoreWriterJs {
         writeln!(w, "                  /* action: {:?} */", action)?;
 
         if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) =  &action.state_expr {
+            let expr = ctx.map_reducer_expression(doc, &action_key, expr);
+            writeln!(w, "                  /* action expr: {:?} */", expr)?;
+
             writeln!(w,
                         "                  if ('undefined' !== typeof action && '{}' == action.type) \
                                            {{",
                         action_key)
                 ?;
             write!(w, "                    return ")?;
-            output_writer.write_expr(w, doc, ctx, bindings, expr)?;
+            output_writer.write_expr(w, doc, ctx, bindings, &expr)?;
             // expression_writer.write_expr_to(w, value_writer, ctx, bindings, expr)?;
             writeln!(w, ";")?;
             writeln!(w, "                  }}")?;

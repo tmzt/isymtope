@@ -110,6 +110,11 @@ impl Into<Symbol> for BindingType {
 }
 
 impl Symbol {
+    #[inline]
+    pub fn replace_type(&self, ty: &VarType) -> Self {
+        Symbol(self.0.to_owned(), Some(ty.to_owned()), self.2.to_owned())
+    }
+
     pub fn unresolved(key: &str) -> Symbol {
         Symbol(SymbolReferenceType::UnresolvedReference(key.to_owned()),
                None,
