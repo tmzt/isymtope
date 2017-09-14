@@ -123,12 +123,10 @@ impl CompDefProcessor {
         };
         // self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
 
-
-
         let mut content_processor = ProcessContent::default();
         for node in nodes {
             if let &NodeType::ContentNode(ref content_node) = node {
-                content_processor.process_block_content_node(ctx, bindings, content_node, &mut output.block, processing, None)?;
+                content_processor.process_block_content_node(processing, ctx, bindings, content_node, &mut output.block, None)?;
             };
         };
 

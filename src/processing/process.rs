@@ -96,7 +96,7 @@ impl<'input> ProcessDocument<'input> {
 
         for ref loc in self.ast.children.iter() {
             if let NodeType::ContentNode(ref content_node) = loc.inner {
-                content_processor.process_block_content_node(ctx, bindings, content_node, &mut root_block, &mut self.processing, None)?;
+                content_processor.process_block_content_node(&mut self.processing, ctx, bindings, content_node, &mut root_block, None)?;
             };
         }
 

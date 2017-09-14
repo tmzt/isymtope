@@ -11119,7 +11119,7 @@ fn __action32<
     (_, __0, _): (usize, Token, usize),
 ) -> ExprValue
 {
-    ExprValue::DefaultVariableReference
+    ExprValue::SymbolReference(Symbol::unresolved("value"))
 }
 
 fn __action33<

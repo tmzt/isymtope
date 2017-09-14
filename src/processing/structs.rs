@@ -1,53 +1,16 @@
 
+use std::io;
+use std::fmt;
 use std::error::Error;
 use std::result;
+use std::collections::hash_map::{HashMap, Entry};
 
 use linked_hash_map::LinkedHashMap;
 
-use parser::ast::*;
-use parser::util::*;
+use parser::*;
+use parser::token::Error as ParsingError;
+use processing::*;
 
-
-#[derive(Debug, Default, PartialEq)]
-pub struct ReducerKeyData {
-    pub reducer_key: String,
-    pub default_expr: Option<ExprValue>,
-    pub ty: Option<VarType>,
-    pub actions: Option<Vec<ReducerActionData>>,
-}
-
-impl ReducerKeyData {
-    pub fn from_name(reducer_key: &str, ty: Option<VarType>) -> ReducerKeyData {
-        ReducerKeyData {
-            reducer_key: String::from(reducer_key),
-            default_expr: None,
-            ty: ty,
-            actions: Some(Vec::new()),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ReducerActionData {
-    pub action_type: String,
-    pub state_expr: Option<ActionStateExprType>,
-    pub state_ty: Option<VarType>,
-    pub default_scope_key: Option<String>,
-}
-
-impl ReducerActionData {
-    pub fn from_name(action_name: &str, default_scope_key: Option<&str>) -> ReducerActionData {
-        let action_type = action_name.to_uppercase();
-        let default_scope_key = default_scope_key.map(String::from);
-
-        ReducerActionData {
-            action_type: String::from(action_type),
-            state_expr: None,
-            state_ty: None,
-            default_scope_key: default_scope_key,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementOp {
@@ -76,10 +39,6 @@ pub enum ElementOp {
 pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
-pub type ReducerKeyMap = LinkedHashMap<String, ReducerKeyData>;
-pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
-
-type ElementOpsVec = Vec<ElementOp>;
 
 pub type ComponentKeyMapping = (String, String);
 pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
@@ -89,12 +48,6 @@ pub struct Component {
     ty: String,
     block: Block,
     formal_props: Option<FormalPropVec>
-    // ops: Option<ElementOpsVec>,
-    // pub uses: Option<Vec<String>>,
-    // pub child_map: Option<ComponentMap>,
-    // pub symbol_map: SymbolMap,
-    // pub props: SymbolMap,
-    // events: Option<EventsVec>,
 }
 
 impl Component {
@@ -117,46 +70,56 @@ impl Component {
     pub fn formal_props_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = FormalPropRef<'a>>> {
         self.formal_props.as_ref().map(|v| v.into_iter().map(|s| (s.as_str())))
     }
-
-    // pub fn actual_props_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = ActualPropRef<'a>>> {
-    //     self.formal_props.as_ref().map(|v| v.into_iter().map(|p| (p.0.as_str(), p.1.as_ref().map(|e| e)))
-    // }
-
-    // #[allow(dead_code)]
-    // pub fn ops_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ElementOp>> {
-    //     self.block.ops_iter()
-    // }
-
-    // #[allow(dead_code)]
-    // pub fn events_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a EventsItem>> {
-    //     self.block.events_iter()
-    // }
-
-    // #[allow(dead_code)]
-    // pub fn componentkey_mappings_iter<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a ComponentKeyMapping>> {
-    //     self.block.componentkey_mappings_iter()
-    // }
 }
 
-// Processing
+#[derive(Debug)]
+pub enum DocumentTypeError {
+    TypeError(String),
+    MismatchActionParam(String, String, VarType, VarType)
+}
 
-use parser::token::Error as ParsingError;
-use std::io;
-use std::fmt;
+impl DocumentTypeError {
+    pub fn mismatch_action_param(complete_key: &str, param_key: &str, existing_ty: &VarType, ty: &VarType) -> DocumentTypeError {
+        DocumentTypeError::MismatchActionParam(complete_key.to_owned(), param_key.to_owned(), existing_ty.to_owned(), ty.to_owned())
+    }
+}
+
+impl Error for DocumentTypeError {
+    fn description(&self) -> &str {
+        match self {
+            &DocumentTypeError::TypeError(..) => "Type error in document",
+            &DocumentTypeError::MismatchActionParam(..) => "Type error in document: reducer action param has different type than previous dispatch of this action."
+        }
+    }
+}
+
+impl fmt::Display for DocumentTypeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &DocumentTypeError::TypeError(ref s) => f.write_str(s),
+            &DocumentTypeError::MismatchActionParam(ref complete_key, ref param_key, ref previous_ty, ref new_ty) => {
+                write!(f, "Type error: reducer action ({}) has existing type for param ({}) of ({:?}), attempting to dispatch the action again with a different type ({:?}) for this parameter.",
+                    complete_key, param_key, previous_ty, new_ty)
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum DocumentProcessingError {
     ParsingError(ParsingError),
     IOError(io::Error),
     FormatError(fmt::Error),
+    TypeError(DocumentTypeError)
 }
 
 impl Error for DocumentProcessingError {
     fn description(&self) -> &str {
-        match *self {
-            DocumentProcessingError::ParsingError(ref e) => e.description(),
-            DocumentProcessingError::IOError(ref e) => e.description(),
-            DocumentProcessingError::FormatError(ref e) => e.description()
+        match self {
+            &DocumentProcessingError::ParsingError(ref e) => e.description(),
+            &DocumentProcessingError::IOError(ref e) => e.description(),
+            &DocumentProcessingError::FormatError(ref e) => e.description(),
+            &DocumentProcessingError::TypeError(ref e) => e.description()
         }
     }
 }
@@ -166,7 +129,8 @@ impl fmt::Display for DocumentProcessingError {
         match *self {
             DocumentProcessingError::ParsingError(ref e) => e.fmt(f),
             DocumentProcessingError::IOError(ref e) => e.fmt(f),
-            DocumentProcessingError::FormatError(ref e) => e.fmt(f)
+            DocumentProcessingError::FormatError(ref e) => e.fmt(f),
+            DocumentProcessingError::TypeError(ref e) => e.fmt(f)
         }
     }
 }
@@ -189,23 +153,11 @@ impl From<io::Error> for DocumentProcessingError {
         DocumentProcessingError::IOError(err)
     }
 }
-
-// impl From<result::Result<(), io::Error>> for result::Result<(), DocumentProcessingError> {
-//     fn from(r: result::Result<(), io::Error>) -> Self {
-
-
-
-//     }
-// }
-
-// impl<T, E: Into<DocumentProcessingError>> From<result::Result<T, E>> for DocumentProcessingResult<T> {
-//     fn from(r: result::Result<T, E>) -> Self {
-//         match r {
-//             result::Result::Ok(t) => DocumentProcessingResult::Ok(t),
-//             result::Result::Err(e) => DocumentProcessingResult::Err(e)
-//         }
-//     }
-// }
+impl From<DocumentTypeError> for DocumentProcessingError {
+    fn from(err: DocumentTypeError) -> Self {
+        DocumentProcessingError::TypeError(err)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BlockProcessingState {
@@ -301,11 +253,32 @@ pub struct DocumentProcessingState {
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
     // pub block_map: BlockMap,
-    pub reducer_key_data: ReducerKeyMap,
+    pub reducer_key_data: ReducerKeyProcessingMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
+    pub action_tys: ReducerActionTypeMap
+}
+
+impl DocumentProcessingState {
+    pub fn insert_prop_type(&mut self, complete_key: &str, param_key: &str, ty: &VarType) -> Result {
+        let action_ty_data = self.action_tys.entry(complete_key.to_owned()).or_insert(Default::default());
+
+        match action_ty_data.entry(param_key.to_owned()) {
+            Entry::Occupied(o) => {
+                if let &Some(ref existing_ty) = o.get() {
+                    if existing_ty != ty {
+                        return Err(DocumentTypeError::mismatch_action_param(complete_key, param_key, &existing_ty, ty).into());
+                    };
+                };
+            },
+            Entry::Vacant(v) => {
+                v.insert(Some(ty.to_owned()));
+            }
+        };
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -317,20 +290,23 @@ pub struct Document {
     pub default_state_map: DefaultStateMap,
     pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
+    pub action_tys: ReducerActionTypeMap
 }
 
 impl<'inp> Into<Document> for DocumentProcessingState {
     fn into(self) -> Document {
         let has_comp_map = self.comp_map.len() > 0;
         let comp_map = if has_comp_map { Some(self.comp_map) } else { None };
+        let reducer_key_data: ReducerKeyMap = self.reducer_key_data.into_iter().map(|d| (d.0, d.1.into())).collect();
 
         Document {
             root_block: self.root_block.into(),
             comp_map: comp_map,
-            reducer_key_data: self.reducer_key_data,
+            reducer_key_data: reducer_key_data,
             default_state_map: self.default_state_map,
             default_state_symbol: self.default_state_symbol,
             default_reducer_key: self.default_reducer_key,
+            action_tys: self.action_tys
         }
     }
 }
@@ -346,6 +322,14 @@ impl Document {
             }
             _ => {}
         };
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn get_action_param_ty(&mut self, reducer_Key: &str, action_key: &str, param_key: &str) -> Option<&VarType> {
+        if let &Some(action_ty_data) = self.action_tys.get(reducer_key)) {
+            if let Some(param_ty_data) = action_ty_data.get(action_key)
+        }
         None
     }
 

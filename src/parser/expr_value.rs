@@ -53,33 +53,40 @@ impl ExprValue {
     #[allow(dead_code)]
     pub fn peek_ty(&self) -> Option<VarType> {
         match self {
-            &ExprValue::LiteralNumber(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::Number));
+            &ExprValue::LiteralNumber(..) => Some(VarType::Primitive(PrimitiveVarType::Number)),
+            &ExprValue::LiteralString(..) => Some(VarType::Primitive(PrimitiveVarType::StringVar)),
+            &ExprValue::LiteralArray(Some(ref items)) => self.peek_array_ty(),
+            &ExprValue::LiteralObject(..) => Some(VarType::ObjectVar),
+
+            &ExprValue::SymbolReference(ref sym) => sym.ty().map(|sym| sym.to_owned()),
+
+            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
+                l_expr.peek_ty().or_else(|| r_expr.peek_ty())
             }
 
-            &ExprValue::LiteralString(..) => {
-                return Some(VarType::Primitive(PrimitiveVarType::StringVar));
-            }
+            _ => None
+        }
+    }
 
-            &ExprValue::LiteralArray(Some(ref items)) => {
-                if !items.is_empty() {
-                    if let Some(ref first_item) = items.get(0) {
-                        if let Some(var_ty) = first_item.peek_ty() {
-                            return Some(VarType::ArrayVar(Some(Box::new(var_ty))));
-                        }
-                        return Some(VarType::ArrayVar(None));
-                    };
+    #[inline]
+    #[allow(dead_code)]
+    pub fn peek_array_ty(&self) -> Option<VarType> {
+        match self {
+            &ExprValue::LiteralArray(Some(ref arr)) => {
+                if arr.len() > 0 {
+                    let ty = arr.get(0).and_then(|e| e.peek_ty().map(|e| Box::new(e)));
+                    return Some(VarType::ArrayVar(ty));
                 };
-                return Some(VarType::ArrayVar(None));
+
+                Some(VarType::ArrayVar(None))
             }
 
-            &ExprValue::SymbolReference(ref sym) => {
-                if let Some(ty) = sym.ty() { return Some(ty.to_owned()); }
+            &ExprValue::Expr(_, box ref l_expr, box ref r_expr) => {
+                l_expr.peek_array_ty().or_else(|| r_expr.peek_array_ty())
             }
 
-            _ => {}
-        };
-        None
+            _ => None
+        }
     }
 
     #[inline]

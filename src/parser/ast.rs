@@ -1,5 +1,6 @@
 // #![allow(dead_code)]
 
+use std::collections::HashMap;
 use linked_hash_map::LinkedHashMap;
 pub use parser::*;
 pub use parser::loc::Loc;
@@ -67,6 +68,8 @@ impl VarType {
 
     #[allow(dead_code)]
     pub fn string_array() -> VarType { VarType::ArrayVar(Some(Box::new(VarType::Primitive(PrimitiveVarType::StringVar)))) }
+
+    pub fn array_of(ty: VarType) -> VarType { VarType::ArrayVar(Some(Box::new(ty))) }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -348,6 +351,9 @@ pub enum ElementBindingNodeType {
 pub type PropKey = String;
 pub type Prop = (String, Option<ExprValue>);
 pub type PropVec = Vec<Prop>;
+pub type PropType = (String, Option<VarType>);
+pub type PropTypeVec = Vec<PropType>;
+pub type PropTypeMap = HashMap<String, Option<VarType>>;
 
 pub type FormalProp = (String);
 pub type FormalPropVec = Vec<FormalProp>;

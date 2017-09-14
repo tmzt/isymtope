@@ -83,7 +83,7 @@ impl ExpressionWriter for ExpressionWriterJs {
             return Ok(())
         };
 
-        if left.peek_is_object() && right.peek_is_object() {
+        if left.peek_is_object() || right.peek_is_object() {
             write!(w, "Object.assign({{}}, ")?;
             self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
             write!(w, ", ")?;

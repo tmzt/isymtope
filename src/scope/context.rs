@@ -537,19 +537,27 @@ impl Context {
                 None
             }
 
+            &ExprValue::Group(ref expr) => {
+                let inner_expr = expr.as_ref().map(|expr| {
+                    let &box ref expr = expr;
+                    Box::new(self.reduce_expr_or_return_same(expr))
+                });
+                Some(ExprValue::Group(inner_expr))
+            }
+
             &ExprValue::LiteralObject(ref props) => {
                 let props = props.as_ref().map(|props| self.map_props(props.iter()));
                 Some(ExprValue::LiteralObject(props))
             }
 
-            // TODO: Fix this in the new regime
-            &ExprValue::DefaultVariableReference => {
-                let key = "value";
-                if let Some(sym) = self.resolve_sym(key) {
-                    return Some(ExprValue::SymbolReference(sym));
-                }
-                None
-            }
+            // // TODO: Fix this in the new regime
+            // &ExprValue::DefaultVariableReference => {
+            //     let key = "value";
+            //     if let Some(sym) = self.resolve_sym(key) {
+            //         return Some(ExprValue::SymbolReference(sym));
+            //     }
+            //     None
+            // }
 
             &ExprValue::SymbolReference(ref sym) => {
                 match sym.sym_ref() {
@@ -614,6 +622,26 @@ impl Context {
                 EventHandler::DefaultEvent(params.to_owned(), action_ops)
             }
         }
+    }
+
+    #[inline]
+    pub fn map_lens(&mut self, _bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
+        match lens {
+            &LensExprType::ForLens(ref ele_key, ref coll_expr) => {
+                let ele_key = ele_key.as_ref().map(|s| s.to_owned());
+                if let Some(coll_expr) = self.reduce_expr(coll_expr) {
+                    return LensExprType::ForLens(ele_key, coll_expr);
+                };
+            }
+            &LensExprType::GetLens(ref prop_key, ref prop_expr) => {
+                if let Some(prop_expr) = self.reduce_expr(prop_expr) {
+                    return LensExprType::GetLens(prop_key.to_owned(), prop_expr);
+                };
+            }
+            // _ => {}
+        };
+
+        lens.to_owned()
     }
 
     pub fn reduce_expr_or_return_same(&mut self, expr: &ExprValue) -> ExprValue {
@@ -828,7 +856,7 @@ mod tests {
         let mut state = DocumentProcessingState::default();
         state.reducer_key_data = Default::default();
 
-        let mut reducer = ReducerKeyData::default();
+        let mut reducer = ReducerKeyProcessing::default();
         reducer.default_expr = Some(default_expr);
 
         state.reducer_key_data.insert(reducer_key.to_owned(), reducer);

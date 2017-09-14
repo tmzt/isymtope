@@ -122,7 +122,8 @@ ExprTerm : ExprValue =
     <n:LitNum> => ExprValue::LiteralNumber(n),
     <b:LitBool> => ExprValue::LiteralBool(b),
 //    "(" <ExprValue> ")",
-    ValueKeyword => ExprValue::DefaultVariableReference,
+    // ValueKeyword => ExprValue::DefaultVariableReference,
+    ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
     <path:AtLeastOneOf<".", Id>> => {
         let ident = path.join(".");
         match path.len() {

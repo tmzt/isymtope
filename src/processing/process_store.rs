@@ -1,8 +1,7 @@
 
 use std::iter;
 use parser::ast::*;
-use processing::structs::*;
-use processing::process_util::*;
+use processing::*;
 use scope::*;
 
 
@@ -60,10 +59,7 @@ impl ProcessStore {
         let reducer_entry = processing
             .reducer_key_data
             .entry(var_name.to_owned())
-            .or_insert_with(|| {
-                ReducerKeyData::from_name(&format!("{}", var_name),
-                                            var_ty.as_ref().map(Clone::clone))
-            });
+            .or_insert_with(|| ReducerKeyProcessing::from_name(var_name, var_ty.to_owned()));
 
         if let Some(expr) = expr {
             reducer_entry.default_expr = Some(expr.to_owned());
@@ -102,10 +98,8 @@ impl ProcessStore {
         let reducer_entry = processing
             .reducer_key_data
             .entry(action_path.to_owned())
-            .or_insert_with(|| {
-                ReducerKeyData::from_name(&format!("{}", action_path), None)
-            });
-        let mut action = ReducerActionData::from_name(&complete_path, Some(&action_path));
+            .or_insert_with(|| ReducerKeyProcessing::from_name(&action_path, None));
+        let mut action = ReducerActionProcessing::from_name(&complete_path, Some(&action_path));
 
         // Create binding for the current state, which has the same type as the cooresponding reducer key
 
@@ -117,6 +111,8 @@ impl ProcessStore {
         } else {
             sym = Symbol::binding(&binding);
         }
+
+        // sym = Symbol::typed_binding(&binding, &VarType::array_of(VarType::ObjectVar));
 
         // Make the current state available as `state`
         ctx.add_sym("state", sym.clone());
@@ -138,11 +134,7 @@ impl ProcessStore {
             action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(reduced_expr));
         }
 
-        if let Some(ref mut actions) = reducer_entry.actions {
-            actions.push(action);
-        } else {
-            reducer_entry.actions = Some(vec![action]);
-        }
+        reducer_entry.actions.push(action);
         Ok(())
     }
 
@@ -223,8 +215,8 @@ impl ProcessStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scope::context::*;
-    use scope::bindings::*;
+    use scope::*;
+    use processing::*;
 
     #[test]
     pub fn test_processing_process_store_1() {
@@ -266,18 +258,21 @@ mod tests {
         assert!(processing.reducer_key_data.contains_key("todos"));
         assert!(!processing.reducer_key_data.contains_key("add"));
         assert_eq!(processing.reducer_key_data.get("todos"), Some(
-            &ReducerKeyData { reducer_key: "todos".into(), default_expr: Some(ExprValue::LiteralArray(Some(vec![ExprValue::LiteralString("One".into()), ExprValue::LiteralString("Two".into())]))), ty: Some(VarType::string_array()), actions: Some(vec![
-                ReducerActionData {
+            &ReducerKeyProcessing { reducer_key: "todos".into(), default_expr: Some(ExprValue::LiteralArray(Some(vec![ExprValue::LiteralString("One".into()), ExprValue::LiteralString("Two".into())]))), ty: Some(VarType::string_array()),
+            action_tys: Default::default(),
+            actions: vec![
+                ReducerActionProcessing {
                     action_type: "TODOS.ADD".into(),
                     state_expr: Some(ActionStateExprType::SimpleReducerKeyExpr(ExprValue::Expr(
                         ExprOp::Add,
                         Box::new(ExprValue::SymbolReference(Symbol::typed_binding(&BindingType::ActionStateBinding, &string_array))),
                         Box::new(ExprValue::SymbolReference(Symbol::binding(&BindingType::ActionParamBinding("entry".into())))),
                     ))),
+                    // param_tys: Default::default(),
                     state_ty: Some(VarType::string_array()),
                     default_scope_key: Some("todos".into())
                 }
-            ])}
+            ]}
         ));
     }
 }
