@@ -3,6 +3,7 @@ use html;
 store {
     let todos = [{text: "One", complete: false}, {text: "Two", complete: false}];
     let entry = "";
+    let counter = 0;
 
     todos {
         action add(entry) => value + (entry + {complete: false});
@@ -10,6 +11,10 @@ store {
 
     entry {
         action clear => "";
+    }
+
+    counter {
+        action increment => state + 1;
     }
 }
 

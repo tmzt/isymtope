@@ -61,8 +61,6 @@ impl<'a> Iterator for ScopeSymbolIter<'a>
         let map_id = scope_id.as_ref().and_then(|scope_id| self.ctx.get_scope(scope_id)).map(|scope| scope.map_id().to_owned());
         let parent_id = scope_id.as_ref().and_then(|scope_id| self.ctx.get_scope(scope_id)).and_then(|scope| scope.parent_id().map(|s| s.to_owned()));
 
-        // let next_key = Some(key.to_owned());
-
         // Prepare next iteration
         self.scope_id = parent_id.clone();
 
@@ -70,33 +68,21 @@ impl<'a> Iterator for ScopeSymbolIter<'a>
             .and_then(|map_id| self.ctx.get_map(map_id))
             .and_then(|map| map.get_sym(&key)).map(|s| s.to_owned());
 
-        let next_key = match sym.as_ref().map(|sym| sym.sym_ref()) {
-            Some(sym_ref) => {
-                match sym_ref {
-                    &SymbolReferenceType::Binding(ref binding) => {
-                        match binding {
-                            // &BindingType::ComponentFormalProp => {
-                            //     // Special case, ignore this symbol and continue resolving
-                            //     return Some(ScopeSymbolState::InterimSymbol(Symbol::binding(&BindingType::ComponentFormalProp)));
-                            // }
-
-                            &BindingType::ComponentPropBinding(ref prop_key) => Some(prop_key.to_owned()),
-                            &BindingType::MapItemBinding => {
-                                // Special case, ignore this symbol and continue resolving
-                                return Some(ScopeSymbolState::InterimSymbol(Symbol::binding(&BindingType::MapItemBinding)));
-                            }
-                            _ => None
-                        }
-                    },
-                    _ => None
+        let next_key =  match sym {
+            Some(ref sym) => match sym.sym_ref() {
+                &SymbolReferenceType::Binding(BindingType::MapItemBinding) => {
+                    // Special case, ignore this symbol and continue resolving
+                    return Some(ScopeSymbolState::InterimSymbol(Symbol::binding(&BindingType::MapItemBinding)));
                 }
+                &SymbolReferenceType::Binding(..) => sym.resolved_key(),
+                _ => None
             },
             _ => None
         };
 
         if let Some(sym) = sym {
             if let Some(next_key) = next_key {
-                self.key = next_key;
+                self.key = next_key.to_owned();
                 return Some(ScopeSymbolState::InterimSymbol(sym));
             } else {
                 return Some(ScopeSymbolState::FinalSymbol(sym));
