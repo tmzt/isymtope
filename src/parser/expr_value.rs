@@ -9,16 +9,11 @@ pub enum ExprValue {
     LiteralArray(Option<Vec<ExprValue>>),
     LiteralObject(Option<Vec<Prop>>),
     LiteralBool(bool),
-    DefaultVariableReference,
     SymbolReference(Symbol),
-    SymbolPathReference(Vec<Symbol>),
     Binding(BindingType),
-    TypedBinding(BindingType, VarType),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
-    // DefaultAction(Option<Vec<String>>, Option<Vec<ActionOpNode>>),
-    // Action(String, Option<Vec<String>>, Option<Vec<ActionOpNode>>),
     Undefined,
 }
 
@@ -34,6 +29,7 @@ impl ExprValue {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn is_array(&self) -> bool {
         match self {
             &ExprValue::LiteralArray(..) => true,
@@ -55,7 +51,7 @@ impl ExprValue {
         match self {
             &ExprValue::LiteralNumber(..) => Some(VarType::Primitive(PrimitiveVarType::Number)),
             &ExprValue::LiteralString(..) => Some(VarType::Primitive(PrimitiveVarType::StringVar)),
-            &ExprValue::LiteralArray(Some(ref items)) => self.peek_array_ty(),
+            &ExprValue::LiteralArray(..) => self.peek_array_ty(),
             &ExprValue::LiteralObject(..) => Some(VarType::ObjectVar),
 
             &ExprValue::SymbolReference(ref sym) => sym.ty().map(|sym| sym.to_owned()),

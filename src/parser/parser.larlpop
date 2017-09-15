@@ -23,9 +23,6 @@ NodeType: NodeType = {
 ContentNodeType : ContentNodeType = {
     ForKeyword <for_var:(<Id> InKeyword)?> <coll_var:ExprValue> "{" <body:ContentNodeType*> "}" => ContentNodeType::ForNode(for_var, coll_var, Some(body)),
 
-//    ForKeyword <ele:(<Id> InKeyword)?> <coll:Id> "{" <body:(<ContentNodeType*>)?> "}"
-//         => ContentNodeType::ForNode(ele, coll.clone(), body),
-
     "(" "{" <node:ContentNodeType> "}" ")" => node.clone(),
     "(" <expr:ExprValue> ")" => ContentNodeType::ExpressionValueNode(expr.clone(), allocate_element_key()),
 
@@ -57,20 +54,6 @@ UseStmtNode : NodeType =
 
 ComponentDefinitionNode: NodeType =
 {
-    // ComponentKeyword <name:Id> "{"
-    //     <children:NodeType*>
-    // "}" =>
-    // {
-    //     let definition_name = name.into();
-
-    //     NodeType::ComponentDefinitionNode(
-    //         ComponentDefinitionType {
-    //             name: definition_name,
-    //             inputs: None,
-    //             children: Some(children)
-    //         }
-    //     )
-    // },
     ComponentKeyword <name:Id> "(" <inputs:CommaList<Id>> ")" "{"
         <children:NodeType*>
     "}" =>
@@ -95,14 +78,9 @@ ExprOp : ExprOp =
 
 ExprValue : ExprValue =
 {
-//    "(" <expr:ExprValue> ")" => expr.clone(),
-
-    "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),
-    // "{" <key: Id> ":" <expr:ExprValue> "}" => ExprValue::LiteralObject(Some(vec![(key.into(), Some(expr.to_owned()))])),
-    
+    "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),    
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
     <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
-//    "|" <attrs:("(" <AtLeastOne<Id>> ")")?> "|" "{" <action_ops:ActionOpNode*> "}" => ExprValue::Action(attrs, Some(action_ops)),
     ExprFactor
 };
 
@@ -121,8 +99,7 @@ ExprTerm : ExprValue =
 
     <n:LitNum> => ExprValue::LiteralNumber(n),
     <b:LitBool> => ExprValue::LiteralBool(b),
-//    "(" <ExprValue> ")",
-    // ValueKeyword => ExprValue::DefaultVariableReference,
+
     ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
     <path:AtLeastOneOf<".", Id>> => {
         let ident = path.join(".");
@@ -131,18 +108,8 @@ ExprTerm : ExprValue =
             _ => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
         } 
     },
-    // <ident:Id> => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
-    // <varpath:VarPath> => {
-    //     let sym_path = varpath.iter().map(|ref ident| Symbol::unresolved(ident)).collect();
-    //     ExprValue::SymbolPathReference(sym_path)
-    // },
     <s:LitStr> => ExprValue::LiteralString(s),
 };
-
-// SymPath : ExprValue =
-// {
-//     <path:r"[a-zA-Z_][a-zA-Z0-9_]\.[a-zA-Z_][a-zA-Z0-9_.]*"> => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
-// };
 
 ActionOpNode: ActionOpNode = {
     DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ObjectProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
@@ -163,31 +130,6 @@ AtLeastOneOf<S, T> : Vec<T> = {
         v
     }
 };
-
-// AtLeastOneDot<T> : Vec<T> = {
-//     <v:(<T> ".")*> <a:T> "." <b:T> => {
-//         let mut v = v;
-//         v.push(a);
-//         v.push(b);
-//         v
-//     }
-// };
-
-// VarPath : String = {
-//     <v:(<Id> ".")*> <part:Id> => {
-//         let mut parts = v.join(".");
-//         parts.push_str(&part);
-//         parts
-//     }
-// };
-
-// VarPath : Vec<String> = {
-//     <v:(<Id> ".")+> <e:Id> => {
-//         let mut v = v;
-//         v.push(e);
-//         v
-//     }
-// };
 
 CommaList<T> : Vec<T> = {
     <v:(<T> ",")*> <e:T?> => {

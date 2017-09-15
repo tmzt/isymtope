@@ -21,6 +21,7 @@ fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mu
         &ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
         &ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),
         &ExprValue::LiteralBool(b) => value_writer.write_literal_bool(w, b),
+        &ExprValue::Undefined => value_writer.write_undefined(w),
         _ => value_writer.write_undefined(w)
     }
 }

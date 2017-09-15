@@ -550,15 +550,6 @@ impl Context {
                 Some(ExprValue::LiteralObject(props))
             }
 
-            // // TODO: Fix this in the new regime
-            // &ExprValue::DefaultVariableReference => {
-            //     let key = "value";
-            //     if let Some(sym) = self.resolve_sym(key) {
-            //         return Some(ExprValue::SymbolReference(sym));
-            //     }
-            //     None
-            // }
-
             &ExprValue::SymbolReference(ref sym) => {
                 match sym.sym_ref() {
                     &SymbolReferenceType::UnresolvedReference(ref key) => {
@@ -573,22 +564,10 @@ impl Context {
                             return Some(ExprValue::SymbolReference(sym));
                         };
                         None
-                        // let mut splitter = path.split(".").map(|s| s.to_owned());
-                        // let first = splitter.next();
-                        // if let Some(first) = first.and_then(|ref s| self.resolve_sym(s)) {
-                        //     let rest: Vec<_> = splitter.collect();
-                        //     let len = rest.len();
-                        //     if len > 0 {
-                        //         return Some(ExprValue::SymbolReference(Symbol::member_path_from(first, rest)));
-                        //     };
-                        //     return Some(ExprValue::SymbolReference(first));
-                        // };
-                        // None
                     }
 
                     _ => None
                 }
-                // Some(ExprValue::LiteralString(format!("{:?}", resolved_sym)))
             }
 
             _ => None
