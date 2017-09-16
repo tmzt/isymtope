@@ -34,7 +34,8 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
                 if let &ExprValue::SymbolReference(ref sym) = expr {
                     if sym.is_bool() {
                         self.write_expr(w, doc, ctx, bindings, expr)?;
-                        write!(w, " ? \"{}\" : null", &prop.0)?;
+                        // write!(w, " ? \"{}\" : null", &prop.0)?;
+                        write!(w, " ? true : null")?;
                         continue;
                     };
                 };
