@@ -52,15 +52,21 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOps
                         if has_events {
                             props.insert(0, ("href".into(), Some(ExprValue::LiteralString("#".into()))));
                         }
-                    }
+                    };
 
                     if element_tag == "input" {
+                        let is_checkbox = props.iter().any(|prop| prop.0 == "type" && prop.1.iter().any(|e| e.string_value() == Some("checkbox")));
+
                         if let &Some(ref value_binding) = value_binding {
-                            if let &SymbolReferenceType::InitialValue(box ref initial, _) = value_binding.1.sym_ref() {
-                                props.push(("value".into(), Some(ExprValue::SymbolReference(initial.to_owned()))));
-                            };
+                            if is_checkbox {
+                                let sym = value_binding.1.replace_type(&VarType::boolean());
+                                props.push(("checked".into(), Some(ExprValue::SymbolReference(sym))));
+                            } else {
+                                let sym = value_binding.1.to_owned();
+                                props.push(("value".into(), Some(ExprValue::SymbolReference(sym))));
+                            }
                         };
-                    }
+                    };
 
                     // let has_props = props.as_ref().map_or(false, |v| v.len() > 0);
                     let has_props = !props.is_empty();

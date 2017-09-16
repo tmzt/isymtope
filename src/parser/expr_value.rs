@@ -23,7 +23,8 @@ impl ExprValue {
         match self {
             &ExprValue::LiteralArray(..) |
             &ExprValue::LiteralString(..) |
-            &ExprValue::LiteralNumber(..) => true,
+            &ExprValue::LiteralNumber(..) |
+            &ExprValue::LiteralBool(..) => true,
             _ => false,
         }
     }
@@ -43,6 +44,15 @@ impl ExprValue {
         match self {
             &ExprValue::LiteralString(..) => true,
             _ => false,
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn string_value(&self) -> Option<&str> {
+        match self {
+            &ExprValue::LiteralString(ref s) => Some(s.as_str()),
+            _ => None,
         }
     }
 

@@ -134,7 +134,8 @@ impl ProcessContent {
             for element_binding in element_bindings {
                 if let &ElementBindingNodeType::ElementValueBindingNode(ref key, ref sym) = element_binding {
                     let resolved_sym = ctx.resolve_symbol_to_symbol(sym);
-                    value_binding = Some((key.to_owned(), resolved_sym));
+                    let binding_key = sym.as_path_str().map_or_else(|| allocate_element_key(), |path| path.replace(".", "_"));
+                    value_binding = Some((binding_key, resolved_sym));
                 };
             }
 

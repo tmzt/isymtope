@@ -231,10 +231,10 @@ mod tests {
 
             // within Component definition
             {
-                // The local (todo) should be an unbound formal prop (todo)
+                // The local (todo) should be a component prop (todo)
                 assert_eq!(ctx.resolve_sym("todo"),
                     // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
-                    Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
+                    Some(Symbol::binding(&BindingType::ComponentPropBinding("todo".into())))
                 );
             }
             // element_param_defs_scope_id = ctx.scope().id().to_owned();
@@ -252,9 +252,9 @@ mod tests {
             {
                 processor.push_element_scope(&mut ctx, "Pq", "input");
 
-                // The local (todo) should still be an unbound formal param (todo)
+                // The local (todo) should still be a component prop (todo)
                 assert_eq!(ctx.resolve_sym("todo"),
-                    Some(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)))
+                    Some(Symbol::binding(&BindingType::ComponentPropBinding("todo".into())))
                 );
             }
         }
@@ -267,7 +267,7 @@ mod tests {
             Some(vec![
                 ElementOp::ElementVoid("input".into(), "Pq".into(), Some(vec![(
                     "value".into(),
-                    Some(ExprValue::SymbolReference(Symbol::unbound_formal_param("todo", Some(&comp_definition_scope_id)) ))
+                    Some(ExprValue::SymbolReference(Symbol::binding(&BindingType::ComponentPropBinding("todo".into()))))
                 )]), None, None)
             ])
         );

@@ -52,6 +52,7 @@ pub enum ExprApplyOp {
 pub enum PrimitiveVarType {
     StringVar,
     Number,
+    Bool
     // Expr,
 }
 
@@ -65,6 +66,8 @@ pub enum VarType {
 impl VarType {
     #[allow(dead_code)]
     pub fn string() -> VarType { VarType::Primitive(PrimitiveVarType::StringVar) }
+    pub fn number() -> VarType { VarType::Primitive(PrimitiveVarType::Number) }
+    pub fn boolean() -> VarType { VarType::Primitive(PrimitiveVarType::Bool) }
 
     #[allow(dead_code)]
     pub fn string_array() -> VarType { VarType::ArrayVar(Some(Box::new(VarType::Primitive(PrimitiveVarType::StringVar)))) }
@@ -128,6 +131,12 @@ impl Symbol {
                None)
     }
 
+    #[allow(dead_code)]
+    pub fn is_bool(&self) -> bool {
+        self.1 == Some(VarType::boolean())
+    }
+
+    #[allow(dead_code)]
     pub fn with_value(self, expr: ExprValue) -> Self {
         let mut sym = self;
         sym.2 = Some(Box::new(expr));
@@ -157,35 +166,10 @@ impl Symbol {
                None)
     }
 
-    pub fn element_prop(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
-        let key_ref = KeyReferenceType::CurrentElementProp(prop_key.to_owned());
-        Self::ref_key_in_scope(key, key_ref, scope_id)
-    }
-
-    pub fn component_prop(key: &str, prop_key: &str, scope_id: Option<&str>) -> Symbol {
-        let key_ref = KeyReferenceType::ComponentProp(prop_key.to_owned());
-        Self::ref_key_in_scope(key, key_ref, scope_id)
-    }
-
     /// Defines a value for a given formal parameter on the current component invocation scope.
     pub fn invocation_prop(key: &str, expr: Option<&ExprValue>) -> Symbol {
         let key_ref = KeyReferenceType::InvocationProp(expr.map(|e| Box::new(e.to_owned())));
         Self::ref_key_in_scope(key, key_ref, None)
-    }
-
-    /// Defines an unbound formal parameter on the current component definition.
-    ///
-    /// Retains the current scope id.
-    pub fn unbound_formal_param(key: &str, scope_id: Option<&str>) -> Symbol {
-        let key_ref = KeyReferenceType::UnboundFormalParam;
-        Self::ref_key_in_scope(key, key_ref, scope_id)
-    }
-
-    pub fn reducer_key(key: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               None,
-               None)
     }
 
     pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
@@ -195,32 +179,6 @@ impl Symbol {
         Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
                ty,
                value)
-    }
-
-    pub fn action_param(key: &str, _scope_id: &str) -> Symbol {
-        Symbol::binding(&BindingType::ActionParamBinding(key.to_owned()))
-    }
-
-    pub fn param(key: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::ParameterReference(key.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    pub fn prop(prop_name: &str, scope_id: &str) -> Symbol {
-        let resolved = ResolvedSymbolType::PropReference(prop_name.to_owned());
-        Symbol(SymbolReferenceType::ResolvedReference(prop_name.to_owned(), resolved, Some(scope_id.to_owned())),
-               None,
-               None)
-    }
-
-    /// References used within reducers and actions
-
-    pub fn unbound_action_param(key: &str, scope_id: Option<&str>) -> Symbol {
-        // Symbol::binding(&BindingType::UnboundActionParam(key.to_owned()))
-        let key_ref = KeyReferenceType::UnboundReducerActionParam(key.to_owned());
-        Self::ref_key_in_scope(key, key_ref, scope_id)
     }
 
     /// Accessors
@@ -250,6 +208,16 @@ impl Symbol {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn as_path_str(&self) -> Option<&str> {
+        match self.sym_ref() {
+            &SymbolReferenceType::UnresolvedPathReference(ref path) => Some(path),
+            &SymbolReferenceType::UnresolvedReference(ref key) => Some(key),
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn is_transparent(&self) -> bool {
         match self.sym_ref() {
             &SymbolReferenceType::Binding(ref binding) => binding.is_transparent(),

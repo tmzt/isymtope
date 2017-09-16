@@ -18,6 +18,19 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
         for (key_ref, expr_ref) in props {
             if let Some(expr_ref) = expr_ref {
+
+                if let &ExprValue::SymbolReference(ref sym) = expr_ref {
+                    if sym.is_bool() {
+                        if let Some(expr) = ctx.eval_sym(doc, sym) {
+                            if let ExprValue::LiteralBool(b) = expr {
+                                if b { write!(w, " {}=\"{}\"", key_ref, key_ref)?; }
+                                continue;
+                            };
+
+                        };
+                    };
+                };
+
                 write!(w, " {}=\"", key_ref)?;
                 self.write_expr(w, doc, ctx, bindings, expr_ref)?;
                 write!(w, "\"")?;

@@ -31,7 +31,14 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
                 if !first_item { write!(w, ", ")?; }
                 first_item = false;
                 write!(w, "\"{}\", ", &prop.0)?;
-                self.write_expr(w, doc, ctx, bindings, &expr)?;
+                if let &ExprValue::SymbolReference(ref sym) = expr {
+                    if sym.is_bool() {
+                        self.write_expr(w, doc, ctx, bindings, expr)?;
+                        write!(w, " ? \"{}\" : null", &prop.0)?;
+                        continue;
+                    };
+                };
+                self.write_expr(w, doc, ctx, bindings, expr)?;
             };
         }
 
@@ -40,7 +47,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         // Handle special case
         if element_tag == "input" {
             for value_binding in binding {
-                if let &Some((ref key, ref sym)) = value_binding {
+                if let &Some((_, ref sym)) = value_binding {
                     if let &SymbolReferenceType::InitialValue(box ref initial, box ref element) = sym.sym_ref() {
                         let expr = ExprValue::SymbolReference(element.to_owned());
                         self.write_expr(w, doc, ctx, bindings, &expr)?;

@@ -125,45 +125,45 @@ impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolBindingPropResolv
 }
 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use parser::ast::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use parser::ast::*;
 
 
-    #[test]
-    pub fn test_bindings_binding_context_1() {
-        let mut bindings = BindingContext::default();
-        bindings.add_key_in_symbols("todo", "todo", "s1");
+//     #[test]
+//     pub fn test_bindings_binding_context_1() {
+//         let mut bindings = BindingContext::default();
+//         bindings.add_key_in_symbols("todo", "todo", "s1");
 
-        assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::KeyInSymbolsBinding("todo".into(), "s1".into())));
-    }
+//         assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::KeyInSymbolsBinding("todo".into(), "s1".into())));
+//     }
 
-    #[test]
-    pub fn test_bindings_binding_context_resolve_sym1() {
-        let mut bindings = BindingContext::default();
-        bindings.add_reducer_key("todo", "todo");
+//     #[test]
+//     pub fn test_bindings_binding_context_resolve_sym1() {
+//         let mut bindings = BindingContext::default();
+//         bindings.add_reducer_key("todo", "todo");
 
-        assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::ReducerPathBinding("todo".into())));
-        let sym = Symbol::unbound_formal_param("todo", Some("s1"));
+//         assert_eq!(bindings.resolve_binding("todo"), Some(&BindingType::ReducerPathBinding("todo".into())));
+//         let sym = Symbol::unbound_formal_param("todo", Some("s1"));
 
-        assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into())));
-    }
+//         assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into())));
+//     }
 
-    #[test]
-    pub fn test_bindings_binding_context_resolve_symbols1() {
-        let mut bindings = BindingContext::default();
-        bindings.add_reducer_key("todo", "todo");
+//     #[test]
+//     pub fn test_bindings_binding_context_resolve_symbols1() {
+//         let mut bindings = BindingContext::default();
+//         bindings.add_reducer_key("todo", "todo");
 
-        let symbols = vec![
-            Symbol::unbound_formal_param("todo", Some("s1"))
-        ];
+//         let symbols = vec![
+//             Symbol::unbound_formal_param("todo", Some("s1"))
+//         ];
 
-        let binding_iter = SymbolBindingResolver::new(&mut bindings, symbols.iter());
-        assert_eq!(binding_iter.collect::<Vec<BindingType>>(), vec![
-            BindingType::ReducerPathBinding("todo".into())
-        ]);
+//         let binding_iter = SymbolBindingResolver::new(&mut bindings, symbols.iter());
+//         assert_eq!(binding_iter.collect::<Vec<BindingType>>(), vec![
+//             BindingType::ReducerPathBinding("todo".into())
+//         ]);
 
-        // assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into(), None)));
-    }
-}
+//         // assert_eq!(bindings.resolve_sym(&sym), Some(&BindingType::ReducerPathBinding("todo".into(), None)));
+//     }
+// }

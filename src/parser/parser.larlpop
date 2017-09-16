@@ -101,13 +101,14 @@ ExprTerm : ExprValue =
     <b:LitBool> => ExprValue::LiteralBool(b),
 
     ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
-    <path:AtLeastOneOf<".", Id>> => {
-        let ident = path.join(".");
-        match path.len() {
-            1 => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
-            _ => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
-        } 
-    },
+    <sym:VarPath> => ExprValue::SymbolReference(sym),
+    // <path:AtLeastOneOf<".", Id>> => {
+    //     let ident = path.join(".");
+    //     match path.len() {
+    //         1 => ExprValue::SymbolReference(Symbol::unresolved(&ident)),
+    //         _ => ExprValue::SymbolReference(Symbol::unresolved_path(&ident))
+    //     } 
+    // },
     <s:LitStr> => ExprValue::LiteralString(s),
 };
 
@@ -182,6 +183,17 @@ ElementParamList : (Option<LensExprType>, Option<Vec<Prop>>) = {
 };
 
 #[inline]
+VarPath : Symbol = {
+    <path:AtLeastOneOf<".", Id>> => {
+        let ident = path.join(".");
+        match path.len() {
+            1 => Symbol::unresolved(&ident),
+            _ => Symbol::unresolved_path(&ident)
+        } 
+    }
+};
+
+#[inline]
 Param : (String, ExprValue) = {
     <ident:Id> "=" <val:ExprValue> =>
     {
@@ -194,7 +206,7 @@ Param : (String, ExprValue) = {
 //    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
 
 ElementBindingNode: ElementBindingNodeType = {
-    BindKeyword <key:Id> => ElementBindingNodeType::ElementValueBindingNode(key.to_owned(), Symbol::unresolved(&key)),
+    BindKeyword <sym:VarPath> => ElementBindingNodeType::ElementValueBindingNode("binding".to_owned(), sym),
     "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => ElementBindingNodeType::ElementEventBindingNode(EventHandler::DefaultEvent(params, act_ops)),
     <event_name:Id> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => ElementBindingNodeType::ElementEventBindingNode(EventHandler::Event(event_name, params, act_ops))
 };

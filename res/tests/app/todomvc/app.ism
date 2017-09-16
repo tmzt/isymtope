@@ -1,7 +1,7 @@
 use html;
 
 store {
-    let todos = [{text: "One", complete: false}, {text: "Two", complete: false}];
+    let todos = [{text: "One", complete: true}, {text: "Two", complete: false}];
     let entry = "";
     let counter = 0;
 
@@ -25,7 +25,7 @@ component todo_text_input (todo) {
 component todo_item (todo) {
     li (class="completed") {
         div (class="view") {
-            input(class="toggle", type="checkbox", checked=todo.completed, value=todo.completed) {}
+            input(class="toggle", type="checkbox") bind todo.complete {}
             label { (todo.text) }
             button(class="destroy") {}
         }

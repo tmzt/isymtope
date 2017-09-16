@@ -56,17 +56,17 @@ impl Symbols {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use parser::ast::*;
-    use scope::symbols::*;
+// #[cfg(test)]
+// mod tests {
+//     use parser::ast::*;
+//     use scope::symbols::*;
 
-    #[test]
-    pub fn test_symbols() {
-        let mut symbols = Symbols::new(None);
-        symbols.add_sym("abc", Symbol::prop("xyz", "s1"));
-        // assert!(match symbols.get_sym("abc").map(|s| s.sym_ref()) { Some(&SymbolReferenceType::ResolvedReference("abc".to_owned(), ResolvedSymbolType::PropReference("abc".to_owned()), _)) => true, _ => false);
+//     #[test]
+//     pub fn test_symbols() {
+//         let mut symbols = Symbols::new(None);
+//         symbols.add_sym("abc", Symbol::prop("xyz", "s1"));
+//         // assert!(match symbols.get_sym("abc").map(|s| s.sym_ref()) { Some(&SymbolReferenceType::ResolvedReference("abc".to_owned(), ResolvedSymbolType::PropReference("abc".to_owned()), _)) => true, _ => false);
 
-        assert_eq!(symbols.get_sym("abc").map(|s| s.sym_ref()), Some(&SymbolReferenceType::ResolvedReference("xyz".to_owned(), ResolvedSymbolType::PropReference("xyz".to_owned()), Some("s1".to_owned()))));
-    }
-}
+//         assert_eq!(symbols.get_sym("abc").map(|s| s.sym_ref()), Some(&SymbolReferenceType::ResolvedReference("xyz".to_owned(), ResolvedSymbolType::PropReference("xyz".to_owned()), Some("s1".to_owned()))));
+//     }
+// }
