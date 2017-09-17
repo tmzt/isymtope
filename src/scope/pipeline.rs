@@ -78,21 +78,42 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> Itera
                 &IterMethodPipelineComponent::Method(ref mth, ref params) => {
                     let params = params.as_ref().map_or(vec![], |v| v.to_owned());
                     // let argc = params.as_ref().map_or(0, |v| v.len());
+                    self.ctx.push_child_scope();
                     let op = match mth.as_str() {
-                        "reduce" => {
-                            let expr_ref = &params[0];
-                            let initial = params.get(1).map(|p| p.to_owned());
-                            self.ctx.push_child_scope();
-                            let sym = Symbol::binding(&BindingType::MapItemBinding);
-                            self.ctx.add_sym("value", sym);
-                            let expr = self.ctx.reduce_expr_or_return_same(expr_ref);
-                            self.ctx.pop_scope();
+                        "map" => {
+                            let param_ref = &params[0];
+                            self.ctx.add_sym("item", Symbol::binding(&BindingType::MapItemBinding));
+                            self.ctx.add_sym("index", Symbol::binding(&BindingType::MapIndexBinding));
 
-                            Some(ReducedMethodType::Reduce(expr, initial))
+                            let expr = self.ctx.reduce_expr_or_return_same(&param_ref.0);
+
+                            if let Some(ref cond) = param_ref.1 {
+                                let cond = self.ctx.reduce_expr_or_return_same(cond);
+                                Some(ReducedMethodType::MapIf(expr, cond))
+                            } else {
+                                Some(ReducedMethodType::Map(expr))
+                            }
+                        }
+
+                        "reduce" => {
+                            let param_ref = &params[0];
+                            let initial = params.get(1).and_then(|p| p.1.as_ref().map(|p| p.to_owned()));
+                            let sym = Symbol::binding(&BindingType::MapItemBinding);
+                            self.ctx.add_sym("item", sym);
+
+                            let expr = self.ctx.reduce_expr_or_return_same(&param_ref.0);
+
+                            if let Some(ref cond) = param_ref.1 {
+                                let cond = self.ctx.reduce_expr_or_return_same(cond);
+                                Some(ReducedMethodType::ReduceIf(expr, cond, initial))
+                            } else {
+                                Some(ReducedMethodType::Reduce(expr, initial))
+                            }
                         }
 
                         _ => None
                     };
+                    self.ctx.pop_scope();
 
                     if let Some(op) = op {
                         return Some(ReducedPipelineComponent::PipelineOp(op));

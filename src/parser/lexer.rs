@@ -130,6 +130,7 @@ impl<'input> Lexer<'input> {
             "value" => Token::ValueKeyword,
             "bind" => Token::BindKeyword,
             "as" => Token::AsKeyword,
+            "where" => Token::WhereKeyword,
 
             "store" => Token::StoreKeyword,
             "action" => Token::ActionKeyword,

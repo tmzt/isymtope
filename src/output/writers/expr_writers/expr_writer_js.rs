@@ -206,12 +206,52 @@ impl ExpressionWriter for ExpressionWriterJs {
                 },
                 &ReducedPipelineComponent::PipelineOp(ref op) => {
                     match op {
-                        &ReducedMethodType::Reduce(ref expr, ref initial) => {
+                        &ReducedMethodType::Map(ref expr) |
+                        &ReducedMethodType::MapIf(ref expr, _) => {
                             wrote_first = true;
 
-                            write!(w, "reduce(function(item, acc) {{ return ")?;
-                            self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
-                            write!(w, "; }}")?;
+                            write!(w, "map(function(item, idx, arr) {{ ")?;
+                            match op {
+                                &ReducedMethodType::MapIf(_, ref cond) => {
+                                    write!(w, "if (")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
+                                    write!(w, ") {{ return ")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                                    write!(w, " }} else {{ return item; }}")?;
+                                },
+
+                                _ => {
+                                    write!(w, "return ")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;                            
+                                    write!(w, ";")?;
+                                }
+                                
+                            };
+                            write!(w, "}})")?;
+                        },
+
+                        &ReducedMethodType::Reduce(ref expr, ref initial) |
+                        &ReducedMethodType::ReduceIf(ref expr, _, ref initial) => {
+                            wrote_first = true;
+
+                            write!(w, "reduce(function(item, acc) {{ ")?;
+                            match op {
+                                &ReducedMethodType::ReduceIf(_, ref cond, _) => {
+                                    write!(w, "if (")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
+                                    write!(w, ") {{ return ")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                                    write!(w, " }}")?;
+                                },
+
+                                _ => {
+                                    write!(w, "return ")?;
+                                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;                            
+                                    write!(w, ";")?;
+                                }
+                                
+                            };
+                            write!(w, "}}")?;
 
                             if let &Some(ref initial) = initial {
                                 write!(w, ", ")?;

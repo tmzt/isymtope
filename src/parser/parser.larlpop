@@ -226,8 +226,14 @@ VarPath : Symbol = {
 };
 
 #[inline]
+IterMethodPipelineParam : IterMethodPipelineParam = {
+    <expr:ExprFactor> => (expr, None),
+    <expr:ExprFactor> WhereKeyword <cond:ExprFactor> => (expr, Some(cond))
+};
+
+#[inline]
 IterMethodPipelineComponent : IterMethodPipelineComponent = {
-    <id:Id> "(" <params:CommaList<ExprFactor>> ")" => IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None }),
+    <id:Id> "(" <params:CommaList<IterMethodPipelineParam>> ")" => IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None }),
     <id:Id> => IterMethodPipelineComponent::PathComponent(id.to_owned())
 };
 
@@ -401,6 +407,7 @@ extern {
         BindKeyword => Token::BindKeyword,
         AsKeyword => Token::AsKeyword,
         ValueKeyword => Token::ValueKeyword,
+        WhereKeyword => Token::WhereKeyword,
         
         ComponentKeyword => Token::ComponentKeyword,
         StoreKeyword => Token::StoreKeyword,

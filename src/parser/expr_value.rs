@@ -1,8 +1,10 @@
 use parser::*;
 
+pub type IterMethodPipelineParam = (ExprValue, Option<ExprValue>);
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum IterMethodPipelineComponent {
-    Method(String, Option<Vec<ExprValue>>),
+    Method(String, Option<Vec<IterMethodPipelineParam>>),
     PathComponent(String)
 }
 
@@ -19,7 +21,9 @@ impl IterMethodPipelineComponent {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReducedMethodType {
     Reduce(ExprValue, Option<ExprValue>),
+    ReduceIf(ExprValue, ExprValue, Option<ExprValue>),
     Map(ExprValue),
+    MapIf(ExprValue, ExprValue),
     FlatMap(ExprValue),
     FilterMap(ExprValue),
     Any(ExprValue),

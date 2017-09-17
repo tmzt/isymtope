@@ -7,7 +7,7 @@ store {
 
     todos {
         action add(entry) => value + (entry + {complete: false});
-        action set(entry) => value.reduce(value);
+        action set(entry) => value.map(item where item);
     }
 
     entry {
