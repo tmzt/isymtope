@@ -60,6 +60,13 @@ pub enum Token {
     DispatchKeyword,
 
     HashRocket,
+    EqualTo,
+    NotEqualTo,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
+
     Pipe,
     OpenBrace,
     CloseBrace,
@@ -72,6 +79,7 @@ pub enum Token {
     Equals,
     Colon,
     Semi,
+    Bang,
     Plus,
     Minus,
     Mul,

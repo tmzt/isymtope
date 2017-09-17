@@ -99,6 +99,31 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
+    fn write_test(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &TestOp, left: &ExprValue, right: Option<&ExprValue>) -> Result {
+        if right.is_none() {
+            match op {
+                &TestOp::Negate => {write!(w, "!")?; },
+                _ => {}
+            };
+            return self.write_expr_to(w, doc, value_writer, ctx, bindings, left);
+        };
+
+        self.write_expr_to(w, doc, value_writer, ctx, bindings, left)?;
+        match op {
+            &TestOp::EqualTo => { write!(w, " == ")?; },
+            &TestOp::NotEqualTo => { write!(w, " == ")?; },
+            &TestOp::GreaterThanOrEqualTo => { write!(w, " >= ")?; },
+            &TestOp::LessThanOrEqualTo => { write!(w, " <= ")?; },
+            &TestOp::GreaterThan => { write!(w, " > ")?; },
+            &TestOp::LessThan => { write!(w, " < ")?; },
+            _ => {}
+        };
+        if let Some(ref right) = right {
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, right)?;
+        }
+       Ok(())
+    }
+
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
@@ -155,6 +180,13 @@ impl ExpressionWriter for ExpressionWriterJs {
                 write!(w, "document.querySelector(\"[key='\" + ")?;
                 self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
                 write!(w, " + \"']\").value")?;
+                Ok(())
+            }
+            &BindingType::DOMInputCheckboxElementCheckedBinding(ref complete_key) => {
+                let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
+                write!(w, "document.querySelector(\"[key='\" + ")?;
+                self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
+                write!(w, " + \"']\").checked")?;
                 Ok(())
             }
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)

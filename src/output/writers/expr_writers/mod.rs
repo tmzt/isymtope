@@ -35,6 +35,11 @@ pub trait ExpressionWriter {
             return self.write_expression(w, doc, value_writer, ctx, bindings, op, left, right);
         };
 
+        if let &ExprValue::TestValue(ref op, box ref left, ref right) = expr {
+            let right = right.as_ref().map(|&box ref right| right);
+            return self.write_test(w, doc, value_writer, ctx, bindings, op, left, right);
+        };
+
         if let &ExprValue::Apply(ref a_op, ref arr) = expr {
             let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
             return self.write_apply_expression(w, doc, value_writer, ctx, bindings, a_op, arr_iter);
@@ -75,6 +80,7 @@ pub trait ExpressionWriter {
 
     // fn write_expr(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
     fn write_expression(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result;
+    fn write_test(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &TestOp, left: &ExprValue, right: Option<&ExprValue>) -> Result;
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result;
     fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result;
     fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result;
@@ -158,6 +164,10 @@ mod tests {
             self.wrote_op = Some(op.clone());
             self.wrote_left = Some(left.clone());
             self.wrote_right = Some(right.clone());
+            Ok(())
+        }
+
+        fn write_test(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &TestOp, left: &ExprValue, right: Option<&ExprValue>) -> Result {
             Ok(())
         }
 

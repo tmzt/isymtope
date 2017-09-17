@@ -250,7 +250,8 @@ pub enum BindingType {
     // ComponentFormalProp,
     ComponentPropBinding(String),
     DOMElementAttributeBinding(String, String),
-    DOMInputElementValueBinding(String)
+    DOMInputElementValueBinding(String),
+    DOMInputCheckboxElementCheckedBinding(String)
 }
 
 impl BindingType {

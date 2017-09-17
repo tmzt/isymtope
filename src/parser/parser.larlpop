@@ -81,9 +81,20 @@ ExprOp : ExprOp =
 
 ExprValue : ExprValue =
 {
-    "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),    
+    "(" "{" <node:ContentNodeType> "}" ")" => ExprValue::ContentNode(Box::new(node)),
     <l:ExprValue> "+" <r:ExprFactor> => ExprValue::Expr(ExprOp::Add, Box::new(l), Box::new(r)),
     <l:ExprValue> "-" <r:ExprFactor> => ExprValue::Expr(ExprOp::Sub, Box::new(l), Box::new(r)),
+
+    <l:ExprValue> ">" <r:ExprFactor> => ExprValue::TestValue(TestOp::LessThan, Box::new(l), Some(Box::new(r))),
+    <l:ExprValue> "<" <r:ExprFactor> => ExprValue::TestValue(TestOp::GreaterThan, Box::new(l), Some(Box::new(r))),
+
+    "!" <e:ExprFactor> => ExprValue::TestValue(TestOp::Negate, Box::new(e), None),
+
+    <l:ExprValue> "==" <r:ExprFactor> => ExprValue::TestValue(TestOp::EqualTo, Box::new(l), Some(Box::new(r))),
+    <l:ExprValue> "!=" <r:ExprFactor> => ExprValue::TestValue(TestOp::NotEqualTo, Box::new(l), Some(Box::new(r))),
+    <l:ExprValue> ">=" <r:ExprFactor> => ExprValue::TestValue(TestOp::GreaterThanOrEqualTo, Box::new(l), Some(Box::new(r))),
+    <l:ExprValue> "<=" <r:ExprFactor> => ExprValue::TestValue(TestOp::LessThanOrEqualTo, Box::new(l), Some(Box::new(r))),
+
     ExprFactor
 };
 
@@ -228,7 +239,7 @@ VarPath : Symbol = {
 #[inline]
 IterMethodPipelineParam : IterMethodPipelineParam = {
     <expr:ExprFactor> => (expr, None),
-    <expr:ExprFactor> WhereKeyword <cond:ExprFactor> => (expr, Some(cond))
+    <expr:ExprFactor> WhereKeyword <cond:ExprValue> => (expr, Some(cond))
 };
 
 #[inline]
@@ -378,7 +389,15 @@ extern {
     
     enum Token {
         "=>" => Token::HashRocket,
+        "==" => Token::EqualTo,
+        "!=" => Token::NotEqualTo,
+        ">=" => Token::GreaterThanOrEqualTo,
+        "<=" => Token::LessThanOrEqualTo,
+
         "|" => Token::Pipe,
+
+        ">" => Token::GreaterThan,
+        "<" => Token::LessThan,
 
         "{" => Token::OpenBrace,
         "}" => Token::CloseBrace,
@@ -391,6 +410,7 @@ extern {
         "=" => Token::Equals,
         ":" => Token::Colon,
         ";" => Token::Semi,
+        "!" => Token::Bang,
         "+" => Token::Plus,
         "-" => Token::Minus,
         "*" => Token::Mul,

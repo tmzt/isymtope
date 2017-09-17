@@ -527,6 +527,31 @@ impl Context {
                 None
             }
 
+            &ExprValue::TestValue(ref op, box ref expr, None) => {
+                if let Some(reduced) = self.reduce_expr(&expr) {
+                    return Some(ExprValue::TestValue(op.to_owned(), Box::new(reduced), None));
+                };
+                None
+            }
+
+            &ExprValue::TestValue(ref op, box ref l_expr, Some(box ref r_expr)) => {
+                let l_reduced = self.reduce_expr(&l_expr);
+                let r_reduced = self.reduce_expr(&r_expr);
+                let had_reduction = l_reduced.is_some() || r_reduced.is_some();
+
+                let l_reduced = l_reduced.unwrap_or_else(|| l_expr.clone());
+                let r_reduced = r_reduced.unwrap_or_else(|| r_expr.clone());
+
+                if had_reduction {
+                    // Return the partially reduced expression
+                    return Some(
+                        ExprValue::TestValue(op.to_owned(), Box::new(l_reduced), Some(Box::new(r_reduced)))
+                    );
+                }
+
+                None
+            }
+
             &ExprValue::Group(ref expr) => {
                 let inner_expr = expr.as_ref().map(|expr| {
                     let &box ref expr = expr;

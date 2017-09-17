@@ -155,8 +155,17 @@ impl ProcessContent {
 
                     // Handle special case
                     if element_tag == "input" {
+                        let is_checkbox = props.as_ref().map_or(false, |props| props.iter().any(|prop| prop.0 == "type" && prop.1.iter().any(|e| e.string_value() == Some("checkbox"))));
                         value_binding = value_binding.as_ref().map(|value_binding| {
-                            let dom_binding: Symbol = BindingType::DOMInputElementValueBinding(complete_key.to_owned()).into();
+                            let dom_binding: BindingType;
+                            if is_checkbox {
+                                dom_binding = BindingType::DOMInputCheckboxElementCheckedBinding(complete_key.to_owned());
+                            } else {
+                                dom_binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
+                            } 
+
+                            // let dom_binding: Symbol = BindingType::DOMInputElementValueBinding(complete_key.to_owned()).into();
+                            let dom_binding: Symbol = dom_binding.into();
 
                             if let Some(ref read_sym) = value_binding.2 {
                                 if let Some(ref read_varname) = read_sym.as_single_part_str() {

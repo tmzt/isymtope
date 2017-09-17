@@ -1,13 +1,13 @@
 use html;
 
 store {
-    let todos = [{text: "One", complete: true, id: 0}, {text: "Two", complete: false, id: 1}];
+    let todos = [{text: "One", complete: false, id: 0}, {text: "Two", complete: false, id: 1}];
     let entry = "";
     let counter = 0;
 
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
-        action set_complete(entry) => value.map({text: item.text, complete: entry.complete, id: item.id} where item);
+        action toggle_complete(id) => value.map({text: item.text, complete: !item.complete, id: item.id} where (item.id == id));
     }
 
     entry {
@@ -27,7 +27,7 @@ component todo_item (todo) {
     li (class="completed") {
         div (class="view") {
             input(class="toggle", type="checkbox") bind todo.complete as complete
-                click || { dispatch set_complete(entry: {complete: complete}); } {}
+                click || { dispatch toggle_complete(id: todo.id); } {}
             label { (todo.text) }
             button(class="destroy") {}
         }

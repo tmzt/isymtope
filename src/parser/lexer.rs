@@ -188,6 +188,10 @@ impl<'input> Lexer<'input> {
             if let Some((start, a, b)) = self.two() {
                 let token = match (a, b) {
                     ('=', '>') => Some(Token::HashRocket),
+                    ('=', '=') => Some(Token::EqualTo),
+                    ('!', '=') => Some(Token::NotEqualTo),
+                    ('>', '=') => Some(Token::GreaterThanOrEqualTo),
+                    ('<', '=') => Some(Token::LessThanOrEqualTo),
                     _ => None,
                 };
 
@@ -202,6 +206,9 @@ impl<'input> Lexer<'input> {
                 // println!("Char: {:?}", c);
 
                 let token = match c {
+                    '>' => Token::GreaterThan,
+                    '<' => Token::LessThan,
+
                     '|' => Token::Pipe,
                     '{' => Token::OpenBrace,
                     '}' => Token::CloseBrace,
@@ -221,6 +228,8 @@ impl<'input> Lexer<'input> {
                     '=' => Token::Equals,
                     ':' => Token::Colon,
                     ';' => Token::Semi,
+
+                    '!' => Token::Bang,
 
                     // TODO: Support uniary minus (two char match)
                     '+' => Token::Plus,

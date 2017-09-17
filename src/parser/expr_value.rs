@@ -49,6 +49,19 @@ pub enum ReducedPipelineComponent {
 pub type IterMethodPipelineComponentVec = Vec<IterMethodPipelineComponent>;
 pub type ReducedPipelineComponentVec = Vec<ReducedPipelineComponent>;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum TestOp {
+    Negate,
+    EqualTo,
+    NotEqualTo,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqualTo,
+    LessThanOrEqualTo,
+    IsUndefined,
+    IsNaN
+}
+
 /// Simple expression (parameter value)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprValue {
@@ -61,6 +74,7 @@ pub enum ExprValue {
     SymbolReference(Symbol),
     Binding(BindingType),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
+    TestValue(TestOp, Box<ExprValue>, Option<Box<ExprValue>>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
     IterMethodPipeline(Option<Box<ExprValue>>, Option<IterMethodPipelineComponentVec>),
