@@ -30,6 +30,8 @@ pub enum ReducedMethodType {
     All(ExprValue),
     First,
     Last,
+    Max,
+    Min,
     Take(usize),
     TakeWhile(ExprValue),
     TakeUntil(ExprValue),

@@ -260,6 +260,11 @@ impl ExpressionWriter for ExpressionWriterJs {
 
                             write!(w, ")")?;
                         },
+
+                        &ReducedMethodType::Max => {
+                            write!(w, "reduce(function(item, acc) {{ if (item > acc) {{ return item; }} else {{ return acc; }} }})")?;
+                        }
+
                         _ => {}
                     };
                 }

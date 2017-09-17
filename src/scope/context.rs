@@ -560,6 +560,14 @@ impl Context {
                 }
             }
 
+            &ExprValue::IterMethodPipeline(ref head, Some(ref parts)) => {
+                let head = head.as_ref().map(|&box ref head| head);
+                if let Some(reduced) = self.reduce_pipeline(head, parts.into_iter()) {
+                    return Some(reduced);
+                };
+                None
+            }
+
             _ => None
         }
     }

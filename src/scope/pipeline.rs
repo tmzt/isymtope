@@ -111,6 +111,9 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> Itera
                             }
                         }
 
+                        "max" => Some(ReducedMethodType::Max),
+                        "min" => Some(ReducedMethodType::Min),
+
                         _ => None
                     };
                     self.ctx.pop_scope();
