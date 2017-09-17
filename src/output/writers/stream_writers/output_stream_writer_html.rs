@@ -148,13 +148,16 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
         if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
             for (idx, item) in arr.iter().enumerate() {
                 ctx.push_child_scope();
-                ctx.append_path_str(&format!("{}", idx));
+                // ctx.append_path_str(&format!("{}", idx));
+
+                let instance_key = format!("{}.{}", instance_key.as_static_string(), idx);
+                // let instance_key = InstanceKey::Static(&instance_key);
 
                 // let map_item = Symbol::binding(&BindingType::MapItemBinding).with_value(item.to_owned());
                 // ctx.add_sym(coll_item_key, map_item);
                 // ctx.add_value(coll_item_key, item.to_owned());
 
-                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key.clone(), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), events.iter(), binding.iter(), Some(LensItemType::ForLens(coll_item_key, idx, item)))?;
+                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Static(&instance_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), events.iter(), binding.iter(), Some(LensItemType::ForLens(coll_item_key, idx, item)))?;
 
                 ctx.pop_scope();
             }

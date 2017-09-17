@@ -209,6 +209,14 @@ impl Symbol {
     }
 
     #[allow(dead_code)]
+    pub fn as_single_part_str(&self) -> Option<&str> {
+        match self.sym_ref() {
+            &SymbolReferenceType::UnresolvedReference(ref key) => Some(key),
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn as_path_str(&self) -> Option<&str> {
         match self.sym_ref() {
             &SymbolReferenceType::UnresolvedPathReference(ref path) => Some(path),
@@ -313,12 +321,13 @@ impl EventHandler {
 }
 
 // pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
-pub type ElementValueBinding = Option<(String, Symbol)>;
+pub type ElementValueBinding = Option<(String, Symbol, Option<Symbol>)>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(EventHandler),
     ElementValueBindingNode(String, Symbol),
+    ElementValueBindingAsNode(String, Symbol, Symbol),
 }
 
 pub type PropKey = String;

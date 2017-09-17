@@ -74,6 +74,8 @@ impl ProcessContent {
                 // Treat this as an HTML element
                 // TODO: Support imported elements
                 self.process_element_as_element(processing, ctx, bindings, element_data, block, Some(&element_tag))?;
+
+                ctx.pop_scope();
             }
             &ContentNodeType::ExpressionValueNode(ref expr, ref value_key) => {
                 let expr = ctx.reduce_expr_or_return_same(expr);
@@ -126,16 +128,21 @@ impl ProcessContent {
         let mut event_handlers: EventHandlersVec = Default::default();
         // let mut events: EventsVec = Default::default();
         let mut value_binding: ElementValueBinding = Default::default();
-        let event_value_binding: ElementValueBinding = Default::default();
 
         // Process bindings
         if let Some(ref element_bindings) = element_data.bindings {
             // Loop through value bindings first
             for element_binding in element_bindings {
+                if let &ElementBindingNodeType::ElementValueBindingAsNode(ref key, ref prop_side, ref read_side) = element_binding {
+                    let prop_side = ctx.resolve_symbol_to_symbol(prop_side);
+                    let read_side = ctx.resolve_symbol_to_symbol(read_side);
+                    value_binding = Some((key.to_owned(), prop_side, Some(read_side)));
+                };
+
                 if let &ElementBindingNodeType::ElementValueBindingNode(ref key, ref sym) = element_binding {
                     let resolved_sym = ctx.resolve_symbol_to_symbol(sym);
                     let binding_key = sym.as_path_str().map_or_else(|| allocate_element_key(), |path| path.replace(".", "_"));
-                    value_binding = Some((binding_key, resolved_sym));
+                    value_binding = Some((binding_key, resolved_sym, None));
                 };
             }
 
@@ -150,12 +157,21 @@ impl ProcessContent {
                     if element_tag == "input" {
                         value_binding = value_binding.as_ref().map(|value_binding| {
                             let dom_binding: Symbol = BindingType::DOMInputElementValueBinding(complete_key.to_owned()).into();
-                            let sym = match ctx.resolve_sym(&value_binding.0) {
-                                Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
-                                _ => dom_binding
+
+                            if let Some(ref read_sym) = value_binding.2 {
+                                if let Some(ref read_varname) = read_sym.as_single_part_str() {
+                                    ctx.add_sym(read_varname, dom_binding.clone());
+                                };
                             };
+
+                            let sym = Symbol::initial_value(&value_binding.1, &dom_binding);
+
+                            // let sym = match ctx.resolve_sym(&value_binding.0) {
+                            //     Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
+                            //     _ => dom_binding
+                            // };
                             ctx.add_sym(&value_binding.0, sym.clone());
-                            (value_binding.0.to_owned(), sym)
+                            (value_binding.0.to_owned(), sym, value_binding.2.to_owned())
                         });
                     }
 
@@ -268,10 +284,10 @@ impl ProcessContent {
                                                 complete_key.clone(),
                                                 parent_tag.map(|s| s.to_owned()),
                                                 prop_list,
-                                                lens));
+                                                lens.clone()));
 
         // Add mapping from the instance_key to the component_ty
-        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned()));
+        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned(), lens));
 
         Ok(())
     }

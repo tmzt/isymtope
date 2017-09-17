@@ -40,7 +40,7 @@ pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
 
-pub type ComponentKeyMapping = (String, String);
+pub type ComponentKeyMapping = (String, String, Option<LensExprType>);
 pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
 
 #[derive(Debug, Clone)]

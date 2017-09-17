@@ -148,6 +148,17 @@ impl ExprValue {
     }
 
     #[allow(dead_code)]
+    pub fn initial_value_expr(&self) -> Option<ExprValue> {
+        if let &ExprValue::SymbolReference(ref sym) = self {
+            if let &SymbolReferenceType::InitialValue(box ref initial, _) = sym.sym_ref() {
+                return Some(ExprValue::SymbolReference(initial.to_owned()));
+            };
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
     pub fn member_ref<'a>(&'a self, path: &str) -> Option<&'a ExprValue> {
         let member_resolver = MemberResolver::new_with_parts(self, path.split("."));
         member_resolver.resolve_member()

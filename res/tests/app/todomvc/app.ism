@@ -7,6 +7,7 @@ store {
 
     todos {
         action add(entry) => value + (entry + {complete: false});
+        action set(entry) => value + entry;
     }
 
     entry {
@@ -25,7 +26,8 @@ component todo_text_input (todo) {
 component todo_item (todo) {
     li (class="completed") {
         div (class="view") {
-            input(class="toggle", type="checkbox") bind todo.complete {}
+            input(class="toggle", type="checkbox") bind todo.complete as complete
+                click || { dispatch set(entry: {complete: complete}); } {}
             label { (todo.text) }
             button(class="destroy") {}
         }

@@ -206,7 +206,9 @@ Param : (String, ExprValue) = {
 //    <events:("|" <Id> "|" <params:("(" <AtLeastOne<Id> ")"> )?>
 
 ElementBindingNode: ElementBindingNodeType = {
-    BindKeyword <sym:VarPath> => ElementBindingNodeType::ElementValueBindingNode("binding".to_owned(), sym),
+    BindKeyword <sym:VarPath> AsKeyword <id:Id> => ElementBindingNodeType::ElementValueBindingAsNode(id.to_owned(), sym, Symbol::unresolved(&id)),
+    BindKeyword <sym:VarPath> => ElementBindingNodeType::ElementValueBindingNode("binding".into(), sym),
+
     "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => ElementBindingNodeType::ElementEventBindingNode(EventHandler::DefaultEvent(params, act_ops)),
     <event_name:Id> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" => ElementBindingNodeType::ElementEventBindingNode(EventHandler::Event(event_name, params, act_ops))
 };
@@ -333,6 +335,7 @@ extern {
         ForKeyword => Token::ForKeyword,
         InKeyword => Token::InKeyword,
         BindKeyword => Token::BindKeyword,
+        AsKeyword => Token::AsKeyword,
         ValueKeyword => Token::ValueKeyword,
         
         ComponentKeyword => Token::ComponentKeyword,

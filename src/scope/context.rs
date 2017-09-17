@@ -157,6 +157,7 @@ impl Context {
     }
 
     pub fn create_child_scope(&mut self) -> Scope {
+        assert!(!self.scopes.is_empty());
         let parent_map_id = self.scope_ref().unwrap().map_id().to_owned();
 
         let symbols = Symbols::new(Some(&parent_map_id));
@@ -171,6 +172,9 @@ impl Context {
     }
 
     pub fn pop_scope(&mut self) {
+        assert!(self.scopes.len() > 1);
+        // assert!(!self.scopes.is_empty());
+
         self.scopes.pop_back();
     }
 

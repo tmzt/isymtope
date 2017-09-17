@@ -146,6 +146,24 @@ impl<'doc> PageWriter<'doc> {
         //Bind component events
         if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
             for compkey_mapping in compkey_mappings {
+                if let Some(ref lens) = compkey_mapping.2 {
+                    match lens {
+                        &LensExprType::ForLens(ref coll_key, ref coll_expr) => {
+                            let reduced_expr = ctx.eval_expr(&self.doc, coll_expr);
+                            let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
+
+                            if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
+                                for (idx, _) in arr.iter().enumerate() {
+                                    writeln!(w, "component_bindings_{}(\"{}.{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str(), idx)?;
+                                }
+                            };
+                            continue;
+                        },
+                        _ => {}
+                    };
+
+                };
+
                 writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
             }
         };

@@ -135,6 +135,7 @@ impl ProcessStore {
         }
 
         reducer_entry.actions.push(action);
+        ctx.pop_scope();
         Ok(())
     }
 
@@ -162,8 +163,6 @@ impl ProcessStore {
                 for scope_node in scope_nodes {
                     self.process_store_child_scope_node(processing, ctx, bindings, scope_name, scope_node)?;
                 }
-
-                ctx.pop_scope();
             }
             // _ => {}
         };

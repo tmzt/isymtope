@@ -40,6 +40,7 @@ pub enum Token {
     ForKeyword,
     InKeyword,
     BindKeyword,
+    AsKeyword,
 
     ComponentKeyword,
     StoreKeyword,
