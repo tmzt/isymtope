@@ -1,5 +1,48 @@
 use parser::*;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum IterMethodPipelineComponent {
+    Method(String, Option<Vec<ExprValue>>),
+    PathComponent(String)
+}
+
+impl IterMethodPipelineComponent {
+    pub fn is_path(&self) -> bool {
+        if let &IterMethodPipelineComponent::PathComponent(..) = self {
+            return true;
+        }
+        false
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReducedMethodType {
+    Reduce(ExprValue, Option<ExprValue>),
+    Map(ExprValue),
+    FlatMap(ExprValue),
+    FilterMap(ExprValue),
+    Any(ExprValue),
+    All(ExprValue),
+    First,
+    Last,
+    Take(usize),
+    TakeWhile(ExprValue),
+    TakeUntil(ExprValue),
+    SkipWhile(ExprValue),
+    SkipUntil(ExprValue),
+    Nth(usize)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReducedPipelineComponent {
+    PipelineOp(ReducedMethodType),
+    Symbol(Symbol)
+}
+
+pub type IterMethodPipelineComponentVec = Vec<IterMethodPipelineComponent>;
+pub type ReducedPipelineComponentVec = Vec<ReducedPipelineComponent>;
+
 /// Simple expression (parameter value)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExprValue {
@@ -14,6 +57,8 @@ pub enum ExprValue {
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
+    IterMethodPipeline(Option<Box<ExprValue>>, Option<IterMethodPipelineComponentVec>),
+    ReducedPipeline(Option<Box<ExprValue>>, Option<ReducedPipelineComponentVec>),
     Undefined,
 }
 

@@ -188,6 +188,46 @@ impl ExpressionWriter for ExpressionWriterJs {
         }
     }
 
+    fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result {
+        let mut wrote_first = false;
+
+        if let Some(ref head) = head {
+            wrote_first = true;
+            self.write_expr_to(w, doc, value_writer, ctx, bindings, head)?;
+        };
+
+        for part in parts {
+            if wrote_first { write!(w, ".")?; }
+
+            match part {
+                &ReducedPipelineComponent::Symbol(ref s) => {
+                    wrote_first = true;
+                    self.write_symbol(w, doc, value_writer, ctx, bindings, s)?;
+                },
+                &ReducedPipelineComponent::PipelineOp(ref op) => {
+                    match op {
+                        &ReducedMethodType::Reduce(ref expr, ref initial) => {
+                            wrote_first = true;
+
+                            write!(w, "reduce(function(item, acc) {{ return ")?;
+                            self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                            write!(w, "; }}")?;
+
+                            if let &Some(ref initial) = initial {
+                                write!(w, ", ")?;
+                                self.write_expr_to(w, doc, value_writer, ctx, bindings, initial)?;
+                            };
+
+                            write!(w, ")")?;
+                        },
+                        _ => {}
+                    };
+                }
+            };
+        }
+
+        Ok(())
+    }
 }
 
 

@@ -654,6 +654,20 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn reduce_pipeline<'slf, 'a, I: IntoIterator<Item = &'a IterMethodPipelineComponent>>(&'slf mut self, head: Option<&ExprValue>, parts: I) -> Option<ExprValue> {
+        // let reduced_head = head.and_then(|head| self.reduce_expr(head));
+        // let head = reduced_head.map_or(head, |r| &r);
+
+        let parts: Vec<_> = {
+            let iter = ReducePipelineIter::new(self, head, parts.into_iter());
+            iter.collect()
+        };
+
+        let head = head.map(|head| Box::new(self.reduce_expr_or_return_same(head)));
+        Some(ExprValue::ReducedPipeline(head, Some(parts)))
+    }
+
+    #[allow(dead_code)]
     pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
         self.scope().join_path_as_expr(s)
     }

@@ -63,6 +63,13 @@ pub trait ExpressionWriter {
             return self.write_binding(w, doc, value_writer, ctx, bindings, binding);
         };
 
+        if let &ExprValue::ReducedPipeline(ref head, Some(ref parts)) = expr {
+            let head = head.as_ref().map(|&box ref head| head);
+            self.write_pipeline(w, doc, value_writer, ctx, bindings, head, parts.iter())?;
+
+            return Ok(());
+        };
+
         self::common_write_expr(w, value_writer, ctx, bindings, expr)
     }
 
@@ -81,6 +88,8 @@ pub trait ExpressionWriter {
             _ => value_writer.write_undefined(w)
         }
     }
+
+    fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result;
 }
 
 pub trait DynamicExpressionWriter : ExpressionWriter { }
@@ -173,6 +182,10 @@ mod tests {
         }
 
         fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+            Ok(())
+        }
+
+        fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result {
             Ok(())
         }
     }

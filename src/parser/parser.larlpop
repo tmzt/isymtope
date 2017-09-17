@@ -1,4 +1,7 @@
 
+
+use itertools::Itertools;
+
 use parser::ast::*;
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
@@ -88,7 +91,8 @@ ExprFactor : ExprValue =
 {
     <l:ExprFactor> "*" <r:ExprTerm> => ExprValue::Expr(ExprOp::Mul, Box::new(l), Box::new(r)),
     <l:ExprFactor> "/" <r:ExprTerm> => ExprValue::Expr(ExprOp::Div, Box::new(l), Box::new(r)),
-    ExprTerm
+    ExprTerm,
+    VarOrMethodPath
 };
 
 ExprTerm : ExprValue =
@@ -101,7 +105,9 @@ ExprTerm : ExprValue =
     <b:LitBool> => ExprValue::LiteralBool(b),
 
     ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
-    <sym:VarPath> => ExprValue::SymbolReference(sym),
+
+    // <sym:VarPath> => ExprValue::SymbolReference(sym),
+
     // <path:AtLeastOneOf<".", Id>> => {
     //     let ident = path.join(".");
     //     match path.len() {
@@ -110,6 +116,22 @@ ExprTerm : ExprValue =
     //     } 
     // },
     <s:LitStr> => ExprValue::LiteralString(s),
+
+    // VarOrMethodPath
+
+    // <p:IterMethodPipelinePath> => {
+    //     let has_methods = p.iter().any(|c| if let IterMethodPipelinePath::Method(..) = c { false} else { true});
+    //     if has_methods {
+    //         ExprValue::IterMethodPipeline(Some(p))
+    //     } else {
+    //         let ident = path.join(".");
+    //         let sym = match path.len() {
+    //             1 => Symbol::unresolved(&ident),
+    //             _ => Symbol::unresolved_path(&ident)
+    //         };
+    //         ExprValue::SymbolReference(sym)
+    //     }
+    // }
 };
 
 ActionOpNode: ActionOpNode = {
@@ -128,6 +150,16 @@ AtLeastOneOf<S, T> : Vec<T> = {
     <v:(<T> S)*> <e:T> => {
         let mut v = v;
         v.push(e);
+        v
+    }
+};
+
+#[inline]
+AtLeastTwoOf<S, T> : Vec<T> = {
+    <v:(<T> S)*> <a:T> S <b:T> => {
+        let mut v = v;
+        v.push(a);
+        v.push(b);
         v
     }
 };
@@ -192,6 +224,38 @@ VarPath : Symbol = {
         } 
     }
 };
+
+#[inline]
+IterMethodPipelineComponent : IterMethodPipelineComponent = {
+    <id:Id> "(" <params:CommaList<ExprFactor>> ")" => IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None }),
+    <id:Id> => IterMethodPipelineComponent::PathComponent(id.to_owned())
+};
+
+// #[inline]
+// IterMethodPipelinePath : ExprValue = {
+//     <path:AtLeastTwoOf<".", IterMethodPipelineComponent>> => {
+//         ExprValue::IterMethodPipeline(Some(path))
+//     }
+// };
+
+#[inline]
+VarOrMethodPath : ExprValue = {
+    <e:(<ExprTerm> ".")?> <path:AtLeastOneOf<".", IterMethodPipelineComponent>> => {
+        let has_methods = path.iter().any(|c| if let &IterMethodPipelineComponent::Method(..) = c { true } else { false });
+        if has_methods {
+            ExprValue::IterMethodPipeline(e.as_ref().map(|b| Box::new(b.to_owned())), Some(path))
+        } else {
+            let path: Vec<_> = path.iter().map(|c| match c { &IterMethodPipelineComponent::PathComponent(ref s) => s.to_owned(), _ => "undefined".to_owned() }).collect();
+            let ident = path.join(".");
+            let sym = match path.len() {
+                1 => Symbol::unresolved(&ident),
+                _ => Symbol::unresolved_path(&ident)
+            };
+            ExprValue::SymbolReference(sym)
+        }
+    }
+};
+
 
 #[inline]
 Param : (String, ExprValue) = {

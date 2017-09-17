@@ -139,6 +139,9 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
+    fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result {
+        Ok(())
+    }
 }
 
 

@@ -131,6 +131,15 @@ impl ProcessStore {
         // Reduce the expression after defining bindings for the params
         if let Some(ref expr) = expr {
             let reduced_expr = ctx.reduce_expr_or_return_same(expr);
+
+            let reduced_expr = match reduced_expr {
+                ExprValue::IterMethodPipeline(ref head, Some(ref parts)) => {
+                    let head = head.as_ref().map(|&box ref head| head);
+                    ctx.reduce_pipeline(head, parts.into_iter())
+                }
+                _ => None
+            }.unwrap_or(reduced_expr);
+
             action.state_expr = Some(ActionStateExprType::SimpleReducerKeyExpr(reduced_expr));
         }
 

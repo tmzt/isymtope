@@ -142,7 +142,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
                 self.write_expr(w, doc, ctx, bindings, &expr)?;
             };
         }
-        writeln!(w, "}}); }});")?;
+        writeln!(w, "}}, store); }});")?;
         Ok(())
     }
 }

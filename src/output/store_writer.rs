@@ -34,6 +34,15 @@ impl StoreWriterJs {
                         action_key)
                 ?;
             write!(w, "                    return ")?;
+
+            // let expr = match expr {
+            //     ExprValue::IterMethodPipeline(ref head, Some(ref parts)) => {
+            //         let head = head.as_ref().map(|&box ref head| head);
+            //         ctx.reduce_pipeline(head, parts.into_iter())
+            //     }
+            //     _ => None
+            // }.unwrap_or(expr);
+
             output_writer.write_expr(w, doc, ctx, bindings, &expr)?;
             // expression_writer.write_expr_to(w, value_writer, ctx, bindings, expr)?;
             writeln!(w, ";")?;
