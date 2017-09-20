@@ -15,21 +15,18 @@ pub enum MapWalkState<'a, K: 'a, T: 'a> {
 }
 
 #[allow(dead_code)]
-// pub struct MapWalkIter<'a, 'k, K: 'k, T: 'a, F>
-pub struct MapWalkIter<'a, K>
+pub struct MapWalkIter<'a, K: 'a, T: 'a>
 {
     ctx: &'a mut Context,
     scope_id: String,
     key: K,
     next_key: Option<K>,
-    func: FnMut(&Symbols, &K) -> Option<String>
+    func: FnMut(&Symbols, &K) -> MapWalkState<'a, K, T>
 }
 
-impl<'a, K> Iterator for MapWalkIter<'a, K>
-    // where F: FnMut(&Symbols, &K) -> Self::Item
+impl<'a, K, T> Iterator for MapWalkIter<'a, K, T>
 {
-    // type Item = MapWalkState<'a, 'k, K, T>;
-    type Item = Option<String>;
+    type Item = MapWalkState<'a, K, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (map_id, parent_id) = {
