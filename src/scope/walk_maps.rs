@@ -1,4 +1,5 @@
 
+use std::hash::Hash;
 use scope::*;
 
 
@@ -20,11 +21,24 @@ pub struct MapWalkIter<'a, K: 'a, T: 'a>
     ctx: &'a mut Context,
     scope_id: String,
     key: K,
-    next_key: Option<K>,
-    func: FnMut(&Symbols, &K) -> MapWalkState<'a, K, T>
+    func: Box<FnMut(&Symbols, &K) -> MapWalkState<'a, K, T>>
 }
 
-impl<'a, K, T> Iterator for MapWalkIter<'a, K, T>
+impl<'a, K: Hash + Clone, T> MapWalkIter<'a, K, T> {
+    pub fn new(ctx: &'a mut Context, key: K, func: Box<FnMut(&Symbols, &K) -> MapWalkState<'a, K, T>>) -> Self {
+        let scope_id = ctx.scope_ref().expect("Context must have valid scope").id().to_owned();
+        // let scope_id = scope.id().to_owned();
+
+        MapWalkIter {
+            ctx: ctx,
+            scope_id: scope_id,
+            key: key,
+            func: func
+        }
+    }
+}
+
+impl<'a, K: Hash + Clone, T> Iterator for MapWalkIter<'a, K, T>
 {
     type Item = MapWalkState<'a, K, T>;
 
@@ -37,24 +51,20 @@ impl<'a, K, T> Iterator for MapWalkIter<'a, K, T>
         };
 
         let map_ref = self.ctx.get_map(&map_id).expect("Map must exist for scope");
-        let state = (self.func)(map_ref, &self.key);
+        // let box ref func = func;
+        let state = (self.func.as_mut())(map_ref, &self.key);
 
-        // match state {
-        //     Some(MapWalkState::InterimMatch(ref next_key, ref v)) => {
-        //         self.next_key = Some(next_key);
-        //         return state;
-        //     }
+        match state {
+            MapWalkState::InterimMatch(next_key, v) => {
+                if parent_id.is_none() { return None; }
+                self.scope_id = parent_id.unwrap();
+                self.key = next_key.to_owned();
+                Some(state)
+            }
 
-        //     Some(MapWalkState::FinalMatch(ref v)) => { return state; }
-
-        //     _ => {}
-        // };
-
-        // // Prepare next iteration
-        // if parent_id.is_none() { return None; }
-        // self.next_scope_id = parent_id.map(|s| s.to_owned());
-
-        // Some(MapWalkState::NoMatch)
-        None
+            MapWalkState::FinalMatch(..) => Some(state),
+            _ if parent_id.is_some() => Some(MapWalkState::NoMatch),
+            _ => None
+        }
     }
 }
