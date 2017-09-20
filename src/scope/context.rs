@@ -258,6 +258,17 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn resolve_binding_value<'a>(&'a mut self, binding: &BindingType) -> Option<&'a ExprValue> {
+        let iter = MapWalkIter::new(self, binding, Box::new(|map, binding| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b)) ));
+        for state in iter {
+            if let MapWalkState::FinalMatch(expr) = state {
+                return Some(expr);
+            };
+        }
+        None
+    }
+
+    #[allow(dead_code)]
     pub fn map_id(&mut self) -> &str {
         self.scope_ref().unwrap().map_id()
     }
@@ -596,6 +607,13 @@ impl Context {
                 let head = head.as_ref().map(|&box ref head| head);
                 if let Some(reduced) = self.reduce_pipeline(head, parts.into_iter()) {
                     return Some(reduced);
+                };
+                None
+            }
+
+            &ExprValue::Binding(ref binding) =>  {
+                if let Some(expr) = self.resolve_binding_value(binding) {
+                    return Some(expr.to_owned());
                 };
                 None
             }

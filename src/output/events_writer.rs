@@ -143,8 +143,9 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             // bindings.add_binding(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
 
             ctx.push_child_scope();
-            // ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
-            // ctx.append_path_expr(&ExprValue::Binding(BindingType::ComponentKeyBinding));
+            ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
+            ctx.append_path_expr(&ExprValue::Binding(BindingType::ComponentKeyBinding));
+
             // ctx.append_path_str(&instance_key);
             self.write_event(w, doc, ctx, &bindings, InstanceKey::Static(&instance_key), &event_item)?;
             ctx.pop_scope();
