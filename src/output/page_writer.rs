@@ -142,31 +142,41 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
+    pub fn write_initial_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        let events_iter = self.writers.html.events_iter();
+        self.writers.js.write_bound_events(w, &self.doc, ctx, bindings, events_iter)?;
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
     pub fn write_block_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
         //Bind component events
-        if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
-            for compkey_mapping in compkey_mappings {
-                if let Some(ref lens) = compkey_mapping.2 {
-                    match lens {
-                        &LensExprType::ForLens(ref coll_key, ref coll_expr) => {
-                            let reduced_expr = ctx.eval_expr(&self.doc, coll_expr);
-                            let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
+        // if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
+        //     for compkey_mapping in compkey_mappings {
+        //         if let Some(ref lens) = compkey_mapping.3 {
+        //             match lens {
+        //                 &LensExprType::ForLens(ref coll_key, ref coll_expr) => {
+        //                     let reduced_expr = ctx.eval_expr(&self.doc, coll_expr);
+        //                     let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
 
-                            if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
-                                for (idx, _) in arr.iter().enumerate() {
-                                    writeln!(w, "component_bindings_{}(\"{}.{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str(), idx)?;
-                                }
-                            };
-                            continue;
-                        },
-                        _ => {}
-                    };
+        //                     if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
+        //                         for (idx, _) in arr.iter().enumerate() {
+        //                             writeln!(w, "component_bindings_{}(\"{}.{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str(), idx)?;
+        //                         }
+        //                     };
+        //                     continue;
+        //                 },
+        //                 _ => {}
+        //             };
 
-                };
+        //         };
 
-                writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
-            }
-        };
+        //         writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
+        //     }
+        // };
+
+
 
         // Bind block events
         if let Some(events_iter) = block.events_iter() {
@@ -179,7 +189,8 @@ impl<'doc> PageWriter<'doc> {
     #[allow(unused_variables)]
     pub fn write_root_bindings_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         writeln!(w, "{}", self::STRING_JS_OPEN_ROOT_BINDINGS_DEF)?;
-        self.write_block_event_bindings(w, ctx, bindings, self.doc.root_block())?;
+        self.write_initial_event_bindings(w, ctx, bindings)?;
+        // self.write_block_event_bindings(w, ctx, bindings, self.doc.root_block())?;
         writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }

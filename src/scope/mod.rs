@@ -7,6 +7,7 @@ pub mod context;
 pub mod pipeline;
 
 pub use self::scope::*;
+pub use self::symbols::*;
 pub use self::bindings::*;
 pub use self::context::*;
 pub use self::pipeline::*;

@@ -1,8 +1,9 @@
+use itertools::Itertools;
 use parser::*;
 
 pub type IterMethodPipelineParam = (ExprValue, Option<ExprValue>);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IterMethodPipelineComponent {
     Method(String, Option<Vec<IterMethodPipelineParam>>),
     PathComponent(String)
@@ -18,7 +19,7 @@ impl IterMethodPipelineComponent {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReducedMethodType {
     Reduce(ExprValue, Option<ExprValue>),
     ReduceIf(ExprValue, ExprValue, Option<ExprValue>),
@@ -40,7 +41,7 @@ pub enum ReducedMethodType {
     Nth(usize)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReducedPipelineComponent {
     PipelineOp(ReducedMethodType),
     Symbol(Symbol)
@@ -49,7 +50,29 @@ pub enum ReducedPipelineComponent {
 pub type IterMethodPipelineComponentVec = Vec<IterMethodPipelineComponent>;
 pub type ReducedPipelineComponentVec = Vec<ReducedPipelineComponent>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
+pub enum InstanceKey<'a> {
+  Static(&'a str),
+  Dynamic(&'a ExprValue)
+}
+
+impl<'a> InstanceKey<'a> {
+  pub fn as_static_string(&self) -> String {
+    match self {
+      &InstanceKey::Static(s) => s.to_owned(),
+      &InstanceKey::Dynamic(_) => "undefined".into()
+    }
+  }
+
+  pub fn as_expr(&self) -> ExprValue {
+    match self {
+      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      &InstanceKey::Dynamic(e) => e.to_owned()
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TestOp {
     Negate,
     EqualTo,
@@ -63,7 +86,7 @@ pub enum TestOp {
 }
 
 /// Simple expression (parameter value)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprValue {
     Group(Option<Box<ExprValue>>),
     LiteralNumber(i32),
@@ -117,6 +140,29 @@ impl ExprValue {
     pub fn string_value(&self) -> Option<&str> {
         match self {
             &ExprValue::LiteralString(ref s) => Some(s.as_str()),
+            _ => None
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn reduce_to_string(&self) -> Option<String> {
+        match self {
+            &ExprValue::LiteralString(ref s) => Some(s.to_owned()),
+            &ExprValue::Apply(ExprApplyOp::JoinString(ref sep), Some(ref arr)) => {
+                // let res = arr.iter().map(|&box ref e| match e { &ExprValue::LiteralString(ref s) => s.to_owned(), _ => "undefined".to_owned() }).join(sep.as_ref().map_or("", |s| s.as_str()));
+                let mut res = String::new();
+                let mut wrote_first = false;
+                for &box ref e in arr {
+                    if let &ExprValue::LiteralString(ref s) = e {
+                        if wrote_first { if let &Some(ref sep) = sep { res.push_str(sep); } }
+                        res.push_str(s);
+                        wrote_first = true;
+                    };
+                    return None;
+                }
+                Some(res)
+            },
             _ => None,
         }
     }

@@ -9,7 +9,8 @@ use scope::*;
 pub struct Symbols {
     map_id: String,
     parent_map_id: Option<String>,
-    symbol_map: SymbolMap
+    symbol_map: SymbolMap,
+    binding_values: BindingOfTypeMap
 }
 
 impl Default for Symbols {
@@ -23,7 +24,8 @@ impl Symbols {
         Symbols {
             map_id: allocate_element_key(),
             parent_map_id: parent_map_id.map(|s| s.to_owned()),
-            symbol_map: Default::default()
+            symbol_map: Default::default(),
+            binding_values: Default::default()
         }
     }
 
@@ -43,6 +45,10 @@ impl Symbols {
         self.symbol_map.insert(key.to_owned(), SymbolValueEntry::Value(expr));
     }
 
+    pub fn add_binding_value(&mut self, binding: &BindingType, expr: ExprValue) {
+        self.binding_values.insert(binding.to_owned(), expr);
+    }
+
     pub fn get_value_entry(&self, key: &str) -> Option<&SymbolValueEntry> {
         self.symbol_map.get(key)
     }
@@ -53,6 +59,10 @@ impl Symbols {
 
     pub fn get_value(&self, key: &str) -> Option<&ExprValue> {
         self.symbol_map.get(key).and_then(|r| match r { &SymbolValueEntry::Value(ref s) => Some(s), _ => None })
+    }
+
+    pub fn get_binding_value(&self, binding: &BindingType) -> Option<&ExprValue> {
+        self.binding_values.get(binding)
     }
 }
 

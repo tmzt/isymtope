@@ -1,5 +1,5 @@
 
-#![recursion_limit="1000"]
+#![recursion_limit="2000"]
 #![feature(plugin)]
 #![plugin(indoc)]
 #![feature(box_patterns)]

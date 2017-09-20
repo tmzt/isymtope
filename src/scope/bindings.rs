@@ -6,13 +6,18 @@ use scope::context::*;
 
 #[derive(Debug, Default)]
 pub struct BindingContext {
-    binding_map: BindingMap
+    binding_map: BindingMap,
+    bindings_of_type: BindingOfTypeMap
 }
 
 impl BindingContext {
     pub fn add_expr(&mut self, key: &str, expr: &ExprValue) {
         let binding = BindingType::ExpressionBinding(Box::new(expr.to_owned()));
         self.binding_map.insert(key.to_owned(), binding);
+    }
+
+    pub fn add_binding(&mut self, binding: &BindingType, expr: ExprValue) {
+        self.bindings_of_type.insert(binding.to_owned(), expr);
     }
 
     pub fn add_key_in_symbols(&mut self, key: &str, ref_key: &str, map_id: &str) {
@@ -23,6 +28,10 @@ impl BindingContext {
     pub fn add_reducer_key(&mut self, key: &str, reducer_key: &str) {
         let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
         self.binding_map.insert(key.to_owned(), binding);
+    }
+
+    pub fn resolve_binding_of_type(&self, binding: &BindingType) -> Option<&ExprValue> {
+        self.bindings_of_type.get(binding)
     }
 
     pub fn resolve_binding(&self, key: &str) -> Option<&BindingType> {

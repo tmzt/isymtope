@@ -35,9 +35,9 @@ impl ValueWriter for ValueWriterJs {
             &BindingType::ActionParamBinding(ref key) => {
                 write!(w, "action.{}", key)?;
             }
-            &BindingType::ComponentKeyBinding => {
-                write!(w, "key")?;
-            }
+            // &BindingType::ComponentKeyBinding => {
+            //     write!(w, "key")?;
+            // }
             &BindingType::ComponentPropBinding(ref key) => {
                 write!(w, "props.{}", key)?;
             }
@@ -174,21 +174,40 @@ impl ExpressionWriter for ExpressionWriterJs {
                 self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
                 write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
                 Ok(())
-            },
+            }
             &BindingType::DOMInputElementValueBinding(ref complete_key) => {
+                // let path_expr = ctx.join_path_as_expr(Some("."));
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
-                write!(w, "document.querySelector(\"[key='\" + ")?;
-                self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
-                write!(w, " + \"']\").value")?;
+                if let Some(s) = path_expr.reduce_to_string() {
+                    write!(w, "document.querySelector(\"[key='{}']\").value", s)?;
+                } else {
+                    write!(w, "document.querySelector(\"[key='\" + ")?;
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
+                    write!(w, " + \"']\").value")?;
+                }
                 Ok(())
             }
             &BindingType::DOMInputCheckboxElementCheckedBinding(ref complete_key) => {
+                // let path_expr = ctx.join_path_as_expr(Some("."));
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
-                write!(w, "document.querySelector(\"[key='\" + ")?;
-                self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
-                write!(w, " + \"']\").checked")?;
+                let path_expr = ctx.reduce_expr_or_return_same(&path_expr);
+                if let Some(s) = path_expr.reduce_to_string() {
+                    write!(w, "document.querySelector(\"[key='{}']\").checked", s)?;
+                } else {
+                    write!(w, "document.querySelector(\"[key='\" + ")?;
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &path_expr)?;
+                    write!(w, " + \"']\").checked")?;
+                }
                 Ok(())
             }
+            &BindingType::ComponentKeyBinding => {
+                if let Some(resolved_key) = bindings.resolve_binding_of_type(&BindingType::ComponentKeyBinding) {
+                    return self.write_expr_to(w, doc, value_writer, ctx, bindings, resolved_key);
+                };
+                write!(w, "key")?;
+                Ok(())
+            }
+
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
         }
     }

@@ -9,8 +9,9 @@ use output::*;
 
 
 pub trait EventsWriter {
-    // fn write_event_binding(&self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, event: &EventsItem) -> Result;
+    fn write_event<'a>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, complete_key: InstanceKey<'a>, event: &EventsItem) -> Result;
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result;
+    fn write_bound_events<'a, I: IntoIterator<Item = &'a BoundEvent>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result;
 }
 
 pub trait EventActionOpsWriter {
@@ -61,9 +62,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
 impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWriter> EventsWriter for E {
 
     #[allow(dead_code)]
-    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
-        writeln!(w, "      // Bind actions")?;
-        for event in events_iter {
+    fn write_event<'a>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, complete_key: InstanceKey<'a>, event: &EventsItem) -> Result {
             let final_event_name: String;
             let mut was_enterkey = false;
 
@@ -77,14 +76,31 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
                 }
             }
 
-            let path_expr = ctx.join_path_as_expr_with(Some("."), &event.0);
-
-            write!(w, "document.querySelector(\"[key='\" + ")?;
-            self.write_expr(w, doc, ctx, bindings, &path_expr)?;
-            write!(w, " + \"']\").addEventListener(\"{}\", function(event) {{", final_event_name)?;
+            write!(w, "document.querySelector(\"[key='")?;
+            match complete_key {
+                InstanceKey::Static(s) => {
+                    write!(w, "{}", s)?;
+                },
+                InstanceKey::Dynamic(e) => {
+                    write!(w, "\" + ")?;
+                    self.write_expr(w, doc, ctx, bindings, &e)?;
+                    write!(w, "+ \"")?;
+                }
+            };
+            write!(w, "']\").addEventListener(\"{}\", function(event) {{", final_event_name)?;
 
             if was_enterkey {
                 writeln!(w, "if (event.keyCode == 13) {{")?;
+            };
+
+            ctx.push_child_scope();
+            match complete_key {
+                InstanceKey::Static(s) => {
+                    ctx.append_path_str(s);
+                },
+                InstanceKey::Dynamic(e) => {
+                    ctx.append_path_expr(e);
+                }
             };
 
             match &event.2 {
@@ -94,11 +110,44 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
                 _ => {}
             }
 
+            ctx.pop_scope();
+
             if was_enterkey {
                 writeln!(w, "}}")?;
             };
 
             writeln!(w, "}});")?;
+        Ok(())
+    }
+
+
+    #[allow(dead_code)]
+    fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
+        writeln!(w, "      // Bind actions")?;
+        for event in events_iter {
+            let path_expr = ctx.join_path_as_expr_with(Some("."), &event.0);
+            self.write_event(w, doc, ctx, bindings, InstanceKey::Dynamic(&path_expr), event)?;
+        }
+        Ok(())
+    }
+
+    fn write_bound_events<'a, I: IntoIterator<Item = &'a BoundEvent>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
+        for bound_event in events_iter.into_iter() {
+            let instance_key = bound_event.instance_key();
+            let element_key = bound_event.element_key();
+
+            let event_item = bound_event.event_item();
+            // let complete_key = format!("{}", instance_key);
+
+            // let mut bindings = BindingContext::default();
+            // bindings.add_binding(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
+
+            ctx.push_child_scope();
+            // ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
+            // ctx.append_path_expr(&ExprValue::Binding(BindingType::ComponentKeyBinding));
+            // ctx.append_path_str(&instance_key);
+            self.write_event(w, doc, ctx, &bindings, InstanceKey::Static(&instance_key), &event_item)?;
+            ctx.pop_scope();
         }
         Ok(())
     }

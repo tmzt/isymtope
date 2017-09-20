@@ -20,28 +20,6 @@ pub trait ElementOpsStreamWriter {
    fn write_op_element_value(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, element_key: &str) -> Result;
 }
 
-#[derive(Debug, Clone)]
-pub enum InstanceKey<'a> {
-  Static(&'a str),
-  Dynamic(&'a ExprValue)
-}
-
-impl<'a> InstanceKey<'a> {
-  pub fn as_static_string(&self) -> String {
-    match self {
-      &InstanceKey::Static(s) => s.to_owned(),
-      &InstanceKey::Dynamic(_) => "undefined".into()
-    }
-  }
-
-  fn as_expr(&self) -> ExprValue {
-    match self {
-      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-      &InstanceKey::Dynamic(e) => e.to_owned()
-    }
-  }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum LensItemType<'a> {
   ForLens(&'a str, usize, &'a ExprValue),

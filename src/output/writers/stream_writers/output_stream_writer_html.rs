@@ -1,5 +1,6 @@
 
 use std::io;
+use std::iter;
 use std::collections::HashMap;
 
 use parser::*;
@@ -103,15 +104,47 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
             };
 
             // Bind formal properties
-            if let Some(iter) = comp.formal_props_iter() {
-                for key_ref in iter {
-                    if let Some(expr) = props_hash.get(key_ref) {
-                        if let &Some(expr) = expr {
-                            ctx.add_value(key_ref, expr.to_owned());
+            // if let Some(iter) = comp.formal_props_iter() {
+            //     for key_ref in iter {
+            //         if let Some(expr) = props_hash.get(key_ref) {
+            //             if let &Some(expr) = expr {
+            //                 ctx.add_value(key_ref, expr.to_owned());
+            //             };
+            //         };
+            //     }
+            // }
+
+            if let Some(formals) = comp.formal_props_iter() {
+                let bound_props: Vec<_> = formals.into_iter()
+                    .zip(props_hash.into_iter())
+                    .filter_map(|(formal, prop)| {
+                        if formal != prop.0 {
+                            return None;
                         };
+
+                        Some(prop)
+                    }).collect();
+
+                // let event_item = comp.root_block().events_iter()
+                //     .and_then(|iter| iter.into_iter()
+                //         // .filter(|e| e.0 == instance_key)
+                //         .take(1).nth(0));
+
+                let events_iter = comp.root_block().events_iter();
+
+                if let Some(events_iter) = events_iter {
+                    for event_item in events_iter {
+                        // let complete_key = format!("{}.{}", &instance_key, event_item.0);
+                        self.event(&instance_key, event_item, bound_props.iter())?;
                     };
-                }
-            }
+                };
+
+                for prop in bound_props {
+                    if let Some(expr) = prop.1 {
+                        ctx.add_value(prop.0, expr.to_owned());
+                    }
+                } 
+            };
 
             // Bind formal properties
             // for prop in props {
@@ -134,7 +167,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let mut props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
+        let props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
         let events: Vec<EventHandler> = events.into_iter().map(|s| s.to_owned()).collect();
         let binding: Vec<ElementValueBinding> = binding.into_iter().map(|s| s.to_owned()).collect();
 

@@ -128,7 +128,7 @@ impl Context {
         ctx
     }
 
-    fn scope_ref_mut(&mut self) -> Option<&mut Scope> {
+    fn scope_ref_mut<'a>(&'a mut self) -> Option<&'a mut Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
         if let Some(scope_id) = scope_id {
             return self.scopes.get_mut(&scope_id);
@@ -136,7 +136,7 @@ impl Context {
         None
     }
 
-    pub fn scope_ref(&mut self) -> Option<&Scope> {
+    pub fn scope_ref<'a>(&'a mut self) -> Option<&'a Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
         if let Some(scope_id) = scope_id {
             return self.scopes.get(&scope_id);
@@ -148,11 +148,11 @@ impl Context {
         self.scope_ref().unwrap().clone()
     }
 
-    pub fn get_scope(&mut self, scope_id: &str) -> Option<&Scope> {
+    pub fn get_scope<'a>(&'a mut self, scope_id: &str) -> Option<&'a Scope> {
         self.scopes.get(scope_id)
     }
 
-    pub fn get_map(&mut self, map_id: &str) -> Option<&Symbols> {
+    pub fn get_map<'a: 'k, 'k>(&'a mut self, map_id: &'k str) -> Option<&'a Symbols> {
         self.symbol_maps.get(map_id)
     }
 
@@ -305,6 +305,13 @@ impl Context {
         let map_id = self.scope().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_value(key, expr);
+        };
+    }
+
+    pub fn add_binding_value(&mut self, binding: &BindingType, expr: ExprValue) {
+        let map_id = self.scope().map_id().to_owned();
+        if let Some(map) = self.symbol_maps.get_mut(&map_id) {
+            map.add_binding_value(binding, expr);
         };
     }
 

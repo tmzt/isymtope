@@ -18,7 +18,7 @@ impl Template {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
@@ -26,7 +26,7 @@ pub enum NodeType {
     ContentNode(ContentNodeType),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ContentNodeType {
     ElementNode(ElementType),
     ExpressionValueNode(ExprValue, String),
@@ -34,7 +34,7 @@ pub enum ContentNodeType {
 }
 
 /// Operators
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprOp {
     Add,
     Sub,
@@ -42,13 +42,13 @@ pub enum ExprOp {
     Div,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprApplyOp {
     JoinString(Option<String>),
     // Sum
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PrimitiveVarType {
     StringVar,
     Number,
@@ -56,7 +56,7 @@ pub enum PrimitiveVarType {
     // Expr,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VarType {
     ArrayVar(Option<Box<VarType>>),
     ObjectVar,
@@ -75,7 +75,7 @@ impl VarType {
     pub fn array_of(ty: VarType) -> VarType { VarType::ArrayVar(Some(Box::new(ty))) }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolReferenceType {
     UnresolvedReference(String),
     UnresolvedPathReference(String),
@@ -85,7 +85,7 @@ pub enum SymbolReferenceType {
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum KeyReferenceType {
     UnboundFormalParam,
     ComponentProp(String),
@@ -94,7 +94,7 @@ pub enum KeyReferenceType {
     UnboundReducerActionParam(String)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ResolvedSymbolType {
     ReferenceToKeyInScope(KeyReferenceType, Option<String>),
     ReducerKeyReference(String),
@@ -102,7 +102,7 @@ pub enum ResolvedSymbolType {
     PropReference(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(SymbolReferenceType, Option<VarType>, Option<Box<ExprValue>>);
 // pub type ValueMap = LinkedHashMap<String, ExprValue>;
 
@@ -235,7 +235,7 @@ impl Symbol {
 }
 
 /// Bindings
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BindingType {
     ExpressionBinding(Box<ExprValue>),
     KeyInSymbolsBinding(String, String),
@@ -264,38 +264,39 @@ impl BindingType {
 }
 
 pub type BindingMap = LinkedHashMap<String, BindingType>;
+pub type BindingOfTypeMap = LinkedHashMap<BindingType, ExprValue>;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ElementExpr {
     Element(String, Option<String>, Option<Vec<Box<ExprValue>>>),
     Value(ExprValue),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LensExprType {
     ForLens(Option<String>, ExprValue),
     GetLens(String, ExprValue),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ActionOpNode {
     DispatchAction(String, Option<PropVec>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UseStmtType {
     pub package: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComponentDefinitionType {
     pub name: String,
     pub inputs: Option<Vec<String>>,
     pub children: Option<Vec<NodeType>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EventHandler {
     Event(String, Option<EventHandlerParams>, Option<EventHandlerActionOps>),
     DefaultEvent(Option<EventHandlerParams>, Option<EventHandlerActionOps>)
@@ -305,6 +306,7 @@ pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<EventHandler>;
 pub type EventsItem = (String, String, EventHandler);
+pub type EventsItemRef<'a> = (&'a str, &'a str, &'a EventHandler);
 pub type EventsVec = Vec<EventsItem>;
 
 impl EventHandler {
@@ -321,10 +323,14 @@ impl EventHandler {
     }
 }
 
+pub type EventWithData = (EventsItem, Option<PropVec>);
+pub type EventWithDataRef<'a> = (EventsItemRef<'a>, Option<&'a PropVec>);
+pub type EventsWithData = Vec<EventWithData>;
+
 // pub type ElementEventBinding = (Option<String>, Option<Vec<String>>, Option<Vec<ActionOpNode>>);
 pub type ElementValueBinding = Option<(String, Symbol, Option<Symbol>)>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ElementBindingNodeType {
     ElementEventBindingNode(EventHandler),
     ElementValueBindingNode(String, Symbol),
@@ -333,6 +339,8 @@ pub enum ElementBindingNodeType {
 
 pub type PropKey = String;
 pub type Prop = (String, Option<ExprValue>);
+pub type PropRef<'a> = (&'a str, Option<&'a ExprValue>);
+
 pub type PropVec = Vec<Prop>;
 pub type PropType = (String, Option<VarType>);
 pub type PropTypeVec = Vec<PropType>;
@@ -360,7 +368,7 @@ pub type ActualPropRef<'a> = (&'a str, Option<&'a ExprValue>);
 //     }
 // }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ElementType {
     pub element_ty: String,
     pub element_key: String,

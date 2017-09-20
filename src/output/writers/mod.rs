@@ -9,6 +9,8 @@ pub use self::stream_writers::*;
 pub use self::block_writers::*;
 
 use std::io;
+use std::collections::HashMap;
+
 use parser::*;
 use scope::*;
 use processing::*;
@@ -22,7 +24,35 @@ pub trait OutputWriter {
 pub struct DefaultOutputWriter<E: ExpressionWriter> {
     value_writer: E::V,
     expression_writer: E,
-    events: EventsVec
+    // events: EventsWithData
+    events: HashMap<String, EventsWithData>,
+    events_vec: Vec<BoundEvent>
+}
+
+impl<'a, E: ExpressionWriter> DefaultOutputWriter<E> {
+    #[allow(dead_code)]
+    pub fn events_iter(&'a self) -> impl Iterator<Item = &'a BoundEvent> {
+        self.events_vec.iter()
+    }
+
+    #[allow(dead_code)]
+    pub fn instance_events_iter(&'a self, instance_key: &str) -> Option<impl Iterator<Item = &'a EventWithData>> {
+        if let Some(entry) = self.events.get(instance_key) {
+            return Some(entry.iter());
+        };
+        None
+    }
+}
+
+impl<E: ExpressionWriter> EventCollector for DefaultOutputWriter<E> {
+    fn event<'a, I: IntoIterator<Item = &'a PropRef<'a>>>(&mut self, instance_key: &str, event: &EventsItem, props: I) -> Result {
+        // let props: Vec<Prop> = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|p| p.to_owned()))).collect();
+        // let events = self.events.entry(instance_key.to_owned()).or_insert_with(|| Default::default());
+        // events.push((event.to_owned(), Some(props)));
+        let bound_event = BoundEvent::bind(instance_key, event, Some(props));
+        self.events_vec.push(bound_event);
+        Ok(())
+    }
 }
 
 impl<V: ValueWriter, E: ExpressionWriter<V = V>> OutputWriter for DefaultOutputWriter<E> {

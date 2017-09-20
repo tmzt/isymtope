@@ -296,7 +296,7 @@ impl ProcessContent {
                                                 lens.clone()));
 
         // Add mapping from the instance_key to the component_ty
-        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned(), lens));
+        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned(), None, lens));
 
         Ok(())
     }

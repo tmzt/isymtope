@@ -26,7 +26,7 @@ use output::*;
 //     }
 // }
 
-impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter> ElementOpsWriter for O {
+impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventCollector> ElementOpsWriter for O {
     // type O = O;
 
     fn write_element_op(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, op: &ElementOp) -> Result {
