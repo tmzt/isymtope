@@ -61,7 +61,7 @@ impl Symbols {
         self.symbol_map.get(key).and_then(|r| match r { &SymbolValueEntry::Value(ref s) => Some(s), _ => None })
     }
 
-    pub fn get_binding_value(&self, binding: &BindingType) -> Option<&ExprValue> {
+    pub fn get_binding_value<'a>(&'a self, binding: &BindingType) -> Option<&'a ExprValue> {
         self.binding_values.get(binding)
     }
 }

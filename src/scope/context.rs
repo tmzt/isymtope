@@ -152,7 +152,7 @@ impl Context {
         self.scopes.get(scope_id)
     }
 
-    pub fn get_map<'a: 'k, 'k>(&'a mut self, map_id: &'k str) -> Option<&'a Symbols> {
+    pub fn get_map<'a>(&'a mut self, map_id: &str) -> Option<&'a Symbols> {
         self.symbol_maps.get(map_id)
     }
 
@@ -258,13 +258,24 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_binding_value<'a>(&'a mut self, binding: &BindingType) -> Option<&'a ExprValue> {
-        let iter = MapWalkIter::new(self, binding, Box::new(|map, binding| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b)) ));
-        for state in iter {
-            if let MapWalkState::FinalMatch(expr) = state {
-                return Some(expr);
-            };
-        }
+    pub fn resolve_binding_value<'a>(&'a mut self, binding: &BindingType) -> Option<&ExprValue> {
+        // let func: Box<FnMut(&'b Symbols, &'b BindingType) -> MapWalkState<'b, BindingType, ExprValue>> =
+        //     Box::new(|map: &'b Symbols, binding: &'b BindingType| match map.get_binding_value(binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch });
+
+        // let func: Box<FnMut(&'b Symbols, &'b BindingType) -> MapWalkState<'b, BindingType, ExprValue>> = Box::new(|map: &Symbols, binding: &'b BindingType| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b)));
+
+        // let func = Box::new(|map: &Symbols, binding: BindingType| match map.get_binding_value(&binding) { Some(ref b) => &MapWalkState::FinalMatch(b), None => &MapWalkState::NoMatch });
+        // let iter = MapWalkIter::new(self, binding.to_owned(), func);
+
+        let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| match map.get_binding_value(&binding) { Some(ref b) => MapWalkState::FinalMatch(b.clone()), None => MapWalkState::NoMatch });
+
+        // let iter = MapWalkIter::new(self, binding.to_owned(), Box::new(|map, binding| match map.get_binding_value(&binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch }));
+
+        // for state in iter {
+        //     if let MapWalkState::FinalMatch(expr) = state {
+        //         return Some(expr);
+        //     };
+        // }
         None
     }
 
