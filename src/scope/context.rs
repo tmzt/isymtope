@@ -152,6 +152,10 @@ impl Context {
         self.scopes.get(scope_id)
     }
 
+    pub fn get_map_move_id(&mut self, map_id: String) -> Option<&Symbols> {
+        self.symbol_maps.get(map_id.as_str())
+    }
+
     pub fn get_map<'a>(&'a mut self, map_id: &str) -> Option<&'a Symbols> {
         self.symbol_maps.get(map_id)
     }
@@ -267,7 +271,9 @@ impl Context {
         // let func = Box::new(|map: &Symbols, binding: BindingType| match map.get_binding_value(&binding) { Some(ref b) => &MapWalkState::FinalMatch(b), None => &MapWalkState::NoMatch });
         // let iter = MapWalkIter::new(self, binding.to_owned(), func);
 
-        let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| match map.get_binding_value(&binding) { Some(ref b) => MapWalkState::FinalMatch(b.clone()), None => MapWalkState::NoMatch });
+        let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| MapWalkState::NoMatch as MapWalkState<_, ExprValue> );
+
+        // let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| match map.get_binding_value(binding) { Some(ref b) => MapWalkState::FinalMatch(b.clone()), None => MapWalkState::NoMatch });
 
         // let iter = MapWalkIter::new(self, binding.to_owned(), Box::new(|map, binding| match map.get_binding_value(&binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch }));
 
