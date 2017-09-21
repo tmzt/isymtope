@@ -277,11 +277,11 @@ impl Context {
 
         // let iter = MapWalkIter::new(self, binding.to_owned(), Box::new(|map, binding| match map.get_binding_value(&binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch }));
 
-        // for state in iter {
-        //     if let MapWalkState::FinalMatch(expr) = state {
-        //         return Some(expr);
-        //     };
-        // }
+        for state in iter {
+            if let MapWalkState::FinalMatch(expr) = state {
+                return Some(expr);
+            };
+        }
         None
     }
 

@@ -59,6 +59,24 @@ impl<'a, K: Hash + Clone + 'a, T: 'a, F> Iterator for MapWalkIter<'a, K, F>
         // let state = (self.func)(&*map_ref, self.key.to_owned());
 
         let map = self.ctx.get_map_move_id(map_id);
+        if let Some(map) = map {
+            let state = (self.func)(map, self.key.to_owned());
+
+            match state {
+                MapWalkState::InterimMatch(ref next_key, ref value) => {
+                    if parent_id.is_none() { return None; }
+                    self.scope_id = parent_id.unwrap();
+                    self.key = next_key.to_owned();
+                    return Some(MapWalkState::InterimMatch(next_key.to_owned(), value.to_owned()));
+                }
+
+                MapWalkState::FinalMatch(value) => { return Some(MapWalkState::FinalMatch(value.to_owned())); },
+                _ if parent_id.is_some() => { return Some(MapWalkState::NoMatch); },
+
+                _ => {}
+            };
+        };
+
         // match map.as_ref().map(|map| (self.func)(map, self.key.to_owned())) {
         //     _ => None
         // }
