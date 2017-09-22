@@ -9,91 +9,121 @@ use scope::*;
 //     FinalMatch(&'a T)
 // }
 
-pub enum MapWalkState<'a, K: 'a, T: 'a> {
+// pub enum MapWalkState<'a: 'map + 'k, 'map, 'k, K: 'k, T: 'map> {
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub enum MapWalkState<K, T> {
     NoMatch,
-    InterimMatch(K, Option<&'a T>),
-    FinalMatch(&'a T)
+    InterimMatch(K, Option<T>),
+    FinalMatch(T)
 }
 
 #[allow(dead_code)]
-pub struct MapWalkIter<'a, K: 'a, F>
+pub struct MapWalkIter<'ctx, K, F>
 {
-    ctx: &'a mut Context,
-    scope_id: String,
+    ctx: &'ctx mut Context,
+    scope_id: Option<String>,
     key: K,
-    func: F
+    func: F,
 }
 
-impl<'a, K: Hash + Clone + 'a, T: 'a, F> MapWalkIter<'a, K, F>
-    where F: FnMut(&Symbols, K) -> MapWalkState<'a, K, T>
+impl<'ctx, K, T, F> MapWalkIter<'ctx, K, F>
+    where F: FnMut(&Symbols, &K) -> MapWalkState<K, T>
 {
-    pub fn new(ctx: &'a mut Context, key: K, func: F) -> Self {
+    pub fn new(ctx: &'ctx mut Context, key: K, func: F) -> Self {
         let scope_id = ctx.scope_ref().expect("Context must have valid scope").id().to_owned();
-        // let scope_id = scope.id().to_owned();
 
         MapWalkIter {
             ctx: ctx,
-            scope_id: scope_id,
+            scope_id: Some(scope_id),
             key: key,
-            func: func
+            func: func,
         }
     }
 }
 
-impl<'a, K: Hash + Clone + 'a, T: 'a, F> Iterator for MapWalkIter<'a, K, F>
-    where F: FnMut(&Symbols, K) -> MapWalkState<'a, K, T>
+impl<'ctx, K: Hash + Clone, T, F> Iterator for MapWalkIter<'ctx, K, F>
+    where F: FnMut(&Symbols, &K) -> MapWalkState<K, T>
 {
-    type Item = MapWalkState<'a, K, T>;
+    type Item = MapWalkState<K, T>;
 
-    fn next(&mut self) -> Option<MapWalkState<'a, K, T>> {
-        let (map_id, parent_id) = {
-            let scope = self.ctx.get_scope(&self.scope_id);
-            if scope.is_none() { return None; }
-            let scope = scope.unwrap();
-            (scope.map_id().to_owned(), scope.parent_id().map(|parent_id| parent_id.to_owned()))
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.scope_id.is_none() { return None; }
+        // let scope_id = self.scope_id.as_ref().map(|s| s.to_owned());
+        let scope_id = self.scope_id.to_owned();
+
+        let values = scope_id.as_ref()
+            .and_then(|scope_id| self.ctx.get_scope(scope_id))
+            .map(|scope| (scope.map_id().to_owned(), scope.parent_id().map(|s| s.to_owned())));
+        if values.is_none() { return None; }
+
+        let (map_id, parent_id) = values.unwrap();
+
+        let state = (self.func)(self.ctx.get_map(&map_id).unwrap(), &self.key);
+
+        match &state {
+            &MapWalkState::FinalMatch(..) => { },
+
+            &MapWalkState::InterimMatch(ref next_key, _) => {
+                self.key = next_key.to_owned();
+            }
+
+            _ if parent_id.is_none() => { return None; }
+
+            _ => {}
         };
 
-        let map_id = map_id.to_owned();
-        // let map_ref = self.ctx.get_map(map_id).expect("Map must exist for scope");
+        // Set up next iteration
+        self.scope_id = parent_id.map(|s| s.to_owned());
+        Some(state)
 
-        // let state = (self.func)(&*map_ref, self.key.to_owned());
 
-        let map = self.ctx.get_map_move_id(map_id);
-        if let Some(map) = map {
-            let state = (self.func)(map, self.key.to_owned());
+        // if let MapWalkState::FinalMatch(..) = state { return Some(state); }
 
-            match state {
-                MapWalkState::InterimMatch(ref next_key, ref value) => {
-                    if parent_id.is_none() { return None; }
-                    self.scope_id = parent_id.unwrap();
-                    self.key = next_key.to_owned();
-                    return Some(MapWalkState::InterimMatch(next_key.to_owned(), value.to_owned()));
-                }
+        // if parent_id.is_none() { return None; }
+        // self.scope_id = parent_id;
 
-                MapWalkState::FinalMatch(value) => { return Some(MapWalkState::FinalMatch(value.to_owned())); },
-                _ if parent_id.is_some() => { return Some(MapWalkState::NoMatch); },
+        // if let MapWalkState::InterimMatch(ref next_key, _) = state { self.key = next_key.to_owned(); };
 
-                _ => {}
-            };
-        };
+        // if let MapWalkState::InterimMatch(..) = state {
+        //     return Some(state);
+        // };
 
-        // match map.as_ref().map(|map| (self.func)(map, self.key.to_owned())) {
-        //     _ => None
-        // }
+        // Some(MapWalkState::NoMatch)
+    }
+}
 
-        // match state {
-        //     &MapWalkState::InterimMatch(ref next_key, _) => {
-        //         if parent_id.is_none() { return None; }
-        //         self.scope_id = parent_id.unwrap();
-        //         self.key = next_key.to_owned();
-        //         Some(state)
-        //     }
 
-        //     &MapWalkState::FinalMatch(..) => Some(state),
-        //     _ if parent_id.is_some() => Some(&MapWalkState::NoMatch),
-        //     _ => None
-        // }
+#[cfg(test)]
+mod tests  {
+    use super::*;
+    use parser::*;
 
-        None
+
+    #[test]
+    pub fn test_walk_maps() {
+        let mut ctx = Context::default();
+        ctx.push_child_scope();
+        ctx.push_child_scope();
+        ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString("a13".into()));
+
+        let mut iter = MapWalkIter::new(&mut ctx, BindingType::ComponentKeyBinding, move |ref map, binding| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b.to_owned())));
+
+        assert_eq!(iter.next(), Some(MapWalkState::FinalMatch(ExprValue::LiteralString("a13".into()))));
+    }
+
+    #[test]
+    pub fn test_walk_maps_no_match() {
+        let mut ctx = Context::default();
+        ctx.push_child_scope();
+        ctx.push_child_scope();
+        // We aren't adding the binding value
+
+        let mut iter = MapWalkIter::new(&mut ctx, BindingType::ComponentKeyBinding, move |ref map, binding| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b.to_owned())));
+
+        assert_eq!(iter.next(), Some(MapWalkState::NoMatch));
+        assert_eq!(iter.next(), Some(MapWalkState::NoMatch));
+        assert_eq!(iter.next(), None);
     }
 }

@@ -93,6 +93,8 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
             ctx.push_child_scope();
             ctx.append_path_str(&instance_key);
 
+            ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
+
             let mut props_hash: HashMap<&'a str, Option<&'a ExprValue>> = props.into_iter().collect();
 
             match lens_item {

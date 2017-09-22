@@ -127,10 +127,48 @@ impl ExpressionWriter for ExpressionWriterJs {
     fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
         match a_op {
             &ExprApplyOp::JoinString(ref sep) => {
-                self.write_array(w, doc, value_writer, ctx, bindings, arr, None)?;
-                write!(w, ".join(\"{}\")", sep.as_ref().map_or("", |s| s.as_str()))?;
-            },
-            _ => {}
+                if let Some(iter) = arr {
+                    let mut iter = iter.into_iter();
+
+                    let sep = sep.as_ref().map_or("", |s| s.as_str());
+                    let head: Vec<_> = iter.by_ref().take(3).collect();
+                    if head.len() == 2 {
+                        let ref a = head[0];
+                        let ref b = head[1];
+
+                        let a_str = ctx.reduce_static_expr_to_string(a, true);
+                        let b_str = ctx.reduce_static_expr_to_string(b, true);
+
+                        match (a_str.as_ref(), b_str.as_ref()) {
+                            (Some(a_str), Some(b_str)) => {
+                                write!(w, "\"{}{}{}\"", a_str, sep, b_str)?;
+                            }
+
+                            (Some(a_str), _) => {
+                                write!(w, "\"{}{}\" + ", a_str, sep)?;
+                                self.write_expr_to(w, doc, value_writer, ctx, bindings, b)?;
+                            }
+
+                            (_, Some(b_str)) => {
+                                self.write_expr_to(w, doc, value_writer, ctx, bindings, a)?;
+                                write!(w, " + \"{}{}\"", sep, b_str)?;
+                            },
+
+                            _ => {
+                                self.write_expr_to(w, doc, value_writer, ctx, bindings, a)?;
+                                write!(w, " + ")?;
+                                self.write_expr_to(w, doc, value_writer, ctx, bindings, b)?;
+                            }
+                        };
+
+                        return Ok(());
+                    };
+
+                    self.write_array(w, doc, value_writer, ctx, bindings, Some(head.into_iter().chain(iter)), None)?;
+                    write!(w, ".join(\"{}\")", sep)?;
+                };
+
+            }
         };
         Ok(())
     }
@@ -178,7 +216,7 @@ impl ExpressionWriter for ExpressionWriterJs {
             &BindingType::DOMInputElementValueBinding(ref complete_key) => {
                 // let path_expr = ctx.join_path_as_expr(Some("."));
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
-                if let Some(s) = path_expr.reduce_to_string() {
+                if let Some(s) = ctx.reduce_static_expr_to_string(&path_expr, true) {
                     write!(w, "document.querySelector(\"[key='{}']\").value", s)?;
                 } else {
                     write!(w, "document.querySelector(\"[key='\" + ")?;
@@ -191,7 +229,7 @@ impl ExpressionWriter for ExpressionWriterJs {
                 // let path_expr = ctx.join_path_as_expr(Some("."));
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
                 let path_expr = ctx.reduce_expr_or_return_same(&path_expr);
-                if let Some(s) = path_expr.reduce_to_string() {
+                if let Some(s) = ctx.reduce_static_expr_to_string(&path_expr, true) {
                     write!(w, "document.querySelector(\"[key='{}']\").checked", s)?;
                 } else {
                     write!(w, "document.querySelector(\"[key='\" + ")?;

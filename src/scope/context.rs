@@ -152,11 +152,7 @@ impl Context {
         self.scopes.get(scope_id)
     }
 
-    pub fn get_map_move_id(&mut self, map_id: String) -> Option<&Symbols> {
-        self.symbol_maps.get(map_id.as_str())
-    }
-
-    pub fn get_map<'a>(&'a mut self, map_id: &str) -> Option<&'a Symbols> {
+    pub fn get_map(&mut self, map_id: &str) -> Option<&Symbols> {
         self.symbol_maps.get(map_id)
     }
 
@@ -262,20 +258,10 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn resolve_binding_value<'a>(&'a mut self, binding: &BindingType) -> Option<&ExprValue> {
-        // let func: Box<FnMut(&'b Symbols, &'b BindingType) -> MapWalkState<'b, BindingType, ExprValue>> =
-        //     Box::new(|map: &'b Symbols, binding: &'b BindingType| match map.get_binding_value(binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch });
-
-        // let func: Box<FnMut(&'b Symbols, &'b BindingType) -> MapWalkState<'b, BindingType, ExprValue>> = Box::new(|map: &Symbols, binding: &'b BindingType| map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b)));
-
-        // let func = Box::new(|map: &Symbols, binding: BindingType| match map.get_binding_value(&binding) { Some(ref b) => &MapWalkState::FinalMatch(b), None => &MapWalkState::NoMatch });
-        // let iter = MapWalkIter::new(self, binding.to_owned(), func);
-
-        let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| MapWalkState::NoMatch as MapWalkState<_, ExprValue> );
-
-        // let iter = MapWalkIter::new(self, binding.to_owned(), |map, binding| match map.get_binding_value(binding) { Some(ref b) => MapWalkState::FinalMatch(b.clone()), None => MapWalkState::NoMatch });
-
-        // let iter = MapWalkIter::new(self, binding.to_owned(), Box::new(|map, binding| match map.get_binding_value(&binding) { Some(b) => MapWalkState::FinalMatch(b), None => MapWalkState::NoMatch }));
+    pub fn resolve_binding_value(&mut self, binding: &BindingType) -> Option<ExprValue> {
+        let iter = MapWalkIter::new(self, binding, move |map, binding| {
+            map.get_binding_value(binding).map_or(MapWalkState::NoMatch, |b| MapWalkState::FinalMatch(b.to_owned()))
+        });
 
         for state in iter {
             if let MapWalkState::FinalMatch(expr) = state {
@@ -374,11 +360,45 @@ impl Context {
     //     SymbolResolver::new(&mut self, props)
     // }
 
+    pub fn reduce_static_expr_to_string(&mut self, expr: &ExprValue, with_binding_values: bool) -> Option<String> {
+        if let &ExprValue::Apply(ExprApplyOp::JoinString(ref sep), Some(ref arr)) = expr {
+            let mut res = String::new();
+            let mut first = true;
+            for &box ref expr in arr {
+                if let Some(s) = self.reduce_static_expr_to_string(expr, with_binding_values) {
+                    first = false;
+                    if !first { if let &Some(ref sep) = sep { res.push_str(sep); } }
+                    res.push_str(&s);
+                };
+                return None;
+            }
+            return Some(res);
+        };
+
+        match expr {
+            &ExprValue::LiteralString(ref s) => Some(format!("{}", s)),
+            &ExprValue::LiteralNumber(ref n) => Some(format!("{}", n)),
+            &ExprValue::LiteralArray(_) => Some(format!("[array]")),
+
+            &ExprValue::Binding(ref binding) if with_binding_values => self.resolve_binding_value(binding)
+                .and_then(|expr| self.reduce_static_expr_to_string(&expr, with_binding_values)),
+
+            // _ => self.reduce_expr(expr).and_then(|expr| self.reduce_static_expr_to_string(&expr))
+            _ => None
+        }
+    }
+
     pub fn reduce_expr_to_string(&mut self, expr: &ExprValue) -> String {
+        if let &ExprValue::Apply(ExprApplyOp::JoinString(ref sep), Some(ref arr)) = expr {
+            let sep = sep.as_ref().map_or("", |s| s.as_str());
+            return arr.iter().map(|&box ref expr| self.reduce_expr_to_string(expr)).join(sep);
+        };
+
         match expr {
             &ExprValue::LiteralString(ref s) => format!("{}", s),
             &ExprValue::LiteralNumber(ref n) => format!("{}", n),
             &ExprValue::LiteralArray(_) => format!("[array]"),
+
             _ => {
                 if let Some(expr) = self.reduce_expr(expr) {
                     return self.reduce_expr_to_string(&expr);

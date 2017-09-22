@@ -72,48 +72,29 @@ impl SymbolPathScope {
             return ExprValue::LiteralString(last.to_owned());
         }
 
-        let expr_components: Option<Vec<Box<ExprValue>>> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
-            .map(|component| match component {
+        let mut parts: Vec<Box<ExprValue>> = Default::default();
+
+        if let Some(iter) = self.0.as_ref().map(|symbol_path| symbol_path.iter()) {
+            let arr: Vec<_> = iter.map(|component| match component {
                 &SymbolPathComponent::StaticPathComponent(ref s) => Box::new(ExprValue::LiteralString(s.to_owned())),
                 &SymbolPathComponent::EvalPathComponent(ref expr) => Box::new(expr.to_owned())
-            }).collect());
+            }).collect();
 
-        let mut all_components: Vec<Box<ExprValue>> = Default::default();
-        if let Some(expr_components) = expr_components {
-            let has_len = expr_components.len() > 0;
-            if has_len {
-                all_components.extend(expr_components);
-            }
-        }
-        all_components.push(Box::new(ExprValue::LiteralString(last.to_owned())));
-
-        // let components = expr_components.and_then(|expr_components| {
-        //     let mut all_components: Vec<Box<ExprValue>> = Default::default();
-        //     if expr_components.len() > 0 {
-        //         all_components.extend(expr_components.iter());
-        //     }
-        //     all_components.push(Box::new(ExprValue::LiteralString(last.to_owned())));
-        //     Some(all_components)
-        // });
+            if !arr.is_empty() { parts.extend(arr); }
+            parts.push(Box::new(ExprValue::LiteralString(last.to_owned())));
+        };
 
         let join_opt = sep.map(|s| s.to_owned());
-        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(all_components))
+        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(parts))
     }
-
-    // pub fn static_path_components(&self) -> Option<impl IntoIterator<Item = String>> {
-    //     self.0.as_ref().map(|s|
-    //         s.iter().filter_map(|component| match component {
-    //             &SymbolPathComponent::StaticPathComponent(s) => Some(s.to_owned()),
-    //             _ => None
-    //         })
-    //     )
-    // }
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use parser::ast::*;
+
 
     #[test]
     pub fn test_symbol_path_empty() {
