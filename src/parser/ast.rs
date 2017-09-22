@@ -249,6 +249,7 @@ pub enum BindingType {
     ComponentKeyBinding,
     // ComponentFormalProp,
     ComponentPropBinding(String),
+    DOMElementBinding(Box<ExprValue>),
     DOMElementAttributeBinding(String, String),
     DOMInputElementValueBinding(String),
     DOMInputCheckboxElementCheckedBinding(String)

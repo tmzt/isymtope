@@ -67,41 +67,44 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             let mut was_enterkey = false;
 
             match &event.2 {
-                &EventHandler::Event(ref event_name, ref params, ref action_ops) => {
+                &EventHandler::Event(ref event_name, _, _) => {
                     final_event_name = if event_name == "enterkey" { was_enterkey = true; "keydown".into() } else { event_name.to_owned() };
                 }
 
-                &EventHandler::DefaultEvent(ref params, ref action_ops) => {
+                &EventHandler::DefaultEvent(_, _) => {
                     final_event_name = "click".into();
                 }
             }
 
-            write!(w, "document.querySelector(\"[key='")?;
-            match complete_key {
+            // let dom_binding = ExprValue::Binding(&BindingType::DOMElementBinding())
+            // self.write_expr(w, doc, ctx, bindings, &expr)?;
+
+
+            let dom_binding = match complete_key {
                 InstanceKey::Static(s) => {
-                    write!(w, "{}", s)?;
+                    ExprValue::Binding(BindingType::DOMElementBinding(Box::new(ExprValue::LiteralString(s.to_owned()))))
                 },
                 InstanceKey::Dynamic(e) => {
-                    write!(w, "\" + ")?;
-                    self.write_expr(w, doc, ctx, bindings, &e)?;
-                    write!(w, "+ \"")?;
+                    ExprValue::Binding(BindingType::DOMElementBinding(Box::new(e.to_owned())))
                 }
             };
-            write!(w, "']\").addEventListener(\"{}\", function(event) {{", final_event_name)?;
+            self.write_expr(w, doc, ctx, bindings, &dom_binding)?;
+
+            write!(w, ".addEventListener(\"{}\", function(event) {{", final_event_name)?;
 
             if was_enterkey {
                 writeln!(w, "if (event.keyCode == 13) {{")?;
             };
 
             ctx.push_child_scope();
-            match complete_key {
-                InstanceKey::Static(s) => {
-                    ctx.append_path_str(s);
-                },
-                InstanceKey::Dynamic(e) => {
-                    ctx.append_path_expr(e);
-                }
-            };
+            // match complete_key {
+            //     InstanceKey::Static(s) => {
+            //         ctx.append_path_str(s);
+            //     },
+            //     InstanceKey::Dynamic(e) => {
+            //         ctx.append_path_expr(e);
+            //     }
+            // };
 
             match &event.2 {
                 &EventHandler::Event(_, _, Some(ref action_ops)) | &EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
@@ -134,13 +137,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
     fn write_bound_events<'a, I: IntoIterator<Item = &'a BoundEvent>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         for bound_event in events_iter.into_iter() {
             let instance_key = bound_event.instance_key();
-            let element_key = bound_event.element_key();
-
             let event_item = bound_event.event_item();
-            // let complete_key = format!("{}", instance_key);
-
-            // let mut bindings = BindingContext::default();
-            // bindings.add_binding(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
 
             ctx.push_child_scope();
             ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
