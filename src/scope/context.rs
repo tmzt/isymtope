@@ -354,6 +354,63 @@ impl Context {
         };
     }
 
+    pub fn map_actual_props_to_reduced_values<'a: 'b, 'b, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'b
+        where I: IntoIterator<Item = ActualPropRef<'a>> + 'a
+    {
+        props.into_iter()
+            .filter_map(move |prop| {
+                if let Some(expr) = prop.1 {
+                    let reduced;
+                    if let Some(s) = self.reduce_static_expr_to_string(expr, true) {
+                        reduced = ReducedValue::Static(StaticValue::StaticString(s));
+                    } else {
+                        reduced = ReducedValue::Dynamic(expr.to_owned());
+                    };
+
+                    return Some((prop.0.to_owned(), Some(reduced)));
+                };
+                None
+            })
+    }
+
+    pub fn map_props_to_reduced_values<'a, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
+        where I: IntoIterator<Item = &'a Prop> + 'a
+    {
+        props.into_iter()
+            .filter_map(move |prop| {
+                if let Some(expr) = prop.1.as_ref() {
+                    let reduced;
+                    if let Some(s) = self.reduce_static_expr_to_string(expr, true) {
+                        reduced = ReducedValue::Static(StaticValue::StaticString(s));
+                    } else {
+                        reduced = ReducedValue::Dynamic(expr.to_owned());
+                    };
+
+                    return Some((prop.0.to_owned(), Some(reduced)));
+                };
+                None
+            })
+    }
+
+    // pub fn map_props_to_reduced_values<'a, I: 'a>(mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
+    //     where I: IntoIterator<Item = PropRef<'a>> + 'a
+    // {
+    //     props.into_iter()
+    //         .filter_map(|prop| {
+    //             if let Some(expr) = prop.1 {
+    //                 let reduced;
+    //                 if let Some(s) = self.reduce_static_expr_to_string(expr, true) {
+    //                     reduced = ReducedValue::Static(StaticValue::StaticString(s));
+    //                 } else {
+    //                     reduced = ReducedValue::Dynamic(expr.to_owned());
+    //                 };
+
+    //                 return Some((prop.0.to_owned(), Some(reduced)));
+    //             };
+    //             None
+    //         })
+    // }
+
     // pub fn resolve_props<'p, I>(&mut self, props: I) -> SymbolResolver<'p, I>
     //     where I: Iterator<Item = PropValue<'p>>
     // {

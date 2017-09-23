@@ -20,12 +20,14 @@ const STRING_HTML_OPEN_INCDOM_PAGE: &'static str = r#"
     </head>
     <body>"#;
 
+// Note there cannot be a space after the opening element, otherwise IncrementalDOM will fail
+// to match the first child, which results in a flash of unstyled content in the TodoMVC demo
+// when link nodes are removed and re-added.
 const STRING_HTML_OPEN_ROOT_DIV: &'static str  = r#"
-        <div id="root">
-"#;
+        <div id="root">"#;
 
-const STRING_HTML_CLOSE_ROOT_DIV: &'static str  = r#"
-        </div>"#;
+const STRING_HTML_CLOSE_ROOT_DIV: &'static str  = r#"</div>
+"#;
 
 const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
         <script>

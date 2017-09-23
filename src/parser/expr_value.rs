@@ -50,10 +50,23 @@ pub enum ReducedPipelineComponent {
 pub type IterMethodPipelineComponentVec = Vec<IterMethodPipelineComponent>;
 pub type ReducedPipelineComponentVec = Vec<ReducedPipelineComponent>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InstanceKey<'a> {
   Static(&'a str),
   Dynamic(&'a ExprValue)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StaticValue {
+    StaticString(String),
+    StaticNumber(i32),
+    StaticBool(bool)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReducedValue {
+  Static(StaticValue),
+  Dynamic(ExprValue)
 }
 
 impl<'a> InstanceKey<'a> {

@@ -1,5 +1,8 @@
 
 use std::io;
+// use std::collections::HashMap;
+
+use itertools::*;
 
 use parser::*;
 use scope::*;
@@ -10,7 +13,7 @@ use output::*;
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
     fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: Option<&str>, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>> + 'a, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         if !is_void {
             write!(w, "IncrementalDOM.elementOpen(\"{}\", ", element_tag)?;
@@ -25,37 +28,51 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
             path_expr = ctx.join_path_as_expr(Some("."));
         }
 
-        self.write_expr(w, doc, ctx, bindings, &path_expr)?;
-        write!(w, ", [")?;
+        let static_props: Vec<_>;
+        let dynamic_props: Vec<_>;
 
-        let mut props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
-        props.insert(0, ("key".into(), Some(path_expr.clone())));
+        {
+            let props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
+            let mut split_props = ctx.map_props_to_reduced_values(props.iter());
 
-        let mut first_item = true;
-        for ref prop in props.iter() {
-            if let Some(ref expr) = prop.1 {
-                if !first_item { write!(w, ", ")?; }
-                first_item = false;
-                write!(w, "\"{}\", ", &prop.0)?;
-                let expr = expr.initial_value_expr().unwrap_or_else(|| expr.to_owned());
-                if let &ExprValue::SymbolReference(ref sym) = &expr {
-                    if sym.is_bool() {
-                        self.write_expr(w, doc, ctx, bindings, &expr)?;
-                        // write!(w, " ? \"{}\" : null", &prop.0)?;
-                        write!(w, " ? true : null")?;
-                        continue;
-                    };
-                };
-                self.write_expr(w, doc, ctx, bindings, &expr)?;
-            };
+            static_props = split_props.by_ref()
+                .filter_map(|(key, reduced)| match reduced { Some(ReducedValue::Static(StaticValue::StaticString(s))) => Some((key, s)), _ => None })
+                .collect();
+
+            dynamic_props = split_props.by_ref()
+                .filter_map(|(key, reduced)| match reduced { Some(ReducedValue::Dynamic(expr)) => Some((key, expr)), _ => None })
+                .collect();
         }
 
-        writeln!(w, "]);")?;
+        // Static properties with key
+        // let mut first = true;
+
+        self.write_expr(w, doc, ctx, bindings, &path_expr)?;
+        write!(w, ", [\"key\", ")?;
+        self.write_expr(w, doc, ctx, bindings, &path_expr)?;
+
+        for (a, b) in static_props {
+            // if !first { write!(w, ", ")?; }
+            // first = false;
+            write!(w, ", \"{}\", \"{}\"", a, b)?;
+        }
+        write!(w, "]")?;
+
+        // Dynamic properties (varargs)
+        let mut first = true;
+        for (key, expr) in dynamic_props {
+            if !first { write!(w, ", ")?; }
+            first = false;
+            write!(w, "\"{}\", ", key)?;
+            self.write_expr(w, doc, ctx, bindings, &expr)?;                
+        }
+
+        writeln!(w, ");")?;
 
         // Handle special case
         if element_tag == "input" {
             for value_binding in binding {
-                if let &Some((_, ref sym, ref read_sym)) = value_binding {
+                if let &Some((_, ref sym, _)) = value_binding {
                     if let &SymbolReferenceType::InitialValue(box ref initial, box ref element) = sym.sym_ref() {
                         let expr = ExprValue::SymbolReference(element.to_owned());
                         self.write_expr(w, doc, ctx, bindings, &expr)?;

@@ -344,6 +344,8 @@ pub type Prop = (String, Option<ExprValue>);
 pub type PropRef<'a> = (&'a str, Option<&'a ExprValue>);
 
 pub type PropVec = Vec<Prop>;
+pub type PropMap = HashMap<String, Option<ExprValue>>;
+
 pub type PropType = (String, Option<VarType>);
 pub type PropTypeVec = Vec<PropType>;
 pub type PropTypeMap = HashMap<String, Option<VarType>>;
