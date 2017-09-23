@@ -11,10 +11,16 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
-    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: Option<&str>, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let complete_key = ctx.join_path_with(Some("."), element_key);
+        let complete_key;
+        if let Some(element_key) = element_key {
+            complete_key = ctx.join_path_with(Some("."), element_key);
+        } else {
+            complete_key = ctx.join_path(Some("."));
+        }
+
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         for (key_ref, expr_ref) in props {
@@ -22,7 +28,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 
                 if let &ExprValue::SymbolReference(ref sym) = expr_ref {
                     if sym.is_bool() {
-                        if let Some(expr) = ctx.eval_sym(doc, sym) {
+                        if let Some(expr) = ctx.eval_sym_initial(doc, sym, true) {
                             if let ExprValue::LiteralBool(b) = expr {
                                 if b { write!(w, " {}=\"{}\"", key_ref, key_ref)?; }
                                 continue;
@@ -85,9 +91,9 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
     {
         let instance_key = instance_key.as_static_string();
 
-        if let Some(enclosing_tag) = enclosing_tag {
-            write!(w, "<{} key=\"{}\" data-comp=\"{}\">", enclosing_tag, &instance_key, component_ty)?;
-        };
+        // if let Some(enclosing_tag) = enclosing_tag {
+        //     write!(w, "<{} key=\"{}\" data-comp=\"{}\">", enclosing_tag, &instance_key, component_ty)?;
+        // };
 
         if let Some(comp) = doc.get_component(component_ty) {
             ctx.push_child_scope();
@@ -154,15 +160,17 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
             //     //     ctx.add_sym(formal, Symbol::binding(&binding));
             // }
 
-            if let Some(ops_iter) = comp.root_block().ops_iter() {
-                self.write_element_ops(w, doc, ctx, bindings, ops_iter)?;
-            }
+            self.write_block(w, doc, ctx, bindings, comp.root_block(), Some("div"), true)?;
+
+            // if let Some(ops_iter) = comp.root_block().ops_iter() {
+            //     self.write_element_ops(w, doc, ctx, bindings, ops_iter)?;
+            // }
             ctx.pop_scope();
         };
 
-        if let Some(enclosing_tag) = enclosing_tag {
-            write!(w, "</{}>", enclosing_tag)?;
-        };
+        // if let Some(enclosing_tag) = enclosing_tag {
+        //     write!(w, "</{}>", enclosing_tag)?;
+        // };
         Ok(())
     }
 
@@ -234,7 +242,7 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
         assert!(
-            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
+            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", Some(&key), false, empty(), empty(), empty()).is_ok() &&
             writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
         );
         assert_eq!(str::from_utf8(&s), Ok(indoc![r#"

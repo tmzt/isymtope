@@ -22,7 +22,7 @@ pub struct BoundEvent {
 impl BoundEvent {
     pub fn bind<'a, I: IntoIterator<Item = &'a PropRef<'a>>>(instance_key: &str, event: &EventsItem, props: Option<I>) -> Self {
         let instance_key = instance_key.to_owned();
-        let element_key = event.1.to_owned();
+        let element_key = event.0.to_owned();
         let handler = event.2.to_owned();
 
         let props: Option<PropVec> = props.map(|props| props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|p| p.to_owned()))).collect());
@@ -41,6 +41,14 @@ impl BoundEvent {
 
     pub fn element_key(&self) -> &str {
         self.element_key.as_str()
+    }
+
+    pub fn complete_key(&self) -> String {
+        format!("{}.{}", self.instance_key(), self.element_key())
+    }
+
+    pub fn props<'a>(&'a self) -> Option<impl IntoIterator<Item = &'a Prop>> {
+        self.props.as_ref().map(|props| props.into_iter())
     }
 
     pub fn event_item(&self) -> EventsItem {

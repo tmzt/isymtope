@@ -15,7 +15,7 @@ impl<O: OutputWriter + ElementOpsWriter + ElementOpsStreamWriter + EventsWriter>
 
         // Render opening enclosing tag
         if let Some(enclosing_tag) = enclosing_tag {
-            self.write_op_element_open(w, doc, ctx, bindings, enclosing_tag, block.id(), false, None, None, None)?;
+            self.write_op_element_open(w, doc, ctx, bindings, enclosing_tag, None, false, None, None, None)?;
         };
 
         // Push block scope

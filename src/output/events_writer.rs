@@ -79,18 +79,20 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             // let dom_binding = ExprValue::Binding(&BindingType::DOMElementBinding())
             // self.write_expr(w, doc, ctx, bindings, &expr)?;
 
-
-            let dom_binding = match complete_key {
-                InstanceKey::Static(s) => {
-                    ExprValue::Binding(BindingType::DOMElementBinding(Box::new(ExprValue::LiteralString(s.to_owned()))))
-                },
-                InstanceKey::Dynamic(e) => {
-                    ExprValue::Binding(BindingType::DOMElementBinding(Box::new(e.to_owned())))
-                }
+            let key_expr = match complete_key {
+                InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+                InstanceKey::Dynamic(e) => e.to_owned()
             };
-            self.write_expr(w, doc, ctx, bindings, &dom_binding)?;
 
-            write!(w, ".addEventListener(\"{}\", function(event) {{", final_event_name)?;
+
+            write!(w, "setEventListener(")?;
+            self.write_expr(w, doc, ctx, bindings, &key_expr)?;
+            write!(w, ", ")?;
+
+            let dom_binding = ExprValue::Binding(BindingType::DOMElementBinding(key_expr.into()));
+
+            self.write_expr(w, doc, ctx, bindings, &dom_binding)?;
+            write!(w, ", \"{}\", function(event) {{", final_event_name)?;
 
             if was_enterkey {
                 writeln!(w, "if (event.keyCode == 13) {{")?;
@@ -137,14 +139,23 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
     fn write_bound_events<'a, I: IntoIterator<Item = &'a BoundEvent>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         for bound_event in events_iter.into_iter() {
             let instance_key = bound_event.instance_key();
+            let complete_key = bound_event.complete_key();
             let event_item = bound_event.event_item();
 
             ctx.push_child_scope();
             ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
             ctx.append_path_expr(&ExprValue::Binding(BindingType::ComponentKeyBinding));
 
+            if let Some(props) = bound_event.props() {
+                for &(ref k, ref v) in props {
+                    if let &Some(ref v) = v {
+                        ctx.add_binding_value(&BindingType::ComponentPropBinding(k.to_owned()), v.to_owned());
+                    }
+                }
+            };
+
             // ctx.append_path_str(&instance_key);
-            self.write_event(w, doc, ctx, &bindings, InstanceKey::Static(&instance_key), &event_item)?;
+            self.write_event(w, doc, ctx, &bindings, InstanceKey::Static(&complete_key), &event_item)?;
             ctx.pop_scope();
         }
         Ok(())

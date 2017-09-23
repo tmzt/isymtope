@@ -9,7 +9,7 @@ use output::*;
 
 impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
-    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+    fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: Option<&str>, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         if !is_void {
@@ -18,7 +18,13 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
             write!(w, "IncrementalDOM.elementVoid(\"{}\", ", element_tag)?;
         };
 
-        let path_expr = ctx.join_path_as_expr_with(Some("."), element_key);
+        let path_expr;
+        if let Some(element_key) = element_key {
+            path_expr = ctx.join_path_as_expr_with(Some("."), element_key);
+        } else {
+            path_expr = ctx.join_path_as_expr(Some("."));
+        }
+
         self.write_expr(w, doc, ctx, bindings, &path_expr)?;
         write!(w, ", [")?;
 
@@ -88,7 +94,8 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
     fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
+        // let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
+        let instance_key = ctx.join_path_as_expr(Some("."));
         self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding, None)
     }
 
@@ -180,7 +187,7 @@ mod tests {
         let mut s: Vec<u8> = Default::default();
         let key = "key".to_owned();
         assert!(
-            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", &key, false, empty(), empty(), empty()).is_ok() &&
+            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", Some(&key), false, empty(), empty(), empty()).is_ok() &&
             writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
         );
         // assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));

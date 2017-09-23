@@ -33,6 +33,17 @@ const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
+                let listeners = new Map();
+
+                function setEventListener(key, el, evt, func) {
+                    let listener_key = key + '_' + evt;
+                    if (listeners.has(listener_key)) {
+                        el.removeEventListener(evt, listeners.get(listener_key));
+                    };
+                    el.addEventListener(evt, func);
+                    listeners.set(listener_key, func);
+                }
+
                 function markExisting(nodes) {
                     Array.prototype.slice.call(nodes).forEach(function(node) {
                         IncrementalDOM.importNode(node);

@@ -437,11 +437,15 @@ impl Context {
             _ => {}
         };
 
+        if let Some(expr) = self.resolve_binding_value(binding) {
+            return Some(expr);
+        };
+
         None
     }
 
     #[allow(dead_code)]
-    pub fn eval_sym(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+    pub fn eval_sym_initial(&mut self, doc: &Document, sym: &Symbol, initial: bool) -> Option<ExprValue> {
         if let Some(resolved_key) = sym.resolved_key() {
             if let Some(expr) = self.get_value(resolved_key) {
                 return Some(expr.to_owned());
@@ -454,9 +458,8 @@ impl Context {
         };
 
         match sym.sym_ref() {
-            &SymbolReferenceType::InitialValue(_, box ref after) => {
-                return self.eval_sym(doc, after);
-            }
+            &SymbolReferenceType::InitialValue(box ref before, _) if initial => { return self.eval_sym(doc, before); },
+            &SymbolReferenceType::InitialValue(_, box ref after) => { return self.eval_sym(doc, after); },
 
             &SymbolReferenceType::Binding(ref binding) => {
                 return self.eval_binding(doc, binding);
@@ -479,6 +482,11 @@ impl Context {
         };
 
         None
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_sym(&mut self, doc: &Document, sym: &Symbol) -> Option<ExprValue> {
+        self.eval_sym_initial(doc, sym, false)
     }
 
     #[allow(dead_code)]

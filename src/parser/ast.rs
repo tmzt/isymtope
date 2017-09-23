@@ -248,6 +248,7 @@ pub enum BindingType {
     ActionParamBinding(String),
     ComponentKeyBinding,
     // ComponentFormalProp,
+    ComponentPropsBinding,
     ComponentPropBinding(String),
     DOMElementBinding(Box<ExprValue>),
     DOMElementAttributeBinding(String, String),

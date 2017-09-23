@@ -132,6 +132,17 @@ impl ExpressionWriter for ExpressionWriterJs {
 
                     let sep = sep.as_ref().map_or("", |s| s.as_str());
                     let head: Vec<_> = iter.by_ref().take(3).collect();
+
+                    if head.len() == 1 {
+                        let ref a = head[0];
+                        if let Some(s) = ctx.reduce_static_expr_to_string(a, true) {
+                            write!(w, "\"{}\"", s)?;
+                        } else {
+                            self.write_expr_to(w, doc, value_writer, ctx, bindings, a)?;
+                        }
+                        return Ok(());
+                    };
+
                     if head.len() == 2 {
                         let ref a = head[0];
                         let ref b = head[1];
@@ -258,6 +269,15 @@ impl ExpressionWriter for ExpressionWriterJs {
                 Ok(())
             }
 
+            &BindingType::ComponentPropBinding(ref key) => {
+                // if let Some(sym) = ctx.resolve_sym(key) {
+                if let Some(expr) = ctx.eval_key(doc, key) {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+                    return Ok(());
+                };
+                value_writer.write_simple_binding(w, ctx, bindings, binding)
+            }
+
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
         }
     }
@@ -276,6 +296,11 @@ impl ExpressionWriter for ExpressionWriterJs {
             &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
             &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
+                if let Some(expr) = ctx.eval_sym(doc, sym) {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+                    return Ok(());
+                };
+
                 self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
                 if let &Some(ref parts) = parts {
                     write!(w, ".{}", parts)?;
