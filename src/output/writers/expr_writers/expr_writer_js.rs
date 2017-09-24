@@ -271,10 +271,10 @@ impl ExpressionWriter for ExpressionWriterJs {
 
             &BindingType::ComponentPropBinding(ref key) => {
                 // if let Some(sym) = ctx.resolve_sym(key) {
-                if let Some(expr) = ctx.eval_key(doc, key) {
-                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
-                    return Ok(());
-                };
+                // if let Some(expr) = ctx.eval_key(doc, key) {
+                //     self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+                //     return Ok(());
+                // };
                 value_writer.write_simple_binding(w, ctx, bindings, binding)
             }
 

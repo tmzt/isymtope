@@ -548,8 +548,25 @@ impl Context {
 
     #[allow(dead_code)]
     pub fn eval_expr(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
-        if expr.is_literal() { return Some(expr.clone()); }
+        if expr.is_literal_primitive() { return Some(expr.clone()); }
+        // if expr.is_literal() { return Some(expr.clone()); }
         match expr {
+            &ExprValue::LiteralArray(ref arr) => {
+                let arr: Option<Vec<_>> = arr.as_ref().map(|arr| arr.iter()
+                    .map(|expr| self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()))
+                    .collect());
+
+                return Some(ExprValue::LiteralArray(arr));
+            }
+
+            &ExprValue::LiteralObject(ref props) => {
+                let props: Option<Vec<_>> = props.as_ref().map(|arr| arr.iter()
+                    .map(|&(ref key, ref expr)| (key.clone(), expr.as_ref().map(|expr| self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()))))
+                    .collect());
+
+                return Some(ExprValue::LiteralObject(props));
+            }
+
             &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
                 let l_reduced = self.eval_expr(doc, l_expr);
                 let r_reduced = self.eval_expr(doc, r_expr);
@@ -587,8 +604,32 @@ impl Context {
     }
 
     pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {
-        if expr.is_literal() { return Some(expr.clone()); }
+        if expr.is_literal_primitive() { return Some(expr.clone()); }
+        // if expr.is_literal() { return Some(expr.clone()); }
+
+        if let Some(ty) = expr.peek_array_ty() {
+            if let VarType::Primitive(..) = ty {
+                return Some(expr.clone());
+            };
+        };
+
         match expr {
+            &ExprValue::LiteralArray(ref arr) => {
+                let arr: Option<Vec<_>> = arr.as_ref().map(|arr| arr.iter()
+                    .map(|expr| self.reduce_expr_or_return_same(expr))
+                    .collect());
+
+                Some(ExprValue::LiteralArray(arr))
+            }
+
+            &ExprValue::LiteralObject(ref props) => {
+                let props: Option<Vec<_>> = props.as_ref().map(|arr| arr.iter()
+                    .map(|&(ref key, ref expr)| (key.clone(), expr.as_ref().map(|expr| self.reduce_expr_or_return_same(expr))))
+                    .collect());
+
+                Some(ExprValue::LiteralObject(props))
+            }
+
             &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
                 let l_reduced = self.reduce_expr(&l_expr);
                 let r_reduced = self.reduce_expr(&r_expr);

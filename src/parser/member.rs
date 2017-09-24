@@ -43,10 +43,6 @@ impl<'a: 'b, 'b, I: IntoIterator<Item = &'b str>> Iterator for ObjectMemberIter<
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut res: Option<&'a ExprValue> = None;
-        let mut next_cur: Option<&'a ExprValue> = None;
-        let mut next_key: Option<&str> = None;
-
-        // let cur_key = self.next_key.as_ref().map(|s| s.to_owned());
 
         // Handle first iteration
         if self.key.is_none() {
@@ -70,13 +66,11 @@ impl<'a: 'b, 'b, I: IntoIterator<Item = &'b str>> Iterator for ObjectMemberIter<
             }
         }
 
-        let mut next_key: Option<&str> = None;
+        // let mut next_key: Option<&str> = None;
 
         // Prepare next iteration
         if let Some(res) = res {
-            if let Some(key) = self.iter.next() {
-                next_key = Some(key);
-            }
+            let next_key = self.iter.next();
 
             if next_key.is_none() {
                 return Some(ObjectMemberState::FinalResult(res));

@@ -197,6 +197,11 @@ impl Symbol {
     }
 
     #[allow(dead_code)]
+    pub fn initial<'a>(&'a self) -> Option<&'a Symbol> {
+        match self.sym_ref() { &SymbolReferenceType::InitialValue(box ref initial, _) => Some(initial), _ => None }
+    }
+
+    #[allow(dead_code)]
     pub fn resolved_key(&self) -> Option<&str> {
         match self.sym_ref() {
             &SymbolReferenceType::ResolvedReference(ref key, _, _) => Some(key),

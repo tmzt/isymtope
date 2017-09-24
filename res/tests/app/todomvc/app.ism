@@ -24,7 +24,7 @@ component todo_text_input (todo) {
 }
 
 component todo_item (todo) {
-    li (class="completed") {
+    li (class={completed: todo.complete}) {
         div (class="view") {
             input(class="toggle", type="checkbox") bind todo.complete as complete
                 change || { dispatch toggle_complete(id: todo.id); } {}

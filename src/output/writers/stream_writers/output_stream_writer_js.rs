@@ -30,18 +30,24 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
         let static_props: Vec<_>;
         let dynamic_props: Vec<_>;
+        let class_prop;
 
         {
             let props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
-            let mut split_props = ctx.map_props_to_reduced_values(props.iter());
+            let split_props: Vec<_> = ctx.map_props_to_reduced_values(props.iter()).collect();
 
-            static_props = split_props.by_ref()
-                .filter_map(|(key, reduced)| match reduced { Some(ReducedValue::Static(StaticValue::StaticString(s))) => Some((key, s)), _ => None })
+            static_props = split_props.iter()
+                .filter_map(|&(ref key, ref reduced)| match reduced { &Some(ReducedValue::Static(StaticValue::StaticString(ref s))) => Some((key.to_owned(), s.to_owned())), _ => None })
                 .collect();
 
-            dynamic_props = split_props.by_ref()
-                .filter_map(|(key, reduced)| match reduced { Some(ReducedValue::Dynamic(expr)) => Some((key, expr)), _ => None })
+            // Excluding class if it's dynamic
+            dynamic_props = split_props.iter()
+                .filter_map(|&(ref key, ref reduced)| match reduced { &Some(ReducedValue::Dynamic(ref expr)) if key != "class" => Some((key.to_owned(), expr.to_owned())), _ => None })
                 .collect();
+
+            class_prop = split_props.iter()
+                .filter_map(|&(ref key, ref reduced)| match reduced { &Some(ReducedValue::Dynamic(ref expr)) if key == "class" => Some(expr.to_owned()), _ => None })
+                .nth(0);
         }
 
         // Static properties with key
@@ -52,37 +58,62 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         self.write_expr(w, doc, ctx, bindings, &path_expr)?;
 
         for (a, b) in static_props {
-            // if !first { write!(w, ", ")?; }
-            // first = false;
             write!(w, ", \"{}\", \"{}\"", a, b)?;
         }
         write!(w, "]")?;
 
         // Dynamic properties (varargs)
-        let mut first = true;
         for (key, expr) in dynamic_props {
-            if !first { write!(w, ", ")?; }
-            first = false;
-            write!(w, "\"{}\", ", key)?;
-            self.write_expr(w, doc, ctx, bindings, &expr)?;                
+            write!(w, ", \"{}\", ", key)?;
+            let initial = expr.initial_value_expr();
+            let expr = initial.as_ref().unwrap_or(&expr);
+            self.write_expr(w, doc, ctx, bindings, expr)?;
+
+            if element_tag == "input" && key == "checked" {
+                write!(w, "?\"{}\":null", key)?;
+            };
         }
 
+        // Class list
+        if let Some(expr) = class_prop {
+            write!(w, ", \"class\", ")?;
+            if let Some(expr) = ctx.eval_expr(doc, &expr) {
+                if let Some(s) = ctx.reduce_static_expr_to_string(&expr, true) {
+                    write!(w, "\"{}\"", s)?;
+                };
+
+                if let &ExprValue::LiteralObject(ref props) = &expr {
+                    write!(w, "classList(")?;
+                    if let &Some(ref props) = props {
+                        for &(ref key, ref expr) in props {
+                            if let &Some(ref expr) = expr {
+                                let initial = expr.initial_value_expr();
+                                self.write_expr(w, doc, ctx, bindings, initial.as_ref().unwrap_or(expr))?;
+                                write!(w, "&&\"{}\"", key)?;
+                            };
+                        }
+                    };
+                    write!(w, ")")?;
+                };
+            };
+        };
         writeln!(w, ");")?;
 
-        // Handle special case
+        let binding = binding.into_iter();
+
+        // Update bound values
         if element_tag == "input" {
-            for value_binding in binding {
-                if let &Some((_, ref sym, _)) = value_binding {
-                    if let &SymbolReferenceType::InitialValue(box ref initial, box ref element) = sym.sym_ref() {
-                        let expr = ExprValue::SymbolReference(element.to_owned());
-                        self.write_expr(w, doc, ctx, bindings, &expr)?;
-                        write!(w, " = ")?;
-                        let expr = ExprValue::SymbolReference(initial.to_owned());
-                        self.write_expr(w, doc, ctx, bindings, &expr)?;
-                        writeln!(w, ";")?;
-                    };
+            let value_binding = binding.filter_map(|binding| match binding { &Some((_, ref sym, _)) => Some(sym), _ => None }).nth(0);
+            if let Some(initial) = value_binding.and_then(|s| s.initial()) {
+                if let Some(element_key) = element_key {
+                    let element = ExprValue::Binding(BindingType::DOMInputElementValueBinding(element_key.to_owned()));
+                    self.write_expr(w, doc, ctx, bindings, &element)?;
+                    write!(w, " = ")?;
+                    let expr = ExprValue::SymbolReference(initial.to_owned());
+                    self.write_expr(w, doc, ctx, bindings, &expr)?;
+                    writeln!(w, ";")?;
                 };
-            }
+            };
         };
 
         Ok(())

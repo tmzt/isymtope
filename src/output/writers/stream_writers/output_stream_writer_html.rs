@@ -26,6 +26,29 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
         for (key_ref, expr_ref) in props {
             if let Some(expr_ref) = expr_ref {
 
+                if key_ref == "class" {
+                    if let &ExprValue::LiteralObject(ref props) = expr_ref {
+                        write!(w, " class=\"")?;
+                        let props_iter = props.as_ref().map(|arr| arr.iter());
+                        if let Some(props_iter) = props_iter {
+                            let mut first = true;
+                            for prop in props_iter {
+                                if let Some(ref expr) = prop.1 {
+                                    let expr = ctx.eval_expr(doc, expr);
+                                    let expr = expr.as_ref().or(prop.1.as_ref());
+                                    if let Some(&ExprValue::LiteralBool(b)) = expr {
+                                        if !first { write!(w, " ")?; }
+                                        if b { write!(w, "{}", prop.0)?; }
+                                        first = false;
+                                    };
+                                };
+                            }
+                        };
+                        write!(w, "\"")?;
+                        continue;
+                    };
+                };
+
                 if let &ExprValue::SymbolReference(ref sym) = expr_ref {
                     if sym.is_bool() {
                         if let Some(expr) = ctx.eval_sym_initial(doc, sym, true) {

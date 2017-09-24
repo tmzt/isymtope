@@ -55,6 +55,10 @@ const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
                     });
                 }
 
+                function classList() {
+                    return [].slice.call(arguments).filter(function(e) { return !!e; }).join(' ');
+                }
+
                 function update(root_el, store) {
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }

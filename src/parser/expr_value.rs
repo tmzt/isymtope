@@ -131,6 +131,16 @@ impl ExprValue {
     }
 
     #[inline]
+    pub fn is_literal_primitive(&self) -> bool {
+        match self {
+            &ExprValue::LiteralString(..) |
+            &ExprValue::LiteralNumber(..) |
+            &ExprValue::LiteralBool(..) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
     #[allow(dead_code)]
     pub fn is_array(&self) -> bool {
         match self {
