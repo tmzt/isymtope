@@ -1,0 +1,108 @@
+
+<!doctype HTML>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+    </head>
+    <body>
+        <div id="root"><div key="73a"><p key="73a.af9">[Message: , ].join("")</p><p key="73a.81a" class="actions"><a key="73a.81a.8f5" href="#" href="#add">Say Hello</a></p></div></div>
+
+
+        <script>
+            (function() {
+                function Blank() {}
+                Blank.prototype = Object.create(null);
+                
+                let listeners = new Map();
+
+                function setEventListener(key, el, evt, func) {
+                    let listener_key = key + '_' + evt;
+                    if (listeners.has(listener_key)) {
+                        el.removeEventListener(evt, listeners.get(listener_key));
+                    };
+                    el.addEventListener(evt, func);
+                    listeners.set(listener_key, func);
+                }
+
+                function markExisting(nodes) {
+                    Array.prototype.slice.call(nodes).forEach(function(node) {
+                        IncrementalDOM.importNode(node);
+                        var data = node['__incrementalDOMData'];
+                        data.staticsApplied = true;
+                        data.newAttrs = new Blank();
+                    });
+                }
+
+                function classList() {
+                    return [].slice.call(arguments).filter(function(e) { return !!e; }).join(' ');
+                }
+
+                function update(root_el, store) {
+                    IncrementalDOM.patch(root_el, render.bind(null, store));
+                }
+/* {"lines": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("The first hello.")]))))} */
+/* Some([InstanceComponent("greeter", "73a", Some("greeter"), Some(["lines"]), Some(GetLens("lines", SymbolReference(Symbol(Binding(ReducerPathBinding("lines")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* None */
+                function component_greeter(key, props, store) {
+IncrementalDOM.elementOpen("div", key, ["key", key]);
+IncrementalDOM.elementOpen("p", key + ".af9", ["key", key + ".af9"]);
+IncrementalDOM.text("Message: " + );
+IncrementalDOM.elementClose("p");
+IncrementalDOM.elementOpen("p", key + ".81a", ["key", key + ".81a", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".81a.8f5", ["key", key + ".81a.8f5", "href", "#", "href", "#add"]);
+IncrementalDOM.text("Say Hello");
+IncrementalDOM.elementClose("a");
+IncrementalDOM.elementClose("p");
+IncrementalDOM.elementClose("div");
+                  component_bindings_greeter(key, props, store);
+
+                }
+
+                function component_bindings_greeter(key, props, store) {
+      // Bind actions
+setEventListener(key + ".81a.8f5", document.querySelector("[key='" + key + ".81a.8f5" + "']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
+});
+
+                }
+
+
+                function render(store) {
+component_greeter("73a", {"lines": store.getState().lines}, store);
+                }
+
+                function root_bindings(store) {
+
+setEventListener("73a.81a.8f5", document.querySelector("[key='73a.81a.8f5']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
+});
+                }
+
+
+                function linesReducer(state, action) {
+                  /* action: ReducerActionData { action_type: "LINES.ADD", state_expr: Some(SimpleReducerKeyExpr(Apply(JoinString(None), Some([SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(Primitive(StringVar)))), None)), LiteralString("Hello!")])))), state_ty: Some(ArrayVar(Some(Primitive(StringVar)))), default_scope_key: Some("lines") } */
+                  /* action expr: Apply(JoinString(None), Some([SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(Primitive(StringVar)))), None)), LiteralString("Hello!")])) */
+                  if ('undefined' !== typeof action && 'LINES.ADD' == action.type) {
+                    return state + "Hello!";
+                  }
+                  return state || ["The first hello."];
+                }
+
+                var rootReducer = Redux.combineReducers({
+                  lines: linesReducer,
+                });
+
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    // Import nodes
+                    markExisting(document.querySelectorAll("[key]"));
+                    // Define store
+                    var store = Redux.createStore(rootReducer, {});
+                    // Subscribe
+                    store.subscribe(update.bind(null, document.querySelector('#root'), store));
+                    // Bind events
+                    root_bindings(store);
+                });
+            })();
+        </script>
+    </body>
+</html>

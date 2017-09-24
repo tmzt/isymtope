@@ -1,0 +1,123 @@
+
+<!doctype HTML>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
+    </head>
+    <body>
+        <div id="root"><div key="ab1"><p key="ab1.73a"><input key="ab1.73a.600" value="" value="" /></p><p key="ab1.90d" class="actions"><a key="ab1.90d.ba2" href="#">Add</a></p></div><div key="ab1.151.0"><p key="ab1.151.0.788">[Todo: , ].join("")</p></div><div key="ab1.151.1"><p key="ab1.151.1.788">[Todo: , ].join("")</p></div></div>
+
+
+        <script>
+            (function() {
+                function Blank() {}
+                Blank.prototype = Object.create(null);
+                
+                let listeners = new Map();
+
+                function setEventListener(key, el, evt, func) {
+                    let listener_key = key + '_' + evt;
+                    if (listeners.has(listener_key)) {
+                        el.removeEventListener(evt, listeners.get(listener_key));
+                    };
+                    el.addEventListener(evt, func);
+                    listeners.set(listener_key, func);
+                }
+
+                function markExisting(nodes) {
+                    Array.prototype.slice.call(nodes).forEach(function(node) {
+                        IncrementalDOM.importNode(node);
+                        var data = node['__incrementalDOMData'];
+                        data.staticsApplied = true;
+                        data.newAttrs = new Blank();
+                    });
+                }
+
+                function classList() {
+                    return [].slice.call(arguments).filter(function(e) { return !!e; }).join(' ');
+                }
+
+                function update(root_el, store) {
+                    IncrementalDOM.patch(root_el, render.bind(null, store));
+                }
+/* {"todos": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("One"), LiteralString("Two")]))))} */
+/* Some([InstanceComponent("new_todo", "ab1", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(UnresolvedReference("entry"), None, None))))), InstanceComponent("todo", "ab1.151", Some("todo"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* None */
+                function component_todo(key, props, store) {
+IncrementalDOM.elementOpen("div", key, ["key", key]);
+IncrementalDOM.elementOpen("p", key + ".788", ["key", key + ".788"]);
+IncrementalDOM.text("Todo: " + props.todo);
+IncrementalDOM.elementClose("p");
+IncrementalDOM.elementClose("div");
+                  component_bindings_todo(key, props, store);
+
+                }
+
+                function component_bindings_todo(key, props, store) {
+
+                }
+
+                function component_new_todo(key, props, store) {
+IncrementalDOM.elementOpen("div", key, ["key", key]);
+IncrementalDOM.elementOpen("p", key + ".73a", ["key", key + ".73a"]);
+IncrementalDOM.elementVoid("input", key + ".73a.600", ["key", key + ".73a.600", "value", ""], "value", props.entry);
+IncrementalDOM.elementClose("p");
+IncrementalDOM.elementOpen("p", key + ".90d", ["key", key + ".90d", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".90d.ba2", ["key", key + ".90d.ba2", "href", "#"]);
+IncrementalDOM.text("Add");
+IncrementalDOM.elementClose("a");
+IncrementalDOM.elementClose("p");
+IncrementalDOM.elementClose("div");
+                  component_bindings_new_todo(key, props, store);
+
+                }
+
+                function component_bindings_new_todo(key, props, store) {
+      // Bind actions
+setEventListener(key + ".90d.ba2", document.querySelector("[key='" + key + ".90d.ba2" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+});
+
+                }
+
+
+                function render(store) {
+component_new_todo("ab1", {"entry": }, store);
+(store.getState().todos).forEach(function(item, idx) { component_todo("ab1.151" + "." + idx, {"todo": item}, store); });
+                }
+
+                function root_bindings(store) {
+
+setEventListener("ab1.90d.ba2", document.querySelector("[key='ab1.90d.ba2']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+});
+                }
+
+
+                function todosReducer(state, action) {
+                  /* action: ReducerActionData { action_type: "TODOS.ADD", state_expr: Some(SimpleReducerKeyExpr(Expr(Add, SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(Primitive(StringVar)))), None)), SymbolReference(Symbol(Binding(ActionParamBinding("entry")), None, None))))), state_ty: Some(ArrayVar(Some(Primitive(StringVar)))), default_scope_key: Some("todos") } */
+                  /* action expr: Expr(Add, SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(Primitive(StringVar)))), None)), SymbolReference(Symbol(Binding(ActionParamBinding("entry")), None, None))) */
+                  if ('undefined' !== typeof action && 'TODOS.ADD' == action.type) {
+                    return state.concat(action.entry);
+                  }
+                  return state || ["One", "Two"];
+                }
+
+                var rootReducer = Redux.combineReducers({
+                  todos: todosReducer,
+                });
+
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    // Import nodes
+                    markExisting(document.querySelectorAll("[key]"));
+                    // Define store
+                    var store = Redux.createStore(rootReducer, {});
+                    // Subscribe
+                    store.subscribe(update.bind(null, document.querySelector('#root'), store));
+                    // Bind events
+                    root_bindings(store);
+                });
+            })();
+        </script>
+    </body>
+</html>
