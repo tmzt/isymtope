@@ -1,0 +1,27 @@
+extends: default.liquid
+---
+{% for post in posts %}
+  {% if post.is_section %}
+  <section id="{{post.slug}}">
+    <div class="container">
+      {%- if post.hide_title == false -%}
+      <h2 class="title">{{ post.title }}</h2>
+      {%- endif -%}
+      {%- if post.hide_subtitle == false and post.subtitle != '' -%}
+      <h2 class="subtitle">{{ post.subtitle }}</h2>
+      {%- endif -%}
+      <div class="content">
+        {{post.content}}
+      </div>
+    </div>
+  </section>
+  {% else %}
+  <div class="container">
+    <h4>{{post.title}}</h4>
+    <h4><a href="{{post.path}}">{{ post.title }}</a></h4>
+    <div class="content">
+      {{post.content}}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
