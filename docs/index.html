@@ -180,7 +180,8 @@
   <section id="10-running">
     <div class="container"><h2 class="title">See it for yourself.</h2><div class="content">
         <h3>Getting the code</h3>
-<p>Currently you will need to clone this repository to get the source, it hasn't been submitted to <a href="https://crates.io">crates.io</a> yet.</p>
+<p>You will need to clone this repository to get the source, it hasn't been submitted to <a href="https://crates.io">crates.io</a> yet.</p>
+<p>The API to be exposed from <em>isymtope</em> as a library has not be determined, through it should be possible to integrate into an application.</p>
 <pre style="background-color:#2b303b">
 <span style="background-color:#2b303b;color:#b48ead;">git</span><span style="background-color:#2b303b;color:#c0c5ce;"> clone https://github.com/tmzt/isymtope
 </span><span style="background-color:#2b303b;color:#b48ead;">cd</span><span style="background-color:#2b303b;color:#c0c5ce;"> isymtope
@@ -190,16 +191,18 @@
 </span></pre>
 <p>Currently the examples are run as cargo tests.</p>
 <h3>Running the examples</h3>
+<p>You will need to install Rust if you haven't already.</p>
+<pre style="background-color:#2b303b">
+<span style="background-color:#2b303b;color:#c0c5ce;">curl https://</span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">.rustup.rs -sSf </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">
+</span></pre>
+<p>You may need to logout of your session and log back in for the <code>cargo</code> command to be in your path.</p>
 <p>If you want to build the examples yourself, you can run:</p>
 <pre style="background-color:#2b303b">
 <span style="background-color:#2b303b;color:#c0c5ce;">cargo build
 </span><span style="background-color:#2b303b;color:#c0c5ce;">cargo </span><span style="background-color:#2b303b;color:#b48ead;">test</span><span style="background-color:#2b303b;color:#c0c5ce;">
 </span></pre>
-<p>You will need to install Rust if you haven't already.</p>
-<pre style="background-color:#2b303b">
-<span style="background-color:#2b303b;color:#c0c5ce;">curl https://</span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">.rustup.rs -sSf </span><span style="background-color:#2b303b;color:#c0c5ce;">|</span><span style="background-color:#2b303b;color:#c0c5ce;"> </span><span style="background-color:#2b303b;color:#b48ead;">sh</span><span style="background-color:#2b303b;color:#c0c5ce;">
-</span></pre>
 <p>Then you will find the html pages with the demos in the <code>site/src/assets/demo</code> folder of your checked out repository.</p>
+<p>You can rebuild the docs with <code>cobalt build</code> from the root of the repository, and browse them from <code>docs/index.html</code>.</p>
 
       </div>
     </div>
