@@ -1,12 +1,12 @@
 extends: default.liquid
-title: Demo 1
+title: Counter
 subtitle: The famous counter, staple of all reactive frameworks.
 is_section: true
 hide_title: false
 ---
 
 
-```rust
+```javascript
 use html;
 
 store {
@@ -34,6 +34,6 @@ counter (x="counter") {}
 
 Here it is running:
 
-<iframe src="/isymtope/assets/demos/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
+<iframe src="assets/demo/test_output3.html" scrollbars="no" width="600" height="100>" border="0"></iframe>
 
-<a href="/isymtope/assets/demos/test_output3.html" target="_blank">Open demo in new tab</a>.
+<a href="assets/demo/test_output3.html" target="_blank">Open demo in new tab</a>.

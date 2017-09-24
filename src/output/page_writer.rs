@@ -8,15 +8,25 @@ use processing::*;
 use output::*;
 
 
+// const STRING_HTML_OPEN_INCDOM_PAGE: &'static str = r#"
+// <!doctype HTML>
+// <html>
+//     <head>
+//         <meta charset="utf-8" />
+//         <!-- <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script> -->
+//         <!-- <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script> -->
+//         <script src="./pkg/redux@3.7.1/dist/redux.js"></script>
+//         <script src="./pkg/incrementaldom@0.5.1/incremental-dom.js" defer="defer"></script>
+//     </head>
+//     <body>"#;
+
 const STRING_HTML_OPEN_INCDOM_PAGE: &'static str = r#"
 <!doctype HTML>
 <html>
     <head>
         <meta charset="utf-8" />
-        <!-- <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script> -->
-        <!-- <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script> -->
-        <script src="./pkg/redux@3.7.1/dist/redux.js"></script>
-        <script src="./pkg/incrementaldom@0.5.1/incremental-dom.js" defer="defer"></script>
+        <script src="https://unpkg.com/redux@3.7.1/dist/redux.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>"#;
 

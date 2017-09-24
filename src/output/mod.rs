@@ -45,12 +45,12 @@ mod tests {
 
     fn test_write_html<'input>(src_file: &str, html_file: &str) -> Result {
         let source_path = format!("./res/tests/{}", src_file);
-        let output_path = format!("./output/{}", html_file);
+        let output_path = format!("./site/src/assets/demo/{}", html_file);
 
         let template = ::parser::parse_file(Path::new(&source_path))?;
 
         let stdout = io::stdout();
-        fs::create_dir_all("./output").ok().unwrap();
+        fs::create_dir_all("./site/src/assets/demo").ok().unwrap();
         let file = fs::File::create(Path::new(&output_path))?;
         let stdout = stdout.lock();
 

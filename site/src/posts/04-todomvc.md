@@ -1,3 +1,15 @@
+extends: default.liquid
+title: TodoMVC
+subtitle: The famous counter, staple of all reactive frameworks.
+is_section: true
+hide_title: false
+---
+
+A nearly-functional [TodoMVC](http://todomvc.com/) implementation is quite straight forward, thanks to our method pipeline syntax. As new SQL-inspired pipeline syntax is also coming which will make data manipulation in reducers even simpler.
+
+Features will be added to this demo to match the standard implementation as they are added to the _isymtope_ language and compiler.
+
+```javascript
 use html;
 
 store {
@@ -47,3 +59,6 @@ section(class="todoapp") {
         }
     }
 }
+```
+
+<a href="assets/demo/app-mvc.html" target="_blank">Open demo in new tab</a>.

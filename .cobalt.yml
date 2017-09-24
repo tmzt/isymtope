@@ -1,6 +1,6 @@
 name: isymtope site
 source: "site/src"
-dest: "docs"
+dest: "docs/isymtope"
 ignore:
   - .git/*
   - .gitignore
