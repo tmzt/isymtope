@@ -1,0 +1,9 @@
+
+body { background-image: url(../images/background1.png); }
+
+.hero-github { margin-right: 3rem; }
+.is-github-message { display: inline-block; padding: 5px; font-size: 120%; font-weight: 800; }
+.github-button-icon { margin-right: calc(-0.175em - 1px); }
+
+section { margin-top: 30px; }
+.footer-section { margin-top: 50px; margin-bottom: 20px; }
