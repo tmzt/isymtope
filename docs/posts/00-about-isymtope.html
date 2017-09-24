@@ -32,35 +32,55 @@
   <h2 class="title">Introducing isymtope</h2><div class="content">
     <h2>Introducing, <em>isymtope</em></h2>
 <h3>Web Application Script Language</h3>
-<p>. One syntax for client and server</p>
-<p>. Built-in Server Side Rendering, no complicated hacks, and no Node.js required.</p>
-<p>. Test mode allows you to compile instantly, using a server-side VM implementation.</p>
-<p>. Native compilation mode will create static executables, which acts as a Web server and manages cached page source automatically.</p>
-<p>. Powered by Rust - the memory safe language created by Mozilla and the Rust team.</p>
+<ul>
+<li>
+<p>One syntax for client and server</p>
+</li>
+<li>
+<p>Built-in Server Side Rendering, no complicated hacks, and no Node.js required.</p>
+</li>
+<li>
+<p>Test mode allows you to compile instantly, using a server-side VM implementation.</p>
+</li>
+<li>
+<p>Native compilation mode will create static executables, which acts as a Web server and manages cached page source automatically.</p>
+</li>
+<li>
+<p>Powered by Rust - the memory safe language created by Mozilla and the Rust team.</p>
+</li>
+</ul>
 <h3>Rehydrate with no Flash of Unstyled Content</h3>
 <p>When the page is rendered on the server, it is linked to the generated views by way of unique keys on each element. This allows the client-side code to continue where the server left off, and does not require rerendering the page on the client side, or removing and adding any elements.</p>
 <p>You can even serve a completly static site and enhance it with additional interactivity, all from the same template language.</p>
 <h3>Javascript is optional, we serve a real HTML page</h3>
 <p>There is no Javascript required for viewing the pages built with <em>isymtope</em>. Not only are real pages delivered to the user, we can even support dispatching actions view old-fashioned form POST.</p>
 <h3>Redux-ified</h3>
-<p>. Define variables using <code>let</code> that will be automatically converted into Reducers.</p>
-<p>. Define actions for those reducers in one of three syntaxes:</p>
 <ul>
-<li>Method pipeline syntax</li>
-</ul>
+<li>
+<p>Define variables using <code>let</code> that will be automatically converted into Reducers.</p>
+</li>
+<li>
+<p>Define actions for those reducers in one of three syntaxes:</p>
+<ul>
+<li>
+<p>Method pipeline syntax</p>
 <p>Looks like a combination of Javascript and Rust, features a subset Rust's powerful collection of iterators.</p>
-<ul>
-<li>Filter pipeline syntax</li>
-</ul>
+</li>
+<li>
+<p>Filter pipeline syntax</p>
 <p>Uses a combination of SQL-inspired and Unix-pipeline semantics. Supports updating streaming data, reducing to a unique stream based on an id, and other tasks commonly associated with Functional Reactive Programming on the web.</p>
-<ul>
-<li>Expression syntax</li>
-</ul>
+</li>
+<li>
+<p>Expression syntax</p>
 <p>Along with the other two, this syntax allows for simple updates to state values, as well as merging objects.</p>
+</li>
+</ul>
+</li>
+</ul>
 <p>Specify your stores and action right in the template, we will generate the Javascript for you, automatically.</p>
 <p>Default values are also rendered into the page on the server, and support for replaying actions on the server is coming.</p>
 <h3>Build API's alongside your application</h3>
-<p>Define your API's in our template language or import definitions from grpc.io, protobuf, swagger and more. We will generate Redux for each API call, both REST and RPC.</p>
+<p>Define your API's in our template language or import definitions from grpc.io, protobuf, swagger and more. We will generate Redux reducers and actions for each API call, both REST and RPC.</p>
 <p>You can also define APIs for your database bindings using <a href="https://diesel.rs" target="_blank">diesel.rs</a>.</p>
 <p>Call the same API's from client and server, with the same action dispatch syntax and asynhronous semantics.</p>
 <h3>Built with Rust</h3>
