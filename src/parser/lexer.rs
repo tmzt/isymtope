@@ -132,6 +132,10 @@ impl<'input> Lexer<'input> {
             "as" => Token::AsKeyword,
             "where" => Token::WhereKeyword,
 
+            "set" => Token::SetKeyword,
+            "unique" => Token::UniqueKeyword,
+            "and" => Token::AndKeyword,
+
             "store" => Token::StoreKeyword,
             "action" => Token::ActionKeyword,
             "api" => Token::ApiKeyword,

@@ -354,25 +354,6 @@ impl Context {
         };
     }
 
-    pub fn map_actual_props_to_reduced_values<'a: 'b, 'b, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'b
-        where I: IntoIterator<Item = ActualPropRef<'a>> + 'a
-    {
-        props.into_iter()
-            .filter_map(move |prop| {
-                if let Some(expr) = prop.1 {
-                    let reduced;
-                    if let Some(s) = self.reduce_static_expr_to_string(expr, true) {
-                        reduced = ReducedValue::Static(StaticValue::StaticString(s));
-                    } else {
-                        reduced = ReducedValue::Dynamic(expr.to_owned());
-                    };
-
-                    return Some((prop.0.to_owned(), Some(reduced)));
-                };
-                None
-            })
-    }
-
     pub fn map_props_to_reduced_values<'a, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
         where I: IntoIterator<Item = &'a Prop> + 'a
     {
@@ -391,31 +372,6 @@ impl Context {
                 None
             })
     }
-
-    // pub fn map_props_to_reduced_values<'a, I: 'a>(mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
-    //     where I: IntoIterator<Item = PropRef<'a>> + 'a
-    // {
-    //     props.into_iter()
-    //         .filter_map(|prop| {
-    //             if let Some(expr) = prop.1 {
-    //                 let reduced;
-    //                 if let Some(s) = self.reduce_static_expr_to_string(expr, true) {
-    //                     reduced = ReducedValue::Static(StaticValue::StaticString(s));
-    //                 } else {
-    //                     reduced = ReducedValue::Dynamic(expr.to_owned());
-    //                 };
-
-    //                 return Some((prop.0.to_owned(), Some(reduced)));
-    //             };
-    //             None
-    //         })
-    // }
-
-    // pub fn resolve_props<'p, I>(&mut self, props: I) -> SymbolResolver<'p, I>
-    //     where I: Iterator<Item = PropValue<'p>>
-    // {
-    //     SymbolResolver::new(&mut self, props)
-    // }
 
     pub fn reduce_static_expr_to_string(&mut self, expr: &ExprValue, with_binding_values: bool) -> Option<String> {
         if let &ExprValue::Apply(ExprApplyOp::JoinString(ref sep), Some(ref arr)) = expr {
@@ -754,6 +710,14 @@ impl Context {
                 None
             }
 
+            &ExprValue::FilterPipeline(ref head, Some(ref parts)) => {
+                let head = head.as_ref().map(|&box ref head| head);
+                if let Some(reduced) = self.reduce_filter(head, parts.into_iter()) {
+                    return Some(reduced);
+                };
+                None
+            }
+
             &ExprValue::Binding(ref binding) =>  {
                 if let Some(expr) = self.resolve_binding_value(binding) {
                     return Some(expr.to_owned());
@@ -856,12 +820,20 @@ impl Context {
 
     #[allow(dead_code)]
     pub fn reduce_pipeline<'slf, 'a, I: IntoIterator<Item = &'a IterMethodPipelineComponent>>(&'slf mut self, head: Option<&ExprValue>, parts: I) -> Option<ExprValue> {
-        // let reduced_head = head.and_then(|head| self.reduce_expr(head));
-        // let head = reduced_head.map_or(head, |r| &r);
-
         let parts: Vec<_> = {
             let iter = ReducePipelineIter::new(self, head, parts.into_iter());
             iter.collect()
+        };
+
+        let head = head.map(|head| Box::new(self.reduce_expr_or_return_same(head)));
+        Some(ExprValue::ReducedPipeline(head, Some(parts)))
+    }
+
+    #[allow(dead_code)]
+    pub fn reduce_filter<'slf, 'a, I: IntoIterator<Item = &'a FilterPipelineComponent>>(&'slf mut self, head: Option<&ExprValue>, parts: I) -> Option<ExprValue> {
+        let parts: Vec<_> = {
+            let iter = FilterPipelineReduceIter::new(self, head, parts.into_iter());
+            iter.filter_map(|e| e).collect()
         };
 
         let head = head.map(|head| Box::new(self.reduce_expr_or_return_same(head)));

@@ -43,6 +43,10 @@ pub enum Token {
     AsKeyword,
     WhereKeyword,
 
+    SetKeyword,
+    UniqueKeyword,
+    AndKeyword,
+
     ComponentKeyword,
     StoreKeyword,
     ActionKeyword,

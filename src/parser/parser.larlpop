@@ -104,6 +104,7 @@ ExprFactor : ExprValue =
     <l:ExprFactor> "/" <r:ExprTerm> => ExprValue::Expr(ExprOp::Div, Box::new(l), Box::new(r)),
     ExprTerm,
     VarOrMethodPath
+    // FilterPipeline
 };
 
 ExprTerm : ExprValue =
@@ -256,6 +257,33 @@ IterMethodPipelineComponent : IterMethodPipelineComponent = {
 // };
 
 #[inline]
+FilterPipelineWhereClause : FilterPipelineWhereClause = {
+    WhereKeyword <all:AtLeastOneOf<AndKeyword, ExprTerm>> => {
+        let mut all = all.into_iter();
+        let first = all.next().unwrap();
+        let rest: Vec<_> = all.collect();
+        FilterPipelineComponent::where_clause(first, if !rest.is_empty() { Some(rest) } else { None })
+    }
+};
+
+#[inline]
+FilterPipelineSetValues : Option<PropVec> = {
+    <values:CommaList<(<Id> "=" <ExprTerm>)>> => if !values.is_empty() { Some(values.into_iter().map(|p| (p.0, Some(p.1))).collect()) } else { None }
+};
+
+#[inline]
+FilterPipelineComponent : FilterPipelineComponent = {
+    SetKeyword <values:FilterPipelineSetValues> <where_clause: FilterPipelineWhereClause?> => FilterPipelineComponent::Set(values, where_clause),
+    // <where_clause: FilterPipelineWhereClause> => FilterPipelineComponent::Where(where_clause),
+    UniqueKeyword <id:Id> => FilterPipelineComponent::Unique(Symbol::unresolved(&id))
+};
+
+#[inline]
+FilterPipeline : ExprValue = {
+    <expr:ExprFactor> "|" <pipeline:AtLeastOneOf<"|", FilterPipelineComponent>> => ExprValue::FilterPipeline(Some(Box::new(expr)), if !pipeline.is_empty() { Some(pipeline) } else { None })
+};
+
+#[inline]
 VarOrMethodPath : ExprValue = {
     <e:(<ExprTerm> ".")?> <path:AtLeastOneOf<".", IterMethodPipelineComponent>> => {
         let has_methods = path.iter().any(|c| if let &IterMethodPipelineComponent::Method(..) = c { true } else { false });
@@ -353,8 +381,13 @@ ScopeNodeType : ScopeNodeType = {
 
 ActionNodeParamList: Vec<String> = "(" <CommaList<Id>> ")";
 
+ActionExpression : ExprValue = {
+    ExprValue,
+    FilterPipeline
+};
+
 ActionNode : ScopeNodeType = {
-    ActionKeyword <name:Id> <params:ActionNodeParamList?> <expr:("=>" <ExprValue>)?> ";" => {
+    ActionKeyword <name:Id> <params:ActionNodeParamList?> <expr:("=>" <ActionExpression>)?> ";" => {
         let expr = expr.as_ref().map(|expr| ActionStateExprType::SimpleReducerKeyExpr(expr.to_owned()));
         let has_params = params.as_ref().map_or(false, |params| params.len() > 0);
         let params = if has_params { params } else { None };
@@ -429,6 +462,10 @@ extern {
         ValueKeyword => Token::ValueKeyword,
         WhereKeyword => Token::WhereKeyword,
         
+        SetKeyword => Token::SetKeyword,
+        UniqueKeyword => Token::UniqueKeyword,
+        AndKeyword => Token::AndKeyword,
+
         ComponentKeyword => Token::ComponentKeyword,
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,

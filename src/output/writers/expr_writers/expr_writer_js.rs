@@ -339,11 +339,17 @@ impl ExpressionWriter for ExpressionWriterJs {
                             write!(w, "map(function(item, idx, arr) {{ ")?;
                             match op {
                                 &ReducedMethodType::MapIf(_, ref cond) => {
-                                    write!(w, "if (")?;
+                                    // write!(w, "if (")?;
+                                    // self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
+                                    // write!(w, ") {{ return ")?;
+                                    // self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                                    // write!(w, " }} else {{ return item; }}")?;
+
+                                    write!(w, "return ((")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
-                                    write!(w, ") {{ return ")?;
+                                    write!(w, ") ? (")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
-                                    write!(w, " }} else {{ return item; }}")?;
+                                    write!(w, " ) : item);")?;
                                 },
 
                                 _ => {
@@ -385,6 +391,14 @@ impl ExpressionWriter for ExpressionWriterJs {
                             };
 
                             write!(w, ")")?;
+                        },
+
+                        &ReducedMethodType::UniqMember(ref sym) => {
+                            let expr = ExprValue::SymbolReference(sym.to_owned());
+
+                            write!(w, "filter((function() {{ let _keys = new Set(); return function(item) {{ let _key = ")?;
+                            self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
+                            write!(w, "; if (_keys.has(_key)) {{ return false; }} _keys.add(_key); return true; }}; }})())")?;
                         },
 
                         &ReducedMethodType::Max => {

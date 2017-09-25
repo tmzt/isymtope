@@ -1,3 +1,4 @@
+use std::iter;
 use itertools::Itertools;
 use parser::*;
 
@@ -18,6 +19,41 @@ impl IterMethodPipelineComponent {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum FilterPipelineComponent {
+    Set(Option<PropVec>, Option<FilterPipelineWhereClause>),
+    Where(FilterPipelineWhereClause),
+    Unique(Symbol)
+}
+
+impl FilterPipelineComponent {
+    #[allow(dead_code)]
+    pub fn where_clause(first: ExprValue, rest: Option<Vec<ExprValue>>) -> FilterPipelineWhereClause {
+        FilterPipelineWhereClause(first, rest)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FilterPipelineWhereClause(ExprValue, Option<Vec<ExprValue>>);
+
+impl FilterPipelineWhereClause {
+    pub fn first_cond(&self) -> &ExprValue { &self.0 }
+
+    pub fn as_expr(&self) -> ExprValue {
+        let first = &self.0;
+        match &self.1 {
+            &Some(ref and_values) => {
+                let params: Vec<_> = iter::once(first).chain(and_values.iter()).cloned().collect();
+
+                ExprValue::BoolGroupExpr(BoolGroupOp::All, params.into())
+            },
+
+            _ => first.to_owned()
+        }
+
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReducedMethodType {
@@ -27,6 +63,8 @@ pub enum ReducedMethodType {
     MapIf(ExprValue, ExprValue),
     FlatMap(ExprValue),
     FilterMap(ExprValue),
+    UniqMember(Symbol),
+    Uniq(ExprValue),
     Any(ExprValue),
     All(ExprValue),
     First,
@@ -49,6 +87,7 @@ pub enum ReducedPipelineComponent {
 
 pub type IterMethodPipelineComponentVec = Vec<IterMethodPipelineComponent>;
 pub type ReducedPipelineComponentVec = Vec<ReducedPipelineComponent>;
+pub type FilterPipelineComponentVec = Vec<FilterPipelineComponent>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstanceKey<'a> {
@@ -98,6 +137,13 @@ pub enum TestOp {
     IsNaN
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BoolGroupOp {
+    All,
+    One,
+    Zero
+}
+
 /// Simple expression (parameter value)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprValue {
@@ -111,10 +157,12 @@ pub enum ExprValue {
     Binding(BindingType),
     Expr(ExprOp, Box<ExprValue>, Box<ExprValue>),
     TestValue(TestOp, Box<ExprValue>, Option<Box<ExprValue>>),
+    BoolGroupExpr(BoolGroupOp, Box<Vec<ExprValue>>),
     Apply(ExprApplyOp, Option<Vec<Box<ExprValue>>>),
     ContentNode(Box<ContentNodeType>),
     IterMethodPipeline(Option<Box<ExprValue>>, Option<IterMethodPipelineComponentVec>),
     ReducedPipeline(Option<Box<ExprValue>>, Option<ReducedPipelineComponentVec>),
+    FilterPipeline(Option<Box<ExprValue>>, Option<FilterPipelineComponentVec>),
     Undefined,
 }
 
