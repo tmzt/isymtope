@@ -18,7 +18,7 @@ store {
 
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
-        action toggle_complete(id) => value.map({text: item.text, complete: !item.complete, id: item.id} where (item.id == id));
+        action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id) |unique id;
     }
 
     entry {
@@ -61,4 +61,4 @@ section(class="todoapp") {
 }
 ```
 
-<a href="assets/demo/app-mvc.html" target="_blank">Open demo in new tab</a>.
+<a href="assets/demo/app-mvc.html" target="_blank">Open TodoMVC demo in new tab</a>.
