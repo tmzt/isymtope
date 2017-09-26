@@ -1,6 +1,5 @@
 
 use std::io;
-use std::iter;
 
 use parser::*;
 use scope::*;

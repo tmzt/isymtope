@@ -1,4 +1,3 @@
-// #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
@@ -228,24 +227,6 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn get_sym(&mut self, key: &str) -> Option<&Symbol> {
-        let map_id = self.map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get(&map_id) {
-            return map.get_sym(key)
-        };
-        None
-    }
-
-    #[allow(dead_code)]
-    pub fn get_value(&mut self, key: &str) -> Option<&ExprValue> {
-        let map_id = self.map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get(&map_id) {
-            return map.get_value(key)
-        };
-        None
-    }
-
-    #[allow(dead_code)]
     pub fn resolve_key_from_scope(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
         let iter = ScopeSymbolIter::new(self, key, scope_id);
         // let mut res: Option<ScopeSymbolState> = None;
@@ -270,39 +251,6 @@ impl Context {
         }
         None
     }
-
-    #[allow(dead_code)]
-    pub fn map_id(&mut self) -> &str {
-        self.scope_ref().unwrap().map_id()
-    }
-
-    #[allow(dead_code)]
-    pub fn parent_map_id(&mut self) -> Option<&str> {
-        let map_id = self.map_id().to_owned();
-        self.symbol_maps.get(&map_id).unwrap().parent_map_id()
-    }
-
-    // #[allow(dead_code)]
-    // pub fn resolve_sym_from_parent(&mut self, key: &str) -> Option<Symbol> {
-    //     let parent_id = self.parent_map_id().map(|s| s.to_owned());
-    //     if let Some(parent_id) = parent_id {
-    //         if let Some((_, sym)) = self.search_sym_starting_at(key, &parent_id) {
-    //             return Some(sym.to_owned());
-    //         };
-    //         // return self.resolve_sym_starting_at(key, &parent_id);
-    //     };
-
-    //     None
-    // }
-
-    // pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
-    //     let map_id = self.map_id().to_owned();
-    //     if let Some((_, sym)) = self.search_sym_starting_at(key, &map_id) {
-    //         return Some(sym.to_owned());
-    //     };
-
-    //     None
-    // }
 
     pub fn add_symbol_map(&mut self, map: Symbols) {
         self.symbol_maps.insert(map.map_id().to_owned(), map);
@@ -421,6 +369,7 @@ impl Context {
         }
     }
 
+    #[inline]
     pub fn reduce_expr_and_resolve_to_string(&mut self, doc: &Document, expr: &ExprValue) -> Option<String> {
         if let Some(expr) = self.eval_expr(doc, expr) {
             return Some(self.reduce_expr_to_string(&expr));
@@ -460,9 +409,9 @@ impl Context {
     #[allow(dead_code)]
     pub fn eval_sym_initial(&mut self, doc: &Document, sym: &Symbol, initial: bool) -> Option<ExprValue> {
         if let Some(resolved_key) = sym.resolved_key() {
-            if let Some(expr) = self.get_value(resolved_key) {
-                return Some(expr.to_owned());
-            };
+            // if let Some(expr) = self.get_value(resolved_key) {
+            //     return Some(expr.to_owned());
+            // };
 
             let scope_id = self.scope_ref().unwrap().id().to_owned();
             if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
@@ -545,13 +494,6 @@ impl Context {
 
             &ExprValue::Binding(ref binding) => {
                 return self.eval_binding(doc, binding);
-                // if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
-                //     if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                //         if let Some(ref expr) = reducer_data.default_expr {
-                //             return self.reduce_expr(expr);
-                //         };
-                //     };
-                // };
             }
 
             _ => {}
@@ -561,7 +503,6 @@ impl Context {
 
     pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {
         if expr.is_literal_primitive() { return Some(expr.clone()); }
-        // if expr.is_literal() { return Some(expr.clone()); }
 
         if let Some(ty) = expr.peek_array_ty() {
             if let VarType::Primitive(..) = ty {
@@ -1037,8 +978,7 @@ mod tests {
 
     fn create_document_with_data<'a>(template: &'a Template, reducer_key: &str, default_expr: ExprValue) -> Document {
         let mut ctx = Context::default();
-        let mut bindings = BindingContext::default();
-        // let mut processing = ProcessDocument::from_template(&template);
+        let bindings = BindingContext::default();
         let mut state = DocumentProcessingState::default();
         state.reducer_key_data = Default::default();
 
@@ -1046,9 +986,7 @@ mod tests {
         reducer.default_expr = Some(default_expr);
 
         state.reducer_key_data.insert(reducer_key.to_owned(), reducer);
-        // state.reducer_key_data.default_expr = Some(default_expr);
         state.default_reducer_key = Some(reducer_key.to_owned());
-        // assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
         state.into()
     }
 

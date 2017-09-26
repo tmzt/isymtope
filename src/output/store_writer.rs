@@ -24,7 +24,7 @@ impl StoreWriterJs {
 
         writeln!(w, "                  /* action: {:?} */", action)?;
 
-        if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) =  &action.state_expr {
+        if let Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) =  action.state_expr {
             let expr = ctx.map_reducer_expression(doc, &action_key, expr);
             writeln!(w, "                  /* action expr: {:?} */", expr)?;
 
@@ -61,8 +61,8 @@ impl StoreWriterJs {
         writeln!(w, "                function {}Reducer(state, action) {{", complete_key)?;
 
         if let Some(ref actions) = reducer.actions {
-            for ref action in actions {
-                self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, action)?;
+            for action in actions {
+                self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, &action)?;
             }
         };
 

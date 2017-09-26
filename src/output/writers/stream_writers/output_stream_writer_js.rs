@@ -1,8 +1,5 @@
 
 use std::io;
-// use std::collections::HashMap;
-
-use itertools::*;
 
 use parser::*;
 use scope::*;
@@ -239,9 +236,9 @@ mod tests {
             writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
         );
         // assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
-        assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-            IncrementalDOM.elementOpen("span", ["prefix", "key"].join("."));
-            IncrementalDOM.elementClose("span");
-        "#]));
+        assert_eq!(str::from_utf8(&s), Ok(r#"
+    IncrementalDOM.elementOpen("span", ["prefix", "key"].join("."));
+    IncrementalDOM.elementClose("span");
+"#));
     }
 }

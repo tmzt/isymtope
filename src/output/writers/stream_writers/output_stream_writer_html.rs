@@ -268,9 +268,7 @@ mod tests {
             writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", Some(&key), false, empty(), empty(), empty()).is_ok() &&
             writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
         );
-        assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-        <span key="prefix.key"></span>"#
-        ]));
+        assert_eq!(str::from_utf8(&s), Ok(r#"\n<span key="prefix.key"></span>"#));
             
             // "IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
     }

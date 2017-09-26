@@ -167,16 +167,16 @@ pub enum ExprValue {
 }
 
 impl ExprValue {
-    #[inline]
-    pub fn is_literal(&self) -> bool {
-        match self {
-            &ExprValue::LiteralArray(..) |
-            &ExprValue::LiteralString(..) |
-            &ExprValue::LiteralNumber(..) |
-            &ExprValue::LiteralBool(..) => true,
-            _ => false,
-        }
-    }
+    // #[inline]
+    // pub fn is_literal(&self) -> bool {
+    //     match self {
+    //         &ExprValue::LiteralArray(..) |
+    //         &ExprValue::LiteralString(..) |
+    //         &ExprValue::LiteralNumber(..) |
+    //         &ExprValue::LiteralBool(..) => true,
+    //         _ => false,
+    //     }
+    // }
 
     #[inline]
     pub fn is_literal_primitive(&self) -> bool {

@@ -133,9 +133,7 @@ mod tests {
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s), Ok("\n<span key=\"Ab.Cd\"></span>"));
         }
 
         {
@@ -143,9 +141,7 @@ mod tests {
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s), Ok("\n<span key=\"Ab.Cd\"></span>"));
         }
 
         {
@@ -155,10 +151,10 @@ mod tests {
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s), Ok(r#"
+    IncrementalDOM.elementOpen("span", "Ab.Cd");
+    IncrementalDOM.elementClose("span");
+"#));
         }
 
         {
@@ -166,10 +162,10 @@ mod tests {
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s), Ok(r#"
+IncrementalDOM.elementOpen("span", "Ab.Cd");
+IncrementalDOM.elementClose("span");
+"#));
         }
     }
 
@@ -192,14 +188,12 @@ mod tests {
             assert!(writers.html().write_element_ops(&mut s_html, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
             assert!(writers.js().write_element_ops(&mut s_js, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
 
-            assert_eq!(str::from_utf8(&s_html), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s_html), Ok("\n<span key=\"Ab.Cd\"></span>"));
 
-            assert_eq!(str::from_utf8(&s_js), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s_js), Ok(r#"
+IncrementalDOM.elementOpen("span", "Ab.Cd");
+IncrementalDOM.elementClose("span");
+"#));
         }
     }
 }

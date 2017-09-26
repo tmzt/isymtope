@@ -1,7 +1,7 @@
 
 #![recursion_limit="2000"]
-#![feature(plugin)]
-#![plugin(indoc)]
+// #![feature(plugin)]
+// #![plugin(indoc)]
 #![feature(box_patterns)]
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
