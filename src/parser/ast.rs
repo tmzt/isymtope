@@ -136,13 +136,6 @@ impl Symbol {
         self.1 == Some(VarType::boolean())
     }
 
-    #[allow(dead_code)]
-    pub fn with_value(self, expr: ExprValue) -> Self {
-        let mut sym = self;
-        sym.2 = Some(Box::new(expr));
-        sym
-    }
-
     pub fn binding(binding: &BindingType) -> Symbol {
         Symbol(SymbolReferenceType::Binding(binding.to_owned()), None, None)
     }
@@ -158,20 +151,6 @@ impl Symbol {
     pub fn member_path(first: Symbol, path: &str) -> Symbol {
         Symbol(SymbolReferenceType::MemberPath(Box::new(first), Some(path.to_owned())), None, None)
     }
-
-    pub fn ref_key_in_scope(key: &str, key_ref: KeyReferenceType, scope_id: Option<&str>) -> Symbol {
-        let resolved = ResolvedSymbolType::ReferenceToKeyInScope(key_ref, scope_id.map(|s| s.to_owned()));
-        Symbol(SymbolReferenceType::ResolvedReference(key.to_owned(), resolved, None),
-               None,
-               None)
-    }
-
-    /// Defines a value for a given formal parameter on the current component invocation scope.
-    pub fn invocation_prop(key: &str, expr: Option<&ExprValue>) -> Symbol {
-        let key_ref = KeyReferenceType::InvocationProp(expr.map(|e| Box::new(e.to_owned())));
-        Self::ref_key_in_scope(key, key_ref, None)
-    }
-
     pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());
         let value = value.map(|value| Box::new(value.clone()));
