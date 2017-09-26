@@ -62,6 +62,7 @@ pub struct BlockEvents {
 }
 
 impl BlockEvents {
+    #[allow(dead_code)]
     pub fn event<'a, I: IntoIterator<Item = &'a PropRef<'a>>>(&mut self, event: &EventsItem, props: I) -> Result {
         Ok(())
     }

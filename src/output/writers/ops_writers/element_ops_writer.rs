@@ -121,7 +121,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
                     )?;
                 }
 
-                &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, ref props, ref lens) => {
+                &ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, ref lens) => {
                     match lens {
                         &Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
                             let props = vec![(coll_key.to_owned(), Some(ExprValue::Binding(BindingType::MapItemBinding)))];

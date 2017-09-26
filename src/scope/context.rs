@@ -977,7 +977,7 @@ mod tests {
     }
 
     fn create_document_with_data<'a>(template: &'a Template, reducer_key: &str, default_expr: ExprValue) -> Document {
-        let mut ctx = Context::default();
+        let ctx = Context::default();
         let bindings = BindingContext::default();
         let mut state = DocumentProcessingState::default();
         state.reducer_key_data = Default::default();

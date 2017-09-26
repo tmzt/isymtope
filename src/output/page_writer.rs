@@ -176,47 +176,9 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
-    pub fn write_block_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
-        //Bind component events
-        // if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
-        //     for compkey_mapping in compkey_mappings {
-        //         if let Some(ref lens) = compkey_mapping.3 {
-        //             match lens {
-        //                 &LensExprType::ForLens(ref coll_key, ref coll_expr) => {
-        //                     let reduced_expr = ctx.eval_expr(&self.doc, coll_expr);
-        //                     let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
-
-        //                     if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
-        //                         for (idx, _) in arr.iter().enumerate() {
-        //                             writeln!(w, "component_bindings_{}(\"{}.{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str(), idx)?;
-        //                         }
-        //                     };
-        //                     continue;
-        //                 },
-        //                 _ => {}
-        //             };
-
-        //         };
-
-        //         writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
-        //     }
-        // };
-
-
-
-        // Bind block events
-        if let Some(events_iter) = block.events_iter() {
-            self.writers.js.write_event_bindings(w, &self.doc, ctx, bindings, events_iter)?;
-        };
-        Ok(())
-    }
-
-    #[inline]
-    #[allow(unused_variables)]
     pub fn write_root_bindings_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         writeln!(w, "{}", self::STRING_JS_OPEN_ROOT_BINDINGS_DEF)?;
         self.write_initial_event_bindings(w, ctx, bindings)?;
-        // self.write_block_event_bindings(w, ctx, bindings, self.doc.root_block())?;
         writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }
@@ -283,15 +245,6 @@ impl<'doc> PageWriter<'doc> {
         self.write_root_html(w, ctx, bindings)?;
         writeln!(w, "")?;
         self.write_script_html(w, ctx, bindings)?;
-
-        // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
-        // let keys_iter = self.output_html.keys_iter();
-        // for key in keys_iter {
-        //     writeln!(w,
-        //              "    markExisting(document.querySelector(\"[key='{}']\"));",
-        //              key)
-        //         ?;
-        // }
 
         write!(w, "{}", self::STRING_HTML_CLOSE_INCDOM_PAGE)?;
 

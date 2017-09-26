@@ -7,8 +7,6 @@ use scope::*;
 pub struct FilterPipelineReduceIter<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> {
     ctx: &'ctx mut Context,
     head: Option<&'head ExprValue>,
-    last_state: FilterPipelineReduceIterState,
-    buf: Option<Vec<String>>,
     iter: S
 }
 
@@ -26,21 +24,8 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> FilterPip
         FilterPipelineReduceIter {
             ctx: ctx,
             head: head,
-            last_state: FilterPipelineReduceIterState::NoState,
-            buf: None,
             iter: iter
         }
-    }
-
-    #[allow(dead_code)]
-    fn push_s(&mut self, s: &str, clear: bool) {
-        if clear { self.buf = None; }
-
-        if let Some(ref mut buf) = self.buf {
-            buf.push(s.to_owned());
-        } else {
-            self.buf = Some(vec![s.to_owned()]);
-        };
     }
 }
 
@@ -52,8 +37,6 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> Iterator 
         let next = self.iter.next();
 
         if let Some(next) = next {
-            let res: Self::Item;
-
             self.ctx.push_child_scope();
             let op = match next {
                 &FilterPipelineComponent::Set(ref props, ref where_clause) => {
@@ -100,12 +83,7 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> Iterator 
             };
             self.ctx.pop_scope();
 
-            if let Some(op) = op {
-                res = Some(ReducedPipelineComponent::PipelineOp(op));
-            } else {
-                res = None;
-            };
-
+            let res = op.map(|op| ReducedPipelineComponent::PipelineOp(op));
             return Some(res);
         };
 

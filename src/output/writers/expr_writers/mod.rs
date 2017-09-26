@@ -158,7 +158,7 @@ mod tests {
     impl ExpressionWriter for TestDynamicExpressionWriter {
         type V = TestDynamicValueWriter;
 
-        fn write_expression(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
+        fn write_expression(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, op: &ExprOp, left: &ExprValue, right: &ExprValue) -> Result {
             assert!(self.wrote_op.is_none() && self.wrote_left.is_none() && self.wrote_right.is_none(), "Called method more than once.");
 
             self.wrote_op = Some(op.clone());
@@ -167,35 +167,35 @@ mod tests {
             Ok(())
         }
 
-        fn write_test(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &TestOp, left: &ExprValue, right: Option<&ExprValue>) -> Result {
+        fn write_test(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _op: &TestOp, _left: &ExprValue, _right: Option<&ExprValue>) -> Result {
             Ok(())
         }
 
-        fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, a_op: &ExprApplyOp, arr: Option<I>) -> Result {
+        fn write_apply_expression<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _a_op: &ExprApplyOp, _arr: Option<I>) -> Result {
             Ok(())
         }
 
-        fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
+        fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _arr: Option<I>, _ty: Option<VarType>) -> Result {
             Ok(())
         }
 
-        fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _props: Option<I>) -> Result {
             Ok(())
         }
 
-        fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
+        fn write_binding(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _binding: &BindingType) -> Result {
             Ok(())
         }
 
-        fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
+        fn write_group(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _inner_expr: Option<&ExprValue>) -> Result {
             Ok(())
         }
 
-        fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
+        fn write_symbol(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, sym: &Symbol) -> Result {
             Ok(())
         }
 
-        fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result {
+        fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _head: Option<&ExprValue>, _parts: I) -> Result {
             Ok(())
         }
     }

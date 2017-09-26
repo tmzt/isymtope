@@ -129,27 +129,3 @@ impl ReducerActionProcessing {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ElementOp {
-    ElementOpen(String,
-                String,
-                Option<Vec<Prop>>,
-                Option<EventHandlersVec>,
-                ElementValueBinding),
-    ElementVoid(String,
-                String,
-                Option<Vec<Prop>>,
-                Option<EventHandlersVec>,
-                ElementValueBinding),
-    ElementClose(String),
-    WriteValue(ExprValue, String),
-    InstanceComponent(String,
-                      String,
-                      Option<String>,
-                      Option<Vec<PropKey>>,
-                      Option<LensExprType>),
-    StartBlock(String),
-    EndBlock(String),
-    MapCollection(String, Option<String>, ExprValue),
-}
