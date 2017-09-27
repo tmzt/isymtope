@@ -263,13 +263,6 @@ impl Context {
         };
     }
 
-    pub fn add_value(&mut self, key: &str, expr: ExprValue) {
-        let map_id = self.scope().map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get_mut(&map_id) {
-            map.add_value(key, expr);
-        };
-    }
-
     pub fn add_binding_value(&mut self, binding: &BindingType, expr: ExprValue) {
         let map_id = self.scope().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {

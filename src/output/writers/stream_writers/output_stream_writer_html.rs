@@ -147,7 +147,8 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
 
                 for prop in bound_props {
                     if let Some(expr) = prop.1 {
-                        ctx.add_value(prop.0, expr.to_owned());
+                        let binding = BindingType::ComponentPropBinding(prop.0.to_owned());
+                        ctx.add_binding_value(&binding, expr.to_owned());
                     }
                 } 
             };
