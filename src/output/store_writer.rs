@@ -62,7 +62,7 @@ impl StoreWriterJs {
 
         if let Some(ref actions) = reducer.actions {
             for action in actions {
-                self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, &action)?;
+                self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, action)?;
             }
         };
 

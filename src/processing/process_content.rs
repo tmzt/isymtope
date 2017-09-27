@@ -5,22 +5,6 @@ use processing::*;
 use scope::*;
 
 
-// #[derive(Debug, Default)]
-// pub struct ContentOutputProcessing {
-//     root_block: BlockProcessingState,
-// }
-
-// #[derive(Debug)]
-// pub struct ContentOutput {
-//     pub root_block: BlockProcessingState,
-// }
-
-// impl Into<ContentOutput> for ContentOutputProcessing {
-//     fn into(self) -> ContentOutput {
-//         ContentOutput { root_block: self.root_block }
-//     }
-// }
-
 #[derive(Debug, Default)]
 pub struct ProcessContent {}
 
@@ -51,16 +35,15 @@ impl ProcessContent {
                                 bindings: &mut BindingContext,
                                 node: &ContentNodeType,
                                 block: &mut BlockProcessingState,
-                                parent_tag: Option<&str>)
+                                _: Option<&str>)
                                 -> DocumentProcessingResult<()> {
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {
                 ctx.push_child_scope();
                 ctx.append_path_str(&element_data.element_key);
 
-                let complete_key = ctx.join_path(Some("."));
                 let element_tag = element_data.element_ty.to_lowercase();
-                let lens = element_data.lens.as_ref().map(Clone::clone);
+                // let lens = element_data.lens.as_ref().map(Clone::clone);
 
                 // TODO: figure out when we want to pass along symbols or values
 
@@ -117,14 +100,13 @@ impl ProcessContent {
                                 bindings: &mut BindingContext,
                                 element_data: &ElementType,
                                 block: &mut BlockProcessingState,
-                                parent_tag: Option<&str>)
+                                _: Option<&str>)
                                 -> Result {
         let complete_key = ctx.join_path(Some("."));
         let element_tag = element_data.element_ty.to_lowercase();
 
         let props = element_data.attrs.as_ref().map(|attrs| ctx.map_props(attrs.into_iter()));
 
-        // let mut props = element_data.attrs.as_ref().map(|s| s.clone());
         let mut event_handlers: EventHandlersVec = Default::default();
         // let mut events: EventsVec = Default::default();
         let mut value_binding: ElementValueBinding = Default::default();
@@ -139,7 +121,7 @@ impl ProcessContent {
                     value_binding = Some((key.to_owned(), prop_side, Some(read_side)));
                 };
 
-                if let &ElementBindingNodeType::ElementValueBindingNode(ref key, ref sym) = element_binding {
+                if let &ElementBindingNodeType::ElementValueBindingNode(_, ref sym) = element_binding {
                     let resolved_sym = ctx.resolve_symbol_to_symbol(sym);
                     let binding_key = sym.as_path_str().map_or_else(|| allocate_element_key(), |path| path.replace(".", "_"));
                     value_binding = Some((binding_key, resolved_sym, None));
@@ -174,11 +156,6 @@ impl ProcessContent {
                             };
 
                             let sym = Symbol::initial_value(&value_binding.1, &dom_binding);
-
-                            // let sym = match ctx.resolve_sym(&value_binding.0) {
-                            //     Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
-                            //     _ => dom_binding
-                            // };
                             ctx.add_sym(&value_binding.0, sym.clone());
                             (value_binding.0.to_owned(), sym, value_binding.2.to_owned())
                         });
@@ -207,8 +184,7 @@ impl ProcessContent {
         // This should only be Some if there are actually children
         if let Some(ref children) = element_data.children {
             // Push element open
-            let has_len = event_handlers.len() > 0;
-            let event_handlers = if has_len { Some(event_handlers) } else { None };
+            let event_handlers = if !event_handlers.is_empty() { Some(event_handlers) } else { None };
             block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
                                                         complete_key.clone(),
                                                         props,
@@ -229,8 +205,7 @@ impl ProcessContent {
             // Push element close
             block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
         } else {
-            let has_len = event_handlers.len() > 0;
-            let event_handlers = if has_len { Some(event_handlers) } else { None };
+            let event_handlers = if !event_handlers.is_empty() { Some(event_handlers) } else { None };
             block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
                                                         complete_key.clone(),
                                                         props,
@@ -244,7 +219,7 @@ impl ProcessContent {
 
     #[inline]
     pub fn process_element_as_component(&mut self,
-                                processing: &mut DocumentProcessingState,
+                                _: &mut DocumentProcessingState,
                                 ctx: &mut Context,
                                 bindings: &mut BindingContext,
                                 element_data: &ElementType,
@@ -258,8 +233,7 @@ impl ProcessContent {
         let lens = lens.map(|lens| ctx.map_lens(bindings, lens));
 
         // Create list of prop keys
-        let mut prop_list: Option<Vec<PropKey>> = element_data.attrs
-            .as_ref()
+        let mut prop_list: Option<Vec<PropKey>> = element_data.attrs.as_ref()
             .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
 
         match lens {
@@ -304,9 +278,9 @@ impl ProcessContent {
     #[inline]
     pub fn process_event_handler_action_param_types<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, processing: &mut DocumentProcessingState, ctx: &mut Context, action_ops: I) -> Result {
         for action_op in action_ops.into_iter() {
-            match action_op {
-                &ActionOpNode::DispatchAction(ref action_name, ref action_params) => {
-                    if let &Some(ref action_params) = action_params {
+            match *action_op {
+                ActionOpNode::DispatchAction(ref action_name, ref action_params) => {
+                    if let Some(ref action_params) = *action_params {
                         let complete_key = ctx.join_action_path_with(Some("."), action_name);
 
                         for ref action_param in action_params {

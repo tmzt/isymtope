@@ -24,8 +24,8 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
     #[allow(unused_variables)]
     fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
         for action_op in action_ops {
-            match action_op {
-                &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
+            match *action_op {
+                ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
                     let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
 
                     if let Some(ref action_params) = *action_params {

@@ -16,12 +16,11 @@ pub trait ExprWriter {
     fn write_expr(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
 }
 
-fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-    match expr {
-        &ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
-        &ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),
-        &ExprValue::LiteralBool(b) => value_writer.write_literal_bool(w, b),
-        &ExprValue::Undefined => value_writer.write_undefined(w),
+fn common_write_expr(w: &mut io::Write, value_writer: &mut ValueWriter, _ctx: &mut Context, _bindings: &BindingContext, expr: &ExprValue) -> Result {
+    match *expr {
+        ExprValue::LiteralString(ref s) => value_writer.write_literal_string(w, s),
+        ExprValue::LiteralNumber(ref n) => value_writer.write_literal_number(w, n),
+        ExprValue::LiteralBool(b) => value_writer.write_literal_bool(w, b),
         _ => value_writer.write_undefined(w)
     }
 }
@@ -31,51 +30,51 @@ pub trait ExpressionWriter {
 
     #[inline]
     fn write_expr_to(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result {
-        if let &ExprValue::Expr(ref op, ref left, ref right) = expr {
-            return self.write_expression(w, doc, value_writer, ctx, bindings, op, left, right);
-        };
+        match *expr {
+            ExprValue::Expr(ref op, ref left, ref right) => {
+                self.write_expression(w, doc, value_writer, ctx, bindings, op, left, right)
+            }
 
-        if let &ExprValue::TestValue(ref op, box ref left, ref right) = expr {
-            let right = right.as_ref().map(|&box ref right| right);
-            return self.write_test(w, doc, value_writer, ctx, bindings, op, left, right);
-        };
+            ExprValue::TestValue(ref op, box ref left, ref right) => {
+                let right = right.as_ref().map(|&box ref right| right);
+                self.write_test(w, doc, value_writer, ctx, bindings, op, left, right)
+            }
 
-        if let &ExprValue::Apply(ref a_op, ref arr) = expr {
-            let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
-            return self.write_apply_expression(w, doc, value_writer, ctx, bindings, a_op, arr_iter);
-        };
+            ExprValue::Apply(ref a_op, ref arr) => {
+                let arr_iter = arr.as_ref().map(|arr| arr.iter().map(|i| i.as_ref()));
+                self.write_apply_expression(w, doc, value_writer, ctx, bindings, a_op, arr_iter)
+            }
 
-        if let &ExprValue::LiteralArray(ref arr) = expr {
-            let arr_iter = arr.as_ref().map(|arr| arr.iter());
-            return self.write_array(w, doc, value_writer, ctx, bindings, arr_iter, None);
-        };
+            ExprValue::LiteralArray(ref arr) => {
+                let arr_iter = arr.as_ref().map(|arr| arr.iter());
+                self.write_array(w, doc, value_writer, ctx, bindings, arr_iter, None)
+            }
 
-        if let &ExprValue::LiteralObject(ref props) = expr {
-            let props_iter = props.as_ref().map(|arr| arr.iter());
-            return self.write_props(w, doc, value_writer, ctx, bindings, props_iter);
-        };
+            ExprValue::LiteralObject(ref props) => {
+                let props_iter = props.as_ref().map(|arr| arr.iter());
+                self.write_props(w, doc, value_writer, ctx, bindings, props_iter)
+            }
 
-        if let &ExprValue::SymbolReference(ref sym) = expr {
-            return self.write_symbol(w, doc, value_writer, ctx, bindings, sym);
-        };
+            ExprValue::SymbolReference(ref sym) => {
+                self.write_symbol(w, doc, value_writer, ctx, bindings, sym)
+            }
 
-        if let &ExprValue::Group(ref inner_expr) = expr {
-            let inner_expr = match inner_expr { &Some(box ref e) => Some(e), _ => None };
-            return self.write_group(w, doc, value_writer, ctx, bindings, inner_expr);
-        };
+            ExprValue::Group(ref inner_expr) => {
+                let inner_expr = match inner_expr { &Some(box ref e) => Some(e), _ => None };
+                self.write_group(w, doc, value_writer, ctx, bindings, inner_expr)
+            }
 
-        if let &ExprValue::Binding(ref binding) = expr {
-            return self.write_binding(w, doc, value_writer, ctx, bindings, binding);
-        };
+            ExprValue::Binding(ref binding) => {
+                self.write_binding(w, doc, value_writer, ctx, bindings, binding)
+            }
 
-        if let &ExprValue::ReducedPipeline(ref head, Some(ref parts)) = expr {
-            let head = head.as_ref().map(|&box ref head| head);
-            self.write_pipeline(w, doc, value_writer, ctx, bindings, head, parts.iter())?;
+            ExprValue::ReducedPipeline(ref head, Some(ref parts)) => {
+                let head = head.as_ref().map(|&box ref head| head);
+                self.write_pipeline(w, doc, value_writer, ctx, bindings, head, parts.iter())
+            }
 
-            return Ok(());
-        };
-
-        self::common_write_expr(w, value_writer, ctx, bindings, expr)
+            _ => self::common_write_expr(w, value_writer, ctx, bindings, expr)
+        }
     }
 
     // fn write_expr(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue) -> Result;
@@ -88,9 +87,9 @@ pub trait ExpressionWriter {
     fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result;
 
     fn write_symbol(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, sym: &Symbol) -> Result {
-        match sym.sym_ref() {
-            &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
-            &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
+        match *sym.sym_ref() {
+            SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
+            SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
             _ => value_writer.write_undefined(w)
         }
     }

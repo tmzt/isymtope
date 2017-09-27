@@ -325,8 +325,8 @@ impl ExpressionWriter for ExpressionWriterJs {
                             wrote_first = true;
 
                             write!(w, "map(function(item, idx, arr) {{ ")?;
-                            match op {
-                                &ReducedMethodType::MapIf(_, ref cond) => {
+                            match *op {
+                                ReducedMethodType::MapIf(_, ref cond) => {
                                     write!(w, "return ((")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
                                     write!(w, ") ? (")?;
@@ -349,8 +349,8 @@ impl ExpressionWriter for ExpressionWriterJs {
                             wrote_first = true;
 
                             write!(w, "reduce(function(item, acc) {{ ")?;
-                            match op {
-                                &ReducedMethodType::ReduceIf(_, ref cond, _) => {
+                            match *op {
+                                ReducedMethodType::ReduceIf(_, ref cond, _) => {
                                     write!(w, "return ((")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
                                     write!(w, ") ? (")?;
@@ -378,9 +378,9 @@ impl ExpressionWriter for ExpressionWriterJs {
                         &ReducedMethodType::UniqMember(ref sym) => {
                             let expr = ExprValue::SymbolReference(sym.to_owned());
 
-                            write!(w, "filter((function() {{ let _keys = new Set(); return function(item) {{ let _key = ")?;
+                            write!(w, "filter((function(_keys) {{ return function(item) {{ let _key = ")?;
                             self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
-                            write!(w, "; if (_keys.has(_key)) {{ return false; }} _keys.add(_key); return true; }}; }})())")?;
+                            write!(w, "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()));")?;
                         },
 
                         &ReducedMethodType::Max => {

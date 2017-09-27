@@ -117,15 +117,15 @@ impl<'doc> PageWriter<'doc> {
         }
     }
 
-    pub fn push_content_context(&mut self, ctx: &mut Context, bindings: &BindingContext) -> Result {
+    pub fn push_content_context(&mut self, ctx: &mut Context, _bindings: &BindingContext) -> Result {
         ctx.push_child_scope();
         if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
             ctx.append_action_path_str(default_reducer_key);
         };
 
-        for (_, reducer_data) in self.doc.reducer_key_data.iter() {
-            let reducer_key = reducer_data.reducer_key.to_owned();
-            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
+        for reducer_data in self.doc.reducer_key_data.values() {
+            let reducer_key = &reducer_data.reducer_key;
+            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
             ctx.add_sym(&reducer_key, Symbol::binding(&binding));
         }
         Ok(())
@@ -170,7 +170,7 @@ impl<'doc> PageWriter<'doc> {
     #[allow(unused_variables)]
     pub fn write_initial_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         let events_iter = self.writers.html.events_iter();
-        self.writers.js.write_bound_events(w, &self.doc, ctx, bindings, events_iter)?;
+        self.writers.js.write_bound_events(w, self.doc, ctx, bindings, events_iter)?;
         Ok(())
     }
 
@@ -224,7 +224,7 @@ impl<'doc> PageWriter<'doc> {
         self.write_element_rendering_script_html(w, ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
-        store_writer.write_store(w, &self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
+        store_writer.write_store(w, self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
 
         write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
         Ok(())
