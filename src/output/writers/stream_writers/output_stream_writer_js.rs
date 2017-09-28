@@ -176,13 +176,12 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        // let instance_key = instance_key.as_static_string();
-        // let path_expr = ctx.join_path_as_expr_with(Some("."), &instance_key);
+        let instance_key = ExprValue::Apply(ExprApplyOp::JoinString(Some(".".into())), Some(vec![instance_key.as_expr().into(), ExprValue::Binding(BindingType::MapIndexBinding).into()]));
 
         write!(w, "(")?;
         self.write_expr(w, doc, ctx, bindings, coll_expr)?;
         write!(w, ").forEach(function(item, idx) {{")?;
-        self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, instance_key, false, props, events, binding, None)?;
+        self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Dynamic(&instance_key), false, props, events, binding, None)?;
         writeln!(w, "}});")?;
         Ok(())
     }
