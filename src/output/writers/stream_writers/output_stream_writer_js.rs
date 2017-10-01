@@ -189,44 +189,75 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
 
 
 #[cfg(test)]
+#[macro_use]
 mod tests {
+
+
     use super::*;
+    use std::io;
     use std::str;
     use std::iter::empty;
     use scope::context::*;
     use scope::bindings::*;
     use output::writers::*;
 
+    #[macro_use]
+    use output::writers::stream_writers::tests;
 
-    fn create_document<'a>(template: &'a Template) -> Document {
-        let mut ctx = Context::default();
-        let mut bindings = BindingContext::default();
-        let mut processing = ProcessDocument::from_template(&template);
-        assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
-        processing.into()
-    }
 
     #[test]
     pub fn test_output_stream_writers_js_ops1() {
         let template = Template::new(vec![]);
-        let doc = create_document(&template);
-
-        let mut ctx = Context::default();
-        ctx.append_path_str("prefix");
-        let bindings = BindingContext::default();
-
-        let mut writer = DefaultOutputWriterJs::default();
-
         let mut s: Vec<u8> = Default::default();
-        let key = "key".to_owned();
-        assert!(
-            writer.write_op_element_open(&mut s, &doc, &mut ctx, &bindings, "span", Some(&key), false, empty(), empty(), empty()).is_ok() &&
-            writer.write_op_element_close(&mut s, &doc, &mut ctx, &bindings, "span").is_ok()
+
+        test_writing!(
+            template,
+            |_, _, _| Ok(()),
+            |writer: &mut DefaultOutputWriterJs, doc: &Document, ctx: & mut Context, bindings: &BindingContext| -> Result {
+                ctx.append_path_str("prefix");
+
+                writer.write_op_element_open(&mut s, doc, ctx, bindings, "span", Some("key".into()), false, empty(), empty(), empty())?;
+                writer.write_op_element_close(&mut s, doc, ctx, bindings, "span")?;
+                Ok(())
+            }
         );
-        // assert_eq!(str::from_utf8(&s), Ok("IncrementalDOM.elementOpen(\"span\", [\"prefix\", \"key\"].join(\".\"));\nIncrementalDOM.elementClose(\"span\");\n".into()));
-        assert_eq!(str::from_utf8(&s), Ok(r#"
-    IncrementalDOM.elementOpen("span", ["prefix", "key"].join("."));
-    IncrementalDOM.elementClose("span");
+
+        assert_eq!(str::from_utf8(&s), Ok(r#"IncrementalDOM.elementOpen("span", "prefix.key", ["key", "prefix.key"]);
+IncrementalDOM.elementClose("span");
 "#));
     }
+
+    #[test]
+    pub fn test_output_stream_writers_js_ops2() {
+        let template = Template::new(vec![]);
+
+        let comp = ComponentDefinitionType {
+            name: "todo_item".into(),
+            inputs: None,
+            children: None
+        };
+
+        let mut s: Vec<u8> = Default::default();
+
+        test_writing!(
+            template,
+            move |processing: &mut ProcessDocument, ctx: &mut Context, bindings: &mut BindingContext| {
+                processing.process_component_definition(ctx, bindings, &comp)
+            },
+            // |writer: &mut DefaultOutputWriterJs, doc: &Document, ctx: & mut Context, bindings: &BindingContext| -> Result {
+            |writer: &mut DefaultOutputWriterJs, doc, ctx: &mut Context, bindings| -> Result {
+                ctx.append_path_str("prefix");
+
+                writer.write_op_element_open(&mut s, doc, ctx, bindings, "span", Some("key".into()), false, empty(), empty(), empty())?;
+                writer.write_op_element_close(&mut s, doc, ctx, bindings, "span")?;
+                Ok(())
+            }
+        );
+
+        assert_eq!(str::from_utf8(&s), Ok(r#"IncrementalDOM.elementOpen("span", "prefix.key", ["key", "prefix.key"]);
+IncrementalDOM.elementClose("span");
+"#));
+        // }
+    }
+
 }

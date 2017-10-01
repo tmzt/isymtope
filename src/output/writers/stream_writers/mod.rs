@@ -1,5 +1,10 @@
+#[cfg(test)]
+#[macro_use]
+pub mod tests;
+
 pub mod output_stream_writer_html;
 pub mod output_stream_writer_js;
+
 
 use std::io;
 
@@ -32,4 +37,19 @@ pub trait ElementOpsUtilWriter {
 
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>;
+}
+
+#[allow(dead_code)]
+pub fn create_document<'a, F>(template: &'a Template, mut f: F) -> Document
+  where F: FnMut(&mut ProcessDocument, &mut Context, &mut BindingContext) -> Result
+{
+    let mut ctx = Context::default();
+    let mut bindings = BindingContext::default();
+    let mut processing = ProcessDocument::from_template(&template);
+    assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
+
+    let res = f(&mut processing, &mut ctx, &mut bindings);
+    assert!(res.is_ok());
+
+    processing.into()
 }

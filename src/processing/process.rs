@@ -34,7 +34,7 @@ impl<'input> ProcessDocument<'input> {
     pub fn process_component_definition(&mut self,
                                         ctx: &mut Context,
                                         bindings: &mut BindingContext,
-                                        component_data: &'input ComponentDefinitionType)
+                                        component_data: &ComponentDefinitionType)
                                         -> DocumentProcessingResult<()> {
         let mut comp_output = CompDefProcessorOutput::default();
         let mut comp_processor = CompDefProcessor::default();
