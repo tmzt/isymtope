@@ -1,5 +1,6 @@
 // #![allow(dead_code)]
 
+use model::*;
 use parser::*;
 use scope::*;
 

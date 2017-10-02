@@ -2,6 +2,7 @@
 use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 
+use model::*;
 use parser::*;
 use scope::*;
 use scope::symbols::*;
@@ -816,6 +817,7 @@ impl Context {
 #[cfg(test)]
 mod tests {
     use std::iter::*;
+    use model::*;
     use parser::*;
     use scope::*;
     use scope::symbols::*;

@@ -6,6 +6,7 @@ pub use self::expr_writer_js::{ValueWriterJs, ExpressionWriterJs};
 
 use std::io;
 
+use model::*;
 use parser::*;
 use processing::*;
 use scope::*;

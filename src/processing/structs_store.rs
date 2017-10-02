@@ -4,7 +4,8 @@ use std::collections::hash_map::Entry;
 
 use linked_hash_map::LinkedHashMap;
 
-use parser::ast::*;
+use model::*;
+use parser::*;
 use processing::*;
 
 

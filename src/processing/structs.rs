@@ -7,6 +7,7 @@ use std::collections::hash_map::{HashMap, Entry};
 
 use linked_hash_map::LinkedHashMap;
 
+use model::*;
 use parser::*;
 use parser::token::Error as ParsingError;
 use processing::*;

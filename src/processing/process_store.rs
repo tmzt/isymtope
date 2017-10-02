@@ -1,6 +1,7 @@
 
 use std::iter;
-use parser::ast::*;
+use model::*;
+use parser::*;
 use processing::*;
 use scope::*;
 

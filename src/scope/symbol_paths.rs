@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use parser::ast::*;
+use model::*;
+use parser::*;
 use scope::context::*;
 
 
@@ -98,7 +99,8 @@ impl SymbolPathScope {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::ast::*;
+    use model::*;
+    use parser::*;
 
 
     #[test]

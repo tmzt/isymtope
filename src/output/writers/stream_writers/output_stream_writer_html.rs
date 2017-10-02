@@ -2,6 +2,7 @@
 use std::io;
 use std::collections::HashMap;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;

@@ -2,6 +2,7 @@
 
 use std::iter;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;
@@ -140,7 +141,8 @@ impl CompDefProcessor {
 mod tests {
     use super::*;
     use std::iter::*;
-    use parser::ast::*;
+    use model::*;
+    use parser::*;
     use scope::context::*;
 
 

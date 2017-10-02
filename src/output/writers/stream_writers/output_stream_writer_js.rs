@@ -1,6 +1,7 @@
 
 use std::io;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;
