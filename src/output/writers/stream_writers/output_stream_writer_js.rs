@@ -54,7 +54,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
         write!(w, ", [\"key\", ")?;
         self.write_expr(w, doc, ctx, bindings, &path_expr)?;
 
-        for (a, b) in static_props {
+        for &(ref a, ref b) in &static_props {
             write!(w, ", \"{}\", \"{}\"", a, b)?;
         }
         write!(w, "]")?;
@@ -100,10 +100,21 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
         // Update bound values
         if element_tag == "input" {
+            let is_checkbox: bool = static_props.iter().any(|prop| prop.0 == "type" && prop.1 == "checkbox");
+            let element = element_key.and_then(|element_key| match element_tag {
+                "input" if is_checkbox => {
+                    Some(ExprValue::Binding(BindingType::DOMInputCheckboxElementCheckedBinding(ReducedValue::Dynamic(path_expr.clone()).into())))
+                    // Some(ExprValue::Binding(BindingType::DOMInputCheckboxElementCheckedBinding(ReducedValue::Static(StaticValue::StaticString(element_key.into())).into())))
+                }
+
+                _ => {
+                    Some(ExprValue::Binding(BindingType::DOMInputElementValueBinding(element_key.to_owned())))
+                }
+            });
+
             let value_binding = binding.filter_map(|binding| binding.as_ref().map(|b| &b.1)).nth(0);
             if let Some(initial) = value_binding.as_ref().and_then(|s| s.initial()) {
-                if let Some(element_key) = element_key {
-                    let element = ExprValue::Binding(BindingType::DOMInputElementValueBinding(element_key.to_owned()));
+                if let Some(element) = element {
                     self.write_expr(w, doc, ctx, bindings, &element)?;
                     write!(w, " = ")?;
                     let expr = ExprValue::SymbolReference(initial.to_owned());

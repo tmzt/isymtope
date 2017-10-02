@@ -40,10 +40,12 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
                         let mut first_item = true;
                         for prop in action_params {
                             if let Some(ref expr) = prop.1 {
+                                let expr = ctx.reduce_expr_or_return_same(expr);
+
                                 if !first_item { write!(w, ", ")?; }
                                 first_item = false;
                                 write!(w, "\"{}\": ", &prop.0)?;
-                                self.write_expr(w, doc, ctx, bindings, expr)?;
+                                self.write_expr(w, doc, ctx, bindings, &expr)?;
                             };
                         }
                         // write_js_props_object(w, Some(action_params.iter()), self.doc, &scope)?;
@@ -65,9 +67,15 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             let final_event_name: String;
             let mut was_enterkey = false;
 
+            let key_expr = complete_key.as_expr();
+
             match event.2 {
+                EventHandler::Event(ref event_name, _, _) if event_name == "enterkey" => {
+                    was_enterkey = true; final_event_name = "keydown".into();
+                }
+
                 EventHandler::Event(ref event_name, _, _) => {
-                    final_event_name = if event_name == "enterkey" { was_enterkey = true; "keydown".into() } else { event_name.to_owned() };
+                    final_event_name = event_name.to_owned();
                 }
 
                 EventHandler::DefaultEvent(_, _) => {
@@ -75,16 +83,11 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
                 }
             }
 
-            let key_expr = match complete_key {
-                InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-                InstanceKey::Dynamic(e) => e.to_owned()
-            };
-
             write!(w, "setEventListener(")?;
             self.write_expr(w, doc, ctx, bindings, &key_expr)?;
             write!(w, ", ")?;
 
-            let dom_binding = ExprValue::Binding(BindingType::DOMElementBinding(key_expr.into()));
+            let dom_binding = ExprValue::Binding(BindingType::DOMElementBinding(key_expr.clone().into()));
 
             self.write_expr(w, doc, ctx, bindings, &dom_binding)?;
             write!(w, ", \"{}\", function(event) {{", final_event_name)?;
@@ -95,12 +98,29 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
 
             ctx.push_child_scope();
 
+
             match event.2 {
                 EventHandler::Event(_, _, Some(ref action_ops)) | EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
+                    ctx.push_child_scope();
+                    if let EventHandler::Event(ref event_name, _, _) = event.2 {
+                        if event_name == "change" {
+                            let checked_binding = BindingType::DOMInputCheckboxElementCheckedBinding(Box::new(ReducedValue::Dynamic(key_expr.to_owned())));
+                            ctx.add_binding_value(&BindingType::EventElementValueBinding, ExprValue::Binding(checked_binding));
+                        }
+                    };
+
                     self.write_event_action_ops(w, doc, ctx, bindings, action_ops.iter())?;
+                    ctx.pop_scope();
                 }
                 _ => {}
             }
+
+            // match event.2 {
+            //     EventHandler::Event(_, _, Some(ref action_ops)) | EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
+            //         self.write_event_action_ops(w, doc, ctx, bindings, action_ops.iter())?;
+            //     }
+            //     _ => {}
+            // }
 
             ctx.pop_scope();
 

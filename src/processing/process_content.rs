@@ -141,7 +141,8 @@ impl ProcessContent {
                         value_binding = value_binding.as_ref().map(|value_binding| {
                             let dom_binding: BindingType;
                             if is_checkbox {
-                                dom_binding = BindingType::DOMInputCheckboxElementCheckedBinding(complete_key.to_owned());
+                                let key = ReducedValue::Static(StaticValue::StaticString(complete_key.to_owned()));
+                                dom_binding = BindingType::DOMInputCheckboxElementCheckedBinding(Box::new(key));
                             } else {
                                 dom_binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
                             } 
@@ -160,6 +161,9 @@ impl ProcessContent {
                             (value_binding.0.to_owned(), sym, value_binding.2.to_owned())
                         });
                     }
+
+                    let binding = BindingType::EventElementValueBinding;
+                    ctx.add_sym("value", Symbol::binding(&binding));
 
                     let event_handler = ctx.map_event_handler_symbols(event_handler);
 

@@ -89,6 +89,10 @@ impl Scope {
         self.symbol_path.join_as_expr(s)
     }
 
+    pub fn join_path_as_expr_with_expr(&self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
+        self.symbol_path.join_as_expr_with_expr(sep, last)
+    }
+
     pub fn join_path_as_expr_with(&self, sep: Option<&str>, last: &str) -> ExprValue {
         self.symbol_path.join_as_expr_with(sep, last)
     }

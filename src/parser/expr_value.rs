@@ -1,6 +1,14 @@
 use std::iter;
-use itertools::Itertools;
 use parser::*;
+
+
+pub trait AsStaticString {
+  fn as_static_string(&self) -> String;
+}
+
+pub trait AsExpr {
+    fn as_expr(&self) -> ExprValue;
+}
 
 pub type IterMethodPipelineParam = (ExprValue, Option<ExprValue>);
 
@@ -95,31 +103,59 @@ pub enum InstanceKey<'a> {
   Dynamic(&'a ExprValue)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl<'a> AsStaticString for InstanceKey<'a> {
+  fn as_static_string(&self) -> String {
+    match self {
+      &InstanceKey::Static(s) => s.to_owned(),
+      &InstanceKey::Dynamic(_) => "undefined".into()
+    }
+  }
+}
+
+impl<'a> AsExpr for InstanceKey<'a> {
+  fn as_expr(&self) -> ExprValue {
+    match self {
+      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      &InstanceKey::Dynamic(e) => e.to_owned()
+    }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StaticValue {
     StaticString(String),
     StaticNumber(i32),
     StaticBool(bool)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReducedValue {
   Static(StaticValue),
   Dynamic(ExprValue)
 }
 
-impl<'a> InstanceKey<'a> {
-  pub fn as_static_string(&self) -> String {
+impl AsStaticString for ReducedValue {
+  fn as_static_string(&self) -> String {
     match self {
-      &InstanceKey::Static(s) => s.to_owned(),
-      &InstanceKey::Dynamic(_) => "undefined".into()
+      &ReducedValue::Static(ref s) => match s {
+          &StaticValue::StaticString(ref s) => s.to_owned(),
+          &StaticValue::StaticNumber(n) => format!("{}", n),
+          &StaticValue::StaticBool(b) => format!("{}", b)
+      },
+      &ReducedValue::Dynamic(_) => "undefined".into()
     }
   }
+}
 
-  pub fn as_expr(&self) -> ExprValue {
+impl AsExpr for ReducedValue {
+  fn as_expr(&self) -> ExprValue {
     match self {
-      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-      &InstanceKey::Dynamic(e) => e.to_owned()
+      &ReducedValue::Static(ref s) => match s {
+          &StaticValue::StaticString(ref s) => ExprValue::LiteralString(s.to_owned()),
+          &StaticValue::StaticNumber(n) => ExprValue::LiteralNumber(n),
+          &StaticValue::StaticBool(b) => ExprValue::LiteralBool(b)
+      },
+      &ReducedValue::Dynamic(ref expr) => expr.to_owned()
     }
   }
 }

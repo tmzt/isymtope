@@ -6,6 +6,7 @@ store {
 
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
+        action toggle_all(checked) => state | set complete = (checked);
         action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id) |unique id;
     }
 
@@ -30,6 +31,12 @@ component new_todo (entry) {
         enterkey || { dispatch add(entry: {text: entry}); } {}
 }
 
+component toggle_all (checked) {
+    input(class="toggle-all", id="toggle-all", type="checkbox")
+        change || { dispatch toggle_all(checked: value); } {}
+    label(class="", for="toggle-all") { ("Mark all as complete") }
+}
+
 link(rel="stylesheet", href="https://unpkg.com/todomvc-common@1.0.3/base.css", type="text/css") {}
 link(rel="stylesheet", href="https://unpkg.com/todomvc-app-css@2.1.0/index.css", type="text/css") {}
 
@@ -40,8 +47,7 @@ section(class="todoapp") {
     }
 
     section(class="main") {
-        input(class="toggle-all", id="toggle-all", type="checkbox") {}
-        label(class="", for="toggle-all") { ("Mark all as complete") }
+        toggle_all(checked=true) {}
         ul(id="todo-list", class="todo-list") {
             todo_item (for todo in todos) {}
         }

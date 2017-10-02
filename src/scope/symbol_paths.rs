@@ -66,11 +66,9 @@ impl SymbolPathScope {
     }
 
     #[inline]
-    pub fn join_as_expr_with(&self, sep: Option<&str>, last: &str) -> ExprValue {
+    pub fn join_as_expr_with_expr(&self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
         // Handle special case first
-        if self.0.is_none() {
-            return ExprValue::LiteralString(last.to_owned());
-        }
+        if self.0.is_none() { return last.to_owned(); }
 
         let mut parts: Vec<Box<ExprValue>> = Default::default();
 
@@ -81,11 +79,18 @@ impl SymbolPathScope {
             }).collect();
 
             if !arr.is_empty() { parts.extend(arr); }
-            parts.push(Box::new(ExprValue::LiteralString(last.to_owned())));
+            parts.push(Box::new(last.to_owned()));
         };
 
         let join_opt = sep.map(|s| s.to_owned());
         ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(parts))
+    }
+
+    #[inline]
+    pub fn join_as_expr_with(&self, sep: Option<&str>, last: &str) -> ExprValue {
+        let last = ExprValue::LiteralString(last.to_owned());
+
+        self.join_as_expr_with_expr(sep, &last)
     }
 }
 

@@ -114,7 +114,9 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
                         }
 
                         _ => {
-                            self.write_op_element_instance_component(w, doc, ctx, bindings, component_ty, component_key, true, None, None, None)?;
+                            let props = vec![];
+                            self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props, iter::empty(), iter::empty(), None)?;
+                            // self.write_op_element_instance_component(w, doc, ctx, bindings, component_ty, component_key, true, None, None, None)?;
                         }
                     }
                 }

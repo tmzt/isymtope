@@ -611,11 +611,6 @@ impl Context {
                 Some(ExprValue::Group(inner_expr))
             }
 
-            &ExprValue::LiteralObject(ref props) => {
-                let props = props.as_ref().map(|props| self.map_props(props.iter()));
-                Some(ExprValue::LiteralObject(props))
-            }
-
             &ExprValue::SymbolReference(ref sym) => {
                 match sym.sym_ref() {
                     &SymbolReferenceType::UnresolvedReference(ref key) => {
@@ -630,6 +625,10 @@ impl Context {
                             return Some(ExprValue::SymbolReference(sym));
                         };
                         None
+                    }
+
+                    &SymbolReferenceType::Binding(ref binding) => {
+                        self.resolve_binding_value(binding)
                     }
 
                     _ => None
@@ -651,12 +650,9 @@ impl Context {
                 };
                 None
             }
-
+  
             &ExprValue::Binding(ref binding) =>  {
-                if let Some(expr) = self.resolve_binding_value(binding) {
-                    return Some(expr.to_owned());
-                };
-                None
+                 self.resolve_binding_value(binding)
             }
 
             _ => None
@@ -777,6 +773,10 @@ impl Context {
     #[allow(dead_code)]
     pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
         self.scope().join_path_as_expr(s)
+    }
+
+    pub fn join_path_as_expr_with_expr(&mut self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
+        self.scope().join_path_as_expr_with_expr(sep, last)
     }
 
     pub fn join_path_as_expr_with(&mut self, sep: Option<&str>, last: &str) -> ExprValue {

@@ -232,8 +232,7 @@ impl ExpressionWriter for ExpressionWriterJs {
             }
 
             BindingType::DOMElementAttributeBinding(ref complete_key, _) |
-            BindingType::DOMInputElementValueBinding(ref complete_key) |
-            BindingType::DOMInputCheckboxElementCheckedBinding(ref complete_key) => {
+            BindingType::DOMInputElementValueBinding(ref complete_key) => {
                 let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
 
                 // Handle special case
@@ -254,6 +253,23 @@ impl ExpressionWriter for ExpressionWriterJs {
                     _ => {}
                 };
 
+                Ok(())                
+            }
+
+            BindingType::DOMInputCheckboxElementCheckedBinding(box ref key_expr) => {
+                let key_expr = key_expr.as_expr();
+                // let path_expr = ctx.join_path_as_expr_with_expr(Some("."), &key_expr);
+
+                // Handle special case
+                if let Some(s) = ctx.reduce_static_expr_to_string(&key_expr, true) {
+                    write!(w, "document.querySelector(\"[key='{}']\")", s)?;
+                } else {
+                    write!(w, "document.querySelector(\"[key='\" + ")?;
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &key_expr)?;
+                    write!(w, " + \"']\")")?;
+                };
+
+                write!(w, ".checked")?;
                 Ok(())
             }
 
