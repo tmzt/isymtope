@@ -22,7 +22,8 @@ mod tests {
     use ::broadcast::BroadcastWriter;
 
     use super::*;
-    use parser::ast::*;
+    use model::*;
+    use parser::*;
     use processing::*;
     use scope::*;
 

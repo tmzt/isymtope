@@ -1,7 +1,9 @@
 
 use std::iter;
 
-use parser::ast::*;
+use model::*;
+use parser::*;
+use parser::loc::*;
 
 use processing::structs::*;
 use processing::process_content::*;

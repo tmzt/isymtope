@@ -1,5 +1,6 @@
 
-use parser::ast::*;
+use model::*;
+use parser::*;
 use parser::util::allocate_element_key;
 use processing::*;
 use scope::*;
@@ -305,7 +306,8 @@ impl ProcessContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::ast::*;
+    use model::*;
+    use parser::*;
     use scope::scope::*;
     use scope::context::*;
     use scope::bindings::*;

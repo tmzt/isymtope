@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 
-use parser::ast::*;
+use model::*;
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;

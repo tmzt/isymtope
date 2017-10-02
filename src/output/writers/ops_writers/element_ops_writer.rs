@@ -2,6 +2,7 @@
 use std::io;
 use std::iter;
 
+use model::*;
 use parser::*;
 use processing::*;
 use scope::*;

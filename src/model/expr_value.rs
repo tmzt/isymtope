@@ -1,4 +1,5 @@
 use std::iter;
+use model::*;
 use parser::*;
 
 
@@ -160,6 +161,21 @@ impl AsExpr for ReducedValue {
   }
 }
 
+/// Operators
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprApplyOp {
+    JoinString(Option<String>),
+    // Sum
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TestOp {
     Negate,
@@ -203,16 +219,6 @@ pub enum ExprValue {
 }
 
 impl ExprValue {
-    // #[inline]
-    // pub fn is_literal(&self) -> bool {
-    //     match self {
-    //         &ExprValue::LiteralArray(..) |
-    //         &ExprValue::LiteralString(..) |
-    //         &ExprValue::LiteralNumber(..) |
-    //         &ExprValue::LiteralBool(..) => true,
-    //         _ => false,
-    //     }
-    // }
 
     #[inline]
     pub fn is_literal_primitive(&self) -> bool {
@@ -385,7 +391,7 @@ impl ExprValue {
 
 #[cfg(test)]
 mod tests {
-    use parser::*;
+    use model::*;
 
 
     #[test]

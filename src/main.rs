@@ -16,6 +16,7 @@ extern crate broadcast;
 #[macro_use(assert_diff)]
 extern crate difference;
 
+mod model;
 mod parser;
 mod scope;
 mod processing;

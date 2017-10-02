@@ -1,6 +1,7 @@
 // #![allow(dead_code)]
 
-use parser::ast::*;
+use model::*;
+use parser::*;
 use parser::util::allocate_element_key;
 use scope::context::*;
 use scope::symbol_paths::*;
@@ -110,7 +111,8 @@ impl Scope {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::ast::*;
+    use model::*;
+    use parser::*;
     use scope::symbol_paths::*;
 
     #[test]

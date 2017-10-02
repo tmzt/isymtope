@@ -3,6 +3,7 @@
 use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 
+use model::*;
 use parser::*;
 use scope::*;
 

@@ -8,6 +8,7 @@ pub mod output_stream_writer_js;
 
 use std::io;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;

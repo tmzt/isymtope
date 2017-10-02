@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use parser::ast::*;
+use model::*;
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
@@ -11,7 +11,7 @@ mod __parse__Template {
     #![allow(non_snake_case, non_camel_case_types, unused_mut, unused_variables, unused_imports)]
 
     use itertools::Itertools;
-    use parser::ast::*;
+    use model::*;
     use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
     use parser::api::{self, ApiNodeType, MethodType};
     use parser::loc::Loc;

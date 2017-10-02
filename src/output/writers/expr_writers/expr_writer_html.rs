@@ -1,7 +1,8 @@
 
 use std::io;
 
-use parser::ast::*;
+use model::*;
+use parser::*;
 use processing::structs::*;
 use scope::context::*;
 use scope::bindings::*;
