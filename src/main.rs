@@ -1,11 +1,10 @@
-
 #![recursion_limit="2000"]
-// #![feature(plugin)]
-// #![plugin(indoc)]
 #![feature(box_patterns)]
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
 
+extern crate futures;
+extern crate hyper;
 extern crate wren;
 extern crate uuid;
 extern crate itertools;
@@ -22,50 +21,59 @@ mod scope;
 mod processing;
 mod output;
 
-use wren::{VM, Configuration};
+use std::io;
+use std::path::Path;
+use futures::future::Future;
+use hyper::header::ContentLength;
+use hyper::server::{Http, Request, Response, Service};
 
-pub fn main() {
-    let source = r#"
-        class Unicorn {
-            static hasHorn() {
-                return true
-            }
-        }
-    "#;
+use model::*;
+use parser::*;
+use scope::*;
+use processing::*;
+use output::*;
 
-    let mut vm = VM::new(Configuration::new());
 
-    vm.interpret(source);
-
-    vm.get_variable("main", "Unicorn", 0);
-    let class_handle = vm.get_slot_handle(0);
-
-    let has_horn = vm.make_call_handle("hasHorn()");
-    vm.set_slot_handle(0, &class_handle);
-    vm.call(&has_horn);
-
-    let ty = vm.get_slot_type(0);
-    println!("Type {:?}", ty);
-
-    let horn_result = vm.get_slot_bool(0);
-    println!("Has horn? {:?}", horn_result);
-
-    // let greets = vm.get_slot_handle(0).unwrap();
-    // println!("Greets {:?}", greets);
-
-    // let vm = VM::new(Configuration::new());
-    // match vm.interpret("Test", source) {
-    // Err(Error::CompileError(msg)) => println("Compile Error: {}", msg),
-    // Err(Error::RuntimeError(msg)) => println("Compile Error: {}", msg),
-    // Err(Error::UnknownError(msg)) => println("Compile Error: {}", msg),
-    // _ => println!("Successfully ran")
-    // }
-    //
-
+fn prepare_document(template: &Template) -> Document {
+    let mut ctx = Context::default();
+    let mut bindings = BindingContext::default();
+    let mut processing = ProcessDocument::from_template(&template);
+    processing.process_document(&mut ctx, &mut bindings).unwrap();
+    processing.into()
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
+pub fn write_html(w: &mut io::Write, template: &Template) -> Result {
+    let mut ctx = Context::default();
+    let bindings = BindingContext::default();
+    let doc = prepare_document(template);
+    let mut page_writer = PageWriter::with_doc(&doc);
+    page_writer.write_page(w, &mut ctx, &bindings)
+}
+
+struct AppServer;
+
+impl Service for AppServer {
+    type Request = Request;
+    type Response = Response;
+    type Error = hyper::Error;
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+
+    fn call(&self, _req: Request) -> Self::Future {
+        let source_path = "./res/tests/app/todomvc/app.ism";
+        let template = ::parser::parse_file(Path::new(&source_path)).unwrap();
+
+        let mut s: Vec<u8> = Default::default();
+        write_html(&mut s, &template).unwrap();
+
+        Box::new(futures::future::ok(
+            Response::new()
+                .with_body(s)
+        ))
+    }
+}
+
+pub fn main() {
+    let addr = "0.0.0.0:3000".parse().unwrap();
+    let server = Http::new().bind(&addr, || Ok(AppServer)).unwrap();
+    server.run().unwrap();
 }

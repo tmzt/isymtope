@@ -41,7 +41,7 @@ const STRING_HTML_CLOSE_ROOT_DIV: &'static str  = r#"</div>
 
 const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -82,6 +82,10 @@ const STRING_JS_OPEN_ROOT_BINDINGS_DEF: &'static str  = r#"
                 function root_bindings(store) {
 "#;
 
+const STRING_JS_OPEN_DEFINE_ROUTES: &'static str  = r#"
+                function define_routes(store, routes) {
+"#;
+
 const STRING_JS_CLOSE_RENDER: &'static str  = r#"                }
 "#;
 
@@ -97,6 +101,76 @@ const STRING_HTML_CLOSE_SCRIPT_IIFE: &'static str  = r#"
                     root_bindings(store);
                 });
             })();
+        </script>"#;
+
+const STRING_HTML_CLOSE_SCRIPT_ROUTES_IIFE: &'static str  = r#"
+
+                function createHistory() {
+
+                    return {
+                        init: function(store) { 
+                            window.addEventListener('popstate', function(event) {
+                                store.dispatch({type: '@@redux-routing/replace', href: event.state});
+                            });
+                            
+                            store.dispatch({type: '@@redux-routing/replace', href: window.location.pathname });
+                        },
+                        update: function(action) {
+                            switch (action.type) {
+                                case '@@redux-routing/navigate':
+                                    window.history.pushState(action.href, null, action.href); break;
+                                case '@@redux-routing/replace':
+                                    window.history.replaceState(action.href, null, action.href); break;
+                                default: break;
+                            }
+                        }
+                    };
+                }
+
+                function createRoutingMiddleware(routes, history) {
+                    return function() {
+                        return function(next) {
+                            return function(action) {
+                                if (!/^@@redux-routing/.test(action.type)) {
+                                    return next(action);
+                                }
+
+                                var href = action.href;
+                                var match = Object.keys(routes).map(function(pattern) { return (href == pattern) ? routes[pattern] : null; })[0];
+
+                                if (match && match.handler) {
+                                    match.handler(href);
+                                }
+
+                                history.update(action);
+                            }
+                        }
+                    }
+                }
+
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    // Import nodes
+                    markExisting(document.querySelectorAll("[key]"));
+
+                    // Setup router
+                    var routes = {};
+                    var history = createHistory();
+                    var middleware = createRoutingMiddleware(routes, history);
+                    var store = Redux.applyMiddleware(middleware)(Redux.createStore)(rootReducer);
+
+                    _global.navigate = function(href) { return { type: '@@redux-routing/navigate', href: href }; };
+
+                    // Define routes
+                    define_routes(store, routes);
+                    // Subscribe
+                    store.subscribe(update.bind(null, document.querySelector('#root'), store));
+                    // Bind events
+                    root_bindings(store);
+
+                    // Start routing
+                    history.init(store);
+                });
+            })(window);
         </script>"#;
 
 const STRING_HTML_CLOSE_INCDOM_PAGE: &'static str  = r#"
@@ -160,6 +234,36 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
+    pub fn write_route_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_routes() {
+            for (pattern, route) in iter {
+                let func_key = route.function_key();
+                writeln!(w, "                function route_{}(path, props, store) {{", func_key)?;
+                if let Some(iter) = route.action_ops_iter() {
+                    self.writers.js.write_event_action_ops(w, self.doc, ctx, bindings, iter)?;
+                };
+                writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
+            }
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
+    pub fn write_route_registrations(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_routes() {
+            writeln!(w, "{}", self::STRING_JS_OPEN_DEFINE_ROUTES)?;
+            for (pattern, route) in iter {
+                let func_key = route.function_key();
+                writeln!(w, "                routes[\"{}\"] = {{ handler: function(path) {{ route_{}(path, {{}}, store); }} }};", pattern, func_key)?;
+            }
+            writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
     pub fn write_root_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_JS_OPEN_RENDER)?;
         self.writers.js.write_block(w, self.doc, ctx, bindings, self.doc.root_block(), None, true)?;
@@ -206,6 +310,9 @@ impl<'doc> PageWriter<'doc> {
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
+        // Define route handlers
+        self.write_route_definitions(w, ctx, bindings)?;
+        self.write_route_registrations(w, ctx, bindings)?;
         self.write_root_block_render_definition(w, ctx, bindings)?;
         self.write_root_bindings_definition(w, ctx, bindings)?;
 
@@ -227,7 +334,11 @@ impl<'doc> PageWriter<'doc> {
         let mut store_writer = StoreWriterJs::default();
         store_writer.write_store(w, self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
 
-        write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
+        if self.doc.has_routes() {
+            write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_ROUTES_IIFE)?;        
+        } else {
+            write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
+        }
         Ok(())
     }
 

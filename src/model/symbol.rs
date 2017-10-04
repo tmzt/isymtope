@@ -6,7 +6,7 @@ pub enum SymbolReferenceType {
     UnresolvedReference(String),
     UnresolvedPathReference(String),
     Binding(BindingType),
-    MemberPath(Box<Symbol>, Option<String>),
+    MemberPath(Box<Symbol>, String),
     InitialValue(Box<Symbol>, Box<Symbol>),
     ResolvedReference(String, ResolvedSymbolType, Option<String>),
 }
@@ -74,8 +74,8 @@ impl Symbol {
         Symbol(SymbolReferenceType::InitialValue(Box::new(initial.to_owned()), Box::new(after.to_owned())), None, None)
     }
 
-    pub fn member_path(first: Symbol, path: &str) -> Symbol {
-        Symbol(SymbolReferenceType::MemberPath(Box::new(first), Some(path.to_owned())), None, None)
+    pub fn member_path(head: Symbol, path: &str) -> Symbol {
+        Symbol(SymbolReferenceType::MemberPath(Box::new(head), path.to_owned()), None, None)
     }
     pub fn reducer_key_with(key: &str, ty: Option<&VarType>, value: Option<&ExprValue>) -> Symbol {
         let resolved = ResolvedSymbolType::ReducerKeyReference(key.to_owned());

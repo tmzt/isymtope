@@ -26,8 +26,13 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
     fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
         for action_op in action_ops {
             match *action_op {
-                ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                    let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
+                ActionOpNode::DispatchAction(ref action_key, ref action_params) |
+                ActionOpNode::DispatchActionTo(ref action_key, ref action_params, _)
+                  => {
+                    let path = match *action_op { ActionOpNode::DispatchActionTo(_, _, ref path) => Some(path), _ => None };
+                    let action_ty = path.map(|s| format!("{}.{}", s, action_key))
+                        .unwrap_or_else(|| ctx.join_action_path_with(Some("."), action_key))
+                        .to_uppercase();
 
                     if let Some(ref action_params) = *action_params {
                         let action_params: PropVec =

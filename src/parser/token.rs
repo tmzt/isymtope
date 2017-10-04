@@ -42,12 +42,14 @@ pub enum Token {
     BindKeyword,
     AsKeyword,
     WhereKeyword,
+    ToKeyword,
 
     SetKeyword,
     UniqueKeyword,
     AndKeyword,
 
     ComponentKeyword,
+    RouteKeyword,
     StoreKeyword,
     ActionKeyword,
     ApiKeyword,

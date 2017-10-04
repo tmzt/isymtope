@@ -10,6 +10,7 @@ pub struct UseStmtType {
 pub enum NodeType {
     UseStmtNode(UseStmtType),
     ComponentDefinitionNode(ComponentDefinitionType),
+    RouteDefinitionNode(RouteDefinitionType),
     StoreNode(Vec<DefaultScopeNodeType>),
     ContentNode(ContentNodeType),
 }

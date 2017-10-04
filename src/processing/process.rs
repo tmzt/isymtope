@@ -4,12 +4,13 @@ use std::iter;
 use model::*;
 use parser::*;
 use parser::loc::*;
+use scope::*;
 
-use processing::structs::*;
+use processing::*;
 use processing::process_content::*;
 use processing::process_store::*;
 use processing::process_comp_def::*;
-use scope::*;
+use processing::process_route::*;
 
 
 pub struct ProcessDocument<'input> {
@@ -53,6 +54,14 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
+    pub fn process_route_definition(&mut self, ctx: &mut Context, bindings: &mut BindingContext, route: &RouteDefinitionType) -> DocumentProcessingResult<()> {
+        let mut output = RouteProcessorOutput::default();
+        let mut processor = RouteProcessor::default();
+        processor.process_source_node(&mut self.processing, ctx, bindings, &mut output, route)?;
+        let route: Route = output.into();
+        self.processing.route_map.insert(route.pattern().to_owned(), route);
+        Ok(())
+    }
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
@@ -77,6 +86,12 @@ impl<'input> ProcessDocument<'input> {
                         scope_node)?;
                 }
             };
+        }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::RouteDefinitionNode(ref route) = loc.inner {
+                self.process_route_definition(ctx, bindings, route)?;
+            }
         }
 
         // if let Some(ref default_reducer_key) = self.processing.default_reducer_key {

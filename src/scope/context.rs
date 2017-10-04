@@ -421,17 +421,13 @@ impl Context {
                 return self.eval_binding(doc, binding);
             }
 
-            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                let first_expr = self.eval_sym(doc, first);
-                // let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                if let Some(first_expr) = first_expr {
-                    if let &Some(ref rest) = rest {
-                        if let Some(expr) = first_expr.member_ref(rest.as_str()) {
-                            return self.eval_expr(doc, &expr);
-                        };
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
+                if let Some(head) = self.eval_sym(doc, head) {
+                    if let Some(expr) = head.member_ref(path.as_str()) {
+                        return self.eval_expr(doc, &expr);
                     };
-                    return self.eval_expr(doc, &first_expr);
                 };
+                return self.eval_sym(doc, &head);
             }
 
             _ => {}
@@ -493,6 +489,32 @@ impl Context {
             _ => {}
         };
         self.reduce_expr(expr)
+    }
+
+    pub fn reduce_binding(&mut self, binding: &BindingType) -> Option<BindingType> {
+        None
+    }
+
+    pub fn reduce_symbol(&mut self, sym: &Symbol) -> Option<Symbol> {
+        match sym.sym_ref() {
+            &SymbolReferenceType::UnresolvedReference(ref key) => {
+                self.resolve_sym(key)
+            }
+
+            &SymbolReferenceType::UnresolvedPathReference(ref path) => {
+                self.resolve_path_reference_to_symbol(path)
+            }
+
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
+                self.reduce_symbol(head).map(|head| Symbol::member_path(head, path))
+            }
+
+            &SymbolReferenceType::Binding(ref binding) => {
+                self.reduce_binding(binding).map(|binding| Symbol::binding(&binding))
+            }
+
+            _ => None
+        }
     }
 
     pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {
@@ -613,27 +635,12 @@ impl Context {
             }
 
             &ExprValue::SymbolReference(ref sym) => {
-                match sym.sym_ref() {
-                    &SymbolReferenceType::UnresolvedReference(ref key) => {
-                        if let Some(sym) = self.resolve_sym(key) {
-                            return Some(ExprValue::SymbolReference(sym));
-                        }
-                        None
-                    }
+                if let &SymbolReferenceType::Binding(ref binding) = sym.sym_ref() {
+                    if let Some(expr) = self.resolve_binding_value(binding) { return Some(expr); }
+                };
 
-                    &SymbolReferenceType::UnresolvedPathReference(ref path) => {
-                        if let Some(sym) = self.resolve_path_reference_to_symbol(path) {
-                            return Some(ExprValue::SymbolReference(sym));
-                        };
-                        None
-                    }
-
-                    &SymbolReferenceType::Binding(ref binding) => {
-                        self.resolve_binding_value(binding)
-                    }
-
-                    _ => None
-                }
+                self.reduce_symbol(sym)
+                    .map(|sym| ExprValue::SymbolReference(sym))
             }
 
             &ExprValue::IterMethodPipeline(ref head, Some(ref parts)) => {
@@ -668,9 +675,13 @@ impl Context {
     }
 
     pub fn map_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, action_ops: I) -> Vec<ActionOpNode> {
-        action_ops.into_iter().map(|action_op| match action_op {
-            &ActionOpNode::DispatchAction(ref action_ty, ref props) => {
+        action_ops.into_iter().map(|action_op| match *action_op {
+            ActionOpNode::DispatchAction(ref action_ty, ref props) => {
                 ActionOpNode::DispatchAction(action_ty.to_owned(), props.as_ref().map(|v| self.map_props(v.iter())))
+            }
+
+            ActionOpNode::DispatchActionTo(ref action_ty, ref props, ref path) => {
+                ActionOpNode::DispatchActionTo(action_ty.to_owned(), props.as_ref().map(|v| self.map_props(v.iter())), path.to_owned())
             }
         }).collect()
     }
@@ -691,17 +702,15 @@ impl Context {
 
     #[inline]
     pub fn map_lens(&mut self, _bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
-        match lens {
-            &LensExprType::ForLens(ref ele_key, ref coll_expr) => {
+        match *lens {
+            LensExprType::ForLens(ref ele_key, ref coll_expr) => {
                 let ele_key = ele_key.as_ref().map(|s| s.to_owned());
-                if let Some(coll_expr) = self.reduce_expr(coll_expr) {
-                    return LensExprType::ForLens(ele_key, coll_expr);
-                };
+                let coll_expr = self.reduce_expr_or_return_same(coll_expr);
+                return LensExprType::ForLens(ele_key, coll_expr);
             }
-            &LensExprType::GetLens(ref prop_key, ref prop_expr) => {
-                if let Some(prop_expr) = self.reduce_expr(prop_expr) {
-                    return LensExprType::GetLens(prop_key.to_owned(), prop_expr);
-                };
+            LensExprType::GetLens(ref prop_key, ref prop_expr) => {
+                let prop_expr = self.reduce_expr_or_return_same(prop_expr);
+                return LensExprType::GetLens(prop_key.to_owned(), prop_expr);
             }
             // _ => {}
         };

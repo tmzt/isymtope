@@ -302,16 +302,14 @@ impl ExpressionWriter for ExpressionWriterJs {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
-            &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
                 if let Some(expr) = ctx.eval_sym(doc, sym) {
                     self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
                     return Ok(());
                 };
 
-                self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
-                if let Some(ref parts) = *parts {
-                    write!(w, ".{}", parts)?;
-                };
+                self.write_symbol(w, doc, value_writer, ctx, bindings, head)?;
+                write!(w, ".{}", path)?;
                 Ok(())
             }
             _ => Ok(())

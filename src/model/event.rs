@@ -4,6 +4,7 @@ use model::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ActionOpNode {
     DispatchAction(String, Option<PropVec>),
+    DispatchActionTo(String, Option<PropVec>, String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

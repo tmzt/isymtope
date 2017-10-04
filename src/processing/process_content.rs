@@ -284,7 +284,8 @@ impl ProcessContent {
     pub fn process_event_handler_action_param_types<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, processing: &mut DocumentProcessingState, ctx: &mut Context, action_ops: I) -> Result {
         for action_op in action_ops.into_iter() {
             match *action_op {
-                ActionOpNode::DispatchAction(ref action_name, ref action_params) => {
+                ActionOpNode::DispatchAction(ref action_name, ref action_params) |
+                ActionOpNode::DispatchActionTo(ref action_name, ref action_params, _) => {
                     if let Some(ref action_params) = *action_params {
                         let complete_key = ctx.join_action_path_with(Some("."), action_name);
 

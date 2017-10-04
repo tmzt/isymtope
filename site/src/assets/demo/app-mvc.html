@@ -7,11 +7,11 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><link key="a22" rel="stylesheet" href="https://unpkg.com/todomvc-common@1.0.3/base.css" type="text/css" /><link key="9b6" rel="stylesheet" href="https://unpkg.com/todomvc-app-css@2.1.0/index.css" type="text/css" /><section key="0b5" class="todoapp"><header key="0b5.a2f" class="header"><h1 key="0b5.a2f.9d2">todos</h1><div key="0b5.a2f.826"><input key="0b5.a2f.826.573" class="new-todo" placeholder="What needs to be done?" autofocus="autofocus" value="" /></div></header><section key="0b5.a2f.ed6" class="main"><div key="0b5.a2f.ed6.2a8"><input key="0b5.a2f.ed6.2a8.1bc" class="toggle-all" id="toggle-all" type="checkbox" /><label key="0b5.a2f.ed6.2a8.91a" class="" for="toggle-all">Mark all as complete</label></div><ul key="0b5.a2f.ed6.2a8.3ae" id="todo-list" class="todo-list"><div key="0b5.a2f.ed6.2a8.3ae.27c.0"><li key="0b5.a2f.ed6.2a8.3ae.27c.0.43f" class=""><div key="0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a" class="view"><input key="0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a.a9b" class="toggle" type="checkbox" /><label key="0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a.ddc">One</label><button key="0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a.e31" class="destroy" /></div></li></div><div key="0b5.a2f.ed6.2a8.3ae.27c.1"><li key="0b5.a2f.ed6.2a8.3ae.27c.1.43f" class="completed"><div key="0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a" class="view"><input key="0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.a9b" class="toggle" type="checkbox" checked="checked" /><label key="0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.ddc">Two</label><button key="0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.e31" class="destroy" /></div></li></div></ul></section></section></div>
+        <div id="root"><link key="73d" rel="stylesheet" href="https://unpkg.com/todomvc-common@1.0.3/base.css" type="text/css" /><link key="c1c" rel="stylesheet" href="https://unpkg.com/todomvc-app-css@2.1.0/index.css" type="text/css" /><section key="a9e" class="todoapp"><header key="a9e.774" class="header"><h1 key="a9e.774.f7e">todos</h1><div key="a9e.774.4ed"><input key="a9e.774.4ed.6b0" class="new-todo" placeholder="What needs to be done?" autofocus="autofocus" value="" /></div></header><section key="a9e.774.48d" class="main"><div key="a9e.774.48d.7a4"><input key="a9e.774.48d.7a4.8fa" class="toggle-all" id="toggle-all" type="checkbox" /><label key="a9e.774.48d.7a4.bbd" class="" for="toggle-all">Mark all as complete</label></div><ul key="a9e.774.48d.7a4.2ed" id="todo-list" class="todo-list"></ul></section></section></div>
 
 
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -42,19 +42,19 @@
                 function update(root_el, store) {
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
-/* {"todos": (Some(ArrayVar(Some(ObjectVar))), Some(LiteralArray(Some([LiteralObject(Some([("text", Some(LiteralString("One"))), ("complete", Some(LiteralBool(false))), ("id", Some(LiteralNumber(0)))])), LiteralObject(Some([("text", Some(LiteralString("Two"))), ("complete", Some(LiteralBool(true))), ("id", Some(LiteralNumber(1)))]))])))), "entry": (Some(Primitive(StringVar)), Some(LiteralString("")))} */
-/* Some([ElementVoid("link", "a22", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-common@1.0.3/base.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementVoid("link", "9b6", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-app-css@2.1.0/index.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementOpen("section", "0b5", Some([("class", Some(LiteralString("todoapp")))]), None, None), ElementOpen("header", "0b5.a2f", Some([("class", Some(LiteralString("header")))]), None, None), ElementOpen("h1", "0b5.a2f.9d2", Some([]), None, None), WriteValue(LiteralString("todos"), "0b5.a2f.9d2.10e"), ElementClose("h1"), InstanceComponent("new_todo", "0b5.a2f.826", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(Binding(ReducerPathBinding("entry")), Some(Primitive(StringVar)), None))))), ElementClose("header"), ElementOpen("section", "0b5.a2f.ed6", Some([("class", Some(LiteralString("main")))]), None, None), InstanceComponent("toggle_all", "0b5.a2f.ed6.2a8", Some("toggle_all"), Some(["checked"]), None), ElementOpen("ul", "0b5.a2f.ed6.2a8.3ae", Some([("id", Some(LiteralString("todo-list"))), ("class", Some(LiteralString("todo-list")))]), None, None), InstanceComponent("todo_item", "0b5.a2f.ed6.2a8.3ae.27c", Some("todo_item"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(ObjectVar))), None))))), ElementClose("ul"), ElementClose("section"), ElementClose("section")]) */
+/* {"todos": (Some(ArrayVar(Some(ObjectVar))), Some(LiteralArray(Some([LiteralObject(Some([("text", Some(LiteralString("One"))), ("complete", Some(LiteralBool(false))), ("id", Some(LiteralNumber(0)))])), LiteralObject(Some([("text", Some(LiteralString("Two"))), ("complete", Some(LiteralBool(true))), ("id", Some(LiteralNumber(1)))]))])))), "entry": (Some(Primitive(StringVar)), Some(LiteralString(""))), "showing": (Some(Primitive(StringVar)), Some(LiteralString("all")))} */
+/* Some([ElementVoid("link", "73d", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-common@1.0.3/base.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementVoid("link", "c1c", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-app-css@2.1.0/index.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementOpen("section", "a9e", Some([("class", Some(LiteralString("todoapp")))]), None, None), ElementOpen("header", "a9e.774", Some([("class", Some(LiteralString("header")))]), None, None), ElementOpen("h1", "a9e.774.f7e", Some([]), None, None), WriteValue(LiteralString("todos"), "a9e.774.f7e.911"), ElementClose("h1"), InstanceComponent("new_todo", "a9e.774.4ed", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(Binding(ReducerPathBinding("entry")), Some(Primitive(StringVar)), None))))), ElementClose("header"), ElementOpen("section", "a9e.774.48d", Some([("class", Some(LiteralString("main")))]), None, None), InstanceComponent("toggle_all", "a9e.774.48d.7a4", Some("toggle_all"), Some(["checked"]), None), ElementOpen("ul", "a9e.774.48d.7a4.2ed", Some([("id", Some(LiteralString("todo-list"))), ("class", Some(LiteralString("todo-list")))]), None, None), InstanceComponent("todo_item", "a9e.774.48d.7a4.2ed.22f", Some("todo_item"), Some(["todo"]), Some(ForLens(Some("todo"), Group(Some(ReducedPipeline(None, Some([]))))))), ElementClose("ul"), ElementClose("section"), ElementClose("section")]) */
 /* None */
                 function component_todo_item(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("li", key + ".43f", ["key", key + ".43f"], "class", classList(props.todo.complete&&"completed"));
-IncrementalDOM.elementOpen("div", key + ".43f.30a", ["key", key + ".43f.30a", "class", "view"]);
-IncrementalDOM.elementVoid("input", key + ".43f.30a.a9b", ["key", key + ".43f.30a.a9b", "class", "toggle", "type", "checkbox"], "checked", props.todo.complete?"checked":null);
-document.querySelector("[key='" + key + ".43f.30a.a9b" + "']").checked = props.todo.complete;
-IncrementalDOM.elementOpen("label", key + ".43f.30a.ddc", ["key", key + ".43f.30a.ddc"]);
+IncrementalDOM.elementOpen("li", key + ".1da", ["key", key + ".1da"], "class", classList(props.todo.complete&&"completed"));
+IncrementalDOM.elementOpen("div", key + ".1da.b3c", ["key", key + ".1da.b3c", "class", "view"]);
+IncrementalDOM.elementVoid("input", key + ".1da.b3c.22a", ["key", key + ".1da.b3c.22a", "class", "toggle", "type", "checkbox"], "checked", props.todo.complete?"checked":null);
+document.querySelector("[key='" + key + ".1da.b3c.22a" + "']").checked = props.todo.complete;
+IncrementalDOM.elementOpen("label", key + ".1da.b3c.e0c", ["key", key + ".1da.b3c.e0c"]);
 IncrementalDOM.text(props.todo.text);
 IncrementalDOM.elementClose("label");
-IncrementalDOM.elementVoid("button", key + ".43f.30a.e31", ["key", key + ".43f.30a.e31", "class", "destroy"]);
+IncrementalDOM.elementVoid("button", key + ".1da.b3c.911", ["key", key + ".1da.b3c.911", "class", "destroy"]);
 IncrementalDOM.elementClose("div");
 IncrementalDOM.elementClose("li");
 IncrementalDOM.elementClose("div");
@@ -64,15 +64,15 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_todo_item(key, props, store) {
       // Bind actions
-setEventListener(key + ".43f.30a.a9b", document.querySelector("[key='" + key + ".43f.30a.a9b" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": props.todo.id});
+setEventListener(key + ".1da.b3c.22a", document.querySelector("[key='" + key + ".1da.b3c.22a" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": props.todo.id});
 });
 
                 }
 
                 function component_new_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementVoid("input", key + ".573", ["key", key + ".573", "class", "new-todo", "placeholder", "What needs to be done?", "autofocus", "autofocus"], "value", props.entry);
-document.querySelector("[key='" + key + ".573" + "']").value = props.entry;
+IncrementalDOM.elementVoid("input", key + ".6b0", ["key", key + ".6b0", "class", "new-todo", "placeholder", "What needs to be done?", "autofocus", "autofocus"], "value", props.entry);
+document.querySelector("[key='" + key + ".6b0" + "']").value = props.entry;
 IncrementalDOM.elementClose("div");
                   component_bindings_new_todo(key, props, store);
 
@@ -80,8 +80,8 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_new_todo(key, props, store) {
       // Bind actions
-setEventListener(key + ".573", document.querySelector("[key='" + key + ".573" + "']"), "keydown", function(event) {if (event.keyCode == 13) {
- store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + key + ".573" + "']").value}});
+setEventListener(key + ".6b0", document.querySelector("[key='" + key + ".6b0" + "']"), "keydown", function(event) {if (event.keyCode == 13) {
+ store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + key + ".6b0" + "']").value}});
 }
 });
 
@@ -89,8 +89,8 @@ setEventListener(key + ".573", document.querySelector("[key='" + key + ".573" + 
 
                 function component_toggle_all(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementVoid("input", key + ".1bc", ["key", key + ".1bc", "class", "toggle-all", "id", "toggle-all", "type", "checkbox"]);
-IncrementalDOM.elementOpen("label", key + ".91a", ["key", key + ".91a", "class", "", "for", "toggle-all"]);
+IncrementalDOM.elementVoid("input", key + ".8fa", ["key", key + ".8fa", "class", "toggle-all", "id", "toggle-all", "type", "checkbox"]);
+IncrementalDOM.elementOpen("label", key + ".bbd", ["key", key + ".bbd", "class", "", "for", "toggle-all"]);
 IncrementalDOM.text("Mark all as complete");
 IncrementalDOM.elementClose("label");
 IncrementalDOM.elementClose("div");
@@ -100,26 +100,49 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_toggle_all(key, props, store) {
       // Bind actions
-setEventListener(key + ".1bc", document.querySelector("[key='" + key + ".1bc" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='" + key + ".1bc" + "']").checked});
+setEventListener(key + ".8fa", document.querySelector("[key='" + key + ".8fa" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='" + key + ".8fa" + "']").checked});
 });
 
                 }
 
+                function route__2f_all(path, props, store) {
+ store.dispatch({"type": "SHOWING.FILTER", "mode": "all"});
+
+                }
+
+                function route__2f_completed(path, props, store) {
+ store.dispatch({"type": "SHOWING.FILTER", "mode": "completed"});
+
+                }
+
+                function route__2f_active(path, props, store) {
+ store.dispatch({"type": "SHOWING.FILTER", "mode": "active"});
+
+                }
+
+
+                function define_routes(store, routes) {
+
+                routes["/all"] = { handler: function(path) { route__2f_all(path, {}, store); } };
+                routes["/completed"] = { handler: function(path) { route__2f_completed(path, {}, store); } };
+                routes["/active"] = { handler: function(path) { route__2f_active(path, {}, store); } };
+                }
+
 
                 function render(store) {
-IncrementalDOM.elementVoid("link", "a22", ["key", "a22", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-common@1.0.3/base.css", "type", "text/css"]);
-IncrementalDOM.elementVoid("link", "9b6", ["key", "9b6", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-app-css@2.1.0/index.css", "type", "text/css"]);
-IncrementalDOM.elementOpen("section", "0b5", ["key", "0b5", "class", "todoapp"]);
-IncrementalDOM.elementOpen("header", "0b5.a2f", ["key", "0b5.a2f", "class", "header"]);
-IncrementalDOM.elementOpen("h1", "0b5.a2f.9d2", ["key", "0b5.a2f.9d2"]);
+IncrementalDOM.elementVoid("link", "73d", ["key", "73d", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-common@1.0.3/base.css", "type", "text/css"]);
+IncrementalDOM.elementVoid("link", "c1c", ["key", "c1c", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-app-css@2.1.0/index.css", "type", "text/css"]);
+IncrementalDOM.elementOpen("section", "a9e", ["key", "a9e", "class", "todoapp"]);
+IncrementalDOM.elementOpen("header", "a9e.774", ["key", "a9e.774", "class", "header"]);
+IncrementalDOM.elementOpen("h1", "a9e.774.f7e", ["key", "a9e.774.f7e"]);
 IncrementalDOM.text("todos");
 IncrementalDOM.elementClose("h1");
-component_new_todo("0b5.a2f.826", {"entry": store.getState().entry}, store);
+component_new_todo("a9e.774.4ed", {"entry": store.getState().entry}, store);
 IncrementalDOM.elementClose("header");
-IncrementalDOM.elementOpen("section", "0b5.a2f.ed6", ["key", "0b5.a2f.ed6", "class", "main"]);
-component_toggle_all("0b5.a2f.ed6.2a8", {}, store);
-IncrementalDOM.elementOpen("ul", "0b5.a2f.ed6.2a8.3ae", ["key", "0b5.a2f.ed6.2a8.3ae", "id", "todo-list", "class", "todo-list"]);
-(store.getState().todos).forEach(function(item, idx) {component_todo_item("0b5.a2f.ed6.2a8.3ae.27c." + idx, {"todo": item}, store);
+IncrementalDOM.elementOpen("section", "a9e.774.48d", ["key", "a9e.774.48d", "class", "main"]);
+component_toggle_all("a9e.774.48d.7a4", {}, store);
+IncrementalDOM.elementOpen("ul", "a9e.774.48d.7a4.2ed", ["key", "a9e.774.48d.7a4.2ed", "id", "todo-list", "class", "todo-list"]);
+(()).forEach(function(item, idx) {component_todo_item("a9e.774.48d.7a4.2ed.22f." + idx, {"todo": item}, store);
 });
 IncrementalDOM.elementClose("ul");
 IncrementalDOM.elementClose("section");
@@ -128,27 +151,14 @@ IncrementalDOM.elementClose("section");
 
                 function root_bindings(store) {
 
-setEventListener("0b5.a2f.826.573", document.querySelector("[key='0b5.a2f.826.573']"), "keydown", function(event) {if (event.keyCode == 13) {
- store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + "0b5.a2f.826.573" + "']").value}});
+setEventListener("a9e.774.4ed.6b0", document.querySelector("[key='a9e.774.4ed.6b0']"), "keydown", function(event) {if (event.keyCode == 13) {
+ store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + "a9e.774.4ed.6b0" + "']").value}});
 }
 });
-setEventListener("0b5.a2f.ed6.2a8.1bc", document.querySelector("[key='0b5.a2f.ed6.2a8.1bc']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='0b5.a2f.ed6.2a8.1bc']").checked});
-});
-setEventListener("0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a.a9b", document.querySelector("[key='0b5.a2f.ed6.2a8.3ae.27c.0.43f.30a.a9b']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": 0});
-});
-setEventListener("0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.a9b", document.querySelector("[key='0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.a9b']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": 1});
+setEventListener("a9e.774.48d.7a4.8fa", document.querySelector("[key='a9e.774.48d.7a4.8fa']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='a9e.774.48d.7a4.8fa']").checked});
 });
                 }
 
-
-                function entryReducer(state, action) {
-                  /* action: ReducerActionData { action_type: "ENTRY.CLEAR", state_expr: Some(SimpleReducerKeyExpr(LiteralString(""))), state_ty: Some(Primitive(StringVar)), default_scope_key: Some("entry") } */
-                  /* action expr: LiteralString("") */
-                  if ('undefined' !== typeof action && 'ENTRY.CLEAR' == action.type) {
-                    return "";
-                  }
-                  return state || "";
-                }
 
                 function todosReducer(state, action) {
                   /* action: ReducerActionData { action_type: "TODOS.ADD", state_expr: Some(SimpleReducerKeyExpr(Expr(Add, SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(ObjectVar))), None)), Group(Some(Expr(Add, SymbolReference(Symbol(Binding(ActionParamBinding("entry")), None, None)), LiteralObject(Some([("complete", Some(LiteralBool(false))), ("id", Some(Group(Some(Expr(Add, ReducedPipeline(Some(SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(ObjectVar))), None))), Some([PipelineOp(Map(SymbolReference(Symbol(MemberPath(Symbol(Binding(MapItemBinding), None, None), Some("id")), None, None)))), PipelineOp(Max)])), LiteralNumber(1))))))])))))))), state_ty: Some(ArrayVar(Some(ObjectVar))), default_scope_key: Some("todos") } */
@@ -169,22 +179,97 @@ setEventListener("0b5.a2f.ed6.2a8.3ae.27c.1.43f.30a.a9b", document.querySelector
                   return state || [{"text": "One", "complete": false, "id": 0}, {"text": "Two", "complete": true, "id": 1}];
                 }
 
+                function showingReducer(state, action) {
+                  /* action: ReducerActionData { action_type: "SHOWING.FILTER", state_expr: Some(SimpleReducerKeyExpr(SymbolReference(Symbol(Binding(ActionParamBinding("mode")), None, None)))), state_ty: Some(Primitive(StringVar)), default_scope_key: Some("showing") } */
+                  /* action expr: SymbolReference(Symbol(Binding(ActionParamBinding("mode")), None, None)) */
+                  if ('undefined' !== typeof action && 'SHOWING.FILTER' == action.type) {
+                    return action.mode;
+                  }
+                  return state || "all";
+                }
+
+                function entryReducer(state, action) {
+                  /* action: ReducerActionData { action_type: "ENTRY.CLEAR", state_expr: Some(SimpleReducerKeyExpr(LiteralString(""))), state_ty: Some(Primitive(StringVar)), default_scope_key: Some("entry") } */
+                  /* action expr: LiteralString("") */
+                  if ('undefined' !== typeof action && 'ENTRY.CLEAR' == action.type) {
+                    return "";
+                  }
+                  return state || "";
+                }
+
                 var rootReducer = Redux.combineReducers({
-                  entry: entryReducer,
                   todos: todosReducer,
+                  showing: showingReducer,
+                  entry: entryReducer,
                 });
+
+
+                function createHistory() {
+
+                    return {
+                        init: function(store) { 
+                            window.addEventListener('popstate', function(event) {
+                                store.dispatch({type: '@@redux-routing/replace', href: event.state});
+                            });
+                            
+                            store.dispatch({type: '@@redux-routing/replace', href: window.location.pathname });
+                        },
+                        update: function(action) {
+                            switch (action.type) {
+                                case '@@redux-routing/navigate':
+                                    window.history.pushState(action.href, null, action.href); break;
+                                case '@@redux-routing/replace':
+                                    window.history.replaceState(action.href, null, action.href); break;
+                                default: break;
+                            }
+                        }
+                    };
+                }
+
+                function createRoutingMiddleware(routes, history) {
+                    return function() {
+                        return function(next) {
+                            return function(action) {
+                                if (!/^@@redux-routing/.test(action.type)) {
+                                    return next(action);
+                                }
+
+                                var href = action.href;
+                                var match = Object.keys(routes).map(function(pattern) { return (href == pattern) ? routes[pattern] : null; })[0];
+
+                                if (match && match.handler) {
+                                    match.handler(href);
+                                }
+
+                                history.update(action);
+                            }
+                        }
+                    }
+                }
 
                 document.addEventListener("DOMContentLoaded", function(event) {
                     // Import nodes
                     markExisting(document.querySelectorAll("[key]"));
-                    // Define store
-                    var store = Redux.createStore(rootReducer, {});
+
+                    // Setup router
+                    var routes = {};
+                    var history = createHistory();
+                    var middleware = createRoutingMiddleware(routes, history);
+                    var store = Redux.applyMiddleware(middleware)(Redux.createStore)(rootReducer);
+
+                    _global.navigate = function(href) { return { type: '@@redux-routing/navigate', href: href }; };
+
+                    // Define routes
+                    define_routes(store, routes);
                     // Subscribe
                     store.subscribe(update.bind(null, document.querySelector('#root'), store));
                     // Bind events
                     root_bindings(store);
+
+                    // Start routing
+                    history.init(store);
                 });
-            })();
+            })(window);
         </script>
     </body>
 </html>

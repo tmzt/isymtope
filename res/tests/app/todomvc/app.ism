@@ -3,6 +3,7 @@ use html;
 store {
     let todos = [{text: "One", complete: false, id: 0}, {text: "Two", complete: true, id: 1}];
     let entry = "";
+    let showing = "all";
 
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
@@ -12,6 +13,10 @@ store {
 
     entry {
         action clear => "";
+    }
+
+    showing {
+        action filter(mode) => mode;
     }
 }
 
@@ -40,6 +45,10 @@ component toggle_all (checked) {
 link(rel="stylesheet", href="https://unpkg.com/todomvc-common@1.0.3/base.css", type="text/css") {}
 link(rel="stylesheet", href="https://unpkg.com/todomvc-app-css@2.1.0/index.css", type="text/css") {}
 
+route "/all" || { dispatch filter(mode: "all") to showing; }
+route "/completed" || { dispatch filter(mode: "completed") to showing; }
+route "/active" || { dispatch filter(mode: "active") to showing; }
+
 section(class="todoapp") {
     header(class="header") {
         h1() { ("todos") }
@@ -49,7 +58,7 @@ section(class="todoapp") {
     section(class="main") {
         toggle_all(checked=true) {}
         ul(id="todo-list", class="todo-list") {
-            todo_item (for todo in todos) {}
+            todo_item (for todo in todos.filter(item.complete)) {}
         }
     }
 }

@@ -13,7 +13,7 @@ use parser::token::Error as ParsingError;
 use processing::*;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ElementOp {
     ElementOpen(String,
                 String,
@@ -40,11 +40,12 @@ pub enum ElementOp {
 pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
+pub type RouteMap = LinkedHashMap<String, Route>;
 
 pub type ComponentKeyMapping = (String, String, Option<PropVec>, Option<LensExprType>);
 pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Component {
     ty: String,
     block: Block,
@@ -160,7 +161,7 @@ impl From<DocumentTypeError> for DocumentProcessingError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockProcessingState {
     pub block_id: String,
     pub child_blocks: Vec<Box<BlockProcessingState>>,
@@ -184,7 +185,7 @@ impl Default for BlockProcessingState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Block {
     block_id: String,
     child_blocks: Option<BlockVec>,
@@ -253,6 +254,7 @@ impl Block {
 pub struct DocumentProcessingState {
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
+    pub route_map: RouteMap,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyProcessingMap,
     pub default_state_map: DefaultStateMap,
@@ -286,6 +288,7 @@ impl DocumentProcessingState {
 pub struct Document {
     root_block: Block,
     comp_map: Option<ComponentMap>,
+    route_map: Option<RouteMap>,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
@@ -296,13 +299,14 @@ pub struct Document {
 
 impl<'inp> Into<Document> for DocumentProcessingState {
     fn into(self) -> Document {
-        let has_comp_map = self.comp_map.len() > 0;
-        let comp_map = if has_comp_map { Some(self.comp_map) } else { None };
+        let comp_map = if self.comp_map.len() > 0 { Some(self.comp_map) } else { None };
+        let route_map = if self.route_map.len() > 0 { Some(self.route_map) } else { None };
         let reducer_key_data: ReducerKeyMap = self.reducer_key_data.into_iter().map(|d| (d.0, d.1.into())).collect();
 
         Document {
             root_block: self.root_block.into(),
             comp_map: comp_map,
+            route_map: route_map,
             reducer_key_data: reducer_key_data,
             default_state_map: self.default_state_map,
             default_state_symbol: self.default_state_symbol,
@@ -352,7 +356,22 @@ impl Document {
     }
 
     #[allow(dead_code)]
+    pub fn has_routes(&self) -> bool {
+        self.route_map.is_some()
+    }
+
+    #[allow(dead_code)]
+    pub fn get_routes<'a>(&'a self) -> Option<impl Iterator<Item = (&'a str, &'a Route)>> {
+        self.route_map.as_ref().map(|routes| routes.iter().map(|c| (c.0.as_str(), c.1)))
+    }
+
+    #[allow(dead_code)]
     pub fn get_component<'a>(&'a self, component_ty: &str) -> Option<&'a Component> {
-        self.comp_map.as_ref().map_or(None, |comp_map| comp_map.get(component_ty))
+        self.comp_map.as_ref().and_then(|comp_map| comp_map.get(component_ty))
+    }
+
+    #[allow(dead_code)]
+    pub fn get_route<'a>(&'a self, exact_pattern: &str) -> Option<&'a Route> {
+        self.route_map.as_ref().and_then(|routes| routes.get(exact_pattern))
     }
 }
