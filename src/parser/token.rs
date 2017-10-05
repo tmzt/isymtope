@@ -44,6 +44,8 @@ pub enum Token {
     WhereKeyword,
     ToKeyword,
 
+    QueryKeyword,
+
     SetKeyword,
     UniqueKeyword,
     AndKeyword,

@@ -13,6 +13,7 @@ pub enum NodeType {
     RouteDefinitionNode(RouteDefinitionType),
     StoreNode(Vec<DefaultScopeNodeType>),
     ContentNode(ContentNodeType),
+    QueryNode(QueryDefinition)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

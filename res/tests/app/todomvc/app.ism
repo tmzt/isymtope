@@ -31,6 +31,12 @@ component todo_item (todo) {
      }
 }
 
+component todo_list (todos, showing) {
+    ul(id="todo-list", class="todo-list") {
+        todo_item (for todo in todos.filter(item.complete)) {}
+    }
+}
+
 component new_todo (entry) {
     input(class="new-todo", placeholder="What needs to be done?", autofocus="autofocus") bind entry
         enterkey || { dispatch add(entry: {text: entry}); } {}
@@ -49,6 +55,12 @@ route "/all" || { dispatch filter(mode: "all") to showing; }
 route "/completed" || { dispatch filter(mode: "completed") to showing; }
 route "/active" || { dispatch filter(mode: "active") to showing; }
 
+query visible_todos(todos, showing) {
+    (todos) where (showing == "all");
+    (todos.filter(item.complete)) where (showing == "complete");
+    (todos.filter(!(item.complete))) where (showing == "active");
+}
+
 section(class="todoapp") {
     header(class="header") {
         h1() { ("todos") }
@@ -57,8 +69,6 @@ section(class="todoapp") {
 
     section(class="main") {
         toggle_all(checked=true) {}
-        ul(id="todo-list", class="todo-list") {
-            todo_item (for todo in todos.filter(item.complete)) {}
-        }
+        todo_list(query visible_todos()) {}
     }
 }

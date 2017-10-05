@@ -102,6 +102,14 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result {
+        Ok(())
+    }
+
+    fn write_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        Ok(())
+    }
+
     fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match binding {
             &BindingType::ComponentPropBinding(ref key) => {

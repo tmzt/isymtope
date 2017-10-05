@@ -2,17 +2,18 @@ pub mod expr_writers;
 pub mod ops_writers;
 pub mod stream_writers;
 pub mod block_writers;
+pub mod query_writers;
 
 pub use self::expr_writers::*;
 pub use self::ops_writers::*;
 pub use self::stream_writers::*;
 pub use self::block_writers::*;
+pub use self::query_writers::*;
 
 use std::io;
 use std::collections::HashMap;
 
 use model::*;
-use parser::*;
 use scope::*;
 use processing::*;
 
@@ -73,6 +74,22 @@ pub struct DefaultOutputWriters {}
 
 pub type DefaultOutputWriterHtml = DefaultOutputWriter<ExpressionWriterHtml>;
 pub type DefaultOutputWriterJs = DefaultOutputWriter<ExpressionWriterJs>;
+
+pub trait JavascriptUtilWriter {
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result;
+}
+
+impl JavascriptUtilWriter for DefaultOutputWriterJs {
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result {
+        let mut first = true;
+        for param in params {
+            if !first { write!(w, ", ")?; }
+            write!(w, "{}", param)?;
+            first = false;
+        }
+        Ok(())
+    }
+}
 
 pub trait OutputWritersBoth {
     type Html: OutputWriter;

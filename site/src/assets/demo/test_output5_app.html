@@ -7,7 +7,7 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><div key="ff9"><p key="ff9.905"><input key="ff9.905.057" value="" value="" /></p><p key="ff9.f6e" class="actions"><a key="ff9.f6e.737" href="#">Add</a></p></div><div key="ff9.c48.0"><p key="ff9.c48.0.8c6">[Todo: , ].join("")</p></div><div key="ff9.c48.1"><p key="ff9.c48.1.8c6">[Todo: , ].join("")</p></div></div>
+        <div id="root"><div key="92f"><p key="92f.a7d"><input key="92f.a7d.4cd" value="" value="" /></p><p key="92f.d0a" class="actions"><a key="92f.d0a.ee2" href="#">Add</a></p></div><div key="92f.1d4.0"><p key="92f.1d4.0.677">[Todo: , ].join("")</p></div><div key="92f.1d4.1"><p key="92f.1d4.1.677">[Todo: , ].join("")</p></div></div>
 
 
         <script>
@@ -43,11 +43,11 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"todos": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("One"), LiteralString("Two")]))))} */
-/* Some([InstanceComponent("new_todo", "ff9", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(UnresolvedReference("entry"), None, None))))), InstanceComponent("todo", "ff9.c48", Some("todo"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* Some([InstanceComponent("new_todo", "92f", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(UnresolvedReference("entry"), None, None))))), InstanceComponent("todo", "92f.1d4", Some("todo"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
 /* None */
                 function component_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".8c6", ["key", key + ".8c6"]);
+IncrementalDOM.elementOpen("p", key + ".677", ["key", key + ".677"]);
 IncrementalDOM.text("Todo: " + props.todo);
 IncrementalDOM.elementClose("p");
 IncrementalDOM.elementClose("div");
@@ -61,11 +61,11 @@ IncrementalDOM.elementClose("div");
 
                 function component_new_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".905", ["key", key + ".905"]);
-IncrementalDOM.elementVoid("input", key + ".905.057", ["key", key + ".905.057", "value", ""], "value", props.entry);
+IncrementalDOM.elementOpen("p", key + ".a7d", ["key", key + ".a7d"]);
+IncrementalDOM.elementVoid("input", key + ".a7d.4cd", ["key", key + ".a7d.4cd", "value", ""], "value", props.entry);
 IncrementalDOM.elementClose("p");
-IncrementalDOM.elementOpen("p", key + ".f6e", ["key", key + ".f6e", "class", "actions"]);
-IncrementalDOM.elementOpen("a", key + ".f6e.737", ["key", key + ".f6e.737", "href", "#"]);
+IncrementalDOM.elementOpen("p", key + ".d0a", ["key", key + ".d0a", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".d0a.ee2", ["key", key + ".d0a.ee2", "href", "#"]);
 IncrementalDOM.text("Add");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.elementClose("p");
@@ -76,21 +76,21 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_new_todo(key, props, store) {
       // Bind actions
-setEventListener(key + ".f6e.737", document.querySelector("[key='" + key + ".f6e.737" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+setEventListener(key + ".d0a.ee2", document.querySelector("[key='" + key + ".d0a.ee2" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
 });
 
                 }
 
 
                 function render(store) {
-component_new_todo("ff9", {"entry": }, store);
-(store.getState().todos).forEach(function(item, idx) {component_todo("ff9.c48." + idx, {"todo": item}, store);
+component_new_todo("92f", {"entry": }, store);
+(store.getState().todos).forEach(function(item, idx) {component_todo("92f.1d4." + idx, {"todo": item}, store);
 });
                 }
 
                 function root_bindings(store) {
 
-setEventListener("ff9.f6e.737", document.querySelector("[key='ff9.f6e.737']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": });
+setEventListener("92f.d0a.ee2", document.querySelector("[key='92f.d0a.ee2']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": });
 });
                 }
 

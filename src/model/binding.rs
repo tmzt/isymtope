@@ -22,7 +22,9 @@ pub enum BindingType {
     DOMElementBinding(Box<ExprValue>),
     DOMElementAttributeBinding(String, String),
     DOMInputElementValueBinding(String),
-    DOMInputCheckboxElementCheckedBinding(Box<ReducedValue>)
+    DOMInputCheckboxElementCheckedBinding(Box<ReducedValue>),
+    UnresolvedQueryBinding(UnresolvedQueryInvocation),
+    LocalQueryBinding(LocalQueryInvocation),
 }
 
 impl BindingType {

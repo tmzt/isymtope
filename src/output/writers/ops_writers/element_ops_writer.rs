@@ -114,6 +114,12 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
                             self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props, iter::empty(), iter::empty(), Some(LensItemType::GetLens(key, expr)))?;
                         }
 
+                        Some(LensExprType::QueryLens(ref query_expr)) => {
+                            let binding = ExprValue::Binding(BindingType::MapItemBinding);
+                            let props_iter = vec![("item", Some(&binding))].into_iter();
+                            self.write_map_collection_to_component(w, doc, ctx, bindings, "item", query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
+                        }
+
                         _ => {
                             let props = vec![];
                             self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props, iter::empty(), iter::empty(), None)?;

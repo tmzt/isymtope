@@ -72,6 +72,7 @@ pub enum ReducedMethodType {
     MapIf(ExprValue, ExprValue),
     FlatMap(ExprValue),
     FilterMap(ExprValue),
+    Filter(ExprValue),
     UniqMember(Symbol),
     Uniq(ExprValue),
     Any(ExprValue),

@@ -29,6 +29,7 @@ pub enum ElementExpr {
 pub enum LensExprType {
     ForLens(Option<String>, ExprValue),
     GetLens(String, ExprValue),
+    QueryLens(ExprValue)
 }
 
 pub type PropKey = String;

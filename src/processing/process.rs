@@ -11,6 +11,7 @@ use processing::process_content::*;
 use processing::process_store::*;
 use processing::process_comp_def::*;
 use processing::process_route::*;
+use processing::process_query::*;
 
 
 pub struct ProcessDocument<'input> {
@@ -63,6 +64,15 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
+    pub fn process_query_definition(&mut self, ctx: &mut Context, bindings: &mut BindingContext, query_def: &QueryDefinition) -> DocumentProcessingResult<()> {
+        let mut output = QueryDefinitionProcessorOutput::default();
+        let mut processor = QueryDefinitionProcessor::default();
+        processor.process_source_node(&mut self.processing, ctx, bindings, &mut output, query_def)?;
+        let query: Query = output.into();
+        self.processing.query_map.insert(query.name().to_owned(), query);
+        Ok(())
+    }
+
     #[allow(dead_code)]
     #[allow(unused_variables)]
     pub fn process_document(&mut self, ctx: &mut Context, bindings: &mut BindingContext) -> DocumentProcessingResult<()> {
@@ -91,6 +101,12 @@ impl<'input> ProcessDocument<'input> {
         for ref loc in self.ast.children.iter() {
             if let NodeType::RouteDefinitionNode(ref route) = loc.inner {
                 self.process_route_definition(ctx, bindings, route)?;
+            }
+        }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::QueryNode(ref query) = loc.inner {
+                self.process_query_definition(ctx, bindings, query)?;
             }
         }
 

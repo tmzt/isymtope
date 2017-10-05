@@ -10,6 +10,7 @@ pub mod route;
 pub mod store;
 pub mod symbol;
 pub mod types;
+pub mod query;
 
 pub use self::api::*;
 pub use self::ast::*;
@@ -23,3 +24,4 @@ pub use self::route::*;
 pub use self::store::*;
 pub use self::symbol::*;
 pub use self::types::*;
+pub use self::query::*;

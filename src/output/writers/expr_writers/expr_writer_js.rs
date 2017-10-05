@@ -215,6 +215,33 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result {
+        let mut first = true;
+        for param in params {
+            if !first { write!(w, ", ")?; }
+            write!(w, "{}", param)?;
+            first = false;
+        }
+        Ok(())
+    }
+
+    fn write_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        write!(w, "{{")?;
+        if let Some(props) = props {
+            let mut first = true;
+            for prop in props {
+                if !first { write!(w, ", ")?; }
+                write!(w, "\"{}\": ", prop.0)?;
+                if let Some(expr_ref) = prop.1 {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr_ref)?;
+                }
+                first = false;
+            };
+        };
+        write!(w, "}}")?;
+        Ok(())
+    }
+
     fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
         match *binding {
             BindingType::DOMElementBinding(ref expr) => {
@@ -283,6 +310,14 @@ impl ExpressionWriter for ExpressionWriterJs {
 
             BindingType::ComponentPropBinding(ref key) => {
                 value_writer.write_simple_binding(w, ctx, bindings, binding)
+            }
+
+            BindingType::LocalQueryBinding(ref query_binding) => {
+                let name = query_binding.query_name();
+                write!(w, "query_{}(", name)?;
+                self.write_actual_props(w, doc, value_writer, ctx, bindings, query_binding.props_iter())?;
+                write!(w, ")")?;
+                Ok(())
             }
 
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
@@ -357,6 +392,12 @@ impl ExpressionWriter for ExpressionWriterJs {
                             };
                             write!(w, "}})")?;
                         },
+
+                        &ReducedMethodType::Filter(ref expr) => {
+                            write!(w, "filter(function(item) {{")?;
+                            self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                            write!(w, "}})")?;
+                        }
 
                         &ReducedMethodType::Reduce(ref expr, ref initial) |
                         &ReducedMethodType::ReduceIf(ref expr, _, ref initial) => {

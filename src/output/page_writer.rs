@@ -250,6 +250,17 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
+    pub fn write_query_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_queries() {
+            for (name, query) in iter {
+                self.writers.js.write_query(w, self.doc, ctx, bindings, query)?;
+            }
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
     pub fn write_route_registrations(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         if let Some(iter) = self.doc.get_routes() {
             writeln!(w, "{}", self::STRING_JS_OPEN_DEFINE_ROUTES)?;
@@ -313,6 +324,7 @@ impl<'doc> PageWriter<'doc> {
         // Define route handlers
         self.write_route_definitions(w, ctx, bindings)?;
         self.write_route_registrations(w, ctx, bindings)?;
+        self.write_query_definitions(w, ctx, bindings)?;
         self.write_root_block_render_definition(w, ctx, bindings)?;
         self.write_root_bindings_definition(w, ctx, bindings)?;
 

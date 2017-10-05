@@ -96,6 +96,14 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> Itera
                             }
                         }
 
+                        "filter" => {
+                            let param_ref = &params[0];
+                            self.ctx.add_sym("item", Symbol::binding(&BindingType::MapItemBinding));
+
+                            let expr = self.ctx.reduce_expr_or_return_same(&param_ref.0);
+                            Some(ReducedMethodType::Filter(expr))
+                        }
+
                         "reduce" => {
                             let param_ref = &params[0];
                             let initial = params.get(1).and_then(|p| p.1.as_ref().map(|p| p.to_owned()));

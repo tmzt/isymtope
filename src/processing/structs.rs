@@ -41,6 +41,7 @@ pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
 pub type RouteMap = LinkedHashMap<String, Route>;
+pub type QueryMap = LinkedHashMap<String, Query>;
 
 pub type ComponentKeyMapping = (String, String, Option<PropVec>, Option<LensExprType>);
 pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
@@ -255,6 +256,7 @@ pub struct DocumentProcessingState {
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
     pub route_map: RouteMap,
+    pub query_map: QueryMap,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyProcessingMap,
     pub default_state_map: DefaultStateMap,
@@ -289,6 +291,7 @@ pub struct Document {
     root_block: Block,
     comp_map: Option<ComponentMap>,
     route_map: Option<RouteMap>,
+    query_map: Option<QueryMap>,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
@@ -301,12 +304,14 @@ impl<'inp> Into<Document> for DocumentProcessingState {
     fn into(self) -> Document {
         let comp_map = if self.comp_map.len() > 0 { Some(self.comp_map) } else { None };
         let route_map = if self.route_map.len() > 0 { Some(self.route_map) } else { None };
+        let query_map = if self.query_map.len() > 0 { Some(self.query_map) } else { None };
         let reducer_key_data: ReducerKeyMap = self.reducer_key_data.into_iter().map(|d| (d.0, d.1.into())).collect();
 
         Document {
             root_block: self.root_block.into(),
             comp_map: comp_map,
             route_map: route_map,
+            query_map: query_map,
             reducer_key_data: reducer_key_data,
             default_state_map: self.default_state_map,
             default_state_symbol: self.default_state_symbol,
@@ -373,5 +378,20 @@ impl Document {
     #[allow(dead_code)]
     pub fn get_route<'a>(&'a self, exact_pattern: &str) -> Option<&'a Route> {
         self.route_map.as_ref().and_then(|routes| routes.get(exact_pattern))
+    }
+
+    #[allow(dead_code)]
+    pub fn has_queries(&self) -> bool {
+        self.query_map.is_some()
+    }
+
+    #[allow(dead_code)]
+    pub fn get_queries<'a>(&'a self) -> Option<impl Iterator<Item = (&'a str, &'a Query)>> {
+        self.query_map.as_ref().map(|queries| queries.iter().map(|c| (c.0.as_str(), c.1)))
+    }
+
+    #[allow(dead_code)]
+    pub fn get_query<'a>(&'a self, name: &str) -> Option<&'a Query> {
+        self.query_map.as_ref().and_then(|queries| queries.get(name))
     }
 }

@@ -20,6 +20,7 @@ NodeType: NodeType = {
     ComponentDefinitionNode,
     RouteDefinitionNode,
     StoreNode,
+    QueryNode,
     <content:ContentNodeType> => NodeType::ContentNode(content)
 };
 
@@ -40,6 +41,11 @@ ContentNodeType : ContentNodeType = {
 StoreNode : NodeType =
 {
     StoreKeyword "{" <children:DefaultScopeNodeType*> "}" => NodeType::StoreNode(children)
+};
+
+QueryNode: NodeType =
+{
+    <def:QueryDefinition> => NodeType::QueryNode(def)
 };
 
 UseStmtNode : NodeType =
@@ -110,7 +116,6 @@ ExprValue : ExprValue =
     <l:ExprValue> ">" <r:ExprFactor> => ExprValue::TestValue(TestOp::LessThan, Box::new(l), Some(Box::new(r))),
     <l:ExprValue> "<" <r:ExprFactor> => ExprValue::TestValue(TestOp::GreaterThan, Box::new(l), Some(Box::new(r))),
 
-    "!" <e:ExprFactor> => ExprValue::TestValue(TestOp::Negate, Box::new(e), None),
 
     <l:ExprValue> "==" <r:ExprFactor> => ExprValue::TestValue(TestOp::EqualTo, Box::new(l), Some(Box::new(r))),
     <l:ExprValue> "!=" <r:ExprFactor> => ExprValue::TestValue(TestOp::NotEqualTo, Box::new(l), Some(Box::new(r))),
@@ -122,6 +127,7 @@ ExprValue : ExprValue =
 
 ExprFactor : ExprValue =
 {
+    "!" <e:ExprTerm> => ExprValue::TestValue(TestOp::Negate, Box::new(e), None),
     <l:ExprFactor> "*" <r:ExprTerm> => ExprValue::Expr(ExprOp::Mul, Box::new(l), Box::new(r)),
     <l:ExprFactor> "/" <r:ExprTerm> => ExprValue::Expr(ExprOp::Div, Box::new(l), Box::new(r)),
     ExprTerm,
@@ -135,6 +141,8 @@ ExprTerm : ExprValue =
     "(" <expr:ExprValue> ")" => ExprValue::Group(Some(Box::new(expr.into()))),
     "{" <props:CommaList<ObjectProp>> "}" => ExprValue::LiteralObject(Some(props.clone())),
     "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
+
+    QueryKeyword <name:Id> "(" ")" => ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, None, None))),
 
     <n:LitNum> => ExprValue::LiteralNumber(n),
     <b:LitBool> => ExprValue::LiteralBool(b),
@@ -223,7 +231,8 @@ ElementLens : LensExprType = {
     ForKeyword <coll:Id> => LensExprType::ForLens(None, ExprValue::SymbolReference(Symbol::unresolved(&coll))),
     // ForKeyword <ele_key:Id> InKeyword <coll:Id> => LensExprType::ForLens(Some(ele_key.into()), ExprValue::SymbolReference(Symbol::unresolved(&coll))),
     ForKeyword <ele_key:Id> InKeyword <coll:ExprValue> => LensExprType::ForLens(Some(ele_key.into()), coll.to_owned()),
-    GetKeyword <prop:Id> => LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop)))
+    GetKeyword <prop:Id> => LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop))),
+    QueryKeyword <name:Id> "(" ")" => LensExprType::QueryLens(ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, None, None)))),
 };
 
 #[inline]
@@ -342,6 +351,21 @@ VarOrMethodPath : ExprValue = {
             ExprValue::SymbolReference(head)
         }
     }
+};
+
+
+///
+/// Query definitions
+///
+
+#[inline]
+QueryDefinitionComponent: QueryDefinitionComponent = {
+    <val:ExprValue> WhereKeyword "(" <cond:ExprValue> ")" ";" => QueryDefinitionComponent::CaseWhere(val.into(), cond.into())
+};
+
+#[inline]
+QueryDefinition: QueryDefinition = {
+    QueryKeyword <name:Id> "(" <params:(CommaList<Id>)> ")" "{" <components:(QueryDefinitionComponent+)?> "}" => QueryDefinition::new(&name, if !params.is_empty() { Some(params) } else { None }, components)
 };
 
 
@@ -506,6 +530,8 @@ extern {
         WhereKeyword => Token::WhereKeyword,
         ToKeyword => Token::ToKeyword,
         
+        QueryKeyword => Token::QueryKeyword,
+
         SetKeyword => Token::SetKeyword,
         UniqueKeyword => Token::UniqueKeyword,
         AndKeyword => Token::AndKeyword,

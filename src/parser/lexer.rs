@@ -135,6 +135,8 @@ impl<'input> Lexer<'input> {
             "where" => Token::WhereKeyword,
             "to" => Token::ToKeyword,
 
+            "query" => Token::QueryKeyword,
+
             "set" => Token::SetKeyword,
             "unique" => Token::UniqueKeyword,
             "and" => Token::AndKeyword,
