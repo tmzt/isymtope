@@ -1,7 +1,6 @@
 // #![allow(dead_code)]
 
 use std::collections::HashMap;
-use linked_hash_map::LinkedHashMap;
 use parser::*;
 use model::*;
 
@@ -29,7 +28,27 @@ pub enum ElementExpr {
 pub enum LensExprType {
     ForLens(Option<String>, ExprValue),
     GetLens(String, ExprValue),
-    QueryLens(ExprValue)
+    QueryLens(ExprValue, String)
+}
+
+impl LensExprType {
+    pub fn expr(&self) -> Option<&ExprValue> {
+        match *self {
+            LensExprType::GetLens(_, ref expr) |
+            LensExprType::ForLens(_, ref expr) |
+            LensExprType::QueryLens(ref expr, _) => Some(expr),
+            _ => None
+        }
+    }
+
+    pub fn item_key(&self) -> Option<&str> {
+        match *self {
+            LensExprType::GetLens(ref key, _) |
+            LensExprType::ForLens(Some(ref key), _) |
+            LensExprType::QueryLens(_, ref key) => Some(key),
+            _ => None
+        }
+    }
 }
 
 pub type PropKey = String;

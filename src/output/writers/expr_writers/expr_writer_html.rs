@@ -124,6 +124,10 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
+    fn write_lens_inner(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, lens: &LensExprType) -> Result {
+        Ok(())
+    }
+
     fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
         Ok(())
     }

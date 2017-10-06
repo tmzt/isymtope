@@ -24,7 +24,7 @@ pub enum BindingType {
     DOMInputElementValueBinding(String),
     DOMInputCheckboxElementCheckedBinding(Box<ReducedValue>),
     UnresolvedQueryBinding(UnresolvedQueryInvocation),
-    LocalQueryBinding(LocalQueryInvocation),
+    LocalQueryBinding(LocalQueryInvocation)
 }
 
 impl BindingType {

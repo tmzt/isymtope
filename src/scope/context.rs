@@ -243,9 +243,16 @@ impl Context {
         if let BindingType::UnresolvedQueryBinding(ref unresolved_query) = *binding {
             let query_name = unresolved_query.query_name();
             if let Some(_) = doc.get_query(query_name) {
+                let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                    (p.0.to_owned(), p.1.map(|expr| self.reduce_expr_or_return_same(expr)))
+                }).collect());
+
                 // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.0.to_owned(), p.1.map(|expr| expr.to_owned())) ).collect());
                 // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.0.to_owned(), p.1.map(|expr| expr.to_owned())) ).collect());
-                let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.to_owned(), None)).collect());
+
+                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                //     (p.0.to_owned(), Some(ExprValue::SymbolReference(Symbol::unresolved(p.0))))
+                // }).collect());
                 let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
 
                 return Some(BindingType::LocalQueryBinding(resolved_query));
@@ -253,6 +260,16 @@ impl Context {
         };
 
         None
+    }
+
+    #[inline]
+    pub fn resolve_lens(&mut self, bindings: &BindingContext, lens: &LensExprType) -> Option<LensExprType> {
+        match *lens {
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                self.reduce_expr(expr).map(|expr| LensExprType::QueryLens(expr, alias.to_owned()))
+            }
+            _ => None
+        }
     }
 
     #[allow(dead_code)]
@@ -507,8 +524,19 @@ impl Context {
         self.reduce_expr(expr)
     }
 
-    pub fn reduce_binding(&mut self, _binding: &BindingType) -> Option<BindingType> {
-        None
+    pub fn reduce_binding(&mut self, binding: &BindingType) -> Option<BindingType> {
+        match *binding {
+            BindingType::LocalQueryBinding(ref query_binding) => {
+                let query_name = query_binding.query_name();
+                let ty = query_binding.ty().map(|ty| ty.to_owned());
+                let props = query_binding.props_iter()
+                    .map(|iter| self.map_actual_props(iter));
+
+                let binding = BindingType::LocalQueryBinding(LocalQueryInvocation::new(query_name, props, ty));
+                Some(binding)
+            }
+            _ => None
+        }
     }
 
     pub fn reduce_symbol(&mut self, sym: &Symbol) -> Option<Symbol> {
@@ -529,6 +557,21 @@ impl Context {
                 self.reduce_binding(binding).map(|binding| Symbol::binding(&binding))
             }
 
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn reduce_lens(&mut self, lens: &LensExprType) -> Option<LensExprType> {
+        match *lens {
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::QueryLens(expr, alias.to_owned()))
+            }
+            LensExprType::GetLens(ref key, ref expr) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::GetLens(key.to_owned(), expr))
+            }
             _ => None
         }
     }
@@ -676,17 +719,43 @@ impl Context {
             }
   
             &ExprValue::Binding(ref binding) =>  {
-                 self.resolve_binding_value(binding)
+                let reduced = self.reduce_binding(binding);
+                if let Some(resolved) = self.resolve_binding_value(reduced.as_ref().unwrap_or(binding)) {
+                    return Some(resolved);
+                };
+                reduced.map(|b| ExprValue::Binding(b))
+            }
+
+            &ExprValue::Lens(box ref lens) => {
+                self.reduce_lens(lens).map(|lens| lens.into())
             }
 
             _ => None
         }
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub fn map_expr(&mut self, bindings: &BindingContext, expr: &ExprValue) -> ExprValue {
+        if let ExprValue::Lens(box ref lens) = *expr {
+            let lens = self.map_lens(bindings, lens);
+            return lens.into();
+        };
+
+        expr.to_owned()
+    }
+
     pub fn map_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, props: I) -> Vec<Prop> {
         props.into_iter().map(|prop| {
             if let Some(expr) = prop.1.as_ref().and_then(|expr| self.reduce_expr(expr)) { return (prop.0.to_owned(), Some(expr)); }
             prop.to_owned()
+        }).collect()
+    }
+
+    pub fn map_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, props: I) -> Vec<Prop> {
+        props.into_iter().map(|prop| {
+            if let Some(expr) = prop.1.as_ref().and_then(|expr| self.reduce_expr(expr)) { return (prop.0.to_owned(), Some(expr)); }
+            (prop.0.to_owned(), prop.1.map(|p| p.to_owned()))
         }).collect()
     }
 
@@ -717,7 +786,7 @@ impl Context {
     }
 
     #[inline]
-    pub fn map_lens(&mut self, _bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
+    pub fn map_lens(&mut self, bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
         match *lens {
             LensExprType::ForLens(ref ele_key, ref coll_expr) => {
                 let ele_key = ele_key.as_ref().map(|s| s.to_owned());
@@ -726,12 +795,14 @@ impl Context {
             }
             LensExprType::GetLens(ref prop_key, ref prop_expr) => {
                 let prop_expr = self.reduce_expr_or_return_same(prop_expr);
+                let prop_expr = self.map_expr(bindings, &prop_expr);
                 LensExprType::GetLens(prop_key.to_owned(), prop_expr)
             }
-            LensExprType::QueryLens(ref expr) => {
+            LensExprType::QueryLens(ref expr, ref alias) => {
                 // let resolved = match *expr { ExprValue::Binding(ref binding) => self.resolve_binding(doc, binding).map(|b| ExprValue::Binding(b)), _ => None };
                 let expr = self.reduce_expr_or_return_same(expr);
-                LensExprType::QueryLens(expr)
+                let expr = self.map_expr(bindings, &expr);
+                LensExprType::QueryLens(expr, alias.to_owned())
             }
         }
     }
@@ -803,6 +874,7 @@ impl Context {
         self.scope().join_path_as_expr(s)
     }
 
+    #[allow(dead_code)]
     pub fn join_path_as_expr_with_expr(&mut self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
         self.scope().join_path_as_expr_with_expr(sep, last)
     }

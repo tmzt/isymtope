@@ -74,6 +74,11 @@ pub trait ExpressionWriter {
                 self.write_pipeline(w, doc, value_writer, ctx, bindings, head, parts.iter())
             }
 
+            // Strip off lens wrapper at this point
+            ExprValue::Lens(box ref lens) => {
+                self.write_lens_inner(w, doc, value_writer, ctx, bindings, lens)
+            }
+
             _ => self::common_write_expr(w, value_writer, ctx, bindings, expr)
         }
     }
@@ -95,6 +100,14 @@ pub trait ExpressionWriter {
             SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
             _ => value_writer.write_undefined(w)
         }
+    }
+
+    // Write the value of the lens, stripping off the wrapping
+    fn write_lens_inner(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, lens: &LensExprType) -> Result {
+        if let Some(expr) = lens.expr() {
+            return self.write_expr_to(w, doc, value_writer, ctx, bindings, expr);            
+        };
+        Ok(())
     }
 
     fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result;

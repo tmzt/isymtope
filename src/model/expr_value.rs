@@ -1,6 +1,5 @@
 use std::iter;
 use model::*;
-use parser::*;
 
 
 pub trait AsStaticString {
@@ -216,7 +215,16 @@ pub enum ExprValue {
     IterMethodPipeline(Option<Box<ExprValue>>, Option<IterMethodPipelineComponentVec>),
     ReducedPipeline(Option<Box<ExprValue>>, Option<ReducedPipelineComponentVec>),
     FilterPipeline(Option<Box<ExprValue>>, Option<FilterPipelineComponentVec>),
+    Lens(Box<LensExprType>),
     Undefined,
+}
+
+impl Into<ExprValue> for BindingType {
+    fn into(self) -> ExprValue { ExprValue::Binding(self) }
+}
+
+impl Into<ExprValue> for LensExprType {
+    fn into(self) -> ExprValue { ExprValue::Lens(self.into()) }
 }
 
 impl ExprValue {

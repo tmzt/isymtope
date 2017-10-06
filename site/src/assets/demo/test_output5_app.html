@@ -7,7 +7,7 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><div key="92f"><p key="92f.a7d"><input key="92f.a7d.4cd" value="" value="" /></p><p key="92f.d0a" class="actions"><a key="92f.d0a.ee2" href="#">Add</a></p></div><div key="92f.1d4.0"><p key="92f.1d4.0.677">[Todo: , ].join("")</p></div><div key="92f.1d4.1"><p key="92f.1d4.1.677">[Todo: , ].join("")</p></div></div>
+        <div id="root"><div key="d1b"><p key="d1b.f63"><input key="d1b.f63.5c2" value="" value="" /></p><p key="d1b.abc" class="actions"><a key="d1b.abc.b16" href="#">Add</a></p></div><div key="d1b.21f"><p key="d1b.21f.2a9">[Todo: , ].join("")</p></div></div>
 
 
         <script>
@@ -43,11 +43,11 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"todos": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("One"), LiteralString("Two")]))))} */
-/* Some([InstanceComponent("new_todo", "92f", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(UnresolvedReference("entry"), None, None))))), InstanceComponent("todo", "92f.1d4", Some("todo"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* Some([InstanceComponent("new_todo", "d1b", Some("new_todo"), Some([]), None), InstanceComponent("todo", "d1b.21f", Some("todo"), Some([]), None)]) */
 /* None */
                 function component_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".677", ["key", key + ".677"]);
+IncrementalDOM.elementOpen("p", key + ".2a9", ["key", key + ".2a9"]);
 IncrementalDOM.text("Todo: " + props.todo);
 IncrementalDOM.elementClose("p");
 IncrementalDOM.elementClose("div");
@@ -61,11 +61,11 @@ IncrementalDOM.elementClose("div");
 
                 function component_new_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".a7d", ["key", key + ".a7d"]);
-IncrementalDOM.elementVoid("input", key + ".a7d.4cd", ["key", key + ".a7d.4cd", "value", ""], "value", props.entry);
+IncrementalDOM.elementOpen("p", key + ".f63", ["key", key + ".f63"]);
+IncrementalDOM.elementVoid("input", key + ".f63.5c2", ["key", key + ".f63.5c2", "value", ""], "value", props.entry);
 IncrementalDOM.elementClose("p");
-IncrementalDOM.elementOpen("p", key + ".d0a", ["key", key + ".d0a", "class", "actions"]);
-IncrementalDOM.elementOpen("a", key + ".d0a.ee2", ["key", key + ".d0a.ee2", "href", "#"]);
+IncrementalDOM.elementOpen("p", key + ".abc", ["key", key + ".abc", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".abc.b16", ["key", key + ".abc.b16", "href", "#"]);
 IncrementalDOM.text("Add");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.elementClose("p");
@@ -76,21 +76,20 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_new_todo(key, props, store) {
       // Bind actions
-setEventListener(key + ".d0a.ee2", document.querySelector("[key='" + key + ".d0a.ee2" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+setEventListener(key + ".abc.b16", document.querySelector("[key='" + key + ".abc.b16" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
 });
 
                 }
 
 
                 function render(store) {
-component_new_todo("92f", {"entry": }, store);
-(store.getState().todos).forEach(function(item, idx) {component_todo("92f.1d4." + idx, {"todo": item}, store);
-});
+component_new_todo("d1b", {}, store);
+component_todo("d1b.21f", {}, store);
                 }
 
                 function root_bindings(store) {
 
-setEventListener("92f.d0a.ee2", document.querySelector("[key='92f.d0a.ee2']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": });
+setEventListener("d1b.abc.b16", document.querySelector("[key='d1b.abc.b16']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
 });
                 }
 

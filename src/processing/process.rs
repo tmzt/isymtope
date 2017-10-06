@@ -2,8 +2,6 @@
 use std::iter;
 
 use model::*;
-use parser::*;
-use parser::loc::*;
 use scope::*;
 
 use processing::*;

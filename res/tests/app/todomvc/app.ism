@@ -33,7 +33,7 @@ component todo_item (todo) {
 
 component todo_list (todos, showing) {
     ul(id="todo-list", class="todo-list") {
-        todo_item (for todo in todos.filter(item.complete)) {}
+        todo_item (for todo in todos) {}
     }
 }
 
@@ -69,6 +69,6 @@ section(class="todoapp") {
 
     section(class="main") {
         toggle_all(checked=true) {}
-        todo_list(query visible_todos()) {}
+        todo_list(query visible_todos(get todos, get showing) as todos) {}
     }
 }

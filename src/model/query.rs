@@ -36,8 +36,9 @@ impl UnresolvedQueryInvocation {
     pub fn query_name(&self) -> &str { &self.0 }
     pub fn ty(&self) -> Option<&VarType> { self.2.as_ref() }
 
-    pub fn props_iter<'a>(&'a self) -> Option<impl Iterator<Item = FormalPropRef<'a>>> {
-        self.1.as_ref().map(|props| props.iter().map(|s| s.0.as_str()))
+    pub fn props_iter<'a>(&'a self) -> Option<impl Iterator<Item = PropRef<'a>>> {
+        self.1.as_ref().map(|props| props.iter().map(|s| (s.0.as_str(), s.1.as_ref())))
+        // self.1.as_ref().map(|props| props.iter().map(|s| s.0.as_str()))
     }
 }
 

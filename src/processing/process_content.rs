@@ -227,48 +227,23 @@ impl ProcessContent {
     pub fn process_element_as_component(&mut self,
                                 processing: &mut DocumentProcessingState,
                                 ctx: &mut Context,
-                                bindings: &mut BindingContext,
+                                _bindings: &mut BindingContext,
                                 element_data: &ElementType,
                                 block: &mut BlockProcessingState,
                                 parent_tag: Option<&str>)
                                 -> Result {
         let complete_key = ctx.join_path(Some("."));
         let element_tag = element_data.element_ty.to_lowercase();
-        let lens = element_data.lens.as_ref();
 
-        let query_lens = {
-            let query_expr = match lens { Some(&LensExprType::QueryLens(ref expr)) => Some(expr), _ => None };
-            query_expr.and_then(|query_expr| {
-                let unresolved_query = match *query_expr { ExprValue::Binding(BindingType::UnresolvedQueryBinding(ref query_ref)) => Some(query_ref), _ => None };
-                unresolved_query.and_then(|unresolved_query| {
-                    let query_name = unresolved_query.query_name();
-                    processing.query_map.get(query_name)
-                        .map(|_| {
-                            // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.0.to_owned(), p.1.map(|expr| expr.to_owned())) ).collect());
-                            let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.to_owned(), None)).collect());
-                            let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
-
-                            let binding = ExprValue::Binding(BindingType::LocalQueryBinding(resolved_query));
-                            LensExprType::QueryLens(binding)
-                        })
-                })
-            })
-        };
-
-        let lens = query_lens.as_ref().or(lens);
-        let lens = lens.map(|lens| ctx.map_lens(bindings, lens));
-        
-        let lens_key = match lens {
-            Some(LensExprType::GetLens(ref key, _)) |
-            Some(LensExprType::ForLens(Some(ref key), _)) => Some(key.to_owned()),
-            _ => None
-        };
+        let lens = element_data.lens.as_ref().and_then(|lens| processing.resolve_lens(ctx, lens));
+        // let lens_key = lens.as_ref().and_then(|lens| lens.item_key());
 
         // Create list of prop keys
         let prop_list: Option<Vec<_>> = element_data.attrs.as_ref()
-                .map(|s| s.iter().map(|s| Some(s.0.to_owned()))
-                    .chain(iter::once(lens_key))
+                .map(|s| s.iter().map(|p| Some(p.0.as_str()))
+                    .chain(iter::once(lens.as_ref().and_then(|lens| lens.item_key())))
                     .flat_map(|m| m)
+                    .map(|s| s.to_owned())
                     .collect());
 
         // Render a component during render

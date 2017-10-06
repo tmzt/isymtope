@@ -284,6 +284,63 @@ impl DocumentProcessingState {
         };
         Ok(())
     }
+
+    // Interim context helpers
+    #[allow(dead_code)]
+    pub fn resolve_binding(&mut self, ctx: &mut Context, binding: &BindingType) -> Option<BindingType> {
+        if let BindingType::UnresolvedQueryBinding(ref unresolved_query) = *binding {
+            let query_name = unresolved_query.query_name();
+            if let Some(_) = self.query_map.get(query_name) {
+                let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                    (p.0.to_owned(), p.1.map(|expr| ctx.reduce_expr_or_return_same(expr)))
+                }).collect());
+                let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
+
+                return Some(BindingType::LocalQueryBinding(resolved_query));
+            };
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn resolve_symbol(&mut self, ctx: &mut Context, sym: &Symbol) -> Option<Symbol> {
+        match *sym.sym_ref() {
+            SymbolReferenceType::UnresolvedReference(ref key) => {
+                None
+            }
+
+            SymbolReferenceType::UnresolvedPathReference(ref key) => {
+                None
+            }
+
+            _ => None
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn resolve_lens(&mut self, ctx: &mut Context, lens: &LensExprType) -> Option<LensExprType> {
+        match *lens {
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                self.resolve_expr(ctx, expr)
+                    .and_then(|expr| ctx.reduce_expr(&expr))
+                    .map(|expr| LensExprType::QueryLens(expr, alias.to_owned()))
+            }
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn resolve_expr(&mut self, ctx: &mut Context, expr: &ExprValue) -> Option<ExprValue> {
+        let resolved = match *expr {
+            ExprValue::Binding(ref binding) => self.resolve_binding(ctx, binding).map(|binding| ExprValue::Binding(binding)),
+            // ExprValue::SymbolReference(ref sym) => self.resolve_symbol(ctx, sym).map(|sym| ExprValue::SymbolReference(sym)),
+
+            _ => ctx.reduce_expr(expr)
+        };
+        resolved.or_else(|| expr.to_owned().into())
+    }
 }
 
 #[derive(Debug)]

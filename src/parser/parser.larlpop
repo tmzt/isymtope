@@ -226,13 +226,26 @@ CommaList<T> : Vec<T> = {
 };
 
 #[inline]
+ElementPropOrGetLens: Prop = {
+    GetKeyword <prop:Id> => {
+        let lens = LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop)));
+        (prop.to_owned(), Some(lens.into()))
+    },
+    ElementProp
+};
+
+#[inline]
 ElementLens : LensExprType = {
     // TODO: Support element key
     ForKeyword <coll:Id> => LensExprType::ForLens(None, ExprValue::SymbolReference(Symbol::unresolved(&coll))),
     // ForKeyword <ele_key:Id> InKeyword <coll:Id> => LensExprType::ForLens(Some(ele_key.into()), ExprValue::SymbolReference(Symbol::unresolved(&coll))),
     ForKeyword <ele_key:Id> InKeyword <coll:ExprValue> => LensExprType::ForLens(Some(ele_key.into()), coll.to_owned()),
     GetKeyword <prop:Id> => LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop))),
-    QueryKeyword <name:Id> "(" ")" => LensExprType::QueryLens(ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, None, None)))),
+    QueryKeyword <name:Id> "(" <props:CommaList<ElementPropOrGetLens>> ")" AsKeyword <alias:Id> => {
+        let props = if !props.is_empty() { Some(props) } else { None };
+        let binding = ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, props, None)));
+        LensExprType::QueryLens(binding, alias.into())
+    }
 };
 
 #[inline]
