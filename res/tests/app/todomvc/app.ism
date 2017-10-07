@@ -33,7 +33,7 @@ component todo_item (todo) {
 
 component todo_list (todos, showing) {
     ul(id="todo-list", class="todo-list") {
-        todo_item (for todo in todos) {}
+        todo_item(for todo in todos) {}
     }
 }
 

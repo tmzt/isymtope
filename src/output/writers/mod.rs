@@ -27,7 +27,7 @@ pub struct DefaultOutputWriter<E: ExpressionWriter> {
     value_writer: E::V,
     expression_writer: E,
     // events: EventsWithData
-    events: HashMap<String, EventsWithData>,
+    events: HashMap<String, Vec<EventWithData>>,
     events_vec: Vec<BoundEvent>
 }
 

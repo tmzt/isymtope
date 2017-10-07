@@ -1,36 +1,34 @@
 // #![allow(dead_code)]
 
 use model::*;
-use parser::*;
 use scope::*;
 
 
-pub struct FilterPipelineReduceIter<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> {
+pub struct FilterPipelineReduceIter<'ctx, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> {
     ctx: &'ctx mut Context,
-    head: Option<&'head ExprValue>,
     iter: S
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum FilterPipelineReduceIterState {
     NoState,
     Symbol,
     PipelineOp
 }
 
-impl<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> FilterPipelineReduceIter<'ctx, 'head, 'a, S>
+impl<'ctx, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> FilterPipelineReduceIter<'ctx, 'a, S>
 {
     #[allow(dead_code)]
-    pub fn new(ctx: &'ctx mut Context, head: Option<&'head ExprValue>, iter: S) -> Self {
+    pub fn new(ctx: &'ctx mut Context, iter: S) -> Self {
         FilterPipelineReduceIter {
             ctx: ctx,
-            head: head,
             iter: iter
         }
     }
 }
 
-impl<'ctx, 'head, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> Iterator for FilterPipelineReduceIter<'ctx, 'head, 'a, S>
+impl<'ctx, 'a, S: Iterator<Item = &'a FilterPipelineComponent>> Iterator for FilterPipelineReduceIter<'ctx, 'a, S>
 {
     type Item = Option<ReducedPipelineComponent>;
 

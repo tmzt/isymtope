@@ -171,7 +171,13 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
         let reduced_expr = ctx.eval_expr(doc, coll_expr);
         let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
 
-        if let ExprValue::LiteralArray(Some(ref arr)) = *coll_expr {
+        let coll_expr = match *coll_expr {
+            ExprValue::Lens(box ref lens) => lens.expr(),
+            ExprValue::Group(Some(box ref inner_expr)) => Some(inner_expr),
+            _ => Some(coll_expr)
+        };
+
+        if let Some(&ExprValue::LiteralArray(Some(ref arr))) = coll_expr {
             for (idx, item) in arr.iter().enumerate() {
                 ctx.push_child_scope();
 

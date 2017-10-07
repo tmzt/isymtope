@@ -7,7 +7,7 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><link key="ad1" rel="stylesheet" href="https://unpkg.com/todomvc-common@1.0.3/base.css" type="text/css" /><link key="819" rel="stylesheet" href="https://unpkg.com/todomvc-app-css@2.1.0/index.css" type="text/css" /><section key="2f3" class="todoapp"><header key="2f3.6d2" class="header"><h1 key="2f3.6d2.28b">todos</h1><div key="2f3.6d2.4b9"><input key="2f3.6d2.4b9.ea2" class="new-todo" placeholder="What needs to be done?" autofocus="autofocus" value="" /></div></header><section key="2f3.6d2.0a8" class="main"><div key="2f3.6d2.0a8.e84"><input key="2f3.6d2.0a8.e84.268" class="toggle-all" id="toggle-all" type="checkbox" /><label key="2f3.6d2.0a8.e84.b88" class="" for="toggle-all">Mark all as complete</label></div><div key="2f3.6d2.0a8.e84.d67"><ul key="2f3.6d2.0a8.e84.d67.669" id="todo-list" class="todo-list"><div key="2f3.6d2.0a8.e84.d67.669.5f4"><li key="2f3.6d2.0a8.e84.d67.669.5f4.b12" class=""><div key="2f3.6d2.0a8.e84.d67.669.5f4.b12.054" class="view"><input key="2f3.6d2.0a8.e84.d67.669.5f4.b12.054.9a4" class="toggle" type="checkbox" checked="" /><label key="2f3.6d2.0a8.e84.d67.669.5f4.b12.054.763"></label><button key="2f3.6d2.0a8.e84.d67.669.5f4.b12.054.c40" class="destroy" /></div></li></div></ul></div></section></section></div>
+        <div id="root"><link key="80a" rel="stylesheet" href="https://unpkg.com/todomvc-common@1.0.3/base.css" type="text/css" /><link key="e2e" rel="stylesheet" href="https://unpkg.com/todomvc-app-css@2.1.0/index.css" type="text/css" /><section key="16f" class="todoapp"><header key="16f.fe6" class="header"><h1 key="16f.fe6.684">todos</h1><div key="16f.fe6.ba2"><input key="16f.fe6.ba2.b8d" class="new-todo" placeholder="What needs to be done?" autofocus="autofocus" value="" /></div></header><section key="16f.fe6.69c" class="main"><div key="16f.fe6.69c.be6"><input key="16f.fe6.69c.be6.3da" class="toggle-all" id="toggle-all" type="checkbox" /><label key="16f.fe6.69c.be6.199" class="" for="toggle-all">Mark all as complete</label></div><div key="16f.fe6.69c.be6.c93"><ul key="16f.fe6.69c.be6.c93.f4a" id="todo-list" class="todo-list"><div key="16f.fe6.69c.be6.c93.f4a.f4d"><li key="16f.fe6.69c.be6.c93.f4a.f4d.e29" class=""><div key="16f.fe6.69c.be6.c93.f4a.f4d.e29.ee3" class="view"><input key="16f.fe6.69c.be6.c93.f4a.f4d.e29.ee3.7b9" class="toggle" type="checkbox" checked="" /><label key="16f.fe6.69c.be6.c93.f4a.f4d.e29.ee3.16d"></label><button key="16f.fe6.69c.be6.c93.f4a.f4d.e29.ee3.d4e" class="destroy" /></div></li></div></ul></div></section></section></div>
 
 
         <script>
@@ -43,18 +43,18 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"todos": (Some(ArrayVar(Some(ObjectVar))), Some(LiteralArray(Some([LiteralObject(Some([("text", Some(LiteralString("One"))), ("complete", Some(LiteralBool(false))), ("id", Some(LiteralNumber(0)))])), LiteralObject(Some([("text", Some(LiteralString("Two"))), ("complete", Some(LiteralBool(true))), ("id", Some(LiteralNumber(1)))]))])))), "entry": (Some(Primitive(StringVar)), Some(LiteralString(""))), "showing": (Some(Primitive(StringVar)), Some(LiteralString("all")))} */
-/* Some([ElementVoid("link", "ad1", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-common@1.0.3/base.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementVoid("link", "819", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-app-css@2.1.0/index.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementOpen("section", "2f3", Some([("class", Some(LiteralString("todoapp")))]), None, None), ElementOpen("header", "2f3.6d2", Some([("class", Some(LiteralString("header")))]), None, None), ElementOpen("h1", "2f3.6d2.28b", Some([]), None, None), WriteValue(LiteralString("todos"), "2f3.6d2.28b.e1b"), ElementClose("h1"), InstanceComponent("new_todo", "2f3.6d2.4b9", Some("new_todo"), Some([]), None), ElementClose("header"), ElementOpen("section", "2f3.6d2.0a8", Some([("class", Some(LiteralString("main")))]), None, None), InstanceComponent("toggle_all", "2f3.6d2.0a8.e84", Some("toggle_all"), Some(["checked"]), None), InstanceComponent("todo_list", "2f3.6d2.0a8.e84.d67", Some("todo_list"), Some(["todos"]), Some(QueryLens(Binding(LocalQueryBinding(LocalQueryInvocation("visible_todos", Some([("todos", Some(Lens(GetLens("todos", SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(ObjectVar))), None)))))), ("showing", Some(Lens(GetLens("showing", SymbolReference(Symbol(Binding(ReducerPathBinding("showing")), Some(Primitive(StringVar)), None))))))]), None))), "todos"))), ElementClose("section"), ElementClose("section")]) */
+/* Some([ElementVoid("link", "80a", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-common@1.0.3/base.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementVoid("link", "e2e", Some([("rel", Some(LiteralString("stylesheet"))), ("href", Some(LiteralString("https://unpkg.com/todomvc-app-css@2.1.0/index.css"))), ("type", Some(LiteralString("text/css")))]), None, None), ElementOpen("section", "16f", Some([("class", Some(LiteralString("todoapp")))]), None, None), ElementOpen("header", "16f.fe6", Some([("class", Some(LiteralString("header")))]), None, None), ElementOpen("h1", "16f.fe6.684", Some([]), None, None), WriteValue(LiteralString("todos"), "16f.fe6.684.93e"), ElementClose("h1"), InstanceComponent("new_todo", "16f.fe6.ba2", Some("new_todo"), Some([]), None), ElementClose("header"), ElementOpen("section", "16f.fe6.69c", Some([("class", Some(LiteralString("main")))]), None, None), InstanceComponent("toggle_all", "16f.fe6.69c.be6", Some("toggle_all"), Some(["checked"]), None), InstanceComponent("todo_list", "16f.fe6.69c.be6.c93", Some("todo_list"), Some(["todos"]), Some(QueryLens(Binding(LocalQueryBinding(LocalQueryInvocation("visible_todos", Some([("todos", Some(Lens(GetLens("todos", SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(ObjectVar))), None)))))), ("showing", Some(Lens(GetLens("showing", SymbolReference(Symbol(Binding(ReducerPathBinding("showing")), Some(Primitive(StringVar)), None))))))]), None))), "todos"))), ElementClose("section"), ElementClose("section")]) */
 /* None */
                 function component_todo_item(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("li", key + ".b12", ["key", key + ".b12"], "class", classList(props.todo.complete&&"completed"));
-IncrementalDOM.elementOpen("div", key + ".b12.054", ["key", key + ".b12.054", "class", "view"]);
-IncrementalDOM.elementVoid("input", key + ".b12.054.9a4", ["key", key + ".b12.054.9a4", "class", "toggle", "type", "checkbox"], "checked", props.todo.complete?"checked":null);
-document.querySelector("[key='" + key + ".b12.054.9a4" + "']").checked = props.todo.complete;
-IncrementalDOM.elementOpen("label", key + ".b12.054.763", ["key", key + ".b12.054.763"]);
-IncrementalDOM.text(props.todo.text);
+IncrementalDOM.elementOpen("li", key + ".e29", ["key", key + ".e29"], "class", classList(.complete&&"completed"));
+IncrementalDOM.elementOpen("div", key + ".e29.ee3", ["key", key + ".e29.ee3", "class", "view"]);
+IncrementalDOM.elementVoid("input", key + ".e29.ee3.7b9", ["key", key + ".e29.ee3.7b9", "class", "toggle", "type", "checkbox"], "checked", ?"checked":null);
+document.querySelector("[key='" + key + ".e29.ee3.7b9" + "']").checked = ;
+IncrementalDOM.elementOpen("label", key + ".e29.ee3.16d", ["key", key + ".e29.ee3.16d"]);
+IncrementalDOM.text(.text);
 IncrementalDOM.elementClose("label");
-IncrementalDOM.elementVoid("button", key + ".b12.054.c40", ["key", key + ".b12.054.c40", "class", "destroy"]);
+IncrementalDOM.elementVoid("button", key + ".e29.ee3.d4e", ["key", key + ".e29.ee3.d4e", "class", "destroy"]);
 IncrementalDOM.elementClose("div");
 IncrementalDOM.elementClose("li");
 IncrementalDOM.elementClose("div");
@@ -64,15 +64,15 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_todo_item(key, props, store) {
       // Bind actions
-setEventListener(key + ".b12.054.9a4", document.querySelector("[key='" + key + ".b12.054.9a4" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": props.todo.id});
+setEventListener(key + ".e29.ee3.7b9", document.querySelector("[key='" + key + ".e29.ee3.7b9" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": .id});
 });
 
                 }
 
                 function component_todo_list(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("ul", key + ".669", ["key", key + ".669", "id", "todo-list", "class", "todo-list"]);
-component_todo_item("669.5f4", {}, store);
+IncrementalDOM.elementOpen("ul", key + ".f4a", ["key", key + ".f4a", "id", "todo-list", "class", "todo-list"]);
+component_todo_item("f4a.f4d", {}, store);
 IncrementalDOM.elementClose("ul");
 IncrementalDOM.elementClose("div");
                   component_bindings_todo_list(key, props, store);
@@ -85,8 +85,8 @@ IncrementalDOM.elementClose("div");
 
                 function component_new_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementVoid("input", key + ".ea2", ["key", key + ".ea2", "class", "new-todo", "placeholder", "What needs to be done?", "autofocus", "autofocus"], "value", props.entry);
-document.querySelector("[key='" + key + ".ea2" + "']").value = props.entry;
+IncrementalDOM.elementVoid("input", key + ".b8d", ["key", key + ".b8d", "class", "new-todo", "placeholder", "What needs to be done?", "autofocus", "autofocus"], "value", store.getState().entry);
+document.querySelector("[key='" + key + ".b8d" + "']").value = store.getState().entry;
 IncrementalDOM.elementClose("div");
                   component_bindings_new_todo(key, props, store);
 
@@ -94,8 +94,8 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_new_todo(key, props, store) {
       // Bind actions
-setEventListener(key + ".ea2", document.querySelector("[key='" + key + ".ea2" + "']"), "keydown", function(event) {if (event.keyCode == 13) {
- store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + key + ".ea2" + "']").value}});
+setEventListener(key + ".b8d", document.querySelector("[key='" + key + ".b8d" + "']"), "keydown", function(event) {if (event.keyCode == 13) {
+ store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + key + ".b8d" + "']").value}});
 }
 });
 
@@ -103,8 +103,8 @@ setEventListener(key + ".ea2", document.querySelector("[key='" + key + ".ea2" + 
 
                 function component_toggle_all(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementVoid("input", key + ".268", ["key", key + ".268", "class", "toggle-all", "id", "toggle-all", "type", "checkbox"]);
-IncrementalDOM.elementOpen("label", key + ".b88", ["key", key + ".b88", "class", "", "for", "toggle-all"]);
+IncrementalDOM.elementVoid("input", key + ".3da", ["key", key + ".3da", "class", "toggle-all", "id", "toggle-all", "type", "checkbox"]);
+IncrementalDOM.elementOpen("label", key + ".199", ["key", key + ".199", "class", "", "for", "toggle-all"]);
 IncrementalDOM.text("Mark all as complete");
 IncrementalDOM.elementClose("label");
 IncrementalDOM.elementClose("div");
@@ -114,7 +114,7 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_toggle_all(key, props, store) {
       // Bind actions
-setEventListener(key + ".268", document.querySelector("[key='" + key + ".268" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='" + key + ".268" + "']").checked});
+setEventListener(key + ".3da", document.querySelector("[key='" + key + ".3da" + "']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='" + key + ".3da" + "']").checked});
 });
 
                 }
@@ -143,40 +143,41 @@ setEventListener(key + ".268", document.querySelector("[key='" + key + ".268" + 
                 }
 
                 function query_visible_todos(props) {
-                  if (props.showing == "all") { return (props.todos); }
-                  if (props.showing == "complete") { return (props.todos.filter(function(item) {item.complete})); }
-                  if (props.showing == "active") { return (props.todos.filter(function(item) {!(item.complete)})); }
+                  if ( == "all") { return (); }
+                  if ( == "complete") { return (.filter(function(item) {item.complete})); }
+                  if ( == "active") { return (.filter(function(item) {!(item.complete)})); }
                 }
 
                 function render(store) {
-IncrementalDOM.elementVoid("link", "ad1", ["key", "ad1", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-common@1.0.3/base.css", "type", "text/css"]);
-IncrementalDOM.elementVoid("link", "819", ["key", "819", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-app-css@2.1.0/index.css", "type", "text/css"]);
-IncrementalDOM.elementOpen("section", "2f3", ["key", "2f3", "class", "todoapp"]);
-IncrementalDOM.elementOpen("header", "2f3.6d2", ["key", "2f3.6d2", "class", "header"]);
-IncrementalDOM.elementOpen("h1", "2f3.6d2.28b", ["key", "2f3.6d2.28b"]);
+IncrementalDOM.elementVoid("link", "80a", ["key", "80a", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-common@1.0.3/base.css", "type", "text/css"]);
+IncrementalDOM.elementVoid("link", "e2e", ["key", "e2e", "rel", "stylesheet", "href", "https://unpkg.com/todomvc-app-css@2.1.0/index.css", "type", "text/css"]);
+IncrementalDOM.elementOpen("section", "16f", ["key", "16f", "class", "todoapp"]);
+IncrementalDOM.elementOpen("header", "16f.fe6", ["key", "16f.fe6", "class", "header"]);
+IncrementalDOM.elementOpen("h1", "16f.fe6.684", ["key", "16f.fe6.684"]);
 IncrementalDOM.text("todos");
 IncrementalDOM.elementClose("h1");
-component_new_todo("2f3.6d2.4b9", {}, store);
+component_new_todo("16f.fe6.ba2", {}, store);
 IncrementalDOM.elementClose("header");
-IncrementalDOM.elementOpen("section", "2f3.6d2.0a8", ["key", "2f3.6d2.0a8", "class", "main"]);
-component_toggle_all("2f3.6d2.0a8.e84", {}, store);
-component_todo_list("2f3.6d2.0a8.e84.d67", {"todos": query_visible_todos({"todos": store.getState().todos, "showing": store.getState().showing})}, store);
+IncrementalDOM.elementOpen("section", "16f.fe6.69c", ["key", "16f.fe6.69c", "class", "main"]);
+component_toggle_all("16f.fe6.69c.be6", {}, store);
+component_todo_list("16f.fe6.69c.be6.c93", {"todos": query_visible_todos({"todos": store.getState().todos, "showing": store.getState().showing})}, store);
 IncrementalDOM.elementClose("section");
 IncrementalDOM.elementClose("section");
                 }
 
                 function root_bindings(store) {
 
-setEventListener("2f3.6d2.4b9.ea2", document.querySelector("[key='2f3.6d2.4b9.ea2']"), "keydown", function(event) {if (event.keyCode == 13) {
- store.dispatch({"type": "TODOS.ADD", "entry": {"text": document.querySelector("[key='" + "2f3.6d2.4b9.ea2" + "']").value}});
-}
-});
-setEventListener("2f3.6d2.0a8.e84.268", document.querySelector("[key='2f3.6d2.0a8.e84.268']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_ALL", "checked": document.querySelector("[key='2f3.6d2.0a8.e84.268']").checked});
-});
-setEventListener("669.5f4.b12.054.9a4", document.querySelector("[key='669.5f4.b12.054.9a4']"), "change", function(event) { store.dispatch({"type": "TODOS.TOGGLE_COMPLETE", "id": props.todo.id});
-});
                 }
 
+
+                function entryReducer(state, action) {
+                  /* action: ReducerActionData { action_type: "ENTRY.CLEAR", state_expr: Some(SimpleReducerKeyExpr(LiteralString(""))), state_ty: Some(Primitive(StringVar)), default_scope_key: Some("entry") } */
+                  /* action expr: LiteralString("") */
+                  if ('undefined' !== typeof action && 'ENTRY.CLEAR' == action.type) {
+                    return "";
+                  }
+                  return state || "";
+                }
 
                 function todosReducer(state, action) {
                   /* action: ReducerActionData { action_type: "TODOS.ADD", state_expr: Some(SimpleReducerKeyExpr(Expr(Add, SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(ObjectVar))), None)), Group(Some(Expr(Add, SymbolReference(Symbol(Binding(ActionParamBinding("entry")), None, None)), LiteralObject(Some([("complete", Some(LiteralBool(false))), ("id", Some(Group(Some(Expr(Add, ReducedPipeline(Some(SymbolReference(Symbol(Binding(ActionStateBinding), Some(ArrayVar(Some(ObjectVar))), None))), Some([PipelineOp(Map(SymbolReference(Symbol(MemberPath(Symbol(Binding(MapItemBinding), None, None), "id"), None, None)))), PipelineOp(Max)])), LiteralNumber(1))))))])))))))), state_ty: Some(ArrayVar(Some(ObjectVar))), default_scope_key: Some("todos") } */
@@ -206,19 +207,10 @@ setEventListener("669.5f4.b12.054.9a4", document.querySelector("[key='669.5f4.b1
                   return state || "all";
                 }
 
-                function entryReducer(state, action) {
-                  /* action: ReducerActionData { action_type: "ENTRY.CLEAR", state_expr: Some(SimpleReducerKeyExpr(LiteralString(""))), state_ty: Some(Primitive(StringVar)), default_scope_key: Some("entry") } */
-                  /* action expr: LiteralString("") */
-                  if ('undefined' !== typeof action && 'ENTRY.CLEAR' == action.type) {
-                    return "";
-                  }
-                  return state || "";
-                }
-
                 var rootReducer = Redux.combineReducers({
+                  entry: entryReducer,
                   todos: todosReducer,
                   showing: showingReducer,
-                  entry: entryReducer,
                 });
 
 

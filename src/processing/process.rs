@@ -79,12 +79,6 @@ impl<'input> ProcessDocument<'input> {
         let mut content_processor = ProcessContent::default();
 
         for ref loc in self.ast.children.iter() {
-            if let NodeType::ComponentDefinitionNode(ref component_data) = loc.inner {
-                self.process_component_definition(ctx, bindings, component_data)?;
-            }
-        }
-
-        for ref loc in self.ast.children.iter() {
             if let NodeType::StoreNode(ref scope_nodes) = loc.inner {
                 for scope_node in scope_nodes {
                     process_store.process_store_default_scope_node(
@@ -122,6 +116,12 @@ impl<'input> ProcessDocument<'input> {
                 ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
             } else {
                 ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+            }
+        }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::ComponentDefinitionNode(ref component_data) = loc.inner {
+                self.process_component_definition(ctx, bindings, component_data)?;
             }
         }
 

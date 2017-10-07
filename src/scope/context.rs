@@ -129,18 +129,12 @@ impl Context {
 
     fn scope_ref_mut<'a>(&'a mut self) -> Option<&'a mut Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
-        if let Some(scope_id) = scope_id {
-            return self.scopes.get_mut(&scope_id);
-        }
-        None
+        scope_id.as_ref().and_then(move |scope_id| self.scopes.get_mut(scope_id))
     }
 
     pub fn scope_ref<'a>(&'a mut self) -> Option<&'a Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
-        if let Some(scope_id) = scope_id {
-            return self.scopes.get(&scope_id);
-        }
-        None
+        scope_id.as_ref().and_then(move |scope_id| self.scopes.get(scope_id))
     }
 
     pub fn scope(&mut self) -> Scope {
@@ -247,29 +241,12 @@ impl Context {
                     (p.0.to_owned(), p.1.map(|expr| self.reduce_expr_or_return_same(expr)))
                 }).collect());
 
-                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.0.to_owned(), p.1.map(|expr| expr.to_owned())) ).collect());
-                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| (p.0.to_owned(), p.1.map(|expr| expr.to_owned())) ).collect());
-
-                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
-                //     (p.0.to_owned(), Some(ExprValue::SymbolReference(Symbol::unresolved(p.0))))
-                // }).collect());
                 let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
-
                 return Some(BindingType::LocalQueryBinding(resolved_query));
             };
         };
 
         None
-    }
-
-    #[inline]
-    pub fn resolve_lens(&mut self, bindings: &BindingContext, lens: &LensExprType) -> Option<LensExprType> {
-        match *lens {
-            LensExprType::QueryLens(ref expr, ref alias) => {
-                self.reduce_expr(expr).map(|expr| LensExprType::QueryLens(expr, alias.to_owned()))
-            }
-            _ => None
-        }
     }
 
     #[allow(dead_code)]
@@ -354,9 +331,9 @@ impl Context {
             let mut first = true;
             for &box ref expr in arr {
                 if let Some(s) = self.reduce_static_expr_to_string(expr, with_binding_values) {
-                    first = false;
                     if !first { if let &Some(ref sep) = sep { res.push_str(sep); } }
                     res.push_str(&s);
+                    first = false;
                 };
                 return None;
             }
@@ -861,7 +838,7 @@ impl Context {
     #[allow(dead_code)]
     pub fn reduce_filter<'slf, 'a, I: IntoIterator<Item = &'a FilterPipelineComponent>>(&'slf mut self, head: Option<&ExprValue>, parts: I) -> Option<ExprValue> {
         let parts: Vec<_> = {
-            let iter = FilterPipelineReduceIter::new(self, head, parts.into_iter());
+            let iter = FilterPipelineReduceIter::new(self, parts.into_iter());
             iter.filter_map(|e| e).collect()
         };
 
@@ -910,6 +887,23 @@ impl Context {
         let binding = BindingType::ActionParamBinding(key.to_owned());
         self.add_sym(key, Symbol::binding(&binding));
     }
+
+    /// 
+    /// Scope helpers
+    /// 
+
+    /// Push a child scope with bindings for formal parameters, for query and component definitions
+    #[allow(dead_code)]
+    pub fn push_formal_parameter_scope<'a, I>(&mut self, formals: I)
+       where I: IntoIterator<Item = FormalPropRef<'a>>
+    {
+        self.push_child_scope();
+        for formal in formals {
+            let binding = BindingType::ComponentPropBinding(formal.to_owned());
+            self.add_sym(formal, Symbol::binding(&binding));
+        }
+    }
+
 }
 
 

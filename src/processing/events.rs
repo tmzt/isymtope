@@ -59,7 +59,7 @@ impl BoundEvent {
 
 #[derive(Debug, Default, PartialEq)]
 pub struct BlockEvents {
-    events: EventsWithData
+    events: Vec<EventWithData>
 }
 
 impl BlockEvents {

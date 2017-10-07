@@ -18,7 +18,8 @@ pub struct ReducePipelineIter<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethod
     iter: S
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ReducePipelineIterState {
     NoState,
     Symbol,

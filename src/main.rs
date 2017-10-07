@@ -24,11 +24,9 @@ mod output;
 use std::io;
 use std::path::Path;
 use futures::future::Future;
-use hyper::header::ContentLength;
 use hyper::server::{Http, Request, Response, Service};
 
 use model::*;
-use parser::*;
 use scope::*;
 use processing::*;
 use output::*;

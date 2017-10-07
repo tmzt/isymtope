@@ -20,14 +20,14 @@ type FormalPropRef<'a> = (&'a str);
 pub struct CompDefProcessorOutput {
     ty: Option<String>,
     block: BlockProcessingState,
-    formal_props: FormalPropVec
+    formal_props: Option<FormalPropVec>
     // ops: Option<OpsVec>
 }
 
 impl Into<Component> for CompDefProcessorOutput {
     fn into(self) -> Component {
-        let formal_props = if self.formal_props.len() > 0 { Some(self.formal_props) } else { None };
-        Component::new(self.ty.unwrap(), self.block.into(), formal_props)
+        // let formal_props = if self.formal_props.len() > 0 { Some(self.formal_props) } else { None };
+        Component::new(self.ty.unwrap(), self.block.into(), self.formal_props)
     }
 }
 
@@ -58,11 +58,18 @@ impl CompDefProcessor {
         output.ty = Some(component_ty.to_owned());
 
         ctx.push_child_scope();
-        for formal in formals {
-            let binding = BindingType::ComponentPropBinding(formal.to_owned());
-            ctx.add_sym(formal, Symbol::binding(&binding));
-            // ctx.add_unbound_formal_param(formal);
-        }
+
+        let formals = formals.into_iter();
+
+        let bindings = formals
+            .map(|prop| BindingType::ComponentPropBinding(prop.to_owned()));
+
+        // for formal in formals {
+        //     let binding = BindingType::ComponentPropBinding(formal.to_owned());
+        //     ctx.add_sym(formal, Symbol::binding(&binding));
+        // }
+
+        // output.formal_props = Some(formals.into_iter().map(|p| p.to_owned()).collect());
     }
 
     pub fn push_element_parameter_definition_scope<'a, I>(&mut self, block: &mut BlockProcessingState, ctx: &mut Context, element_id: &str, element_ty: &str, props: Option<I>)
@@ -108,22 +115,14 @@ impl CompDefProcessor {
                                         nodes: I)
                                         -> Result
     {
+        let iter = iter::empty()
+            .chain(component_data.inputs.as_ref().map((|v| v.iter())))
+            .flat_map(|m| m);
+
         // Prepare scope with formal parameters
-        // TODO: Actually implement the formal parameters
-        if let Some(ref props) = component_data.inputs {
-            self.push_component_definition_scope(output, ctx, &component_data.name, props.iter().map(|s| (s.as_str()) ));
-            // self.push_component_definition_scope(output, ctx, &component_data.name, Some(props.iter().map(|s| (s.to_owned(), s.to_owned()) )));
+        self.push_component_definition_scope(output, ctx, &component_data.name, iter.map(|s| s.as_str()));
 
-            // Add formal parameters
-            for prop in props {
-                ctx.add_sym(prop, Symbol::binding(&BindingType::ComponentPropBinding(prop.to_owned())) );
-                output.formal_props.push((prop.to_owned()));
-            }
-        } else {
-            self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
-        };
-        // self.push_component_definition_scope(output, ctx, &component_data.name, iter::empty());
-
+        // Process the content
         let mut content_processor = ProcessContent::default();
         for node in nodes {
             if let &NodeType::ContentNode(ref content_node) = node {

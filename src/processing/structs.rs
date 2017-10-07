@@ -303,21 +303,6 @@ impl DocumentProcessingState {
         None
     }
 
-    #[allow(dead_code)]
-    pub fn resolve_symbol(&mut self, ctx: &mut Context, sym: &Symbol) -> Option<Symbol> {
-        match *sym.sym_ref() {
-            SymbolReferenceType::UnresolvedReference(ref key) => {
-                None
-            }
-
-            SymbolReferenceType::UnresolvedPathReference(ref key) => {
-                None
-            }
-
-            _ => None
-        }
-    }
-
     #[inline]
     #[allow(dead_code)]
     pub fn resolve_lens(&mut self, ctx: &mut Context, lens: &LensExprType) -> Option<LensExprType> {
@@ -335,8 +320,6 @@ impl DocumentProcessingState {
     pub fn resolve_expr(&mut self, ctx: &mut Context, expr: &ExprValue) -> Option<ExprValue> {
         let resolved = match *expr {
             ExprValue::Binding(ref binding) => self.resolve_binding(ctx, binding).map(|binding| ExprValue::Binding(binding)),
-            // ExprValue::SymbolReference(ref sym) => self.resolve_symbol(ctx, sym).map(|sym| ExprValue::SymbolReference(sym)),
-
             _ => ctx.reduce_expr(expr)
         };
         resolved.or_else(|| expr.to_owned().into())

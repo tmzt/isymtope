@@ -17,7 +17,6 @@ pub type EventHandlerParams = Vec<String>;
 pub type EventHandlerActionOps = Vec<ActionOpNode>;
 pub type EventHandlersVec = Vec<EventHandler>;
 pub type EventsItem = (String, String, EventHandler);
-pub type EventsItemRef<'a> = (&'a str, &'a str, &'a EventHandler);
 pub type EventsVec = Vec<EventsItem>;
 
 impl EventHandler {
@@ -35,9 +34,6 @@ impl EventHandler {
 }
 
 pub type EventWithData = (EventsItem, Option<PropVec>);
-pub type EventWithDataRef<'a> = (EventsItemRef<'a>, Option<&'a PropVec>);
-pub type EventsWithData = Vec<EventWithData>;
-
 pub type ElementValueBinding = Option<(String, Symbol, Option<Symbol>)>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

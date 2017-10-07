@@ -214,10 +214,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
 
 
 #[cfg(test)]
-#[macro_use]
 mod tests {
-
-
     use super::*;
     use std::io;
     use std::str;
@@ -226,9 +223,7 @@ mod tests {
     use scope::bindings::*;
     use output::writers::*;
 
-    #[macro_use]
     use output::writers::stream_writers::tests;
-
 
     #[test]
     pub fn test_output_stream_writers_js_ops1() {
