@@ -23,10 +23,14 @@ impl ProcessSourceNode<QueryDefinition> for QueryDefinitionProcessor {
     type Output = QueryDefinitionProcessorOutput;
 
     fn process_source_node(&mut self, _processing: &mut DocumentProcessingState, ctx: &mut Context, _bindings: &mut BindingContext, output: &mut Self::Output, source: &QueryDefinition) -> DocumentProcessingResult<()> {
+        if let Some(props) = source.params_iter() {
+            ctx.push_formal_parameter_scope(props);
+        } else {
+            ctx.push_child_scope();
+        };
+
         output.name = Some(source.name().to_owned());
         output.formal_props = source.params_iter().map(|iter| iter.map(|s| s.to_owned()).collect());
-        // output.formal_props = source.params_iter().map(|iter| iter.map(|f| f.0.to_owned()).collect());
-        // output.formal_props = source.params_iter().map(|iter| iter.map(|key| (key.to_owned(), None)).collect());
 
         output.components = source.components_iter().map(|iter| iter.map(|source_component| {
             match *source_component {
@@ -38,6 +42,7 @@ impl ProcessSourceNode<QueryDefinition> for QueryDefinitionProcessor {
             }
         }).collect());
 
+        ctx.pop_scope();
         Ok(())
     }
 }

@@ -116,10 +116,13 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
 
                         Some(LensExprType::QueryLens(ref query_expr, ref alias)) => {
                             let resolved = ctx.reduce_expr(query_expr);
+                            let alias = alias.as_str();
 
                             // let binding = ExprValue::Binding(BindingType::MapItemBinding);
-                            let props_iter = vec![(alias.as_str(), Some(resolved.as_ref().unwrap_or(query_expr)))].into_iter();
+                            let props_iter = vec![(alias, Some(resolved.as_ref().unwrap_or(query_expr)))].into_iter();
                             self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props_iter, iter::empty(), iter::empty(), None)?;
+                            // self.write_map_collection_to_component(w, doc, ctx, bindings, alias, query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
+
                             // self.write_map_collection_to_component(w, doc, ctx, bindings, "item", query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
                         }
 

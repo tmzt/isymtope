@@ -1,12 +1,7 @@
 // #![allow(dead_code)]
 
 use std::iter;
-use linked_hash_map::LinkedHashMap;
-
 use model::*;
-use parser::*;
-use scope::*;
-use processing::*;
 
 
 #[allow(dead_code)]
@@ -122,8 +117,6 @@ impl<'a : 'b, 'b, I: IntoIterator<Item = &'b str>> MemberResolver<'a, 'b, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::*;
-    use scope::*;
 
 
     #[test]

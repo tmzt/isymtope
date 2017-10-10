@@ -137,10 +137,6 @@ impl Context {
         scope_id.as_ref().and_then(move |scope_id| self.scopes.get(scope_id))
     }
 
-    pub fn scope(&mut self) -> Scope {
-        self.scope_ref().unwrap().clone()
-    }
-
     pub fn get_scope<'a>(&'a mut self, scope_id: &str) -> Option<&'a Scope> {
         self.scopes.get(scope_id)
     }
@@ -148,6 +144,50 @@ impl Context {
     pub fn get_map(&mut self, map_id: &str) -> Option<&Symbols> {
         self.symbol_maps.get(map_id)
     }
+
+    pub fn symbol_path(&mut self) -> &SymbolPathScope { self.scope_ref().unwrap().symbol_path() }
+    pub fn action_path(&mut self) -> &SymbolPathScope { self.scope_ref().unwrap().action_path() }
+
+    pub fn symbol_path_mut(&mut self) -> &mut SymbolPathScope { self.scope_ref_mut().unwrap().symbol_path_mut() }
+    pub fn action_path_mut(&mut self) -> &mut SymbolPathScope { self.scope_ref_mut().unwrap().action_path_mut() }
+
+    pub fn append_path_str(&mut self, s: &str) { self.symbol_path_mut().append_str(s); }
+    pub fn append_path_expr(&mut self, expr: &ExprValue) { self.symbol_path_mut().append_expr(expr); }
+    pub fn append_action_path_str(&mut self, s: &str) { self.action_path_mut().append_str(s); }
+    pub fn append_action_path_expr(&mut self, expr: &ExprValue) { self.action_path_mut().append_expr(expr); }
+
+    pub fn path_expr(&mut self) -> ExprValue { self.symbol_path().path_expr() }
+    pub fn path_expr_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> ExprValue { self.symbol_path().path_expr_with(last) }
+
+    pub fn action_path_expr(&mut self) -> ExprValue { self.action_path().path_expr() }
+    pub fn action_path_expr_with<T: AsExpr>(&mut self, last: &T) -> ExprValue { self.action_path().path_expr_with(last) }
+
+    pub fn path_str(&mut self) -> String { 
+        let expr = self.symbol_path().path_expr();
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn path_str_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> String {
+        let expr = self.symbol_path().path_expr_with(last);
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn action_path_str(&mut self) -> String { 
+        let expr = self.symbol_path().path_expr();
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn action_path_str_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> String {
+        let expr = self.symbol_path().path_expr_with(last);
+        self.reduce_expr_to_string(&expr)
+    }
+
+    // pub fn action_path_str(&self) -> String { self.reduce_expr_to_string(&self.action_path().path_expr()) }
+
+    // pub fn action_path_str_with<T: AsExpr + ?Sized>(&self, last: &T) -> String {
+    //     let expr = self.action_path().path_expr_with(last);
+    //     self.reduce_expr_to_string(&expr)
+    // }
 
     pub fn create_child_scope(&mut self) -> Scope {
         assert!(!self.scopes.is_empty());
@@ -157,7 +197,7 @@ impl Context {
         let map_id = symbols.map_id().to_owned();
         self.add_symbol_map(symbols);
 
-        Scope::new_from_parent(&map_id, self.scope_ref().unwrap())
+        Scope::new_from_parent(&map_id, self.scope_ref_mut().unwrap())
     }
 
     pub fn push_scope(&mut self, scope: Scope) {
@@ -205,10 +245,13 @@ impl Context {
     }
 
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
-        let scope = self.scope();
-        let map_id = scope.map_id();
+	let map_id = {
+		let scope = self.scope_ref();
+		if scope.is_none() { return None; }
+		scope.unwrap().map_id()
+	}.to_owned();
 
-        let mut cur_map = self.symbol_maps.get(map_id);
+        let mut cur_map = self.symbol_maps.get(&map_id);
         while let Some(map) = cur_map {
             if let Some(sym) = map.get_sym(key) {
                 return Some(sym.to_owned());
@@ -268,19 +311,20 @@ impl Context {
     }
 
     pub fn add_sym(&mut self, key: &str, sym: Symbol) {
-        let map_id = self.scope().map_id().to_owned();
+        let map_id = self.scope_ref().unwrap().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_sym(key, sym);
         };
     }
 
     pub fn add_binding_value(&mut self, binding: &BindingType, expr: ExprValue) {
-        let map_id = self.scope().map_id().to_owned();
+        let map_id = self.scope_ref().unwrap().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_binding_value(binding, expr);
         };
     }
 
+    /*
     pub fn append_path_expr(&mut self, expr: &ExprValue) {
         if let Some(scope) = self.scope_ref_mut() {
             scope.append_path_expr(expr);
@@ -305,6 +349,7 @@ impl Context {
             scope.append_action_path_str(s);
         };
     }
+    */
 
     pub fn map_props_to_reduced_values<'a, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
         where I: IntoIterator<Item = &'a Prop> + 'a
@@ -541,6 +586,10 @@ impl Context {
     #[allow(dead_code)]
     pub fn reduce_lens(&mut self, lens: &LensExprType) -> Option<LensExprType> {
         match *lens {
+            LensExprType::ForLens(ref key, ref expr) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::ForLens(key.to_owned(), expr))
+            }
             LensExprType::QueryLens(ref expr, ref alias) => {
                 let expr = self.reduce_expr_or_return_same(expr);
                 Some(LensExprType::QueryLens(expr, alias.to_owned()))
@@ -549,7 +598,6 @@ impl Context {
                 let expr = self.reduce_expr_or_return_same(expr);
                 Some(LensExprType::GetLens(key.to_owned(), expr))
             }
-            _ => None
         }
     }
 
@@ -846,42 +894,44 @@ impl Context {
         Some(ExprValue::ReducedPipeline(head, Some(parts)))
     }
 
+    /*
     #[allow(dead_code)]
     pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
-        self.scope().join_path_as_expr(s)
+        self.scope_ref().unwrap().join_path_as_expr(s)
     }
 
     #[allow(dead_code)]
     pub fn join_path_as_expr_with_expr(&mut self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
-        self.scope().join_path_as_expr_with_expr(sep, last)
+        self.scope_ref().unwrap().join_path_as_expr_with_expr(sep, last)
     }
 
     pub fn join_path_as_expr_with(&mut self, sep: Option<&str>, last: &str) -> ExprValue {
-        self.scope().join_path_as_expr_with(sep, last)
+        self.scope_ref().unwrap().join_path_as_expr_with(sep, last)
     }
 
     pub fn join_path(&mut self, s: Option<&str>) -> String {
-        self.scope().join_path(self, s)
+        self.scope_ref().unwrap().join_path(self, s)
     }
 
     pub fn join_path_with(&mut self, s: Option<&str>, last: &str) -> String {
-        let key = self.scope().join_path(self, s);
+        let key = self.scope_ref().unwrap().join_path(self, s);
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
 
     #[allow(dead_code)]
     pub fn join_action_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
-        self.scope().join_action_path_as_expr(s)
+        self.scope_ref().unwrap().join_action_path_as_expr(s)
     }
 
     pub fn join_action_path(&mut self, s: Option<&str>) -> String {
-        self.scope().join_action_path(self, s)
+        self.scope_ref().unwrap().join_action_path(self, s)
     }
 
     pub fn join_action_path_with(&mut self, sep: Option<&str>, last: &str) -> String {
-        let key = self.scope().join_action_path(self, sep);
+        let key = self.scope_ref().unwrap().join_action_path(self, sep);
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
+    */
 
     pub fn add_action_param(&mut self, key: &str) {
         let binding = BindingType::ActionParamBinding(key.to_owned());
@@ -891,6 +941,34 @@ impl Context {
     /// 
     /// Scope helpers
     /// 
+
+    /// Push a child scope with bindings for reducer keys as top-level bindings
+    pub fn push_root_content_processing_scope(&mut self, processing: &DocumentProcessingState) {
+        self.push_child_scope();
+        // if let Some(ref default_reducer_key) = processing.default_reducer_key {
+        //     self.append_action_path_str(default_reducer_key);
+        // };
+
+        for reducer_data in processing.reducer_key_data.values() {
+            let reducer_key = &reducer_data.reducer_key;
+            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+            self.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
+    }
+
+    /// Push a child scope with bindings for reducer keys as top-level bindings
+    pub fn push_root_content_scope(&mut self, doc: &Document) {
+        self.push_child_scope();
+        if let Some(ref default_reducer_key) = doc.default_reducer_key {
+            self.append_action_path_str(default_reducer_key);
+        };
+
+        for reducer_data in doc.reducer_key_data.values() {
+            let reducer_key = &reducer_data.reducer_key;
+            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+            self.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
+    }
 
     /// Push a child scope with bindings for formal parameters, for query and component definitions
     #[allow(dead_code)]
@@ -909,11 +987,8 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::*;
     use model::*;
-    use parser::*;
     use scope::*;
-    use scope::symbols::*;
     use processing::*;
 
 
@@ -941,15 +1016,15 @@ mod tests {
     #[test]
     pub fn test_context_symbol_path_mixed1() {
         let mut ctx = Context::default();
-        let mut scope = ctx.scope();
+	ctx.push_child_scope();
 
         let expr1 = ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)));
-        scope.append_path_expr(&expr1);
-        scope.append_path_str("test");
+        ctx.append_path_expr(&expr1);
+        ctx.append_path_str("test");
 
-        ctx.push_scope(scope);
+	ctx.push_child_scope();
 
-        let expr = ctx.join_path_as_expr(None);
+	let expr = ctx.path_expr();
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
@@ -987,7 +1062,7 @@ mod tests {
         }
 
         // The joined path (dynamic) should be a string join operation
-        let expr = ctx.join_path_as_expr(Some("."));
+	let expr = ctx.path_expr();
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("No".to_owned())),
@@ -1027,7 +1102,7 @@ mod tests {
         }
 
         // Define an action param `entry` within this action
-        let action_scope_id = ctx.scope().id().to_owned();
+        let action_scope_id = ctx.scope_ref().unwrap().id().to_owned();
         {
             ctx.add_action_param("entry")
         }

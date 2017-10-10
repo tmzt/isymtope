@@ -10,6 +10,7 @@ pub mod walk_maps;
 
 pub use self::scope::*;
 pub use self::symbols::*;
+pub use self::symbol_paths::*;
 pub use self::bindings::*;
 pub use self::context::*;
 pub use self::pipeline::*;

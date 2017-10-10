@@ -14,13 +14,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
     fn write_op_element_open<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: Option<&str>, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>> + 'a, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let complete_key;
-        if let Some(element_key) = element_key {
-            complete_key = ctx.join_path_with(Some("."), element_key);
-        } else {
-            complete_key = ctx.join_path(Some("."));
-        }
-
+        let complete_key = if let Some(element_key) = element_key { ctx.path_str_with(&element_key) } else { ctx.path_str() };
         write!(w, "<{} key=\"{}\"", element_tag, complete_key)?;
 
         for (key_ref, expr_ref) in props {
@@ -97,7 +91,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
     fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let instance_key = ctx.join_path_with(Some("."), element_key);
+	let instance_key = ctx.path_str_with(element_key);
         self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Static(&instance_key), is_void, props, events, binding, None)?;
         Ok(())
     }

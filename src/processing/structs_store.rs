@@ -1,12 +1,8 @@
 
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-
 use linked_hash_map::LinkedHashMap;
 
 use model::*;
-use parser::*;
-use processing::*;
 
 
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;

@@ -1,10 +1,8 @@
 // #![allow(dead_code)]
 
-use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 
 use model::*;
-use parser::*;
 use scope::*;
 
 
@@ -25,12 +23,6 @@ enum ReducePipelineIterState {
     Symbol,
     PipelineOp
 }
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum ReducePipelineIterOutput {
-//     Symbol(Symbol),
-//     PipelineOp
-// }
 
 impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> ReducePipelineIter<'ctx, 'head, 'a, S>
 {

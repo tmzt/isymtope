@@ -2,7 +2,6 @@
 use std::io;
 
 use model::*;
-use parser::*;
 use scope::*;
 use processing::*;
 use output::*;
@@ -192,19 +191,19 @@ impl<'doc> PageWriter<'doc> {
         }
     }
 
-    pub fn push_content_context(&mut self, ctx: &mut Context, _bindings: &BindingContext) -> Result {
-        ctx.push_child_scope();
-        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            ctx.append_action_path_str(default_reducer_key);
-        };
+    // pub fn push_content_context(&mut self, ctx: &mut Context, _bindings: &BindingContext) -> Result {
+    //     ctx.push_child_scope();
+    //     if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
+    //         ctx.append_action_path_str(default_reducer_key);
+    //     };
 
-        for reducer_data in self.doc.reducer_key_data.values() {
-            let reducer_key = &reducer_data.reducer_key;
-            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
-            ctx.add_sym(&reducer_key, Symbol::binding(&binding));
-        }
-        Ok(())
-    }
+    //     for reducer_data in self.doc.reducer_key_data.values() {
+    //         let reducer_key = &reducer_data.reducer_key;
+    //         let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+    //         ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+    //     }
+    //     Ok(())
+    // }
 
     #[inline]
     #[allow(unused_variables)]
@@ -302,7 +301,7 @@ impl<'doc> PageWriter<'doc> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_root_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        self.push_content_context(ctx, bindings)?;
+        // self.push_content_context(ctx, bindings)?;
 
         write!(w, "{}", self::STRING_HTML_OPEN_ROOT_DIV)?;
         if let Some(ops_iter) = self.doc.root_block().ops_iter() {
@@ -310,14 +309,14 @@ impl<'doc> PageWriter<'doc> {
         };
         write!(w, "{}", self::STRING_HTML_CLOSE_ROOT_DIV)?;
 
-        ctx.pop_scope();
+        // ctx.pop_scope();
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
     pub fn write_element_rendering_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        self.push_content_context(ctx, bindings)?;
+        // self.push_content_context(ctx, bindings)?;
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
@@ -328,7 +327,7 @@ impl<'doc> PageWriter<'doc> {
         self.write_root_block_render_definition(w, ctx, bindings)?;
         self.write_root_bindings_definition(w, ctx, bindings)?;
 
-        ctx.pop_scope();
+        // ctx.pop_scope();
         Ok(())
     }
 
@@ -382,6 +381,7 @@ mod tests {
     use super::*;
     use std::str;
     use processing::*;
+    use parser::loc::Loc;
 
     
     fn create_template() -> Template {

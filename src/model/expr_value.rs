@@ -115,12 +115,13 @@ impl<'a> AsStaticString for InstanceKey<'a> {
 
 impl<'a> AsExpr for InstanceKey<'a> {
   fn as_expr(&self) -> ExprValue {
-    match self {
-      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-      &InstanceKey::Dynamic(e) => e.to_owned()
+    match *self {
+      InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      InstanceKey::Dynamic(e) => e.to_owned()
     }
   }
 }
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StaticValue {
@@ -148,7 +149,7 @@ impl AsStaticString for ReducedValue {
   }
 }
 
-impl AsExpr for ReducedValue {
+impl<'a> AsExpr for ReducedValue {
   fn as_expr(&self) -> ExprValue {
     match self {
       &ReducedValue::Static(ref s) => match s {
@@ -226,6 +227,51 @@ impl Into<ExprValue> for BindingType {
 impl Into<ExprValue> for LensExprType {
     fn into(self) -> ExprValue { ExprValue::Lens(self.into()) }
 }
+
+//impl Into<ExprValue> for String {
+//    fn into(self) -> ExprValue { ExprValue::LiteralString(self) }
+//}
+
+impl From<String> for ExprValue {
+     fn from(src: String) -> ExprValue { ExprValue::LiteralString(src) }
+}
+
+//impl<S: AsRef<str>> From<S> for ExprValue {
+//     default fn from(src: S) -> ExprValue { ExprValue::LiteralString(src.as_ref().to_owned()) }
+//}
+
+impl<'a> From<&'a str> for ExprValue {
+     default fn from(src: &'a str) -> ExprValue { ExprValue::LiteralString(src.to_owned()) }
+}
+
+impl<'a> Into<ExprValue> for InstanceKey<'a> {
+  fn into(self) -> ExprValue {
+    match self {
+      InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      InstanceKey::Dynamic(e) => e.to_owned()
+    }
+  }
+}
+
+//impl<T> AsExpr for T where T: Into<ExprValue> + Clone {
+//    default fn as_expr(self) -> ExprValue { self.clone().into() }
+//}
+
+impl<'a, T: AsRef<str> + ?Sized> AsExpr for T {
+      default fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.as_ref().to_owned()) }
+}
+
+impl AsExpr for ExprValue {
+    fn as_expr(&self) -> ExprValue { self.clone() }
+}
+
+// impl AsExpr for String {
+//     fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.to_owned()) }
+// }
+
+// impl AsExpr for str {
+//     fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.to_owned()) }
+// }
 
 impl ExprValue {
 

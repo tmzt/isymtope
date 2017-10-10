@@ -260,7 +260,7 @@ impl ExpressionWriter for ExpressionWriterJs {
 
             BindingType::DOMElementAttributeBinding(ref complete_key, _) |
             BindingType::DOMInputElementValueBinding(ref complete_key) => {
-                let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
+		let path_expr = ctx.path_expr_with(complete_key);
 
                 // Handle special case
                 if let Some(s) = ctx.reduce_static_expr_to_string(&path_expr, true) {

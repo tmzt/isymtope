@@ -31,7 +31,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
                   => {
                     let path = match *action_op { ActionOpNode::DispatchActionTo(_, _, ref path) => Some(path), _ => None };
                     let action_ty = path.map(|s| format!("{}.{}", s, action_key))
-                        .unwrap_or_else(|| ctx.join_action_path_with(Some("."), action_key))
+                        .unwrap_or_else(|| ctx.action_path_str_with(action_key))
                         .to_uppercase();
 
                     if let Some(ref action_params) = *action_params {
@@ -143,7 +143,7 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;
         for event in events_iter {
-            let path_expr = ctx.join_path_as_expr_with(Some("."), &event.0);
+            let path_expr = ctx.path_expr_with(&event.0);
             self.write_event(w, doc, ctx, bindings, InstanceKey::Dynamic(&path_expr), event)?;
         }
         Ok(())

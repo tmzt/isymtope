@@ -3,8 +3,8 @@ use std::iter;
 
 use model::*;
 use parser::util::allocate_element_key;
-use processing::*;
 use scope::*;
+use processing::*;
 
 
 #[derive(Debug, Default)]
@@ -65,9 +65,8 @@ impl ProcessContent {
             &ContentNodeType::ExpressionValueNode(ref expr, ref value_key) => {
                 let expr = ctx.reduce_expr_or_return_same(expr);
 
-                let complete_key = ctx.join_path(Some("."));
-                let complete_key = format!("{}.{}", complete_key, value_key);
-                block.ops_vec.push(ElementOp::WriteValue(expr, complete_key.to_owned()));
+		let complete_key = ctx.path_str_with(value_key);
+                block.ops_vec.push(ElementOp::WriteValue(expr, complete_key));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 ctx.push_child_scope();
@@ -104,7 +103,7 @@ impl ProcessContent {
                                 block: &mut BlockProcessingState,
                                 _: Option<&str>)
                                 -> Result {
-        let complete_key = ctx.join_path(Some("."));
+        let complete_key = ctx.path_str();
         let element_tag = element_data.element_ty.to_lowercase();
 
         let props = element_data.attrs.as_ref().map(|attrs| ctx.map_props(attrs.into_iter()));
@@ -177,7 +176,7 @@ impl ProcessContent {
                         self.process_event_handler_action_param_types(processing, ctx, action_ops.iter())?;
                     };
 
-                    let event = event_handler.create_event(&complete_key, ctx.scope().id());
+                    let event = event_handler.create_event(&complete_key, ctx.scope_ref().unwrap().id());
 
                     block.events_vec.push(event);
                     event_handlers.push(event_handler);
@@ -232,27 +231,28 @@ impl ProcessContent {
                                 block: &mut BlockProcessingState,
                                 parent_tag: Option<&str>)
                                 -> Result {
-        let complete_key = ctx.join_path(Some("."));
+        let complete_key = ctx.path_str();
         let element_tag = element_data.element_ty.to_lowercase();
 
-        let lens = element_data.lens.as_ref().and_then(|lens| processing.resolve_lens(ctx, lens));
-        // let lens_key = lens.as_ref().and_then(|lens| lens.item_key());
+        let resolved = element_data.lens.as_ref().and_then(|lens| processing
+            .resolve_lens(ctx, lens));
 
-        // Create list of prop keys
-        let prop_list: Option<Vec<_>> = element_data.attrs.as_ref()
-                .map(|s| s.iter().map(|p| Some(p.0.as_str()))
-                    .chain(iter::once(lens.as_ref().and_then(|lens| lens.item_key())))
-                    .flat_map(|m| m)
-                    .map(|s| s.to_owned())
-                    .collect());
+        let lens = resolved.as_ref().or_else(|| element_data.lens.as_ref())
+            .and_then(|lens| ctx.reduce_lens(lens));
+
+        let props = element_data.attrs.as_ref().map(|props| props.into_iter().map(|p| Some((p.0.as_str(), p.1.as_ref())))
+                    .chain(iter::once(lens.as_ref().and_then(|lens| lens.item_key()).map(|key|(key, None))))
+                    .flat_map(|m| m))
+                    .map(|props| ctx.map_actual_props(props));
+
+        // let props = element_data.attrs.as_ref().map(|attrs| ctx.map_props(attrs.into_iter()));
 
         // Render a component during render
-        let component_ty = element_tag.to_owned();
         block.ops_vec
-            .push(ElementOp::InstanceComponent(component_ty,
+            .push(ElementOp::InstanceComponent(element_tag.to_owned(),
                                                 complete_key.clone(),
                                                 parent_tag.map(|s| s.to_owned()),
-                                                prop_list,
+                                                props,
                                                 lens.clone()));
 
         // Add mapping from the instance_key to the component_ty
@@ -268,7 +268,7 @@ impl ProcessContent {
                 ActionOpNode::DispatchAction(ref action_name, ref action_params) |
                 ActionOpNode::DispatchActionTo(ref action_name, ref action_params, _) => {
                     if let Some(ref action_params) = *action_params {
-                        let complete_key = ctx.join_action_path_with(Some("."), action_name);
+			let complete_key = ctx.action_path_str_with(action_name);
 
                         for ref action_param in action_params {
                             if let Some(ty) = action_param.1.as_ref().and_then(|e| e.peek_ty()) {
@@ -288,11 +288,6 @@ impl ProcessContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use model::*;
-    use parser::*;
-    use scope::scope::*;
-    use scope::context::*;
-    use scope::bindings::*;
 
 
     #[test]

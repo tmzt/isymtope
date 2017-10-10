@@ -2,11 +2,9 @@
 use std::io;
 
 use model::*;
-use parser::*;
-use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
-use output::writers::*;
+use scope::*;
+use processing::*;
+use output::*;
 
 
 #[derive(Debug, Default)]

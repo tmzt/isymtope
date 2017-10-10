@@ -7,7 +7,6 @@ pub use self::expr_writer_js::{ValueWriterJs, ExpressionWriterJs};
 use std::io;
 
 use model::*;
-use parser::*;
 use processing::*;
 use scope::*;
 
@@ -152,7 +151,7 @@ mod tests {
         }
 
         fn write_simple_binding(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
-            if (!self.wrote_binding.is_some()) {
+            if !self.wrote_binding.is_some() {
                 self.wrote_binding = Some(binding.clone());
             }
             Ok(())

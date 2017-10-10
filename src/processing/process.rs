@@ -90,6 +90,31 @@ impl<'input> ProcessDocument<'input> {
             };
         }
 
+        ctx.push_child_scope();
+
+        // Add default action path for the default reducer key
+        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+            ctx.append_action_path_str(default_reducer_key);
+        };
+
+        // if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+        //     ctx.append_action_path_str(default_reducer_key);
+        //     let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
+        //     ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
+        // };
+
+        // Define top-level bindings
+        // for reducer_data in self.processing.reducer_key_data.values() {
+        //     let reducer_key = reducer_data.reducer_key.to_owned();
+        //     // let ty = reducer_data.ty
+        //     let binding = BindingType::ReducerPathBinding(reducer_key.clone());
+        //     if let Some(ref ty) = reducer_data.ty {
+        //         ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
+        //     } else {
+        //         ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+        //     }
+        // }
+
         for ref loc in self.ast.children.iter() {
             if let NodeType::RouteDefinitionNode(ref route) = loc.inner {
                 self.process_route_definition(ctx, bindings, route)?;
@@ -102,34 +127,22 @@ impl<'input> ProcessDocument<'input> {
             }
         }
 
-        // if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
-        //     ctx.append_action_path_str(default_reducer_key);
-        //     let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
-        //     ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
-        // };
-
-        for (_, reducer_data) in self.processing.reducer_key_data.iter() {
-            let reducer_key = reducer_data.reducer_key.to_owned();
-            // let ty = reducer_data.ty
-            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
-            if let Some(ref ty) = reducer_data.ty {
-                ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
-            } else {
-                ctx.add_sym(&reducer_key, Symbol::binding(&binding));
-            }
-        }
-
         for ref loc in self.ast.children.iter() {
             if let NodeType::ComponentDefinitionNode(ref component_data) = loc.inner {
                 self.process_component_definition(ctx, bindings, component_data)?;
             }
         }
 
+        ctx.push_root_content_processing_scope(&self.processing);
+
         for ref loc in self.ast.children.iter() {
             if let NodeType::ContentNode(ref content_node) = loc.inner {
                 content_processor.process_block_content_node(&mut self.processing, ctx, bindings, content_node, &mut root_block, None)?;
             };
         }
+
+        ctx.pop_scope();
+        ctx.pop_scope();
 
         self.processing.root_block = root_block;
         Ok(())

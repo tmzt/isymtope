@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use model::*;
-use parser::*;
 use parser::util::allocate_element_key;
 use scope::*;
 
@@ -70,8 +69,7 @@ impl Symbols {
 // #[cfg(test)]
 // mod tests {
 //     use model::*;
-    use parser::*;
-//     use scope::symbols::*;
+//     use scope::*;
 
 //     #[test]
 //     pub fn test_symbols() {

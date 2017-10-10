@@ -99,7 +99,6 @@ impl<'ctx, K: Hash + Clone, T, F> Iterator for MapWalkIter<'ctx, K, F>
 mod tests  {
     use super::*;
     use model::*;
-    use parser::*;
 
 
     #[test]

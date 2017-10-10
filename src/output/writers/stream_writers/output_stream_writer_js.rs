@@ -2,7 +2,6 @@
 use std::io;
 
 use model::*;
-use parser::*;
 use scope::*;
 use processing::*;
 use output::*;
@@ -21,9 +20,9 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 
         let path_expr;
         if let Some(element_key) = element_key {
-            path_expr = ctx.join_path_as_expr_with(Some("."), element_key);
+            path_expr = ctx.path_expr_with(&element_key);
         } else {
-            path_expr = ctx.join_path_as_expr(Some("."));
+            path_expr = ctx.path_expr();
         }
 
         let static_props: Vec<_>;
@@ -151,8 +150,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
     fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        // let instance_key = ctx.join_path_as_expr_with(Some("."), element_key);
-        let instance_key = ctx.join_path_as_expr(Some("."));
+	let instance_key = ctx.path_expr();
         self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding, None)
     }
 

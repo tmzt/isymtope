@@ -18,7 +18,6 @@ pub use self::process::ProcessDocument;
 pub use self::process_content::ProcessContent;
 pub use self::events::*;
 
-use model::*;
 use scope::*;
 
 

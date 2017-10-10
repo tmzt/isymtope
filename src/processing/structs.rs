@@ -3,7 +3,7 @@ use std::io;
 use std::fmt;
 use std::error::Error;
 use std::result;
-use std::collections::hash_map::{HashMap, Entry};
+use std::collections::hash_map::Entry;
 
 use linked_hash_map::LinkedHashMap;
 
@@ -30,7 +30,7 @@ pub enum ElementOp {
     InstanceComponent(String,
                       String,
                       Option<String>,
-                      Option<Vec<PropKey>>,
+                      Option<Vec<Prop>>,
                       Option<LensExprType>),
     StartBlock(String),
     EndBlock(String),
@@ -261,7 +261,6 @@ pub struct DocumentProcessingState {
     pub reducer_key_data: ReducerKeyProcessingMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
-    pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
     pub action_type_data: ReducerActionTypeMap
 }
@@ -291,9 +290,13 @@ impl DocumentProcessingState {
         if let BindingType::UnresolvedQueryBinding(ref unresolved_query) = *binding {
             let query_name = unresolved_query.query_name();
             if let Some(_) = self.query_map.get(query_name) {
-                let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
-                    (p.0.to_owned(), p.1.map(|expr| ctx.reduce_expr_or_return_same(expr)))
-                }).collect());
+                let query_props = unresolved_query.props_iter().map(
+                    |props| ctx.map_actual_props(props)
+                );
+
+                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                //     (p.0.to_owned(), p.1.map(|expr| ctx.reduce_expr_or_return_same(expr)))
+                // }).collect());
                 let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
 
                 return Some(BindingType::LocalQueryBinding(resolved_query));
@@ -335,7 +338,6 @@ pub struct Document {
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
-    pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
     pub action_type_data: ReducerActionTypeMap
 }
@@ -354,7 +356,6 @@ impl<'inp> Into<Document> for DocumentProcessingState {
             query_map: query_map,
             reducer_key_data: reducer_key_data,
             default_state_map: self.default_state_map,
-            default_state_symbol: self.default_state_symbol,
             default_reducer_key: self.default_reducer_key,
             action_type_data: self.action_type_data
         }

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use model::*;
-use scope::context::*;
+use scope::*;
 
 
 #[derive(Debug, Default)]
@@ -138,7 +138,6 @@ impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolBindingPropResolv
 // mod tests {
 //     use super::*;
 //     use model::*;
-    use parser::*;
 
 
 //     #[test]
