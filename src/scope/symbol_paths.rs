@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
-use std::ops::Add;
-use std::iter;
+use std::ops::{Add, AddAssign};
 
 use model::*;
 
@@ -12,6 +11,15 @@ pub enum SymbolPathComponent {
     EvalPathComponent(ExprValue)
 }
 
+impl AsExpr for SymbolPathComponent {
+    fn as_expr(&self) -> ExprValue {
+        match self {
+            &SymbolPathComponent::StaticPathComponent(ref s) => ExprValue::LiteralString(s.to_owned()),
+            &SymbolPathComponent::EvalPathComponent(ref e) => e.to_owned()
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SymbolPathScope(Option<Vec<SymbolPathComponent>>, Option<Symbol>, Option<String>);
 
@@ -20,14 +28,18 @@ pub struct SymbolPathScope(Option<Vec<SymbolPathComponent>>, Option<Symbol>, Opt
 //     fn add(self, rhs: &'b ExprValue) -> ExprValue { self.do_join(None, Some(rhs)) }
 // }
 
-impl<'a, RHS: AsExpr> Add<RHS> for &'a SymbolPathScope {
+impl<'a, Rhs: AsExpr> Add<Rhs> for &'a SymbolPathScope {
     type Output = ExprValue;
-    fn add(self, rhs: RHS) -> ExprValue { self.do_join(None, Some(&rhs)) }
+    fn add(self, rhs: Rhs) -> ExprValue { self.do_join(None, Some(&rhs)) }
+}
+
+impl<'a, Rhs: AsExpr> AddAssign<Rhs> for &'a mut SymbolPathScope {
+    fn add_assign(&mut self, rhs: Rhs) { let expr = rhs.as_expr(); self.append_expr(&expr); }
 }
 
 impl SymbolPathScope {
     pub fn with_sep(sep: &str) -> Self {
-	SymbolPathScope(Default::default(), Default::default(), Some(sep.to_owned()))
+    	SymbolPathScope(Default::default(), Default::default(), Some(sep.to_owned()))
     }
 
     #[inline]
@@ -53,63 +65,16 @@ impl SymbolPathScope {
     #[inline]
     fn do_join<T: AsExpr + ?Sized>(&self, override_sep: Option<Option<&str>>, last: Option<&T>) -> ExprValue {
         let sep = override_sep.unwrap_or(self.2.as_ref().map(|s| s.as_str()));
-        // let components_iter = self.0.as_ref().map(|v| v.into_iter()
-        //         .map(|component| match component {
-        //             &SymbolPathComponent::StaticPathComponent(ref s) => ExprValue::LiteralString(s.to_owned()),
-        //             &SymbolPathComponent::EvalPathComponent(ref expr) => expr.to_owned()
-        //         })).iter()
-        //     .chain(last.map(|e| vec![e.as_expr()].iter().map(|e| Some(e))).iter());
 
-        let components_iter = vec![
-            Some(self.0.as_ref().map(|v| v.into_iter()
-                .map(|component| match component {
-                    &SymbolPathComponent::StaticPathComponent(ref s) => ExprValue::LiteralString(s.to_owned()),
-                    &SymbolPathComponent::EvalPathComponent(ref expr) => expr.to_owned()
-                }))
-            ),
-            None,
-            None
-        ].into_iter();
+        let last_map = last.map(|last| SymbolPathComponent::EvalPathComponent(last.as_expr())).to_owned();
+        let components_iter = self.0.as_ref().map(|v| v.into_iter()).into_iter().flat_map(|m| m)
+            .chain(last_map.as_ref().into_iter());
 
-        let components: Vec<_> = components_iter.flat_map(|m| m).collect();
-
-        // let components_iter = None.iter()
-        //     .chain(Some(self.0.as_ref().map(|v| v.into_iter()
-        //         .map(|component| match component {
-        //             &SymbolPathComponent::StaticPathComponent(ref s) => Some(ExprValue::LiteralString(s.to_owned())),
-        //             &SymbolPathComponent::EvalPathComponent(ref expr) => Some(expr.to_owned())
-        //         })).iter()).iter())
-        //     .chain(last.map(|e| e.as_expr()).iter());
-
-        // let components: Vec<_>  = self.0.as_ref().map(|symbol_path| symbol_path.iter()
-        //     .map(|component| match component {
-        //         &SymbolPathComponent::StaticPathComponent(ref s) => ExprValue::LiteralString(s.to_owned()),
-        //         &SymbolPathComponent::EvalPathComponent(ref expr) => expr.to_owned()
-        //     })).iter()
-        //     .chain(iter::once(last.map(|e| iter::once(e.as_expr()))))
-        //     .flat_map(|m| m).collect();
-
-
-        // let components: Vec<_>  = self.0.as_ref().map(|symbol_path| symbol_path.iter()
-        //     .map(|component| match component {
-        //         &SymbolPathComponent::StaticPathComponent(ref s) => ExprValue::LiteralString(s.to_owned()),
-        //         &SymbolPathComponent::EvalPathComponent(ref expr) => expr.to_owned()
-        //     })).iter()
-        //     .chain(iter::once(last.map(|e| iter::once(e.as_expr()))))
-        //     .flat_map(|m| m).collect();
-
-        // let components: Vec<_> = self.0.as_ref().map(|symbol_path| symbol_path.iter()
-        //     .map(|component| match component {
-        //         &SymbolPathComponent::StaticPathComponent(ref s) => Some(ExprValue::LiteralString(s.to_owned())),
-        //         &SymbolPathComponent::EvalPathComponent(ref expr) => Some(expr.to_owned())
-        //     }))
-        //     .iter()
-        //     .chain(iter::once(last.map(|e| iter::once(e.as_expr()))))
-        //     .flat_map(|m| m).collect();
+        let components: Vec<_> = components_iter.collect();
 
         let join_opt = sep.map(|s| s.to_owned());
-        // ExprValue::Apply(ExprApplyOp::JoinString(join_opt), Some(components))
-        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), None)
+        let components = if !components.is_empty() { Some(components.into_iter().map(|c| c.as_expr().into()).collect()) } else { None };
+        ExprValue::Apply(ExprApplyOp::JoinString(join_opt), components)
     }
 
     #[inline]

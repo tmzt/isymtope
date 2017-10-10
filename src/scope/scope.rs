@@ -1,5 +1,3 @@
-// #![allow(dead_code)]
-
 use model::*;
 use parser::util::allocate_element_key;
 use scope::*;
@@ -17,7 +15,8 @@ pub struct Scope {
 }
 
 impl Scope {
-   
+
+    #[allow(dead_code)]
     pub fn new(map_id: &str) -> Self {
     	Scope::create(map_id, None, None, None)
     }
@@ -34,8 +33,8 @@ impl Scope {
 
     fn create(map_id: &str, parent_id: Option<&str>, symbol_path: Option<SymbolPathScope>, action_path: Option<SymbolPathScope>) -> Scope {
         let scope_id = allocate_element_key();
-        let symbol_path = symbol_path.map_or_else(|| SymbolPathScope::with_sep("_") , |symbol_path| symbol_path);
-        let action_path = action_path.map_or_else(|| SymbolPathScope::with_sep("."), |action_path| action_path);
+        let symbol_path = symbol_path.map_or_else(|| SymbolPathScope::with_sep(".") , |symbol_path| symbol_path);
+        let action_path = action_path.map_or_else(|| SymbolPathScope::with_sep("_"), |action_path| action_path);
         let parent_id = parent_id.map(|parent_id| parent_id.to_owned());
         Scope {
             scope_id: scope_id,

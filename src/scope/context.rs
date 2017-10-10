@@ -173,12 +173,12 @@ impl Context {
     }
 
     pub fn action_path_str(&mut self) -> String { 
-        let expr = self.symbol_path().path_expr();
+        let expr = self.action_path().path_expr();
         self.reduce_expr_to_string(&expr)
     }
 
     pub fn action_path_str_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> String {
-        let expr = self.symbol_path().path_expr_with(last);
+        let expr = self.action_path().path_expr_with(last);
         self.reduce_expr_to_string(&expr)
     }
 

@@ -316,7 +316,7 @@ impl<'doc> PageWriter<'doc> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_element_rendering_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        // self.push_content_context(ctx, bindings)?;
+        ctx.push_root_content_scope(&self.doc);
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
@@ -327,7 +327,7 @@ impl<'doc> PageWriter<'doc> {
         self.write_root_block_render_definition(w, ctx, bindings)?;
         self.write_root_bindings_definition(w, ctx, bindings)?;
 
-        // ctx.pop_scope();
+        ctx.pop_scope();
         Ok(())
     }
 
