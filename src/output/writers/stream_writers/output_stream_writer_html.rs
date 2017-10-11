@@ -3,7 +3,6 @@ use std::io;
 use std::collections::HashMap;
 
 use model::*;
-use parser::*;
 use scope::*;
 use processing::*;
 use output::*;
@@ -92,7 +91,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
 	let instance_key = ctx.path_str_with(element_key);
-        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Static(&instance_key), is_void, props, events, binding, None)?;
+        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Static(&instance_key), is_void, props, events, binding)?;
         Ok(())
     }
 
@@ -103,7 +102,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterHtml {
 }
 
 impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
-    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter, lens_item: Option<LensItemType<'a>>) -> Result
+    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, is_void: bool, props: PropIter, _events: EventIter, _binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = instance_key.as_static_string();
@@ -114,12 +113,13 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
 
             ctx.add_binding_value(&BindingType::ComponentKeyBinding, ExprValue::LiteralString(instance_key.to_owned()));
 
-            let mut props_hash: HashMap<&'a str, Option<&'a ExprValue>> = props.into_iter().collect();
+            let props_hash: HashMap<_, _> = props.into_iter().collect();
 
-            if let Some(LensItemType::ForLens(item_key, _index, item_expr)) = lens_item {
-                props_hash.insert(item_key, Some(item_expr));
-                // ctx.add_value(key_ref, item_expr.to_owned());
-            };
+            // TODO: Replace this
+            // if let Some(LensItemType::ForLens(item_key, _index, item_expr)) = lens_item {
+            //     props_hash.insert(item_key, Some(item_expr));
+            //     // ctx.add_value(key_ref, item_expr.to_owned());
+            // };
 
             if let Some(formals) = comp.formal_props_iter() {
                 let bound_props: Vec<_> = formals.into_iter()
@@ -137,7 +137,7 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
                 if let Some(events_iter) = events_iter {
                     for event_item in events_iter {
                         self.event(&instance_key, event_item, bound_props.iter())?;
-                    };
+                    }
                 };
 
                 for prop in bound_props {
@@ -157,30 +157,46 @@ impl ElementOpsUtilWriter for DefaultOutputWriterHtml {
     fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-        let props: PropVec = props.into_iter().map(|p| (p.0.to_owned(), p.1.map(|s| s.to_owned()))).collect();
-        let events: Vec<EventHandler> = events.into_iter().cloned().collect();
-        let binding: Vec<ElementValueBinding> = binding.into_iter().cloned().collect();
+        let mut props = props.into_iter();
+        let mut events = events.into_iter();
+        let mut binding = binding.into_iter();
 
-        // Attempt to resolve coll_expr
-        let reduced_expr = ctx.eval_expr(doc, coll_expr);
-        let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
+        let resolved = ctx.eval_expr(doc, coll_expr);
 
-        let coll_expr = match *coll_expr {
-            ExprValue::Lens(box ref lens) => lens.expr(),
-            ExprValue::Group(Some(box ref inner_expr)) => Some(inner_expr),
-            _ => Some(coll_expr)
-        };
-
-        if let Some(&ExprValue::LiteralArray(Some(ref arr))) = coll_expr {
+        if let Some(&ExprValue::LiteralArray(Some(ref arr))) = resolved.as_ref() {
             for (idx, item) in arr.iter().enumerate() {
                 ctx.push_child_scope();
 
                 let instance_key = format!("{}.{}", instance_key.as_static_string(), idx);
-                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Static(&instance_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), events.iter(), binding.iter(), Some(LensItemType::ForLens(coll_item_key, idx, item)))?;
+                // let props = props.iter().map(|p| (p.0, p.1.as_ref()));
+                let props = props.by_ref();
+                let events = events.by_ref();
+                let binding = binding.by_ref();
+                self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Static(&instance_key), false, props, events, binding)?;
+                // self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Static(&instance_key), false, props.by_ref(), events.iter(), binding.iter(), Some(LensItemType::ForLens(coll_item_key, idx, item)))?;
+                // self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Static(&instance_key), false, props.iter().map(|p| (p.0.as_ref(), p.1.as_ref().map(|s| s))), events.iter(), binding.iter(), Some(LensItemType::ForLens(coll_item_key, idx, item)))?;
 
                 ctx.pop_scope();
             }
         };
+        Ok(())
+    }
+
+    fn write_map_query_results_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, coll_item_key: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    {
+        // Prepare query parameters
+        let query_binding = match *coll_expr { ExprValue::Binding(BindingType::LocalQueryBinding(ref query)) => Some(query), _ => None };
+        let res;
+        if let Some(query_props) = query_binding.and_then(|q| q.props_iter()) {
+            ctx.push_actual_parameter_scope(doc, query_props);
+            res = ctx.eval_expr(doc, coll_expr);
+            ctx.pop_scope();
+        } else { res = None; }
+
+        let coll_expr = res.as_ref().unwrap_or(coll_expr);
+        self.write_map_collection_to_component(w, doc, ctx, bindings, coll_item_key, coll_expr, Some("div"), component_ty, instance_key, props, events, binding)?;
+
         Ok(())
     }
 }

@@ -314,6 +314,15 @@ impl ExprValue {
 
     #[inline]
     #[allow(dead_code)]
+    pub fn bool_value(&self) -> Option<bool> {
+        match *self {
+            ExprValue::LiteralBool(b) => Some(b),
+            _ => None
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
     pub fn reduce_to_string(&self) -> Option<String> {
         match self {
             &ExprValue::LiteralString(ref s) => Some(s.to_owned()),

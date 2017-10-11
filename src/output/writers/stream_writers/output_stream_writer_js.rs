@@ -150,8 +150,8 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
     fn write_op_element_instance_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, element_tag: &str, element_key: &str, is_void: bool, props: PropIter, events: EventIter, binding: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
-	let instance_key = ctx.path_expr();
-        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding, None)
+    	let instance_key = ctx.path_expr();
+        self.render_component(w, doc, ctx, bindings, Some("div"), element_tag, InstanceKey::Dynamic(&instance_key), is_void, props, events, binding)
     }
 
     fn write_op_element_value(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, expr: &ExprValue, _element_key: &str) -> Result {
@@ -163,7 +163,7 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 }
 
 impl ElementOpsUtilWriter for DefaultOutputWriterJs {
-    fn render_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: Option<&str>, component_ty: &str, instance_key: InstanceKey, _: bool, props: PropIter, _: EventIter, _: BindingIter, _: Option<LensItemType<'a>>) -> Result
+    fn render_component<'a, 'b, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: Option<&str>, component_ty: &str, instance_key: InstanceKey, _: bool, props: PropIter, _: EventIter, _: BindingIter) -> Result
       where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
     {
         let instance_key = instance_key.as_expr();
@@ -191,23 +191,10 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
         write!(w, "(")?;
         self.write_expr(w, doc, ctx, bindings, coll_expr)?;
         write!(w, ").forEach(function(item, idx) {{")?;
-        self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Dynamic(&instance_key), false, props, events, binding, None)?;
+        self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Dynamic(&instance_key), false, props, events, binding)?;
         writeln!(w, "}});")?;
         Ok(())
     }
-
-    // fn write_query_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: &str, query_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-    //   where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
-    // {
-    //     let instance_key = ExprValue::Apply(ExprApplyOp::JoinString(Some(".".into())), Some(vec![instance_key.as_expr().into(), ExprValue::Binding(BindingType::MapIndexBinding).into()]));
-
-    //     write!(w, "(")?;
-    //     self.write_expr(w, doc, ctx, bindings, query_expr)?;
-    //     write!(w, ").forEach(function(item, idx) {{")?;
-    //     self.render_component(w, doc, ctx, bindings, enclosing_tag, component_ty, InstanceKey::Dynamic(&instance_key), false, props, events, binding, None)?;
-    //     writeln!(w, "}});")?;
-    //     Ok(())
-    // }
 }
 
 
