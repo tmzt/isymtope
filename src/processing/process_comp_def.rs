@@ -25,8 +25,8 @@ pub struct CompDefProcessorOutput {
 
 impl Into<Component> for CompDefProcessorOutput {
     fn into(self) -> Component {
-        // let formal_props = if self.formal_props.len() > 0 { Some(self.formal_props) } else { None };
-        Component::new(self.ty.unwrap(), self.block.into(), self.formal_props)
+        let component_ty = self.ty.expect("Component type is required");
+        Component::new(component_ty, self.block.into(), self.formal_props)
     }
 }
 
@@ -42,10 +42,12 @@ impl CompDefProcessor {
         }
 
         let mut formals = formals.into_iter();
+
         ctx.push_formal_parameter_scope(formals.by_ref());
 
         output.ty = Some(component_ty.to_owned());
-        output.formal_props = Some(formals.map(|p| p.to_owned()).collect());
+        let formals: Vec<_> = formals.map(|s| s.to_owned()).collect();
+        output.formal_props = if !formals.is_empty() { Some(formals) } else { None };
     }
 
     pub fn push_element_scope(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str) {
@@ -62,12 +64,20 @@ impl CompDefProcessor {
                                         nodes: I)
                                         -> Result
     {
-        let iter = iter::empty()
-            .chain(component_data.inputs.as_ref().map((|v| v.iter())))
-            .flat_map(|m| m);
+        output.ty = Some(component_data.name.clone());
+        output.formal_props = None;
 
         // Prepare scope with formal parameters
-        self.push_component_definition_scope(output, ctx, &component_data.name, iter.map(|s| s.as_str()));
+        if let Some(ref inputs) = component_data.inputs {
+            let formals: Vec<_> = inputs.into_iter().map(|s| s.to_owned()).collect();
+            ctx.push_formal_parameter_scope(formals.iter().map(|s| s.as_str()));
+
+            if !formals.is_empty() {
+                output.formal_props = Some(formals);
+            }
+        } else {
+            ctx.push_child_scope();
+        }
 
         // Process the content
         let mut content_processor = ProcessContent::default();

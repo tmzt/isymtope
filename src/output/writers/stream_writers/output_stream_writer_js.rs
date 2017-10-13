@@ -163,8 +163,8 @@ impl ElementOpsStreamWriter for DefaultOutputWriterJs {
 }
 
 impl ElementOpsUtilWriter for DefaultOutputWriterJs {
-    fn render_component<'a, 'b, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: Option<&str>, component_ty: &str, instance_key: InstanceKey, _: bool, props: PropIter, _: EventIter, _: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    fn render_component<'a, 'b, 'c, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: Option<&str>, component_ty: &str, instance_key: InstanceKey, _: bool, props: PropIter, _: EventIter, _: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'b EventHandler>, BindingIter: IntoIterator<Item = &'c ElementValueBinding>
     {
         let instance_key = instance_key.as_expr();
         write!(w, "component_{}(", component_ty)?;
@@ -183,8 +183,8 @@ impl ElementOpsUtilWriter for DefaultOutputWriterJs {
         Ok(())
     }
 
-    fn write_map_collection_to_component<'a, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
-      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'a EventHandler>, BindingIter: IntoIterator<Item = &'a ElementValueBinding>
+    fn write_map_collection_to_component<'a, 'b, 'c, PropIter, EventIter, BindingIter>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, _: &str, coll_expr: &ExprValue, enclosing_tag: Option<&str>, component_ty: &str, instance_key: InstanceKey, props: PropIter, events: EventIter, binding: BindingIter) -> Result
+      where PropIter : IntoIterator<Item = ActualPropRef<'a>>, EventIter: IntoIterator<Item = &'b EventHandler>, BindingIter: IntoIterator<Item = &'c ElementValueBinding>
     {
         let instance_key = ExprValue::Apply(ExprApplyOp::JoinString(Some(".".into())), Some(vec![instance_key.as_expr().into(), ExprValue::Binding(BindingType::MapIndexBinding).into()]));
 

@@ -114,7 +114,7 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
                     )?;
                 }
 
-                ElementOp::InstanceComponent(ref component_ty, ref component_key, _, _, ref lens) => {
+                ElementOp::InstanceComponent(ref component_ty, ref component_key, _, ref props, ref lens) => {
                     match *lens {
                         Some(LensExprType::ForLens(Some(ref coll_key), ref coll_expr)) => {
                             let binding = ExprValue::Binding(BindingType::MapItemBinding);
@@ -128,21 +128,14 @@ impl<O: OutputWriter + ElementOpsStreamWriter + ElementOpsUtilWriter + EventColl
                         }
 
                         Some(LensExprType::QueryLens(ref query_expr, ref alias)) => {
-                            let resolved = ctx.reduce_expr(query_expr);
                             let alias = alias.as_str();
 
-                            // let binding = ExprValue::Binding(BindingType::MapItemBinding);
-                            let props_iter = vec![(alias, Some(resolved.as_ref().unwrap_or(query_expr)))].into_iter();
-                            self.write_map_query_results_to_component(w, doc, ctx, bindings, alias, query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
-
-                            // self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props_iter, iter::empty(), iter::empty())?;
-                            // self.write_map_collection_to_component(w, doc, ctx, bindings, alias, query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
-
-                            // self.write_map_collection_to_component(w, doc, ctx, bindings, "item", query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), props_iter, iter::empty(), iter::empty())?;
+                            self.render_component_with_query_results(w, doc, ctx, bindings, alias, query_expr, Some("div"), component_ty, InstanceKey::Static(component_key), iter::empty(), iter::empty(), iter::empty())?;
                         }
 
                         _ => {
-                            let props = vec![];
+                            let props = props.iter().flat_map(|m| m);
+                            let props = props.map(|p| (p.0.as_str(), p.1.as_ref()));
                             self.render_component(w, doc, ctx, bindings, Some("div"), component_ty, InstanceKey::Static(component_key), false, props, iter::empty(), iter::empty())?;
                             // self.write_op_element_instance_component(w, doc, ctx, bindings, component_ty, component_key, true, None, None, None)?;
                         }

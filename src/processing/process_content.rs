@@ -231,7 +231,7 @@ impl ProcessContent {
                                 block: &mut BlockProcessingState,
                                 parent_tag: Option<&str>)
                                 -> Result {
-        let complete_key = ctx.path_str();
+        let component_key = ctx.path_str_with(&element_data.element_key);
         let element_tag = element_data.element_ty.to_lowercase();
 
         let resolved = element_data.lens.as_ref().and_then(|lens| processing
@@ -250,13 +250,13 @@ impl ProcessContent {
         // Render a component during render
         block.ops_vec
             .push(ElementOp::InstanceComponent(element_tag.to_owned(),
-                                                complete_key.clone(),
+                                                component_key.clone(),
                                                 parent_tag.map(|s| s.to_owned()),
                                                 props,
                                                 lens.clone()));
 
         // Add mapping from the instance_key to the component_ty
-        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned(), None, lens));
+        block.compkey_mappings.push((component_key.to_owned(), element_tag.to_owned(), None, lens));
 
         Ok(())
     }

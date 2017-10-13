@@ -436,6 +436,28 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn eval_local_query_binding(&mut self, doc: &Document, query_binding: &LocalQueryInvocation) -> Option<ExprValue> {
+        let query_name = query_binding.query_name();
+
+        let query_props = query_binding.props_iter()
+            .map(|iter| self.map_actual_props(iter));
+
+        let res;
+        if let Some(query) = doc.get_query(query_name) {
+            if let Some(query_props) = query_props {
+                self.push_actual_parameter_scope(doc, query_props.iter().map(|p| (p.0.as_str(), p.1.as_ref())));
+            } else {
+                self.push_child_scope();
+            }
+
+            res = self.eval_query(doc, query);
+            self.pop_scope();
+        } else { res = None; }
+
+        res
+    }
+
+    #[allow(dead_code)]
     pub fn eval_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<ExprValue> {
         match *binding {
             BindingType::ReducerPathBinding(ref reducer_path) => {
@@ -446,22 +468,24 @@ impl Context {
                 };
             }
 
-            BindingType::LocalQueryBinding(ref query_binding) => {
-                let query_name = query_binding.query_name();
-                let ty = query_binding.ty().map(|ty| ty.to_owned());
-                let props = query_binding.props_iter()
-                    .map(|iter| self.map_actual_props(iter));
+            BindingType::LocalQueryBinding(ref query_binding) => return self.eval_local_query_binding(doc, query_binding),
 
-                if let Some(query) = doc.get_query(query_name) {
-                    if let Some(props) = query.formal_props_iter() {
-                        self.push_formal_parameter_scope(props);
-                    };
+            // BindingType::LocalQueryBinding(ref query_binding) => {
+            //     let query_name = query_binding.query_name();
+            //     let ty = query_binding.ty().map(|ty| ty.to_owned());
+            //     let props = query_binding.props_iter()
+            //         .map(|iter| self.map_actual_props(iter));
 
-                    if let Some(expr) = self.eval_query(doc, query) {
-                        return Some(expr);
-                    };
-                };
-            }
+            //     if let Some(query) = doc.get_query(query_name) {
+            //         if let Some(props) = query.formal_props_iter() {
+            //             self.push_formal_parameter_scope(props);
+            //         };
+
+            //         if let Some(expr) = self.eval_query(doc, query) {
+            //             return Some(expr);
+            //         };
+            //     };
+            // }
 
             _ => {}
         };
@@ -475,16 +499,16 @@ impl Context {
 
     #[allow(dead_code)]
     pub fn eval_sym_initial(&mut self, doc: &Document, sym: &Symbol, initial: bool) -> Option<ExprValue> {
-        if let Some(resolved_key) = sym.resolved_key() {
-            // if let Some(expr) = self.get_value(resolved_key) {
-            //     return Some(expr.to_owned());
-            // };
+        // if let Some(resolved_key) = sym.resolved_key() {
+        //     // if let Some(expr) = self.get_value(resolved_key) {
+        //     //     return Some(expr.to_owned());
+        //     // };
 
-            let scope_id = self.scope_ref().unwrap().id().to_owned();
-            if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
-                return self.eval_sym(doc, &sym);
-            }
-        };
+        //     let scope_id = self.scope_ref().unwrap().id().to_owned();
+        //     if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
+        //         return self.eval_sym(doc, &sym);
+        //     }
+        // };
 
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(box ref before, _) if initial => { return self.eval_sym(doc, before); },
@@ -630,7 +654,10 @@ impl Context {
                 let a_res = self.eval_expr(doc, a); let a = a_res.unwrap_or_else(|| a.to_owned());
                 let b_res = self.eval_expr(doc, b); let b = b_res.unwrap_or_else(|| b.to_owned());
                 
-                Some(ExprValue::TestValue(op.to_owned(), a.into(), Some(b.into())))
+                match *op {
+                    TestOp::EqualTo => Some(ExprValue::LiteralBool(a == b)),
+                    _ => Some(ExprValue::TestValue(op.to_owned(), a.into(), Some(b.into())))
+                }
             }
 
             &ExprValue::TestValue(ref op, box ref a, None) => {
@@ -658,6 +685,10 @@ impl Context {
             _ => None
         };
         expr.as_ref().map(|expr| self.reduce_expr_or_return_same(expr))
+    }
+
+    pub fn eval_actual_props<'doc, 'ctx, 'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&'ctx mut self, doc: &'doc Document, props: I) -> EvalProps<'ctx, 'doc, 'a, I> {
+        EvalProps::new(props, doc, self)
     }
 
     pub fn reduce_binding(&mut self, binding: &BindingType) -> Option<BindingType> {
