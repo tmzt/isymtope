@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use parser::ast::*;
-use scope::context::*;
+use model::*;
+use scope::*;
 
 
 #[derive(Debug, Default)]
@@ -137,7 +137,7 @@ impl<'a, I: Iterator<Item = PropValue<'a>>> Iterator for SymbolBindingPropResolv
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-//     use parser::ast::*;
+//     use model::*;
 
 
 //     #[test]

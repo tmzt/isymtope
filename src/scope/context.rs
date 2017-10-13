@@ -1,9 +1,8 @@
-// #![allow(dead_code)]
 
 use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 
-use parser::*;
+use model::*;
 use scope::*;
 use scope::symbols::*;
 use processing::*;
@@ -130,22 +129,12 @@ impl Context {
 
     fn scope_ref_mut<'a>(&'a mut self) -> Option<&'a mut Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
-        if let Some(scope_id) = scope_id {
-            return self.scopes.get_mut(&scope_id);
-        }
-        None
+        scope_id.as_ref().and_then(move |scope_id| self.scopes.get_mut(scope_id))
     }
 
     pub fn scope_ref<'a>(&'a mut self) -> Option<&'a Scope> {
         let scope_id = self.scopes.back().map(|s| s.1.id().to_owned());
-        if let Some(scope_id) = scope_id {
-            return self.scopes.get(&scope_id);
-        }
-        None
-    }
-
-    pub fn scope(&mut self) -> Scope {
-        self.scope_ref().unwrap().clone()
+        scope_id.as_ref().and_then(move |scope_id| self.scopes.get(scope_id))
     }
 
     pub fn get_scope<'a>(&'a mut self, scope_id: &str) -> Option<&'a Scope> {
@@ -156,6 +145,50 @@ impl Context {
         self.symbol_maps.get(map_id)
     }
 
+    pub fn symbol_path(&mut self) -> &SymbolPathScope { self.scope_ref().unwrap().symbol_path() }
+    pub fn action_path(&mut self) -> &SymbolPathScope { self.scope_ref().unwrap().action_path() }
+
+    pub fn symbol_path_mut(&mut self) -> &mut SymbolPathScope { self.scope_ref_mut().unwrap().symbol_path_mut() }
+    pub fn action_path_mut(&mut self) -> &mut SymbolPathScope { self.scope_ref_mut().unwrap().action_path_mut() }
+
+    pub fn append_path_str(&mut self, s: &str) { self.symbol_path_mut().append_str(s); }
+    pub fn append_path_expr(&mut self, expr: &ExprValue) { self.symbol_path_mut().append_expr(expr); }
+    pub fn append_action_path_str(&mut self, s: &str) { self.action_path_mut().append_str(s); }
+    pub fn append_action_path_expr(&mut self, expr: &ExprValue) { self.action_path_mut().append_expr(expr); }
+
+    pub fn path_expr(&mut self) -> ExprValue { self.symbol_path().path_expr() }
+    pub fn path_expr_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> ExprValue { self.symbol_path().path_expr_with(last) }
+
+    pub fn action_path_expr(&mut self) -> ExprValue { self.action_path().path_expr() }
+    pub fn action_path_expr_with<T: AsExpr>(&mut self, last: &T) -> ExprValue { self.action_path().path_expr_with(last) }
+
+    pub fn path_str(&mut self) -> String { 
+        let expr = self.symbol_path().path_expr();
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn path_str_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> String {
+        let expr = self.symbol_path().path_expr_with(last);
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn action_path_str(&mut self) -> String { 
+        let expr = self.action_path().path_expr();
+        self.reduce_expr_to_string(&expr)
+    }
+
+    pub fn action_path_str_with<T: AsExpr + ?Sized>(&mut self, last: &T) -> String {
+        let expr = self.action_path().path_expr_with(last);
+        self.reduce_expr_to_string(&expr)
+    }
+
+    // pub fn action_path_str(&self) -> String { self.reduce_expr_to_string(&self.action_path().path_expr()) }
+
+    // pub fn action_path_str_with<T: AsExpr + ?Sized>(&self, last: &T) -> String {
+    //     let expr = self.action_path().path_expr_with(last);
+    //     self.reduce_expr_to_string(&expr)
+    // }
+
     pub fn create_child_scope(&mut self) -> Scope {
         assert!(!self.scopes.is_empty());
         let parent_map_id = self.scope_ref().unwrap().map_id().to_owned();
@@ -164,7 +197,7 @@ impl Context {
         let map_id = symbols.map_id().to_owned();
         self.add_symbol_map(symbols);
 
-        Scope::new_from_parent(&map_id, self.scope_ref().unwrap())
+        Scope::new_from_parent(&map_id, self.scope_ref_mut().unwrap())
     }
 
     pub fn push_scope(&mut self, scope: Scope) {
@@ -212,10 +245,13 @@ impl Context {
     }
 
     pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
-        let scope = self.scope();
-        let map_id = scope.map_id();
+	let map_id = {
+		let scope = self.scope_ref();
+		if scope.is_none() { return None; }
+		scope.unwrap().map_id()
+	}.to_owned();
 
-        let mut cur_map = self.symbol_maps.get(map_id);
+        let mut cur_map = self.symbol_maps.get(&map_id);
         while let Some(map) = cur_map {
             if let Some(sym) = map.get_sym(key) {
                 return Some(sym.to_owned());
@@ -228,24 +264,6 @@ impl Context {
     }
 
     #[allow(dead_code)]
-    pub fn get_sym(&mut self, key: &str) -> Option<&Symbol> {
-        let map_id = self.map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get(&map_id) {
-            return map.get_sym(key)
-        };
-        None
-    }
-
-    #[allow(dead_code)]
-    pub fn get_value(&mut self, key: &str) -> Option<&ExprValue> {
-        let map_id = self.map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get(&map_id) {
-            return map.get_value(key)
-        };
-        None
-    }
-
-    #[allow(dead_code)]
     pub fn resolve_key_from_scope(&mut self, key: &str, scope_id: &str) -> Option<Symbol> {
         let iter = ScopeSymbolIter::new(self, key, scope_id);
         // let mut res: Option<ScopeSymbolState> = None;
@@ -254,6 +272,23 @@ impl Context {
                 return Some(sym);
             };
         }
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn resolve_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<BindingType> {
+        if let BindingType::UnresolvedQueryBinding(ref unresolved_query) = *binding {
+            let query_name = unresolved_query.query_name();
+            if let Some(_) = doc.get_query(query_name) {
+                let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                    (p.0.to_owned(), p.1.map(|expr| self.reduce_expr_or_return_same(expr)))
+                }).collect());
+
+                let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
+                return Some(BindingType::LocalQueryBinding(resolved_query));
+            };
+        };
+
         None
     }
 
@@ -271,64 +306,25 @@ impl Context {
         None
     }
 
-    #[allow(dead_code)]
-    pub fn map_id(&mut self) -> &str {
-        self.scope_ref().unwrap().map_id()
-    }
-
-    #[allow(dead_code)]
-    pub fn parent_map_id(&mut self) -> Option<&str> {
-        let map_id = self.map_id().to_owned();
-        self.symbol_maps.get(&map_id).unwrap().parent_map_id()
-    }
-
-    // #[allow(dead_code)]
-    // pub fn resolve_sym_from_parent(&mut self, key: &str) -> Option<Symbol> {
-    //     let parent_id = self.parent_map_id().map(|s| s.to_owned());
-    //     if let Some(parent_id) = parent_id {
-    //         if let Some((_, sym)) = self.search_sym_starting_at(key, &parent_id) {
-    //             return Some(sym.to_owned());
-    //         };
-    //         // return self.resolve_sym_starting_at(key, &parent_id);
-    //     };
-
-    //     None
-    // }
-
-    // pub fn resolve_sym(&mut self, key: &str) -> Option<Symbol> {
-    //     let map_id = self.map_id().to_owned();
-    //     if let Some((_, sym)) = self.search_sym_starting_at(key, &map_id) {
-    //         return Some(sym.to_owned());
-    //     };
-
-    //     None
-    // }
-
     pub fn add_symbol_map(&mut self, map: Symbols) {
         self.symbol_maps.insert(map.map_id().to_owned(), map);
     }
 
     pub fn add_sym(&mut self, key: &str, sym: Symbol) {
-        let map_id = self.scope().map_id().to_owned();
+        let map_id = self.scope_ref().unwrap().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_sym(key, sym);
         };
     }
 
-    pub fn add_value(&mut self, key: &str, expr: ExprValue) {
-        let map_id = self.scope().map_id().to_owned();
-        if let Some(map) = self.symbol_maps.get_mut(&map_id) {
-            map.add_value(key, expr);
-        };
-    }
-
     pub fn add_binding_value(&mut self, binding: &BindingType, expr: ExprValue) {
-        let map_id = self.scope().map_id().to_owned();
+        let map_id = self.scope_ref().unwrap().map_id().to_owned();
         if let Some(map) = self.symbol_maps.get_mut(&map_id) {
             map.add_binding_value(binding, expr);
         };
     }
 
+    /*
     pub fn append_path_expr(&mut self, expr: &ExprValue) {
         if let Some(scope) = self.scope_ref_mut() {
             scope.append_path_expr(expr);
@@ -353,6 +349,7 @@ impl Context {
             scope.append_action_path_str(s);
         };
     }
+    */
 
     pub fn map_props_to_reduced_values<'a, I: 'a>(&'a mut self, props: I) -> impl Iterator<Item = (String, Option<ReducedValue>)> + 'a
         where I: IntoIterator<Item = &'a Prop> + 'a
@@ -379,9 +376,9 @@ impl Context {
             let mut first = true;
             for &box ref expr in arr {
                 if let Some(s) = self.reduce_static_expr_to_string(expr, with_binding_values) {
-                    first = false;
                     if !first { if let &Some(ref sep) = sep { res.push_str(sep); } }
                     res.push_str(&s);
+                    first = false;
                 };
                 return None;
             }
@@ -421,6 +418,7 @@ impl Context {
         }
     }
 
+    #[inline]
     pub fn reduce_expr_and_resolve_to_string(&mut self, doc: &Document, expr: &ExprValue) -> Option<String> {
         if let Some(expr) = self.eval_expr(doc, expr) {
             return Some(self.reduce_expr_to_string(&expr));
@@ -438,15 +436,57 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn eval_local_query_binding(&mut self, doc: &Document, query_binding: &LocalQueryInvocation) -> Option<ExprValue> {
+        let query_name = query_binding.query_name();
+
+        let query_props = query_binding.props_iter()
+            .map(|iter| self.map_actual_props(iter));
+
+        let res;
+        if let Some(query) = doc.get_query(query_name) {
+            if let Some(query_props) = query_props {
+                self.push_actual_parameter_scope(doc, query_props.iter().map(|p| (p.0.as_str(), p.1.as_ref())));
+            } else {
+                self.push_child_scope();
+            }
+
+            res = self.eval_query(doc, query);
+            self.pop_scope();
+        } else { res = None; }
+
+        res
+    }
+
+    #[allow(dead_code)]
     pub fn eval_binding(&mut self, doc: &Document, binding: &BindingType) -> Option<ExprValue> {
-        match binding {
-            &BindingType::ReducerPathBinding(ref reducer_path) => {
+        match *binding {
+            BindingType::ReducerPathBinding(ref reducer_path) => {
                 if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
                     if let Some(ref expr) = reducer_data.default_expr {
                         return self.reduce_expr(expr);
                     };
                 };
             }
+
+            BindingType::LocalQueryBinding(ref query_binding) => return self.eval_local_query_binding(doc, query_binding),
+
+            // BindingType::LocalQueryBinding(ref query_binding) => {
+            //     let query_name = query_binding.query_name();
+            //     let ty = query_binding.ty().map(|ty| ty.to_owned());
+            //     let props = query_binding.props_iter()
+            //         .map(|iter| self.map_actual_props(iter));
+
+            //     if let Some(query) = doc.get_query(query_name) {
+            //         if let Some(props) = query.formal_props_iter() {
+            //             self.push_formal_parameter_scope(props);
+            //         };
+
+            //         if let Some(expr) = self.eval_query(doc, query) {
+            //             return Some(expr);
+            //         };
+            //     };
+            // }
+
             _ => {}
         };
 
@@ -459,16 +499,16 @@ impl Context {
 
     #[allow(dead_code)]
     pub fn eval_sym_initial(&mut self, doc: &Document, sym: &Symbol, initial: bool) -> Option<ExprValue> {
-        if let Some(resolved_key) = sym.resolved_key() {
-            if let Some(expr) = self.get_value(resolved_key) {
-                return Some(expr.to_owned());
-            };
+        // if let Some(resolved_key) = sym.resolved_key() {
+        //     // if let Some(expr) = self.get_value(resolved_key) {
+        //     //     return Some(expr.to_owned());
+        //     // };
 
-            let scope_id = self.scope_ref().unwrap().id().to_owned();
-            if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
-                return self.eval_sym(doc, &sym);
-            }
-        };
+        //     let scope_id = self.scope_ref().unwrap().id().to_owned();
+        //     if let Some(sym) = self.resolve_key_from_scope(resolved_key, &scope_id) {
+        //         return self.eval_sym(doc, &sym);
+        //     }
+        // };
 
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(box ref before, _) if initial => { return self.eval_sym(doc, before); },
@@ -478,17 +518,13 @@ impl Context {
                 return self.eval_binding(doc, binding);
             }
 
-            &SymbolReferenceType::MemberPath(box ref first, ref rest) => {
-                let first_expr = self.eval_sym(doc, first);
-                // let rest_iter = rest.as_ref().map(|rest| rest.iter().map(|s| s.as_str()));
-                if let Some(first_expr) = first_expr {
-                    if let &Some(ref rest) = rest {
-                        if let Some(expr) = first_expr.member_ref(rest.as_str()) {
-                            return self.eval_expr(doc, &expr);
-                        };
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
+                if let Some(head) = self.eval_sym(doc, head) {
+                    if let Some(expr) = head.member_ref(path.as_str()) {
+                        return self.eval_expr(doc, &expr);
                     };
-                    return self.eval_expr(doc, &first_expr);
                 };
+                return self.eval_sym(doc, &head);
             }
 
             _ => {}
@@ -503,16 +539,92 @@ impl Context {
     }
 
     #[allow(dead_code)]
+    pub fn eval_query(&mut self, doc: &Document, query: &Query) -> Option<ExprValue> {
+        if let Some(components_iter) = query.components_iter() {
+            let iter = EvalQuery::new(components_iter, doc, self);
+
+            for next_match in iter {
+                if let Some(res) = next_match { return Some(res); }
+            };
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_reduced_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, doc: &Document, head: Option<&ExprValue>, comps: Option<I>) -> Option<ExprValue> {
+        // Special case
+        if head.is_some() && comps.is_none() {
+            return head.map(|expr| expr.to_owned());
+        };
+
+        let comps = comps.unwrap();
+        let iter = EvalReducedPipeline::new(head, comps, doc, self);
+
+        for next_match in iter {
+            if let Some(res) = next_match { return Some(res); }
+        };
+
+        None
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_lens(&mut self, doc: &Document, lens: &LensExprType) -> Option<ExprValue> {
+        match *lens {
+            LensExprType::GetLens(_, ref expr) => {
+                self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()).into()
+            }
+
+            LensExprType::ForLens(_, ref expr) => {
+                self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()).into()
+            }
+
+            LensExprType::QueryLens(ref expr, ref query_name) => {
+                if let Some(query) = doc.get_query(query_name) {
+                    return self.eval_query(doc, query)
+                        .and_then(|e| self.eval_expr(doc, &e));
+                };
+
+                None
+            }
+
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn eval_test(&mut self, doc: &Document, test_op: TestOp, a: &ExprValue, b: Option<&ExprValue>) -> Option<ExprValue> {
+        match test_op {
+            TestOp::EqualTo => {
+                let a = self.eval_expr(doc, a).unwrap_or_else(|| a.to_owned());
+                let b = b.map(|b| self.eval_expr(doc, b).unwrap_or_else(|| b.to_owned()));
+
+                let res = match (a, b) {
+                    (ExprValue::LiteralString(ref a), Some(ExprValue::LiteralString(ref b))) => Some(a == b),
+                    _ => None
+                };
+
+                res.map(|b| ExprValue::LiteralBool(b))
+            }
+
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn eval_expr(&mut self, doc: &Document, expr: &ExprValue) -> Option<ExprValue> {
-        if expr.is_literal_primitive() { return Some(expr.clone()); }
-        // if expr.is_literal() { return Some(expr.clone()); }
-        match expr {
+        let expr = self.reduce_expr_or_return_same(expr);
+        if expr.is_literal_primitive() { return Some(expr); }
+
+        let expr = match &expr {
+            &ExprValue::Group(Some(box ref inner_expr)) => self.eval_expr(doc, inner_expr),
+
             &ExprValue::LiteralArray(ref arr) => {
                 let arr: Option<Vec<_>> = arr.as_ref().map(|arr| arr.iter()
                     .map(|expr| self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()))
                     .collect());
 
-                return Some(ExprValue::LiteralArray(arr));
+                Some(ExprValue::LiteralArray(arr))
             }
 
             &ExprValue::LiteralObject(ref props) => {
@@ -520,7 +632,7 @@ impl Context {
                     .map(|&(ref key, ref expr)| (key.clone(), expr.as_ref().map(|expr| self.eval_expr(doc, expr).unwrap_or_else(|| expr.to_owned()))))
                     .collect());
 
-                return Some(ExprValue::LiteralObject(props));
+                Some(ExprValue::LiteralObject(props))
             }
 
             &ExprValue::Expr(ref op, box ref l_expr, box ref r_expr) => {
@@ -531,37 +643,111 @@ impl Context {
                     (&ExprOp::Add, &Some(ref l_reduced), &Some(ref r_reduced)) if l_reduced.peek_is_string() || r_reduced.peek_is_string() => {
                         let l_str = self.reduce_expr_and_resolve_to_string(doc, l_reduced).unwrap_or("undefined".to_owned());
                         let r_str = self.reduce_expr_and_resolve_to_string(doc, r_reduced).unwrap_or("undefined".to_owned());
-                        return Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)));
+                        Some(ExprValue::LiteralString(format!("{}{}", l_str, r_str)))
                     }
 
-                    _ => {}
-                };
+                    _ => None
+                }
+            }
+
+            &ExprValue::TestValue(ref op, box ref a, Some(box ref b)) => {
+                let a_res = self.eval_expr(doc, a); let a = a_res.unwrap_or_else(|| a.to_owned());
+                let b_res = self.eval_expr(doc, b); let b = b_res.unwrap_or_else(|| b.to_owned());
                 
+                match *op {
+                    TestOp::EqualTo => Some(ExprValue::LiteralBool(a == b)),
+                    _ => Some(ExprValue::TestValue(op.to_owned(), a.into(), Some(b.into())))
+                }
+            }
+
+            &ExprValue::TestValue(ref op, box ref a, None) => {
+                let a_res = self.eval_expr(doc, a); let a = a_res.unwrap_or_else(|| a.to_owned());
+                
+                Some(ExprValue::TestValue(op.to_owned(), a.into(), None))
             }
 
             &ExprValue::SymbolReference(ref sym) => {
-                return self.eval_sym(doc, sym);
+                self.eval_sym(doc, sym)
             }
 
             &ExprValue::Binding(ref binding) => {
-                return self.eval_binding(doc, binding);
-                // if let &BindingType::ReducerPathBinding(ref reducer_path) = binding {
-                //     if let Some(ref reducer_data) = doc.reducer_key_data.get(reducer_path) {
-                //         if let Some(ref expr) = reducer_data.default_expr {
-                //             return self.reduce_expr(expr);
-                //         };
-                //     };
-                // };
+                self.eval_binding(doc, binding)
             }
 
-            _ => {}
+            &ExprValue::Lens(box ref lens) => self.eval_lens(doc, lens),
+
+            &ExprValue::ReducedPipeline(ref head, ref comps) => {
+                let head = head.as_ref().map(|&box ref head| head);
+                let comps = comps.as_ref().map(|v| v.iter());
+                self.eval_reduced_pipeline(doc, head, comps)
+            }
+
+            _ => None
         };
-        self.reduce_expr(expr)
+        expr.as_ref().map(|expr| self.reduce_expr_or_return_same(expr))
+    }
+
+    pub fn eval_actual_props<'doc, 'ctx, 'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&'ctx mut self, doc: &'doc Document, props: I) -> EvalProps<'ctx, 'doc, 'a, I> {
+        EvalProps::new(props, doc, self)
+    }
+
+    pub fn reduce_binding(&mut self, binding: &BindingType) -> Option<BindingType> {
+        match *binding {
+            BindingType::LocalQueryBinding(ref query_binding) => {
+                let query_name = query_binding.query_name();
+                let ty = query_binding.ty().map(|ty| ty.to_owned());
+                let props = query_binding.props_iter()
+                    .map(|iter| self.map_actual_props(iter));
+
+                let binding = BindingType::LocalQueryBinding(LocalQueryInvocation::new(query_name, props, ty));
+                Some(binding)
+            }
+            _ => None
+        }
+    }
+
+    pub fn reduce_symbol(&mut self, sym: &Symbol) -> Option<Symbol> {
+        match sym.sym_ref() {
+            &SymbolReferenceType::UnresolvedReference(ref key) => {
+                self.resolve_sym(key)
+            }
+
+            &SymbolReferenceType::UnresolvedPathReference(ref path) => {
+                self.resolve_path_reference_to_symbol(path)
+            }
+
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
+                self.reduce_symbol(head).map(|head| Symbol::member_path(head, path))
+            }
+
+            &SymbolReferenceType::Binding(ref binding) => {
+                self.reduce_binding(binding).map(|binding| Symbol::binding(&binding))
+            }
+
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn reduce_lens(&mut self, lens: &LensExprType) -> Option<LensExprType> {
+        match *lens {
+            LensExprType::ForLens(ref key, ref expr) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::ForLens(key.to_owned(), expr))
+            }
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::QueryLens(expr, alias.to_owned()))
+            }
+            LensExprType::GetLens(ref key, ref expr) => {
+                let expr = self.reduce_expr_or_return_same(expr);
+                Some(LensExprType::GetLens(key.to_owned(), expr))
+            }
+        }
     }
 
     pub fn reduce_expr(&mut self, expr: &ExprValue) -> Option<ExprValue> {
         if expr.is_literal_primitive() { return Some(expr.clone()); }
-        // if expr.is_literal() { return Some(expr.clone()); }
 
         if let Some(ty) = expr.peek_array_ty() {
             if let VarType::Primitive(..) = ty {
@@ -677,29 +863,13 @@ impl Context {
                 Some(ExprValue::Group(inner_expr))
             }
 
-            &ExprValue::LiteralObject(ref props) => {
-                let props = props.as_ref().map(|props| self.map_props(props.iter()));
-                Some(ExprValue::LiteralObject(props))
-            }
-
             &ExprValue::SymbolReference(ref sym) => {
-                match sym.sym_ref() {
-                    &SymbolReferenceType::UnresolvedReference(ref key) => {
-                        if let Some(sym) = self.resolve_sym(key) {
-                            return Some(ExprValue::SymbolReference(sym));
-                        }
-                        None
-                    }
+                if let &SymbolReferenceType::Binding(ref binding) = sym.sym_ref() {
+                    if let Some(expr) = self.resolve_binding_value(binding) { return Some(expr); }
+                };
 
-                    &SymbolReferenceType::UnresolvedPathReference(ref path) => {
-                        if let Some(sym) = self.resolve_path_reference_to_symbol(path) {
-                            return Some(ExprValue::SymbolReference(sym));
-                        };
-                        None
-                    }
-
-                    _ => None
-                }
+                self.reduce_symbol(sym)
+                    .map(|sym| ExprValue::SymbolReference(sym))
             }
 
             &ExprValue::IterMethodPipeline(ref head, Some(ref parts)) => {
@@ -717,16 +887,32 @@ impl Context {
                 };
                 None
             }
-
+  
             &ExprValue::Binding(ref binding) =>  {
-                if let Some(expr) = self.resolve_binding_value(binding) {
-                    return Some(expr.to_owned());
+                let reduced = self.reduce_binding(binding);
+                if let Some(resolved) = self.resolve_binding_value(reduced.as_ref().unwrap_or(binding)) {
+                    return Some(resolved);
                 };
-                None
+                reduced.map(|b| ExprValue::Binding(b))
+            }
+
+            &ExprValue::Lens(box ref lens) => {
+                self.reduce_lens(lens).map(|lens| lens.into())
             }
 
             _ => None
         }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn map_expr(&mut self, bindings: &BindingContext, expr: &ExprValue) -> ExprValue {
+        if let ExprValue::Lens(box ref lens) = *expr {
+            let lens = self.map_lens(bindings, lens);
+            return lens.into();
+        };
+
+        expr.to_owned()
     }
 
     pub fn map_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, props: I) -> Vec<Prop> {
@@ -736,10 +922,21 @@ impl Context {
         }).collect()
     }
 
+    pub fn map_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, props: I) -> Vec<Prop> {
+        props.into_iter().map(|prop| {
+            if let Some(expr) = prop.1.as_ref().and_then(|expr| self.reduce_expr(expr)) { return (prop.0.to_owned(), Some(expr)); }
+            (prop.0.to_owned(), prop.1.map(|p| p.to_owned()))
+        }).collect()
+    }
+
     pub fn map_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, action_ops: I) -> Vec<ActionOpNode> {
-        action_ops.into_iter().map(|action_op| match action_op {
-            &ActionOpNode::DispatchAction(ref action_ty, ref props) => {
+        action_ops.into_iter().map(|action_op| match *action_op {
+            ActionOpNode::DispatchAction(ref action_ty, ref props) => {
                 ActionOpNode::DispatchAction(action_ty.to_owned(), props.as_ref().map(|v| self.map_props(v.iter())))
+            }
+
+            ActionOpNode::DispatchActionTo(ref action_ty, ref props, ref path) => {
+                ActionOpNode::DispatchActionTo(action_ty.to_owned(), props.as_ref().map(|v| self.map_props(v.iter())), path.to_owned())
             }
         }).collect()
     }
@@ -759,23 +956,25 @@ impl Context {
     }
 
     #[inline]
-    pub fn map_lens(&mut self, _bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
-        match lens {
-            &LensExprType::ForLens(ref ele_key, ref coll_expr) => {
+    pub fn map_lens(&mut self, bindings: &BindingContext, lens: &LensExprType) -> LensExprType {
+        match *lens {
+            LensExprType::ForLens(ref ele_key, ref coll_expr) => {
                 let ele_key = ele_key.as_ref().map(|s| s.to_owned());
-                if let Some(coll_expr) = self.reduce_expr(coll_expr) {
-                    return LensExprType::ForLens(ele_key, coll_expr);
-                };
+                let coll_expr = self.reduce_expr_or_return_same(coll_expr);
+                LensExprType::ForLens(ele_key, coll_expr)
             }
-            &LensExprType::GetLens(ref prop_key, ref prop_expr) => {
-                if let Some(prop_expr) = self.reduce_expr(prop_expr) {
-                    return LensExprType::GetLens(prop_key.to_owned(), prop_expr);
-                };
+            LensExprType::GetLens(ref prop_key, ref prop_expr) => {
+                let prop_expr = self.reduce_expr_or_return_same(prop_expr);
+                let prop_expr = self.map_expr(bindings, &prop_expr);
+                LensExprType::GetLens(prop_key.to_owned(), prop_expr)
             }
-            // _ => {}
-        };
-
-        lens.to_owned()
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                // let resolved = match *expr { ExprValue::Binding(ref binding) => self.resolve_binding(doc, binding).map(|b| ExprValue::Binding(b)), _ => None };
+                let expr = self.reduce_expr_or_return_same(expr);
+                let expr = self.map_expr(bindings, &expr);
+                LensExprType::QueryLens(expr, alias.to_owned())
+            }
+        }
     }
 
     pub fn map_reducer_expression(&mut self, doc: &Document, complete_key: &str, expr: &ExprValue) -> ExprValue {
@@ -832,7 +1031,7 @@ impl Context {
     #[allow(dead_code)]
     pub fn reduce_filter<'slf, 'a, I: IntoIterator<Item = &'a FilterPipelineComponent>>(&'slf mut self, head: Option<&ExprValue>, parts: I) -> Option<ExprValue> {
         let parts: Vec<_> = {
-            let iter = FilterPipelineReduceIter::new(self, head, parts.into_iter());
+            let iter = FilterPipelineReduceIter::new(self, parts.into_iter());
             iter.filter_map(|e| e).collect()
         };
 
@@ -840,57 +1039,115 @@ impl Context {
         Some(ExprValue::ReducedPipeline(head, Some(parts)))
     }
 
+    /*
     #[allow(dead_code)]
     pub fn join_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
-        self.scope().join_path_as_expr(s)
+        self.scope_ref().unwrap().join_path_as_expr(s)
+    }
+
+    #[allow(dead_code)]
+    pub fn join_path_as_expr_with_expr(&mut self, sep: Option<&str>, last: &ExprValue) -> ExprValue {
+        self.scope_ref().unwrap().join_path_as_expr_with_expr(sep, last)
     }
 
     pub fn join_path_as_expr_with(&mut self, sep: Option<&str>, last: &str) -> ExprValue {
-        self.scope().join_path_as_expr_with(sep, last)
+        self.scope_ref().unwrap().join_path_as_expr_with(sep, last)
     }
 
     pub fn join_path(&mut self, s: Option<&str>) -> String {
-        self.scope().join_path(self, s)
+        self.scope_ref().unwrap().join_path(self, s)
     }
 
     pub fn join_path_with(&mut self, s: Option<&str>, last: &str) -> String {
-        let key = self.scope().join_path(self, s);
+        let key = self.scope_ref().unwrap().join_path(self, s);
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
 
     #[allow(dead_code)]
     pub fn join_action_path_as_expr(&mut self, s: Option<&str>) -> ExprValue {
-        self.scope().join_action_path_as_expr(s)
+        self.scope_ref().unwrap().join_action_path_as_expr(s)
     }
 
     pub fn join_action_path(&mut self, s: Option<&str>) -> String {
-        self.scope().join_action_path(self, s)
+        self.scope_ref().unwrap().join_action_path(self, s)
     }
 
     pub fn join_action_path_with(&mut self, sep: Option<&str>, last: &str) -> String {
-        let key = self.scope().join_action_path(self, sep);
+        let key = self.scope_ref().unwrap().join_action_path(self, sep);
         if key.len() > 0 { format!("{}.{}", key, last) } else { last.to_owned() }
     }
-
-    #[allow(dead_code)]
-    pub fn add_invocation_prop(&mut self, key: &str, expr: Option<&ExprValue>) {
-        let invocation_prop = Symbol::invocation_prop(key, expr);
-        self.add_sym(key, invocation_prop);
-    }
+    */
 
     pub fn add_action_param(&mut self, key: &str) {
         let binding = BindingType::ActionParamBinding(key.to_owned());
         self.add_sym(key, Symbol::binding(&binding));
     }
+
+    /// 
+    /// Scope helpers
+    /// 
+
+    /// Push a child scope with bindings for reducer keys as top-level bindings
+    pub fn push_root_content_processing_scope(&mut self, processing: &DocumentProcessingState) {
+        self.push_child_scope();
+        // if let Some(ref default_reducer_key) = processing.default_reducer_key {
+        //     self.append_action_path_str(default_reducer_key);
+        // };
+
+        for reducer_data in processing.reducer_key_data.values() {
+            let reducer_key = &reducer_data.reducer_key;
+            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+            self.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
+    }
+
+    /// Push a child scope with bindings for reducer keys as top-level bindings
+    pub fn push_root_content_scope(&mut self, doc: &Document) {
+        self.push_child_scope();
+        if let Some(ref default_reducer_key) = doc.default_reducer_key {
+            self.append_action_path_str(default_reducer_key);
+        };
+
+        for reducer_data in doc.reducer_key_data.values() {
+            let reducer_key = &reducer_data.reducer_key;
+            let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+            self.add_sym(&reducer_key, Symbol::binding(&binding));
+        }
+    }
+
+    /// Push a child scope with bindings for formal parameters, for query and component definitions
+    #[allow(dead_code)]
+    pub fn push_formal_parameter_scope<'a, I>(&mut self, formals: I)
+       where I: IntoIterator<Item = FormalPropRef<'a>>
+    {
+        self.push_child_scope();
+        for formal in formals {
+            let binding = BindingType::ComponentPropBinding(formal.to_owned());
+            self.add_sym(formal, Symbol::binding(&binding));
+        }
+    }
+
+    /// Push a child scope with bindings for actual parameters with values, for query and component definitions
+    #[allow(dead_code)]
+    pub fn push_actual_parameter_scope<'a, I>(&mut self, doc: &Document, props: I)
+       where I: IntoIterator<Item = ActualPropRef<'a>>
+    {
+        self.push_child_scope();
+        for prop in props {
+            if let Some(expr) =  prop.1.and_then(|expr| self.eval_expr(doc, expr)) {
+                let binding = BindingType::ComponentPropBinding(prop.0.to_owned());
+                self.add_binding_value(&binding, expr);
+            }
+        }
+    }
+
 }
 
 
 #[cfg(test)]
 mod tests {
-    use std::iter::*;
-    use parser::*;
+    use model::*;
     use scope::*;
-    use scope::symbols::*;
     use processing::*;
 
 
@@ -918,15 +1175,15 @@ mod tests {
     #[test]
     pub fn test_context_symbol_path_mixed1() {
         let mut ctx = Context::default();
-        let mut scope = ctx.scope();
+	ctx.push_child_scope();
 
         let expr1 = ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)));
-        scope.append_path_expr(&expr1);
-        scope.append_path_str("test");
+        ctx.append_path_expr(&expr1);
+        ctx.append_path_str("test");
 
-        ctx.push_scope(scope);
+	ctx.push_child_scope();
 
-        let expr = ctx.join_path_as_expr(None);
+	let expr = ctx.path_expr();
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(None), Some(vec![
             Box::new(ExprValue::Expr(ExprOp::Add, Box::new(ExprValue::LiteralNumber(1)), Box::new(ExprValue::LiteralNumber(2)))),
             Box::new(ExprValue::LiteralString("test".to_owned()))
@@ -964,7 +1221,7 @@ mod tests {
         }
 
         // The joined path (dynamic) should be a string join operation
-        let expr = ctx.join_path_as_expr(Some("."));
+	let expr = ctx.path_expr();
         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
             Box::new(ExprValue::LiteralString("Lm".to_owned())),
             Box::new(ExprValue::LiteralString("No".to_owned())),
@@ -1004,7 +1261,7 @@ mod tests {
         }
 
         // Define an action param `entry` within this action
-        let action_scope_id = ctx.scope().id().to_owned();
+        let action_scope_id = ctx.scope_ref().unwrap().id().to_owned();
         {
             ctx.add_action_param("entry")
         }
@@ -1042,9 +1299,8 @@ mod tests {
     }
 
     fn create_document_with_data<'a>(template: &'a Template, reducer_key: &str, default_expr: ExprValue) -> Document {
-        let mut ctx = Context::default();
-        let mut bindings = BindingContext::default();
-        // let mut processing = ProcessDocument::from_template(&template);
+        let ctx = Context::default();
+        let bindings = BindingContext::default();
         let mut state = DocumentProcessingState::default();
         state.reducer_key_data = Default::default();
 
@@ -1052,9 +1308,7 @@ mod tests {
         reducer.default_expr = Some(default_expr);
 
         state.reducer_key_data.insert(reducer_key.to_owned(), reducer);
-        // state.reducer_key_data.default_expr = Some(default_expr);
         state.default_reducer_key = Some(reducer_key.to_owned());
-        // assert!(processing.process_document(&mut ctx, &mut bindings).is_ok());
         state.into()
     }
 
@@ -1114,132 +1368,4 @@ mod tests {
             );
         }
     }
-
-    // type FormalProp<'a> = (&'a str);
-    // type FormalPropVec<'a> = Vec<FormalProp<'a>>;
-
-    // type PropKeyRef = (String, String);
-    // type PropKeyRefVec = Vec<PropKeyRef>;
-
-    // type PropValue<'a> = (&'a str, Option<&'a ExprValue>);
-    // type PropValueVec<'a> = Vec<PropValue<'a>>;
-
-    // impl TestOutput2 {
-    //     pub fn push_component_instance_invocation_scope<'a, I>(&mut self, ctx: &mut Context, _component_ty: &str, props: I)
-    //       where I: IntoIterator<Item = &'a PropValue<'a>>
-    //     {
-    //         // let parent_scope_id = ctx.scope().id().to_owned();
-    //         ctx.push_child_scope();
-    //         for prop in props {
-    //             ctx.add_invocation_prop(&prop.0, prop.1);
-    //         }
-    //     }
-
-    //     pub fn push_component_instance_scope(&mut self, ctx: &mut Context, instance_id: &str, _component_ty: &str) {
-    //         ctx.push_child_scope();
-    //         ctx.append_path_str(instance_id);
-    //     }
-
-    //     pub fn push_element_parameter_definition_scope<'a, I>(&mut self, ctx: &mut Context, element_id: &str, _element_ty: &str, props: I)
-    //       where I: IntoIterator<Item = &'a PropKeyRef>
-    //     {
-    //         let parent_scope_id = ctx.scope().id().to_owned();
-    //         ctx.push_child_scope();
-    //         ctx.append_path_str(element_id);
-    //         for prop in props {
-    //             ctx.add_element_prop_ref(&prop.0, &prop.1, Some(&parent_scope_id));
-    //         }
-    //     }
-    // }
-
-    // #[test]
-    // pub fn test_context_scope_component_nesting1() {
-    //     let mut ctx = Context::default();
-    //     let mut output = TestOutput2::default();
-
-    //     // Lm
-    //     // Element: Lm()
-    //     // Invokes: CompNo(todo = store.getState().todo)
-    //     {
-    //         ctx.push_child_scope();
-    //         ctx.append_path_str("Lm");
-
-    //         // Our element path should be (Lm)
-    //         let expr = ctx.join_path_as_expr(Some("."));
-    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-    //             Box::new(ExprValue::LiteralString("Lm".to_owned()))
-    //         ])));
-    //     }
-    //     // let lm_element_scope_id = ctx.scope().id().to_owned();
-
-    //     // Lm
-    //     // Comp1 definition (loaded)
-    //     // {
-    //     //     output.push_component_definition_param_bindings_scope(&mut ctx);
-    //     // }
-
-    //     // Lm
-    //     // Invoke: CompNo(todo = store.getState().todo)
-    //     {
-    //         let todo_value = ExprValue::SymbolReference(Symbol::reducer_key("todo"));
-    //         let props: PropValueVec = vec![
-    //             ("todo".into(), Some(&todo_value))
-    //         ];
-    //         output.push_component_instance_invocation_scope(&mut ctx, "Component1", props.iter());
-
-    //         // Our element path should still be the same (Lm)
-    //         let expr = ctx.join_path_as_expr(Some("."));
-    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-    //             Box::new(ExprValue::LiteralString("Lm".to_owned()))
-    //         ])));
-    //     }
-
-    //     // Lm.Comp1
-    //     // Component contents will be output
-    //     {
-    //         // let parent_scope_id = ctx.scope().id().to_owned();
-    //         output.push_component_instance_scope(&mut ctx, "Comp1", "Component1");
-
-    //         // The joined path (dynamic) should be a string join operation
-    //         let expr = ctx.join_path_as_expr(Some("."));
-    //         assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-    //             Box::new(ExprValue::LiteralString("Lm".to_owned())),
-    //             Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-    //         ])));
-
-    //         // The local (todo) should resolve to a reducer key reference (todo)
-    //         // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
-    //         assert_eq!(ctx.resolve_sym("todo"),
-    //             // Some(Symbol::ref_prop_in_scope("todo", "todo", Some(&lm_element_scope_id)))
-    //             Some(Symbol::invocation_prop("todo", Some(&ExprValue::SymbolReference(Symbol::reducer_key("todo")))))
-    //         );
-    //     }
-
-    //     // Lm.Comp1.Pq
-    //     // Element within component definition
-    //     // Element parameter definition scope
-    //     {
-    //         let props: PropKeyRefVec = vec![
-    //             ("value".into(), "todo".into())
-    //         ];
-    //         output.push_element_parameter_definition_scope(&mut ctx, "Pq", "input", props.iter());
-    //     }
-
-    //     // The joined path (dynamic) should be a string join operation
-    //     let expr = ctx.join_path_as_expr(Some("."));
-    //     assert_eq!(expr, ExprValue::Apply(ExprApplyOp::JoinString(Some(".".to_owned())), Some(vec![
-    //         Box::new(ExprValue::LiteralString("Lm".to_owned())),
-    //         Box::new(ExprValue::LiteralString("Comp1".to_owned())),
-    //         Box::new(ExprValue::LiteralString("Pq".to_owned()))
-    //     ])));
-
-    //     // The local var (param) should resolve to a param
-    //     // assert_eq!(ctx.resolve_sym("todo"), Some(Symbol::param("todo", _)));
-
-    //     // We should resolve the symbol from the nearest scope where it is defined
-    //     // assert_eq!(ctx.resolve_sym("abc"), Some(Symbol::prop("xyz3")));
-
-    //     // We should resolve the symbol from the nearest scope where it is defined
-    //     // assert_eq!(ctx.resolve_sym("def"), Some(Symbol::prop("def2")));
-    // }
 }

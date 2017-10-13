@@ -7,11 +7,11 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><div key="6d0"><h4 key="6d0.46c">[Counter: , ].join("")</h4><p key="6d0.fb6" class="actions"><a key="6d0.fb6.f7c" href="#" href="#decrement">Decrement</a> | <a key="6d0.fb6.82b" href="#" href="#increment">Increment</a></p></div></div>
+        <div id="root"><div key="e90"><h4 key="e90.f7c">[Counter: , ].join("")</h4><p key="e90.f9e" class="actions"><a key="e90.f9e.d3f" href="#" href="#decrement">Decrement</a> | <a key="e90.f9e.0d7" href="#" href="#increment">Increment</a></p></div></div>
 
 
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -43,19 +43,19 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"counter": (Some(Primitive(Number)), Some(LiteralNumber(0)))} */
-/* Some([InstanceComponent("counter", "6d0", Some("counter"), Some(["counter"]), Some(GetLens("counter", SymbolReference(Symbol(Binding(ReducerPathBinding("counter")), Some(Primitive(Number)), None)))))]) */
+/* Some([InstanceComponent("counter", "e90", Some("counter"), Some([]), None)]) */
 /* None */
                 function component_counter(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("h4", key + ".46c", ["key", key + ".46c"]);
+IncrementalDOM.elementOpen("h4", key + ".f7c", ["key", key + ".f7c"]);
 IncrementalDOM.text("Counter: " + );
 IncrementalDOM.elementClose("h4");
-IncrementalDOM.elementOpen("p", key + ".fb6", ["key", key + ".fb6", "class", "actions"]);
-IncrementalDOM.elementOpen("a", key + ".fb6.f7c", ["key", key + ".fb6.f7c", "href", "#", "href", "#decrement"]);
+IncrementalDOM.elementOpen("p", key + ".f9e", ["key", key + ".f9e", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".f9e.d3f", ["key", key + ".f9e.d3f", "href", "#", "href", "#decrement"]);
 IncrementalDOM.text("Decrement");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.text(" | ");
-IncrementalDOM.elementOpen("a", key + ".fb6.82b", ["key", key + ".fb6.82b", "href", "#", "href", "#increment"]);
+IncrementalDOM.elementOpen("a", key + ".f9e.0d7", ["key", key + ".f9e.0d7", "href", "#", "href", "#increment"]);
 IncrementalDOM.text("Increment");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.elementClose("p");
@@ -66,16 +66,16 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_counter(key, props, store) {
       // Bind actions
-setEventListener(key + ".fb6.f7c", document.querySelector("[key='" + key + ".fb6.f7c" + "']"), "click", function(event) { store.dispatch({"type": "COUNTER.DECREMENT"}); 
+setEventListener(key + ".f9e.d3f", document.querySelector("[key='" + key + ".f9e.d3f" + "']"), "click", function(event) { store.dispatch({"type": "COUNTER.DECREMENT"}); 
 });
-setEventListener(key + ".fb6.82b", document.querySelector("[key='" + key + ".fb6.82b" + "']"), "click", function(event) { store.dispatch({"type": "COUNTER.INCREMENT"}); 
+setEventListener(key + ".f9e.0d7", document.querySelector("[key='" + key + ".f9e.0d7" + "']"), "click", function(event) { store.dispatch({"type": "COUNTER.INCREMENT"}); 
 });
 
                 }
 
 
                 function render(store) {
-component_counter("6d0", {"counter": store.getState().counter}, store);
+component_counter("e90", {}, store);
                 }
 
                 function root_bindings(store) {

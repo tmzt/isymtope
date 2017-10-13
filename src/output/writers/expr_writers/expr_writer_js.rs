@@ -215,29 +215,52 @@ impl ExpressionWriter for ExpressionWriterJs {
         Ok(())
     }
 
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result {
+        let mut first = true;
+        for param in params {
+            if !first { write!(w, ", ")?; }
+            write!(w, "{}", param)?;
+            first = false;
+        }
+        Ok(())
+    }
+
+    fn write_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
+        write!(w, "{{")?;
+        if let Some(props) = props {
+            let mut first = true;
+            for prop in props {
+                if !first { write!(w, ", ")?; }
+                write!(w, "\"{}\": ", prop.0)?;
+                if let Some(expr_ref) = prop.1 {
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, expr_ref)?;
+                }
+                first = false;
+            };
+        };
+        write!(w, "}}")?;
+        Ok(())
+    }
+
     fn write_binding(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, binding: &BindingType) -> Result {
-        match binding {
-            &BindingType::DOMElementBinding(ref expr) => {
+        match *binding {
+            BindingType::DOMElementBinding(ref expr) => {
                 // Handle special case
                 if let Some(s) = ctx.reduce_static_expr_to_string(expr, true) {
                     write!(w, "document.querySelector(\"[key='{}']\")", s)?;
                     return Ok(());
                 };
 
-                // let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
                 write!(w, "document.querySelector(\"[key='\" + ")?;
                 self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
                 write!(w, " + \"']\")")?;
-
-                // write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
                 Ok(())
                 
             }
 
-            &BindingType::DOMElementAttributeBinding(ref complete_key, _) |
-            &BindingType::DOMInputElementValueBinding(ref complete_key) |
-            &BindingType::DOMInputCheckboxElementCheckedBinding(ref complete_key) => {
-                let path_expr = ctx.join_path_as_expr_with(Some("."), complete_key);
+            BindingType::DOMElementAttributeBinding(ref complete_key, _) |
+            BindingType::DOMInputElementValueBinding(ref complete_key) => {
+		let path_expr = ctx.path_expr_with(complete_key);
 
                 // Handle special case
                 if let Some(s) = ctx.reduce_static_expr_to_string(&path_expr, true) {
@@ -248,20 +271,36 @@ impl ExpressionWriter for ExpressionWriterJs {
                     write!(w, " + \"']\")")?;
                 };
 
-                match binding {
-                    &BindingType::DOMElementAttributeBinding(_, ref attr_name) => {
+                match *binding {
+                    BindingType::DOMElementAttributeBinding(_, ref attr_name) => {
                         write!(w, ".getAttribute(\"{}\")", attr_name)?;                
                     }
-                    &BindingType::DOMInputElementValueBinding(_) => { write!(w, ".value")?; }
-                    &BindingType::DOMInputCheckboxElementCheckedBinding(_) => { write!(w, ".checked")?; }
+                    BindingType::DOMInputElementValueBinding(_) => { write!(w, ".value")?; }
+                    BindingType::DOMInputCheckboxElementCheckedBinding(_) => { write!(w, ".checked")?; }
                     _ => {}
                 };
 
-                // write!(w, " + \"']\").getAttribute(\"{}\")", attr_name)?;
+                Ok(())                
+            }
+
+            BindingType::DOMInputCheckboxElementCheckedBinding(box ref key_expr) => {
+                let key_expr = key_expr.as_expr();
+                // let path_expr = ctx.join_path_as_expr_with_expr(Some("."), &key_expr);
+
+                // Handle special case
+                if let Some(s) = ctx.reduce_static_expr_to_string(&key_expr, true) {
+                    write!(w, "document.querySelector(\"[key='{}']\")", s)?;
+                } else {
+                    write!(w, "document.querySelector(\"[key='\" + ")?;
+                    self.write_expr_to(w, doc, value_writer, ctx, bindings, &key_expr)?;
+                    write!(w, " + \"']\")")?;
+                };
+
+                write!(w, ".checked")?;
                 Ok(())
             }
 
-            &BindingType::ComponentKeyBinding => {
+            BindingType::ComponentKeyBinding => {
                 if let Some(resolved_key) = bindings.resolve_binding_of_type(&BindingType::ComponentKeyBinding) {
                     return self.write_expr_to(w, doc, value_writer, ctx, bindings, resolved_key);
                 };
@@ -269,13 +308,16 @@ impl ExpressionWriter for ExpressionWriterJs {
                 Ok(())
             }
 
-            &BindingType::ComponentPropBinding(ref key) => {
-                // if let Some(sym) = ctx.resolve_sym(key) {
-                // if let Some(expr) = ctx.eval_key(doc, key) {
-                //     self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
-                //     return Ok(());
-                // };
+            BindingType::ComponentPropBinding(ref key) => {
                 value_writer.write_simple_binding(w, ctx, bindings, binding)
+            }
+
+            BindingType::LocalQueryBinding(ref query_binding) => {
+                let name = query_binding.query_name();
+                write!(w, "query_{}(", name)?;
+                self.write_actual_props(w, doc, value_writer, ctx, bindings, query_binding.props_iter())?;
+                write!(w, ")")?;
+                Ok(())
             }
 
             _ => value_writer.write_simple_binding(w, ctx, bindings, binding)
@@ -284,7 +326,7 @@ impl ExpressionWriter for ExpressionWriterJs {
 
     fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
         write!(w, "(")?;
-        if let Some(ref inner_expr) = inner_expr {
+        if let Some(inner_expr) = inner_expr {
             self.write_expr_to(w, doc, value_writer, ctx, bindings, inner_expr)?;
         };
         write!(w, ")")?;
@@ -295,19 +337,14 @@ impl ExpressionWriter for ExpressionWriterJs {
         match sym.sym_ref() {
             &SymbolReferenceType::InitialValue(_, box ref after) => self.write_symbol(w, doc, value_writer, ctx, bindings, after),
             &SymbolReferenceType::Binding(ref binding) => self.write_binding(w, doc, value_writer, ctx, bindings, binding),
-            &SymbolReferenceType::MemberPath(box ref first, ref parts) => {
+            &SymbolReferenceType::MemberPath(box ref head, ref path) => {
                 if let Some(expr) = ctx.eval_sym(doc, sym) {
                     self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
                     return Ok(());
                 };
 
-                self.write_symbol(w, doc, value_writer, ctx, bindings, first)?;
-                if let &Some(ref parts) = parts {
-                    write!(w, ".{}", parts)?;
-                    // for part in parts.iter() {
-                    //     write!(w, ".{}", part)?;
-                    // };
-                };
+                self.write_symbol(w, doc, value_writer, ctx, bindings, head)?;
+                write!(w, ".{}", path)?;
                 Ok(())
             }
             _ => Ok(())
@@ -317,7 +354,7 @@ impl ExpressionWriter for ExpressionWriterJs {
     fn write_pipeline<'a, I: IntoIterator<Item = &'a ReducedPipelineComponent>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, head: Option<&ExprValue>, parts: I) -> Result {
         let mut wrote_first = false;
 
-        if let Some(ref head) = head {
+        if let Some(head) = head {
             wrote_first = true;
             self.write_expr_to(w, doc, value_writer, ctx, bindings, head)?;
         };
@@ -337,14 +374,8 @@ impl ExpressionWriter for ExpressionWriterJs {
                             wrote_first = true;
 
                             write!(w, "map(function(item, idx, arr) {{ ")?;
-                            match op {
-                                &ReducedMethodType::MapIf(_, ref cond) => {
-                                    // write!(w, "if (")?;
-                                    // self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
-                                    // write!(w, ") {{ return ")?;
-                                    // self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
-                                    // write!(w, " }} else {{ return item; }}")?;
-
+                            match *op {
+                                ReducedMethodType::MapIf(_, ref cond) => {
                                     write!(w, "return ((")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
                                     write!(w, ") ? (")?;
@@ -362,18 +393,24 @@ impl ExpressionWriter for ExpressionWriterJs {
                             write!(w, "}})")?;
                         },
 
+                        &ReducedMethodType::Filter(ref expr) => {
+                            write!(w, "filter(function(item) {{")?;
+                            self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
+                            write!(w, "}})")?;
+                        }
+
                         &ReducedMethodType::Reduce(ref expr, ref initial) |
                         &ReducedMethodType::ReduceIf(ref expr, _, ref initial) => {
                             wrote_first = true;
 
                             write!(w, "reduce(function(item, acc) {{ ")?;
-                            match op {
-                                &ReducedMethodType::ReduceIf(_, ref cond, _) => {
-                                    write!(w, "if (")?;
+                            match *op {
+                                ReducedMethodType::ReduceIf(_, ref cond, _) => {
+                                    write!(w, "return ((")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, cond)?;
-                                    write!(w, ") {{ return ")?;
+                                    write!(w, ") ? (")?;
                                     self.write_expr_to(w, doc, value_writer, ctx, bindings, expr)?;
-                                    write!(w, " }}")?;
+                                    write!(w, " ) : item);")?;
                                 },
 
                                 _ => {
@@ -396,9 +433,9 @@ impl ExpressionWriter for ExpressionWriterJs {
                         &ReducedMethodType::UniqMember(ref sym) => {
                             let expr = ExprValue::SymbolReference(sym.to_owned());
 
-                            write!(w, "filter((function() {{ let _keys = new Set(); return function(item) {{ let _key = ")?;
+                            write!(w, "filter((function(_keys) {{ return function(item) {{ let _key = ")?;
                             self.write_expr_to(w, doc, value_writer, ctx, bindings, &expr)?;
-                            write!(w, "; if (_keys.has(_key)) {{ return false; }} _keys.add(_key); return true; }}; }})())")?;
+                            write!(w, "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()));")?;
                         },
 
                         &ReducedMethodType::Max => {

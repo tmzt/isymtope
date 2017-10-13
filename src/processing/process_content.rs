@@ -1,25 +1,11 @@
 
-use parser::ast::*;
+use std::iter;
+
+use model::*;
 use parser::util::allocate_element_key;
-use processing::*;
 use scope::*;
+use processing::*;
 
-
-// #[derive(Debug, Default)]
-// pub struct ContentOutputProcessing {
-//     root_block: BlockProcessingState,
-// }
-
-// #[derive(Debug)]
-// pub struct ContentOutput {
-//     pub root_block: BlockProcessingState,
-// }
-
-// impl Into<ContentOutput> for ContentOutputProcessing {
-//     fn into(self) -> ContentOutput {
-//         ContentOutput { root_block: self.root_block }
-//     }
-// }
 
 #[derive(Debug, Default)]
 pub struct ProcessContent {}
@@ -51,16 +37,15 @@ impl ProcessContent {
                                 bindings: &mut BindingContext,
                                 node: &ContentNodeType,
                                 block: &mut BlockProcessingState,
-                                parent_tag: Option<&str>)
+                                _: Option<&str>)
                                 -> DocumentProcessingResult<()> {
         match node {
             &ContentNodeType::ElementNode(ref element_data) => {
                 ctx.push_child_scope();
                 ctx.append_path_str(&element_data.element_key);
 
-                let complete_key = ctx.join_path(Some("."));
                 let element_tag = element_data.element_ty.to_lowercase();
-                let lens = element_data.lens.as_ref().map(Clone::clone);
+                // let lens = element_data.lens.as_ref().map(Clone::clone);
 
                 // TODO: figure out when we want to pass along symbols or values
 
@@ -80,9 +65,8 @@ impl ProcessContent {
             &ContentNodeType::ExpressionValueNode(ref expr, ref value_key) => {
                 let expr = ctx.reduce_expr_or_return_same(expr);
 
-                let complete_key = ctx.join_path(Some("."));
-                let complete_key = format!("{}.{}", complete_key, value_key);
-                block.ops_vec.push(ElementOp::WriteValue(expr, complete_key.to_owned()));
+		let complete_key = ctx.path_str_with(value_key);
+                block.ops_vec.push(ElementOp::WriteValue(expr, complete_key));
             }
             &ContentNodeType::ForNode(ref ele, ref coll_expr, ref nodes) => {
                 ctx.push_child_scope();
@@ -117,14 +101,13 @@ impl ProcessContent {
                                 bindings: &mut BindingContext,
                                 element_data: &ElementType,
                                 block: &mut BlockProcessingState,
-                                parent_tag: Option<&str>)
+                                _: Option<&str>)
                                 -> Result {
-        let complete_key = ctx.join_path(Some("."));
+        let complete_key = ctx.path_str();
         let element_tag = element_data.element_ty.to_lowercase();
 
         let props = element_data.attrs.as_ref().map(|attrs| ctx.map_props(attrs.into_iter()));
 
-        // let mut props = element_data.attrs.as_ref().map(|s| s.clone());
         let mut event_handlers: EventHandlersVec = Default::default();
         // let mut events: EventsVec = Default::default();
         let mut value_binding: ElementValueBinding = Default::default();
@@ -139,7 +122,7 @@ impl ProcessContent {
                     value_binding = Some((key.to_owned(), prop_side, Some(read_side)));
                 };
 
-                if let &ElementBindingNodeType::ElementValueBindingNode(ref key, ref sym) = element_binding {
+                if let &ElementBindingNodeType::ElementValueBindingNode(_, ref sym) = element_binding {
                     let resolved_sym = ctx.resolve_symbol_to_symbol(sym);
                     let binding_key = sym.as_path_str().map_or_else(|| allocate_element_key(), |path| path.replace(".", "_"));
                     value_binding = Some((binding_key, resolved_sym, None));
@@ -159,7 +142,8 @@ impl ProcessContent {
                         value_binding = value_binding.as_ref().map(|value_binding| {
                             let dom_binding: BindingType;
                             if is_checkbox {
-                                dom_binding = BindingType::DOMInputCheckboxElementCheckedBinding(complete_key.to_owned());
+                                let key = ReducedValue::Static(StaticValue::StaticString(complete_key.to_owned()));
+                                dom_binding = BindingType::DOMInputCheckboxElementCheckedBinding(Box::new(key));
                             } else {
                                 dom_binding = BindingType::DOMInputElementValueBinding(complete_key.to_owned());
                             } 
@@ -174,15 +158,13 @@ impl ProcessContent {
                             };
 
                             let sym = Symbol::initial_value(&value_binding.1, &dom_binding);
-
-                            // let sym = match ctx.resolve_sym(&value_binding.0) {
-                            //     Some(initial_sym) => Symbol::initial_value(&initial_sym, &dom_binding),
-                            //     _ => dom_binding
-                            // };
                             ctx.add_sym(&value_binding.0, sym.clone());
                             (value_binding.0.to_owned(), sym, value_binding.2.to_owned())
                         });
                     }
+
+                    let binding = BindingType::EventElementValueBinding;
+                    ctx.add_sym("value", Symbol::binding(&binding));
 
                     let event_handler = ctx.map_event_handler_symbols(event_handler);
 
@@ -194,7 +176,7 @@ impl ProcessContent {
                         self.process_event_handler_action_param_types(processing, ctx, action_ops.iter())?;
                     };
 
-                    let event = event_handler.create_event(&complete_key, ctx.scope().id());
+                    let event = event_handler.create_event(&complete_key, ctx.scope_ref().unwrap().id());
 
                     block.events_vec.push(event);
                     event_handlers.push(event_handler);
@@ -207,8 +189,7 @@ impl ProcessContent {
         // This should only be Some if there are actually children
         if let Some(ref children) = element_data.children {
             // Push element open
-            let has_len = event_handlers.len() > 0;
-            let event_handlers = if has_len { Some(event_handlers) } else { None };
+            let event_handlers = if !event_handlers.is_empty() { Some(event_handlers) } else { None };
             block.ops_vec.push(ElementOp::ElementOpen(element_tag.clone(),
                                                         complete_key.clone(),
                                                         props,
@@ -229,8 +210,7 @@ impl ProcessContent {
             // Push element close
             block.ops_vec.push(ElementOp::ElementClose(element_tag.clone()));
         } else {
-            let has_len = event_handlers.len() > 0;
-            let event_handlers = if has_len { Some(event_handlers) } else { None };
+            let event_handlers = if !event_handlers.is_empty() { Some(event_handlers) } else { None };
             block.ops_vec.push(ElementOp::ElementVoid(element_tag.clone(),
                                                         complete_key.clone(),
                                                         props,
@@ -246,57 +226,37 @@ impl ProcessContent {
     pub fn process_element_as_component(&mut self,
                                 processing: &mut DocumentProcessingState,
                                 ctx: &mut Context,
-                                bindings: &mut BindingContext,
+                                _bindings: &mut BindingContext,
                                 element_data: &ElementType,
                                 block: &mut BlockProcessingState,
                                 parent_tag: Option<&str>)
                                 -> Result {
-        let complete_key = ctx.join_path(Some("."));
+        let component_key = ctx.path_str_with(&element_data.element_key);
         let element_tag = element_data.element_ty.to_lowercase();
-        let lens = element_data.lens.as_ref();
 
-        let lens = lens.map(|lens| ctx.map_lens(bindings, lens));
+        let resolved = element_data.lens.as_ref().and_then(|lens| processing
+            .resolve_lens(ctx, lens));
 
-        // Create list of prop keys
-        let mut prop_list: Option<Vec<PropKey>> = element_data.attrs
-            .as_ref()
-            .map(|s| s.iter().map(|s| s.0.to_owned()).collect());
+        let lens = resolved.as_ref().or_else(|| element_data.lens.as_ref())
+            .and_then(|lens| ctx.reduce_lens(lens));
 
-        match lens {
-            Some(LensExprType::GetLens(ref prop_key, _)) => {
-                if !prop_list.is_some() {
-                    prop_list = Some(Default::default());
-                }
+        let props = element_data.attrs.as_ref().map(|props| props.into_iter().map(|p| Some((p.0.as_str(), p.1.as_ref())))
+                    .chain(iter::once(lens.as_ref().and_then(|lens| lens.item_key()).map(|key|(key, None))))
+                    .flat_map(|m| m))
+                    .map(|props| ctx.map_actual_props(props));
 
-                if let Some(ref mut prop_list) = prop_list {
-                    prop_list.push(prop_key.to_owned());
-                };
-            }
-            Some(LensExprType::ForLens(ref ele_key, _)) => {
-                if !prop_list.is_some() {
-                    prop_list = Some(Default::default());
-                }
-
-                if let &Some(ref ele_key) = ele_key {
-                    if let Some(ref mut prop_list) = prop_list {
-                        prop_list.push(ele_key.to_owned());
-                    };
-                };
-            }
-            _ => {}
-        };
+        // let props = element_data.attrs.as_ref().map(|attrs| ctx.map_props(attrs.into_iter()));
 
         // Render a component during render
-        let component_ty = element_tag.to_owned();
         block.ops_vec
-            .push(ElementOp::InstanceComponent(component_ty,
-                                                complete_key.clone(),
+            .push(ElementOp::InstanceComponent(element_tag.to_owned(),
+                                                component_key.clone(),
                                                 parent_tag.map(|s| s.to_owned()),
-                                                prop_list,
+                                                props,
                                                 lens.clone()));
 
         // Add mapping from the instance_key to the component_ty
-        block.compkey_mappings.push((complete_key.to_owned(), element_tag.to_owned(), None, lens));
+        block.compkey_mappings.push((component_key.to_owned(), element_tag.to_owned(), None, lens));
 
         Ok(())
     }
@@ -304,10 +264,11 @@ impl ProcessContent {
     #[inline]
     pub fn process_event_handler_action_param_types<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, processing: &mut DocumentProcessingState, ctx: &mut Context, action_ops: I) -> Result {
         for action_op in action_ops.into_iter() {
-            match action_op {
-                &ActionOpNode::DispatchAction(ref action_name, ref action_params) => {
-                    if let &Some(ref action_params) = action_params {
-                        let complete_key = ctx.join_action_path_with(Some("."), action_name);
+            match *action_op {
+                ActionOpNode::DispatchAction(ref action_name, ref action_params) |
+                ActionOpNode::DispatchActionTo(ref action_name, ref action_params, _) => {
+                    if let Some(ref action_params) = *action_params {
+			let complete_key = ctx.action_path_str_with(action_name);
 
                         for ref action_param in action_params {
                             if let Some(ty) = action_param.1.as_ref().and_then(|e| e.peek_ty()) {
@@ -327,10 +288,6 @@ impl ProcessContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parser::ast::*;
-    use scope::scope::*;
-    use scope::context::*;
-    use scope::bindings::*;
 
 
     #[test]

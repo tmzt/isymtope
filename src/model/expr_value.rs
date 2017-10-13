@@ -1,6 +1,14 @@
 use std::iter;
-use itertools::Itertools;
-use parser::*;
+use model::*;
+
+
+pub trait AsStaticString {
+  fn as_static_string(&self) -> String;
+}
+
+pub trait AsExpr {
+    fn as_expr(&self) -> ExprValue;
+}
 
 pub type IterMethodPipelineParam = (ExprValue, Option<ExprValue>);
 
@@ -63,6 +71,7 @@ pub enum ReducedMethodType {
     MapIf(ExprValue, ExprValue),
     FlatMap(ExprValue),
     FilterMap(ExprValue),
+    Filter(ExprValue),
     UniqMember(Symbol),
     Uniq(ExprValue),
     Any(ExprValue),
@@ -95,33 +104,77 @@ pub enum InstanceKey<'a> {
   Dynamic(&'a ExprValue)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl<'a> AsStaticString for InstanceKey<'a> {
+  fn as_static_string(&self) -> String {
+    match self {
+      &InstanceKey::Static(s) => s.to_owned(),
+      &InstanceKey::Dynamic(_) => "undefined".into()
+    }
+  }
+}
+
+impl<'a> AsExpr for InstanceKey<'a> {
+  fn as_expr(&self) -> ExprValue {
+    match *self {
+      InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      InstanceKey::Dynamic(e) => e.to_owned()
+    }
+  }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StaticValue {
     StaticString(String),
     StaticNumber(i32),
     StaticBool(bool)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ReducedValue {
   Static(StaticValue),
   Dynamic(ExprValue)
 }
 
-impl<'a> InstanceKey<'a> {
-  pub fn as_static_string(&self) -> String {
+impl AsStaticString for ReducedValue {
+  fn as_static_string(&self) -> String {
     match self {
-      &InstanceKey::Static(s) => s.to_owned(),
-      &InstanceKey::Dynamic(_) => "undefined".into()
+      &ReducedValue::Static(ref s) => match s {
+          &StaticValue::StaticString(ref s) => s.to_owned(),
+          &StaticValue::StaticNumber(n) => format!("{}", n),
+          &StaticValue::StaticBool(b) => format!("{}", b)
+      },
+      &ReducedValue::Dynamic(_) => "undefined".into()
     }
   }
+}
 
-  pub fn as_expr(&self) -> ExprValue {
+impl<'a> AsExpr for ReducedValue {
+  fn as_expr(&self) -> ExprValue {
     match self {
-      &InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-      &InstanceKey::Dynamic(e) => e.to_owned()
+      &ReducedValue::Static(ref s) => match s {
+          &StaticValue::StaticString(ref s) => ExprValue::LiteralString(s.to_owned()),
+          &StaticValue::StaticNumber(n) => ExprValue::LiteralNumber(n),
+          &StaticValue::StaticBool(b) => ExprValue::LiteralBool(b)
+      },
+      &ReducedValue::Dynamic(ref expr) => expr.to_owned()
     }
   }
+}
+
+/// Operators
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprApplyOp {
+    JoinString(Option<String>),
+    // Sum
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -163,20 +216,64 @@ pub enum ExprValue {
     IterMethodPipeline(Option<Box<ExprValue>>, Option<IterMethodPipelineComponentVec>),
     ReducedPipeline(Option<Box<ExprValue>>, Option<ReducedPipelineComponentVec>),
     FilterPipeline(Option<Box<ExprValue>>, Option<FilterPipelineComponentVec>),
+    Lens(Box<LensExprType>),
     Undefined,
 }
 
-impl ExprValue {
-    #[inline]
-    pub fn is_literal(&self) -> bool {
-        match self {
-            &ExprValue::LiteralArray(..) |
-            &ExprValue::LiteralString(..) |
-            &ExprValue::LiteralNumber(..) |
-            &ExprValue::LiteralBool(..) => true,
-            _ => false,
-        }
+impl Into<ExprValue> for BindingType {
+    fn into(self) -> ExprValue { ExprValue::Binding(self) }
+}
+
+impl Into<ExprValue> for LensExprType {
+    fn into(self) -> ExprValue { ExprValue::Lens(self.into()) }
+}
+
+//impl Into<ExprValue> for String {
+//    fn into(self) -> ExprValue { ExprValue::LiteralString(self) }
+//}
+
+impl From<String> for ExprValue {
+     fn from(src: String) -> ExprValue { ExprValue::LiteralString(src) }
+}
+
+//impl<S: AsRef<str>> From<S> for ExprValue {
+//     default fn from(src: S) -> ExprValue { ExprValue::LiteralString(src.as_ref().to_owned()) }
+//}
+
+impl<'a> From<&'a str> for ExprValue {
+     default fn from(src: &'a str) -> ExprValue { ExprValue::LiteralString(src.to_owned()) }
+}
+
+impl<'a> Into<ExprValue> for InstanceKey<'a> {
+  fn into(self) -> ExprValue {
+    match self {
+      InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
+      InstanceKey::Dynamic(e) => e.to_owned()
     }
+  }
+}
+
+//impl<T> AsExpr for T where T: Into<ExprValue> + Clone {
+//    default fn as_expr(self) -> ExprValue { self.clone().into() }
+//}
+
+impl<'a, T: AsRef<str> + ?Sized> AsExpr for T {
+      default fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.as_ref().to_owned()) }
+}
+
+impl AsExpr for ExprValue {
+    fn as_expr(&self) -> ExprValue { self.clone() }
+}
+
+// impl AsExpr for String {
+//     fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.to_owned()) }
+// }
+
+// impl AsExpr for str {
+//     fn as_expr(&self) -> ExprValue { ExprValue::LiteralString(self.to_owned()) }
+// }
+
+impl ExprValue {
 
     #[inline]
     pub fn is_literal_primitive(&self) -> bool {
@@ -211,6 +308,15 @@ impl ExprValue {
     pub fn string_value(&self) -> Option<&str> {
         match self {
             &ExprValue::LiteralString(ref s) => Some(s.as_str()),
+            _ => None
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn bool_value(&self) -> Option<bool> {
+        match *self {
+            ExprValue::LiteralBool(b) => Some(b),
             _ => None
         }
     }
@@ -349,7 +455,7 @@ impl ExprValue {
 
 #[cfg(test)]
 mod tests {
-    use parser::*;
+    use model::*;
 
 
     #[test]

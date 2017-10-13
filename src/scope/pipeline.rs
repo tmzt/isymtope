@@ -1,9 +1,8 @@
 // #![allow(dead_code)]
 
-use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 
-use parser::*;
+use model::*;
 use scope::*;
 
 
@@ -17,18 +16,13 @@ pub struct ReducePipelineIter<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethod
     iter: S
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ReducePipelineIterState {
     NoState,
     Symbol,
     PipelineOp
 }
-
-// #[derive(Debug, Clone, PartialEq)]
-// pub enum ReducePipelineIterOutput {
-//     Symbol(Symbol),
-//     PipelineOp
-// }
 
 impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> ReducePipelineIter<'ctx, 'head, 'a, S>
 {
@@ -93,6 +87,14 @@ impl<'ctx, 'head, 'a, S: Iterator<Item = &'a IterMethodPipelineComponent>> Itera
                             } else {
                                 Some(ReducedMethodType::Map(expr))
                             }
+                        }
+
+                        "filter" => {
+                            let param_ref = &params[0];
+                            self.ctx.add_sym("item", Symbol::binding(&BindingType::MapItemBinding));
+
+                            let expr = self.ctx.reduce_expr_or_return_same(&param_ref.0);
+                            Some(ReducedMethodType::Filter(expr))
                         }
 
                         "reduce" => {

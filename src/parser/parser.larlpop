@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 
-use parser::ast::*;
+use model::*;
 use parser::store::{DefaultScopeNodeType, ScopeNodeType, ActionStateExprType};
 use parser::api::{self, ApiNodeType, MethodType};
 use parser::loc::Loc;
@@ -18,7 +18,9 @@ pub Template: Template = {
 NodeType: NodeType = {
     UseStmtNode,
     ComponentDefinitionNode,
+    RouteDefinitionNode,
     StoreNode,
+    QueryNode,
     <content:ContentNodeType> => NodeType::ContentNode(content)
 };
 
@@ -39,6 +41,11 @@ ContentNodeType : ContentNodeType = {
 StoreNode : NodeType =
 {
     StoreKeyword "{" <children:DefaultScopeNodeType*> "}" => NodeType::StoreNode(children)
+};
+
+QueryNode: NodeType =
+{
+    <def:QueryDefinition> => NodeType::QueryNode(def)
 };
 
 UseStmtNode : NodeType =
@@ -71,6 +78,27 @@ ComponentDefinitionNode: NodeType =
     }
 };
 
+RouteDefinitionNode: NodeType =
+{
+    RouteKeyword <pattern:LitStr> "|" <params:AtLeastOne<Id>?> "|" "{" <act_ops:(ActionOpNode+)?> "}" =>
+    {
+        let props = params.as_ref().map(|params| params.iter().map(|id| (id.to_owned(), None)).collect());
+        NodeType::RouteDefinitionNode(
+            RouteDefinitionType::actions(pattern, props, act_ops)
+        )
+    },
+
+    RouteKeyword <pattern:LitStr> <params:("(" <AtLeastOne<Id>> ")")?> "{"
+        <children:NodeType*>
+    "}" =>
+    {
+        let props = params.as_ref().map(|params| params.iter().map(|id| (id.to_owned(), None)).collect());
+        NodeType::RouteDefinitionNode(
+            RouteDefinitionType::content(pattern, props, Some(children))
+        )
+    }
+};
+
 ExprOp : ExprOp =
 {
     "+" => ExprOp::Add,
@@ -88,7 +116,6 @@ ExprValue : ExprValue =
     <l:ExprValue> ">" <r:ExprFactor> => ExprValue::TestValue(TestOp::LessThan, Box::new(l), Some(Box::new(r))),
     <l:ExprValue> "<" <r:ExprFactor> => ExprValue::TestValue(TestOp::GreaterThan, Box::new(l), Some(Box::new(r))),
 
-    "!" <e:ExprFactor> => ExprValue::TestValue(TestOp::Negate, Box::new(e), None),
 
     <l:ExprValue> "==" <r:ExprFactor> => ExprValue::TestValue(TestOp::EqualTo, Box::new(l), Some(Box::new(r))),
     <l:ExprValue> "!=" <r:ExprFactor> => ExprValue::TestValue(TestOp::NotEqualTo, Box::new(l), Some(Box::new(r))),
@@ -100,10 +127,12 @@ ExprValue : ExprValue =
 
 ExprFactor : ExprValue =
 {
+    "!" <e:ExprTerm> => ExprValue::TestValue(TestOp::Negate, Box::new(e), None),
     <l:ExprFactor> "*" <r:ExprTerm> => ExprValue::Expr(ExprOp::Mul, Box::new(l), Box::new(r)),
     <l:ExprFactor> "/" <r:ExprTerm> => ExprValue::Expr(ExprOp::Div, Box::new(l), Box::new(r)),
     ExprTerm,
-    VarOrMethodPath
+    // VarOrMethodPath,
+    // <id:Id> => ExprValue::SymbolReference(Symbol::unresolved(&id)),
     // FilterPipeline
 };
 
@@ -113,10 +142,16 @@ ExprTerm : ExprValue =
     "{" <props:CommaList<ObjectProp>> "}" => ExprValue::LiteralObject(Some(props.clone())),
     "[" <items:CommaList<ExprValue>> "]" => ExprValue::LiteralArray(Some(items)),
 
+    QueryKeyword <name:Id> "(" ")" => ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, None, None))),
+
     <n:LitNum> => ExprValue::LiteralNumber(n),
     <b:LitBool> => ExprValue::LiteralBool(b),
 
-    ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
+    VarOrMethodPath,
+    // ValueKeyword => ExprValue::SymbolReference(Symbol::unresolved("value")),
+    // <id:Id> => ExprValue::SymbolReference(Symbol::unresolved(&id)),
+
+    // VarOrMethodPath,
 
     // <sym:VarPath> => ExprValue::SymbolReference(sym),
 
@@ -147,7 +182,8 @@ ExprTerm : ExprValue =
 };
 
 ActionOpNode: ActionOpNode = {
-    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ObjectProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs)
+    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ObjectProp>> ")")?> ";" => ActionOpNode::DispatchAction(key, attrs),
+    DispatchKeyword <key:Id> <attrs:("(" <AtLeastOne<ObjectProp>> ")")?> ToKeyword <path:Id> ";" => ActionOpNode::DispatchActionTo(key, attrs, path)
 };
 
 AtLeastOne<T> : Vec<T> = {
@@ -190,11 +226,26 @@ CommaList<T> : Vec<T> = {
 };
 
 #[inline]
+ElementPropOrGetLens: Prop = {
+    GetKeyword <prop:Id> => {
+        let lens = LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop)));
+        (prop.to_owned(), Some(lens.into()))
+    },
+    ElementProp
+};
+
+#[inline]
 ElementLens : LensExprType = {
     // TODO: Support element key
     ForKeyword <coll:Id> => LensExprType::ForLens(None, ExprValue::SymbolReference(Symbol::unresolved(&coll))),
-    ForKeyword <ele_key:Id> InKeyword <coll:Id> => LensExprType::ForLens(Some(ele_key.into()), ExprValue::SymbolReference(Symbol::unresolved(&coll))),
-    GetKeyword <prop:Id> => LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop)))
+    // ForKeyword <ele_key:Id> InKeyword <coll:Id> => LensExprType::ForLens(Some(ele_key.into()), ExprValue::SymbolReference(Symbol::unresolved(&coll))),
+    ForKeyword <ele_key:Id> InKeyword <coll:ExprValue> => LensExprType::ForLens(Some(ele_key.into()), coll.to_owned()),
+    GetKeyword <prop:Id> => LensExprType::GetLens(prop.to_owned(), ExprValue::SymbolReference(Symbol::unresolved(&prop))),
+    QueryKeyword <name:Id> "(" <props:CommaList<ElementPropOrGetLens>> ")" AsKeyword <alias:Id> => {
+        let props = if !props.is_empty() { Some(props) } else { None };
+        let binding = ExprValue::Binding(BindingType::UnresolvedQueryBinding(UnresolvedQueryInvocation::new(&name, props, None)));
+        LensExprType::QueryLens(binding, alias.into())
+    }
 };
 
 #[inline]
@@ -245,8 +296,15 @@ IterMethodPipelineParam : IterMethodPipelineParam = {
 
 #[inline]
 IterMethodPipelineComponent : IterMethodPipelineComponent = {
-    <id:Id> "(" <params:CommaList<IterMethodPipelineParam>> ")" => IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None }),
-    <id:Id> => IterMethodPipelineComponent::PathComponent(id.to_owned())
+    <id:Id> <params:("(" <CommaList<IterMethodPipelineParam>> ")")?> => {
+        if let Some(params) = params {
+            IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None })
+        } else {
+            IterMethodPipelineComponent::PathComponent(id.to_owned())
+        }
+    }
+    // <id:Id> "(" <params:CommaList<IterMethodPipelineParam>> ")" => IterMethodPipelineComponent::Method(id.to_owned(), if params.len() > 0 { Some(params) } else { None }),
+    // <id:Id> => IterMethodPipelineComponent::PathComponent(id.to_owned())
 };
 
 // #[inline]
@@ -284,21 +342,43 @@ FilterPipeline : ExprValue = {
 };
 
 #[inline]
+PathHeadSymbol : Symbol = {
+    ValueKeyword => Symbol::unresolved("value"),
+    <id:Id> => Symbol::unresolved(&id)
+};
+
+#[inline]
 VarOrMethodPath : ExprValue = {
-    <e:(<ExprTerm> ".")?> <path:AtLeastOneOf<".", IterMethodPipelineComponent>> => {
-        let has_methods = path.iter().any(|c| if let &IterMethodPipelineComponent::Method(..) = c { true } else { false });
-        if has_methods {
-            ExprValue::IterMethodPipeline(e.as_ref().map(|b| Box::new(b.to_owned())), Some(path))
+    <head:PathHeadSymbol> <path:("." <AtLeastOneOf<".", IterMethodPipelineComponent>>)?> => {
+        // let head = ExprValue::SymbolReference(Symbol::unresolved(&head));
+        if let Some(path) = path {
+            let has_methods = path.iter().any(|c| if let &IterMethodPipelineComponent::Method(..) = c { true } else { false });
+            if has_methods {
+                ExprValue::IterMethodPipeline(Some(ExprValue::SymbolReference(head).into()), Some(path))
+            } else {
+                let path: Vec<_> = path.iter().map(|c| match c { &IterMethodPipelineComponent::PathComponent(ref s) => s.to_owned(), _ => "undefined".to_owned() }).collect();
+                let ident = path.join(".");
+                ExprValue::SymbolReference(Symbol::member_path(head, &ident))
+            }
         } else {
-            let path: Vec<_> = path.iter().map(|c| match c { &IterMethodPipelineComponent::PathComponent(ref s) => s.to_owned(), _ => "undefined".to_owned() }).collect();
-            let ident = path.join(".");
-            let sym = match path.len() {
-                1 => Symbol::unresolved(&ident),
-                _ => Symbol::unresolved_path(&ident)
-            };
-            ExprValue::SymbolReference(sym)
+            ExprValue::SymbolReference(head)
         }
     }
+};
+
+
+///
+/// Query definitions
+///
+
+#[inline]
+QueryDefinitionComponent: QueryDefinitionComponent = {
+    <val:ExprValue> WhereKeyword "(" <cond:ExprValue> ")" ";" => QueryDefinitionComponent::CaseWhere(val.into(), cond.into())
+};
+
+#[inline]
+QueryDefinition: QueryDefinition = {
+    QueryKeyword <name:Id> "(" <params:(CommaList<Id>)> ")" "{" <components:(QueryDefinitionComponent+)?> "}" => QueryDefinition::new(&name, if !params.is_empty() { Some(params) } else { None }, components)
 };
 
 
@@ -461,12 +541,16 @@ extern {
         AsKeyword => Token::AsKeyword,
         ValueKeyword => Token::ValueKeyword,
         WhereKeyword => Token::WhereKeyword,
+        ToKeyword => Token::ToKeyword,
         
+        QueryKeyword => Token::QueryKeyword,
+
         SetKeyword => Token::SetKeyword,
         UniqueKeyword => Token::UniqueKeyword,
         AndKeyword => Token::AndKeyword,
 
         ComponentKeyword => Token::ComponentKeyword,
+        RouteKeyword => Token::RouteKeyword,
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,
         ApiKeyword => Token::ApiKeyword,

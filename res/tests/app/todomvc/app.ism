@@ -3,14 +3,20 @@ use html;
 store {
     let todos = [{text: "One", complete: false, id: 0}, {text: "Two", complete: true, id: 1}];
     let entry = "";
+    let showing = "all";
 
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
+        action toggle_all(checked) => state | set complete = (checked);
         action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id) |unique id;
     }
 
     entry {
         action clear => "";
+    }
+
+    showing {
+        action filter(mode) => mode;
     }
 }
 
@@ -25,13 +31,35 @@ component todo_item (todo) {
      }
 }
 
+component todo_list (todos, showing) {
+    ul(id="todo-list", class="todo-list") {
+        todo_item(for todo in todos) {}
+    }
+}
+
 component new_todo (entry) {
     input(class="new-todo", placeholder="What needs to be done?", autofocus="autofocus") bind entry
         enterkey || { dispatch add(entry: {text: entry}); } {}
 }
 
+component toggle_all (checked) {
+    input(class="toggle-all", id="toggle-all", type="checkbox")
+        change || { dispatch toggle_all(checked: value); } {}
+    label(class="", for="toggle-all") { ("Mark all as complete") }
+}
+
 link(rel="stylesheet", href="https://unpkg.com/todomvc-common@1.0.3/base.css", type="text/css") {}
 link(rel="stylesheet", href="https://unpkg.com/todomvc-app-css@2.1.0/index.css", type="text/css") {}
+
+route "/all" || { dispatch filter(mode: "all") to showing; }
+route "/completed" || { dispatch filter(mode: "completed") to showing; }
+route "/active" || { dispatch filter(mode: "active") to showing; }
+
+query visible_todos(todos, showing) {
+    (todos) where (showing == "all");
+    (todos.filter(item.complete)) where (showing == "complete");
+    (todos.filter(!(item.complete))) where (showing == "active");
+}
 
 section(class="todoapp") {
     header(class="header") {
@@ -40,10 +68,7 @@ section(class="todoapp") {
     }
 
     section(class="main") {
-        input(class="toggle-all", id="toggle-all", type="checkbox") {}
-        label(class="", for="toggle-all") { ("Mark all as complete") }
-        ul(id="todo-list", class="todo-list") {
-            todo_item (for todo in todos) {}
-        }
+        toggle_all(checked=true) {}
+        todo_list(query visible_todos(get todos, get showing) as todos) {}
     }
 }

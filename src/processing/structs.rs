@@ -3,16 +3,17 @@ use std::io;
 use std::fmt;
 use std::error::Error;
 use std::result;
-use std::collections::hash_map::{HashMap, Entry};
+use std::collections::hash_map::Entry;
 
 use linked_hash_map::LinkedHashMap;
 
+use model::*;
 use parser::*;
 use parser::token::Error as ParsingError;
 use processing::*;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ElementOp {
     ElementOpen(String,
                 String,
@@ -29,7 +30,7 @@ pub enum ElementOp {
     InstanceComponent(String,
                       String,
                       Option<String>,
-                      Option<Vec<PropKey>>,
+                      Option<Vec<Prop>>,
                       Option<LensExprType>),
     StartBlock(String),
     EndBlock(String),
@@ -39,11 +40,13 @@ pub enum ElementOp {
 pub type OpsVec = Vec<ElementOp>;
 pub type BlockMap = LinkedHashMap<String, BlockProcessingState>;
 pub type ComponentMap = LinkedHashMap<String, Component>;
+pub type RouteMap = LinkedHashMap<String, Route>;
+pub type QueryMap = LinkedHashMap<String, Query>;
 
 pub type ComponentKeyMapping = (String, String, Option<PropVec>, Option<LensExprType>);
 pub type ComponentKeyMappingVec = Vec<ComponentKeyMapping>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Component {
     ty: String,
     block: Block,
@@ -159,7 +162,7 @@ impl From<DocumentTypeError> for DocumentProcessingError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockProcessingState {
     pub block_id: String,
     pub child_blocks: Vec<Box<BlockProcessingState>>,
@@ -183,7 +186,7 @@ impl Default for BlockProcessingState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Block {
     block_id: String,
     child_blocks: Option<BlockVec>,
@@ -252,11 +255,12 @@ impl Block {
 pub struct DocumentProcessingState {
     pub root_block: BlockProcessingState,
     pub comp_map: ComponentMap,
+    pub route_map: RouteMap,
+    pub query_map: QueryMap,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyProcessingMap,
     pub default_state_map: DefaultStateMap,
     pub has_default_state_key: bool,
-    pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
     pub action_type_data: ReducerActionTypeMap
 }
@@ -279,32 +283,79 @@ impl DocumentProcessingState {
         };
         Ok(())
     }
+
+    // Interim context helpers
+    #[allow(dead_code)]
+    pub fn resolve_binding(&mut self, ctx: &mut Context, binding: &BindingType) -> Option<BindingType> {
+        if let BindingType::UnresolvedQueryBinding(ref unresolved_query) = *binding {
+            let query_name = unresolved_query.query_name();
+            if let Some(_) = self.query_map.get(query_name) {
+                let query_props = unresolved_query.props_iter().map(
+                    |props| ctx.map_actual_props(props)
+                );
+
+                // let query_props: Option<PropVec> = unresolved_query.props_iter().map(|iter| iter.map(|p| {
+                //     (p.0.to_owned(), p.1.map(|expr| ctx.reduce_expr_or_return_same(expr)))
+                // }).collect());
+                let resolved_query = LocalQueryInvocation::new(query_name, query_props, unresolved_query.ty().map(|ty| ty.to_owned()));
+
+                return Some(BindingType::LocalQueryBinding(resolved_query));
+            };
+        };
+
+        None
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn resolve_lens(&mut self, ctx: &mut Context, lens: &LensExprType) -> Option<LensExprType> {
+        match *lens {
+            LensExprType::QueryLens(ref expr, ref alias) => {
+                self.resolve_expr(ctx, expr)
+                    .and_then(|expr| ctx.reduce_expr(&expr))
+                    .map(|expr| LensExprType::QueryLens(expr, alias.to_owned()))
+            }
+            _ => None
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn resolve_expr(&mut self, ctx: &mut Context, expr: &ExprValue) -> Option<ExprValue> {
+        let resolved = match *expr {
+            ExprValue::Binding(ref binding) => self.resolve_binding(ctx, binding).map(|binding| ExprValue::Binding(binding)),
+            _ => ctx.reduce_expr(expr)
+        };
+        resolved.or_else(|| expr.to_owned().into())
+    }
 }
 
 #[derive(Debug)]
 pub struct Document {
     root_block: Block,
     comp_map: Option<ComponentMap>,
+    route_map: Option<RouteMap>,
+    query_map: Option<QueryMap>,
     // pub block_map: BlockMap,
     pub reducer_key_data: ReducerKeyMap,
     pub default_state_map: DefaultStateMap,
-    pub default_state_symbol: Option<Symbol>,
     pub default_reducer_key: Option<String>,
     pub action_type_data: ReducerActionTypeMap
 }
 
 impl<'inp> Into<Document> for DocumentProcessingState {
     fn into(self) -> Document {
-        let has_comp_map = self.comp_map.len() > 0;
-        let comp_map = if has_comp_map { Some(self.comp_map) } else { None };
+        let comp_map = if self.comp_map.len() > 0 { Some(self.comp_map) } else { None };
+        let route_map = if self.route_map.len() > 0 { Some(self.route_map) } else { None };
+        let query_map = if self.query_map.len() > 0 { Some(self.query_map) } else { None };
         let reducer_key_data: ReducerKeyMap = self.reducer_key_data.into_iter().map(|d| (d.0, d.1.into())).collect();
 
         Document {
             root_block: self.root_block.into(),
             comp_map: comp_map,
+            route_map: route_map,
+            query_map: query_map,
             reducer_key_data: reducer_key_data,
             default_state_map: self.default_state_map,
-            default_state_symbol: self.default_state_symbol,
             default_reducer_key: self.default_reducer_key,
             action_type_data: self.action_type_data
         }
@@ -351,7 +402,37 @@ impl Document {
     }
 
     #[allow(dead_code)]
+    pub fn has_routes(&self) -> bool {
+        self.route_map.is_some()
+    }
+
+    #[allow(dead_code)]
+    pub fn get_routes<'a>(&'a self) -> Option<impl Iterator<Item = (&'a str, &'a Route)>> {
+        self.route_map.as_ref().map(|routes| routes.iter().map(|c| (c.0.as_str(), c.1)))
+    }
+
+    #[allow(dead_code)]
     pub fn get_component<'a>(&'a self, component_ty: &str) -> Option<&'a Component> {
-        self.comp_map.as_ref().map_or(None, |comp_map| comp_map.get(component_ty))
+        self.comp_map.as_ref().and_then(|comp_map| comp_map.get(component_ty))
+    }
+
+    #[allow(dead_code)]
+    pub fn get_route<'a>(&'a self, exact_pattern: &str) -> Option<&'a Route> {
+        self.route_map.as_ref().and_then(|routes| routes.get(exact_pattern))
+    }
+
+    #[allow(dead_code)]
+    pub fn has_queries(&self) -> bool {
+        self.query_map.is_some()
+    }
+
+    #[allow(dead_code)]
+    pub fn get_queries<'a>(&'a self) -> Option<impl Iterator<Item = (&'a str, &'a Query)>> {
+        self.query_map.as_ref().map(|queries| queries.iter().map(|c| (c.0.as_str(), c.1)))
+    }
+
+    #[allow(dead_code)]
+    pub fn get_query<'a>(&'a self, name: &str) -> Option<&'a Query> {
+        self.query_map.as_ref().and_then(|queries| queries.get(name))
     }
 }

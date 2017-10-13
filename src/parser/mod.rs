@@ -1,23 +1,18 @@
 pub mod token;
-pub mod expr_value;
-pub mod ast;
 pub mod loc;
-pub mod store;
-pub mod api;
 pub mod lexer;
 pub mod parser;
 pub mod util;
-pub mod member;
 
-pub use self::ast::*;
-pub use self::expr_value::*;
-pub use self::store::*;
+pub use self::loc::Loc;
 pub use self::util::*;
-pub use self::member::*;
 
 use std::path::Path;
 use std::io::{self, Read};
 use std::fs;
+
+use model::*;
+
 
 type TokenIter = Box<Iterator<Item = token::Result<(usize, token::Token, usize)>>>;
 
@@ -34,7 +29,7 @@ fn read_file(path: &Path) -> io::Result<String> {
 }
 
 #[allow(dead_code)]
-pub fn parse_file<'input>(path: &Path) -> Result<ast::Template, io::Error> {
+pub fn parse_file<'input>(path: &Path) -> Result<Template, io::Error> {
     let input = read_file(path)?;
     let lexer = lexer::lex(&input);
 

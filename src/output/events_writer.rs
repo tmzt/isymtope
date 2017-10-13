@@ -2,6 +2,7 @@
 use std::io;
 use std::iter;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;
@@ -24,23 +25,29 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter> EventActionOpsWriter
     #[allow(unused_variables)]
     fn write_event_action_ops<'a, I: IntoIterator<Item = &'a ActionOpNode>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, action_ops: I) -> Result {
         for action_op in action_ops {
-            match action_op {
-                &ActionOpNode::DispatchAction(ref action_key, ref action_params) => {
-                    // let action_ty = scope.0.make_action_type(action_key);
-                    let action_ty = ctx.join_action_path_with(Some("."), action_key).to_uppercase();
+            match *action_op {
+                ActionOpNode::DispatchAction(ref action_key, ref action_params) |
+                ActionOpNode::DispatchActionTo(ref action_key, ref action_params, _)
+                  => {
+                    let path = match *action_op { ActionOpNode::DispatchActionTo(_, _, ref path) => Some(path), _ => None };
+                    let action_ty = path.map(|s| format!("{}.{}", s, action_key))
+                        .unwrap_or_else(|| ctx.action_path_str_with(action_key))
+                        .to_uppercase();
 
-                    if let &Some(ref action_params) = action_params {
+                    if let Some(ref action_params) = *action_params {
                         let action_params: PropVec =
                             iter::once(("type".to_owned(),
                                         Some(ExprValue::LiteralString(action_ty.to_owned()))))
-                                .chain(action_params.iter().map(|s| s.clone()))
+                                .chain(action_params.iter().cloned())
                                 .collect();
 
                         write!(w, " store.dispatch({{")?;
 
                         let mut first_item = true;
-                        for ref prop in action_params {
+                        for prop in action_params {
                             if let Some(ref expr) = prop.1 {
+                                let expr = ctx.reduce_expr_or_return_same(expr);
+
                                 if !first_item { write!(w, ", ")?; }
                                 first_item = false;
                                 write!(w, "\"{}\": ", &prop.0)?;
@@ -66,30 +73,27 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             let final_event_name: String;
             let mut was_enterkey = false;
 
-            match &event.2 {
-                &EventHandler::Event(ref event_name, _, _) => {
-                    final_event_name = if event_name == "enterkey" { was_enterkey = true; "keydown".into() } else { event_name.to_owned() };
+            let key_expr = complete_key.as_expr();
+
+            match event.2 {
+                EventHandler::Event(ref event_name, _, _) if event_name == "enterkey" => {
+                    was_enterkey = true; final_event_name = "keydown".into();
                 }
 
-                &EventHandler::DefaultEvent(_, _) => {
+                EventHandler::Event(ref event_name, _, _) => {
+                    final_event_name = event_name.to_owned();
+                }
+
+                EventHandler::DefaultEvent(_, _) => {
                     final_event_name = "click".into();
                 }
             }
-
-            // let dom_binding = ExprValue::Binding(&BindingType::DOMElementBinding())
-            // self.write_expr(w, doc, ctx, bindings, &expr)?;
-
-            let key_expr = match complete_key {
-                InstanceKey::Static(s) => ExprValue::LiteralString(s.to_owned()),
-                InstanceKey::Dynamic(e) => e.to_owned()
-            };
-
 
             write!(w, "setEventListener(")?;
             self.write_expr(w, doc, ctx, bindings, &key_expr)?;
             write!(w, ", ")?;
 
-            let dom_binding = ExprValue::Binding(BindingType::DOMElementBinding(key_expr.into()));
+            let dom_binding = ExprValue::Binding(BindingType::DOMElementBinding(key_expr.clone().into()));
 
             self.write_expr(w, doc, ctx, bindings, &dom_binding)?;
             write!(w, ", \"{}\", function(event) {{", final_event_name)?;
@@ -99,21 +103,30 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
             };
 
             ctx.push_child_scope();
-            // match complete_key {
-            //     InstanceKey::Static(s) => {
-            //         ctx.append_path_str(s);
-            //     },
-            //     InstanceKey::Dynamic(e) => {
-            //         ctx.append_path_expr(e);
-            //     }
-            // };
 
-            match &event.2 {
-                &EventHandler::Event(_, _, Some(ref action_ops)) | &EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
+
+            match event.2 {
+                EventHandler::Event(_, _, Some(ref action_ops)) | EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
+                    ctx.push_child_scope();
+                    if let EventHandler::Event(ref event_name, _, _) = event.2 {
+                        if event_name == "change" {
+                            let checked_binding = BindingType::DOMInputCheckboxElementCheckedBinding(Box::new(ReducedValue::Dynamic(key_expr.to_owned())));
+                            ctx.add_binding_value(&BindingType::EventElementValueBinding, ExprValue::Binding(checked_binding));
+                        }
+                    };
+
                     self.write_event_action_ops(w, doc, ctx, bindings, action_ops.iter())?;
+                    ctx.pop_scope();
                 }
                 _ => {}
             }
+
+            // match event.2 {
+            //     EventHandler::Event(_, _, Some(ref action_ops)) | EventHandler::DefaultEvent(_, Some(ref action_ops)) => {
+            //         self.write_event_action_ops(w, doc, ctx, bindings, action_ops.iter())?;
+            //     }
+            //     _ => {}
+            // }
 
             ctx.pop_scope();
 
@@ -130,14 +143,14 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
     fn write_event_bindings<'a, I: IntoIterator<Item = &'a EventsItem>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
         writeln!(w, "      // Bind actions")?;
         for event in events_iter {
-            let path_expr = ctx.join_path_as_expr_with(Some("."), &event.0);
+            let path_expr = ctx.path_expr_with(&event.0);
             self.write_event(w, doc, ctx, bindings, InstanceKey::Dynamic(&path_expr), event)?;
         }
         Ok(())
     }
 
     fn write_bound_events<'a, I: IntoIterator<Item = &'a BoundEvent>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, events_iter: I) -> Result {
-        for bound_event in events_iter.into_iter() {
+        for bound_event in events_iter {
             let instance_key = bound_event.instance_key();
             let complete_key = bound_event.complete_key();
             let event_item = bound_event.event_item();
@@ -148,14 +161,14 @@ impl<E: OutputWriter + ElementOpsStreamWriter + ExprWriter + EventActionOpsWrite
 
             if let Some(props) = bound_event.props() {
                 for &(ref k, ref v) in props {
-                    if let &Some(ref v) = v {
+                    if let Some(ref v) = *v {
                         ctx.add_binding_value(&BindingType::ComponentPropBinding(k.to_owned()), v.to_owned());
                     }
                 }
             };
 
             // ctx.append_path_str(&instance_key);
-            self.write_event(w, doc, ctx, &bindings, InstanceKey::Static(&complete_key), &event_item)?;
+            self.write_event(w, doc, ctx, bindings, InstanceKey::Static(&complete_key), &event_item)?;
             ctx.pop_scope();
         }
         Ok(())

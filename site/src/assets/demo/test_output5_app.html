@@ -7,11 +7,11 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><div key="ab1"><p key="ab1.73a"><input key="ab1.73a.600" value="" value="" /></p><p key="ab1.90d" class="actions"><a key="ab1.90d.ba2" href="#">Add</a></p></div><div key="ab1.151.0"><p key="ab1.151.0.788">[Todo: , ].join("")</p></div><div key="ab1.151.1"><p key="ab1.151.1.788">[Todo: , ].join("")</p></div></div>
+        <div id="root"><div key="d1b"><p key="d1b.f63"><input key="d1b.f63.5c2" value="" value="" /></p><p key="d1b.abc" class="actions"><a key="d1b.abc.b16" href="#">Add</a></p></div><div key="d1b.21f"><p key="d1b.21f.2a9">[Todo: , ].join("")</p></div></div>
 
 
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -43,11 +43,11 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"todos": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("One"), LiteralString("Two")]))))} */
-/* Some([InstanceComponent("new_todo", "ab1", Some("new_todo"), Some(["entry"]), Some(GetLens("entry", SymbolReference(Symbol(UnresolvedReference("entry"), None, None))))), InstanceComponent("todo", "ab1.151", Some("todo"), Some(["todo"]), Some(ForLens(Some("todo"), SymbolReference(Symbol(Binding(ReducerPathBinding("todos")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* Some([InstanceComponent("new_todo", "d1b", Some("new_todo"), Some([]), None), InstanceComponent("todo", "d1b.21f", Some("todo"), Some([]), None)]) */
 /* None */
                 function component_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".788", ["key", key + ".788"]);
+IncrementalDOM.elementOpen("p", key + ".2a9", ["key", key + ".2a9"]);
 IncrementalDOM.text("Todo: " + props.todo);
 IncrementalDOM.elementClose("p");
 IncrementalDOM.elementClose("div");
@@ -61,11 +61,11 @@ IncrementalDOM.elementClose("div");
 
                 function component_new_todo(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".73a", ["key", key + ".73a"]);
-IncrementalDOM.elementVoid("input", key + ".73a.600", ["key", key + ".73a.600", "value", ""], "value", props.entry);
+IncrementalDOM.elementOpen("p", key + ".f63", ["key", key + ".f63"]);
+IncrementalDOM.elementVoid("input", key + ".f63.5c2", ["key", key + ".f63.5c2", "value", ""], "value", props.entry);
 IncrementalDOM.elementClose("p");
-IncrementalDOM.elementOpen("p", key + ".90d", ["key", key + ".90d", "class", "actions"]);
-IncrementalDOM.elementOpen("a", key + ".90d.ba2", ["key", key + ".90d.ba2", "href", "#"]);
+IncrementalDOM.elementOpen("p", key + ".abc", ["key", key + ".abc", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".abc.b16", ["key", key + ".abc.b16", "href", "#"]);
 IncrementalDOM.text("Add");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.elementClose("p");
@@ -76,20 +76,20 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_new_todo(key, props, store) {
       // Bind actions
-setEventListener(key + ".90d.ba2", document.querySelector("[key='" + key + ".90d.ba2" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+setEventListener(key + ".abc.b16", document.querySelector("[key='" + key + ".abc.b16" + "']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
 });
 
                 }
 
 
                 function render(store) {
-component_new_todo("ab1", {"entry": }, store);
-(store.getState().todos).forEach(function(item, idx) { component_todo("ab1.151" + "." + idx, {"todo": item}, store); });
+component_new_todo("d1b", {}, store);
+component_todo("d1b.21f", {}, store);
                 }
 
                 function root_bindings(store) {
 
-setEventListener("ab1.90d.ba2", document.querySelector("[key='ab1.90d.ba2']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
+setEventListener("d1b.abc.b16", document.querySelector("[key='d1b.abc.b16']"), "click", function(event) { store.dispatch({"type": "TODOS.ADD", "entry": props.entry});
 });
                 }
 

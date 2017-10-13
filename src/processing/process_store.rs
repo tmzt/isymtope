@@ -1,6 +1,6 @@
 
 use std::iter;
-use parser::ast::*;
+use model::*;
 use processing::*;
 use scope::*;
 
@@ -40,19 +40,9 @@ impl ProcessStore {
                             var_name: &str,
                             expr: Option<&ExprValue>)
                             -> DocumentProcessingResult<()> {
-        let has_default_sym = processing.default_state_symbol.is_some();
-        let has_default_reducer_key = processing.default_reducer_key.is_some();
-
         let var_ty = expr.as_ref().and_then(|expr| expr.peek_ty());
 
-        if !has_default_sym {
-            let sym =
-                Symbol::reducer_key_with(&var_name, var_ty.as_ref(), expr);
-            // TODO: Include type
-            processing.default_state_symbol = Some(sym);
-        }
-
-        if !has_default_reducer_key {
+        if !processing.default_reducer_key.is_some() {
             processing.default_reducer_key = Some(var_name.to_owned());
         }
 
@@ -93,8 +83,9 @@ impl ProcessStore {
         // ctx.append_action_path_str(action_name);
 
         // Create the action
-        let action_path = ctx.join_action_path(Some("."));
-        let complete_path = ctx.join_action_path_with(Some("."), &action_name);
+	let action_path = ctx.action_path_str();
+        let complete_path = ctx.action_path_str_with(&action_name);
+
         let reducer_entry = processing
             .reducer_key_data
             .entry(action_path.to_owned())
@@ -223,8 +214,7 @@ impl ProcessStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scope::*;
-    use processing::*;
+
 
     #[test]
     pub fn test_processing_process_store_1() {

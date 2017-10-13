@@ -4,7 +4,7 @@ pub use self::element_ops_writer::*;
 
 use std::io;
 
-use parser::*;
+use model::*;
 use processing::*;
 use scope::*;
 

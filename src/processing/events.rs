@@ -1,13 +1,4 @@
-
-use std::io;
-use std::fmt;
-use std::error::Error;
-use std::result;
-use std::collections::hash_map::{HashMap, Entry};
-
-use linked_hash_map::LinkedHashMap;
-
-use parser::*;
+use model::*;
 use processing::*;
 
 
@@ -58,10 +49,11 @@ impl BoundEvent {
 
 #[derive(Debug, Default, PartialEq)]
 pub struct BlockEvents {
-    events: EventsWithData
+    events: Vec<EventWithData>
 }
 
 impl BlockEvents {
+    #[allow(dead_code)]
     pub fn event<'a, I: IntoIterator<Item = &'a PropRef<'a>>>(&mut self, event: &EventsItem, props: I) -> Result {
         Ok(())
     }

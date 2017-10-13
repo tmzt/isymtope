@@ -1,11 +1,8 @@
 
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-
 use linked_hash_map::LinkedHashMap;
 
-use parser::ast::*;
-use processing::*;
+use model::*;
 
 
 pub type DefaultStateMap = LinkedHashMap<String, (Option<VarType>, Option<ExprValue>)>;
@@ -128,28 +125,4 @@ impl ReducerActionProcessing {
             default_scope_key: default_scope_key,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ElementOp {
-    ElementOpen(String,
-                String,
-                Option<Vec<Prop>>,
-                Option<EventHandlersVec>,
-                ElementValueBinding),
-    ElementVoid(String,
-                String,
-                Option<Vec<Prop>>,
-                Option<EventHandlersVec>,
-                ElementValueBinding),
-    ElementClose(String),
-    WriteValue(ExprValue, String),
-    InstanceComponent(String,
-                      String,
-                      Option<String>,
-                      Option<Vec<PropKey>>,
-                      Option<LensExprType>),
-    StartBlock(String),
-    EndBlock(String),
-    MapCollection(String, Option<String>, ExprValue),
 }

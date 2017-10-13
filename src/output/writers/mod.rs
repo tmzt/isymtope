@@ -2,16 +2,18 @@ pub mod expr_writers;
 pub mod ops_writers;
 pub mod stream_writers;
 pub mod block_writers;
+pub mod query_writers;
 
 pub use self::expr_writers::*;
 pub use self::ops_writers::*;
 pub use self::stream_writers::*;
 pub use self::block_writers::*;
+pub use self::query_writers::*;
 
 use std::io;
 use std::collections::HashMap;
 
-use parser::*;
+use model::*;
 use scope::*;
 use processing::*;
 
@@ -25,7 +27,7 @@ pub struct DefaultOutputWriter<E: ExpressionWriter> {
     value_writer: E::V,
     expression_writer: E,
     // events: EventsWithData
-    events: HashMap<String, EventsWithData>,
+    events: HashMap<String, Vec<EventWithData>>,
     events_vec: Vec<BoundEvent>
 }
 
@@ -72,6 +74,22 @@ pub struct DefaultOutputWriters {}
 
 pub type DefaultOutputWriterHtml = DefaultOutputWriter<ExpressionWriterHtml>;
 pub type DefaultOutputWriterJs = DefaultOutputWriter<ExpressionWriterJs>;
+
+pub trait JavascriptUtilWriter {
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result;
+}
+
+impl JavascriptUtilWriter for DefaultOutputWriterJs {
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, w: &mut io::Write, doc: &Document, ctx: &mut Context, bindings: &BindingContext, params: I) -> Result {
+        let mut first = true;
+        for param in params {
+            if !first { write!(w, ", ")?; }
+            write!(w, "{}", param)?;
+            first = false;
+        }
+        Ok(())
+    }
+}
 
 pub trait OutputWritersBoth {
     type Html: OutputWriter;
@@ -133,9 +151,7 @@ mod tests {
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s), Ok("\n<span key=\"Ab.Cd\"></span>"));
         }
 
         {
@@ -143,9 +159,7 @@ mod tests {
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s), Ok("\n<span key=\"Ab.Cd\"></span>"));
         }
 
         {
@@ -155,10 +169,10 @@ mod tests {
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_1).is_ok() &&
                 writer.write_element_op(&mut s, &doc, &mut ctx, &bindings, &op_2).is_ok()
             );
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s), Ok(r#"
+    IncrementalDOM.elementOpen("span", "Ab.Cd");
+    IncrementalDOM.elementClose("span");
+"#));
         }
 
         {
@@ -166,10 +180,10 @@ mod tests {
             let mut s: Vec<u8> = Default::default();
             let ops = vec![op_1.clone(), op_2.clone()];
             assert!(writer.write_element_ops(&mut s, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
-            assert_eq!(str::from_utf8(&s), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s), Ok(r#"
+IncrementalDOM.elementOpen("span", "Ab.Cd");
+IncrementalDOM.elementClose("span");
+"#));
         }
     }
 
@@ -192,14 +206,12 @@ mod tests {
             assert!(writers.html().write_element_ops(&mut s_html, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
             assert!(writers.js().write_element_ops(&mut s_js, &doc, &mut ctx, &bindings, ops.iter()).is_ok());
 
-            assert_eq!(str::from_utf8(&s_html), Ok(indoc![r#"
-            <span key="Ab.Cd"></span>"#
-            ]));
+            assert_eq!(str::from_utf8(&s_html), Ok("\n<span key=\"Ab.Cd\"></span>"));
 
-            assert_eq!(str::from_utf8(&s_js), Ok(indoc![r#"
-                IncrementalDOM.elementOpen("span", "Ab.Cd");
-                IncrementalDOM.elementClose("span");
-            "#]));
+            assert_eq!(str::from_utf8(&s_js), Ok(r#"
+IncrementalDOM.elementOpen("span", "Ab.Cd");
+IncrementalDOM.elementClose("span");
+"#));
         }
     }
 }

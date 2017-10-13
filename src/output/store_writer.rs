@@ -1,6 +1,7 @@
 
 use std::io;
 
+use model::*;
 use parser::*;
 use scope::*;
 use processing::*;
@@ -20,11 +21,11 @@ pub struct StoreWriterJs {}
 impl StoreWriterJs {
     #[inline]
     pub fn write_reducer_action(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, _reducer: &ReducerKeyData, action: &ReducerActionData) -> Result {
-        let action_key = ctx.join_action_path_with(Some("."), &action.action_type);
+	let action_key = ctx.action_path_str_with(&action.action_type);
 
         writeln!(w, "                  /* action: {:?} */", action)?;
 
-        if let &Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) =  &action.state_expr {
+        if let Some(ActionStateExprType::SimpleReducerKeyExpr(ref expr)) =  action.state_expr {
             let expr = ctx.map_reducer_expression(doc, &action_key, expr);
             writeln!(w, "                  /* action expr: {:?} */", expr)?;
 
@@ -56,12 +57,12 @@ impl StoreWriterJs {
     pub fn write_reducer_definition(&mut self, w: &mut io::Write, doc: &Document, output_writer: &mut <Self as StoreWriter>::O, ctx: &mut Context, bindings: &BindingContext, reducer: &ReducerKeyData) -> Result {
         ctx.push_child_scope();
 
-        let complete_key = ctx.join_action_path_with(Some("_"), &reducer.reducer_key);
+	let complete_key = ctx.action_path_str_with(&reducer.reducer_key);
         writeln!(w, "")?;
         writeln!(w, "                function {}Reducer(state, action) {{", complete_key)?;
 
         if let Some(ref actions) = reducer.actions {
-            for ref action in actions {
+            for action in actions {
                 self.write_reducer_action(w, doc, output_writer, ctx, bindings, reducer, action)?;
             }
         };
@@ -86,7 +87,7 @@ impl StoreWriterJs {
         writeln!(w, "")?;
         writeln!(w, "                var rootReducer = Redux.combineReducers({{")?;
         for reducer_key in keys {
-            let complete_key = ctx.join_action_path_with(Some("_"), reducer_key);
+            let complete_key = ctx.action_path_str_with(&reducer_key);
             writeln!(w, "                  {}: {}Reducer,", complete_key, complete_key)?;
         }
         writeln!(w, "                }});")?;
@@ -114,11 +115,7 @@ impl StoreWriter for StoreWriterJs {
 mod tests {
     use super::*;
     use std::str;
-    use processing::*;
-    use scope::context::*;
-    use scope::bindings::*;
-    use processing::structs::*;
-    use output::*;
+    use scope::*;
 
 
     fn create_template() -> Template {

@@ -123,6 +123,8 @@ impl<'input> Lexer<'input> {
                 Token::ComponentKeyword
             }
 
+            "route" => Token::RouteKeyword,
+
             "use" => Token::UseKeyword,
             "let" => Token::LetKeyword,
             "for" => Token::ForKeyword,
@@ -131,6 +133,9 @@ impl<'input> Lexer<'input> {
             "bind" => Token::BindKeyword,
             "as" => Token::AsKeyword,
             "where" => Token::WhereKeyword,
+            "to" => Token::ToKeyword,
+
+            "query" => Token::QueryKeyword,
 
             "set" => Token::SetKeyword,
             "unique" => Token::UniqueKeyword,

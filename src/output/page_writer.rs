@@ -1,8 +1,7 @@
 
 use std::io;
-use std::iter;
 
-use parser::*;
+use model::*;
 use scope::*;
 use processing::*;
 use output::*;
@@ -41,7 +40,7 @@ const STRING_HTML_CLOSE_ROOT_DIV: &'static str  = r#"</div>
 
 const STRING_HTML_OPEN_SCRIPT_IIFE: &'static str  = r#"
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -82,6 +81,10 @@ const STRING_JS_OPEN_ROOT_BINDINGS_DEF: &'static str  = r#"
                 function root_bindings(store) {
 "#;
 
+const STRING_JS_OPEN_DEFINE_ROUTES: &'static str  = r#"
+                function define_routes(store, routes) {
+"#;
+
 const STRING_JS_CLOSE_RENDER: &'static str  = r#"                }
 "#;
 
@@ -97,6 +100,76 @@ const STRING_HTML_CLOSE_SCRIPT_IIFE: &'static str  = r#"
                     root_bindings(store);
                 });
             })();
+        </script>"#;
+
+const STRING_HTML_CLOSE_SCRIPT_ROUTES_IIFE: &'static str  = r#"
+
+                function createHistory() {
+
+                    return {
+                        init: function(store) { 
+                            window.addEventListener('popstate', function(event) {
+                                store.dispatch({type: '@@redux-routing/replace', href: event.state});
+                            });
+                            
+                            store.dispatch({type: '@@redux-routing/replace', href: window.location.pathname });
+                        },
+                        update: function(action) {
+                            switch (action.type) {
+                                case '@@redux-routing/navigate':
+                                    window.history.pushState(action.href, null, action.href); break;
+                                case '@@redux-routing/replace':
+                                    window.history.replaceState(action.href, null, action.href); break;
+                                default: break;
+                            }
+                        }
+                    };
+                }
+
+                function createRoutingMiddleware(routes, history) {
+                    return function() {
+                        return function(next) {
+                            return function(action) {
+                                if (!/^@@redux-routing/.test(action.type)) {
+                                    return next(action);
+                                }
+
+                                var href = action.href;
+                                var match = Object.keys(routes).map(function(pattern) { return (href == pattern) ? routes[pattern] : null; })[0];
+
+                                if (match && match.handler) {
+                                    match.handler(href);
+                                }
+
+                                history.update(action);
+                            }
+                        }
+                    }
+                }
+
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    // Import nodes
+                    markExisting(document.querySelectorAll("[key]"));
+
+                    // Setup router
+                    var routes = {};
+                    var history = createHistory();
+                    var middleware = createRoutingMiddleware(routes, history);
+                    var store = Redux.applyMiddleware(middleware)(Redux.createStore)(rootReducer);
+
+                    _global.navigate = function(href) { return { type: '@@redux-routing/navigate', href: href }; };
+
+                    // Define routes
+                    define_routes(store, routes);
+                    // Subscribe
+                    store.subscribe(update.bind(null, document.querySelector('#root'), store));
+                    // Bind events
+                    root_bindings(store);
+
+                    // Start routing
+                    history.init(store);
+                });
+            })(window);
         </script>"#;
 
 const STRING_HTML_CLOSE_INCDOM_PAGE: &'static str  = r#"
@@ -118,19 +191,19 @@ impl<'doc> PageWriter<'doc> {
         }
     }
 
-    pub fn push_content_context(&mut self, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        ctx.push_child_scope();
-        if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
-            ctx.append_action_path_str(default_reducer_key);
-        };
+    // pub fn push_content_context(&mut self, ctx: &mut Context, _bindings: &BindingContext) -> Result {
+    //     ctx.push_child_scope();
+    //     if let Some(ref default_reducer_key) = self.doc.default_reducer_key {
+    //         ctx.append_action_path_str(default_reducer_key);
+    //     };
 
-        for (_, reducer_data) in self.doc.reducer_key_data.iter() {
-            let reducer_key = reducer_data.reducer_key.to_owned();
-            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
-            ctx.add_sym(&reducer_key, Symbol::binding(&binding));
-        }
-        Ok(())
-    }
+    //     for reducer_data in self.doc.reducer_key_data.values() {
+    //         let reducer_key = &reducer_data.reducer_key;
+    //         let binding = BindingType::ReducerPathBinding(reducer_key.to_owned());
+    //         ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+    //     }
+    //     Ok(())
+    // }
 
     #[inline]
     #[allow(unused_variables)]
@@ -160,6 +233,47 @@ impl<'doc> PageWriter<'doc> {
 
     #[inline]
     #[allow(unused_variables)]
+    pub fn write_route_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_routes() {
+            for (pattern, route) in iter {
+                let func_key = route.function_key();
+                writeln!(w, "                function route_{}(path, props, store) {{", func_key)?;
+                if let Some(iter) = route.action_ops_iter() {
+                    self.writers.js.write_event_action_ops(w, self.doc, ctx, bindings, iter)?;
+                };
+                writeln!(w, "\n{}", self::STRING_JS_CLOSE_RENDER)?;
+            }
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
+    pub fn write_query_definitions(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_queries() {
+            for (name, query) in iter {
+                self.writers.js.write_query(w, self.doc, ctx, bindings, query)?;
+            }
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
+    pub fn write_route_registrations(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
+        if let Some(iter) = self.doc.get_routes() {
+            writeln!(w, "{}", self::STRING_JS_OPEN_DEFINE_ROUTES)?;
+            for (pattern, route) in iter {
+                let func_key = route.function_key();
+                writeln!(w, "                routes[\"{}\"] = {{ handler: function(path) {{ route_{}(path, {{}}, store); }} }};", pattern, func_key)?;
+            }
+            writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
+        };
+        Ok(())
+    }
+
+    #[inline]
+    #[allow(unused_variables)]
     pub fn write_root_block_render_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         write!(w, "{}", self::STRING_JS_OPEN_RENDER)?;
         self.writers.js.write_block(w, self.doc, ctx, bindings, self.doc.root_block(), None, true)?;
@@ -171,44 +285,7 @@ impl<'doc> PageWriter<'doc> {
     #[allow(unused_variables)]
     pub fn write_initial_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         let events_iter = self.writers.html.events_iter();
-        self.writers.js.write_bound_events(w, &self.doc, ctx, bindings, events_iter)?;
-        Ok(())
-    }
-
-    #[inline]
-    #[allow(unused_variables)]
-    pub fn write_block_event_bindings(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext, block: &Block) -> Result {
-        //Bind component events
-        // if let Some(compkey_mappings) = block.componentkey_mappings_iter() {
-        //     for compkey_mapping in compkey_mappings {
-        //         if let Some(ref lens) = compkey_mapping.3 {
-        //             match lens {
-        //                 &LensExprType::ForLens(ref coll_key, ref coll_expr) => {
-        //                     let reduced_expr = ctx.eval_expr(&self.doc, coll_expr);
-        //                     let coll_expr = reduced_expr.as_ref().unwrap_or(coll_expr);
-
-        //                     if let &ExprValue::LiteralArray(Some(ref arr)) = coll_expr {
-        //                         for (idx, _) in arr.iter().enumerate() {
-        //                             writeln!(w, "component_bindings_{}(\"{}.{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str(), idx)?;
-        //                         }
-        //                     };
-        //                     continue;
-        //                 },
-        //                 _ => {}
-        //             };
-
-        //         };
-
-        //         writeln!(w, "component_bindings_{}(\"{}\", {{}}, store);", compkey_mapping.1.as_str(), compkey_mapping.0.as_str())?;
-        //     }
-        // };
-
-
-
-        // Bind block events
-        if let Some(events_iter) = block.events_iter() {
-            self.writers.js.write_event_bindings(w, &self.doc, ctx, bindings, events_iter)?;
-        };
+        self.writers.js.write_bound_events(w, self.doc, ctx, bindings, events_iter)?;
         Ok(())
     }
 
@@ -217,7 +294,6 @@ impl<'doc> PageWriter<'doc> {
     pub fn write_root_bindings_definition(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
         writeln!(w, "{}", self::STRING_JS_OPEN_ROOT_BINDINGS_DEF)?;
         self.write_initial_event_bindings(w, ctx, bindings)?;
-        // self.write_block_event_bindings(w, ctx, bindings, self.doc.root_block())?;
         writeln!(w, "{}", self::STRING_JS_CLOSE_RENDER)?;
         Ok(())
     }
@@ -225,7 +301,7 @@ impl<'doc> PageWriter<'doc> {
     #[inline]
     #[allow(unused_variables)]
     pub fn write_root_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        self.push_content_context(ctx, bindings)?;
+        // self.push_content_context(ctx, bindings)?;
 
         write!(w, "{}", self::STRING_HTML_OPEN_ROOT_DIV)?;
         if let Some(ops_iter) = self.doc.root_block().ops_iter() {
@@ -233,17 +309,21 @@ impl<'doc> PageWriter<'doc> {
         };
         write!(w, "{}", self::STRING_HTML_CLOSE_ROOT_DIV)?;
 
-        ctx.pop_scope();
+        // ctx.pop_scope();
         Ok(())
     }
 
     #[inline]
     #[allow(unused_variables)]
     pub fn write_element_rendering_script_html(&mut self, w: &mut io::Write, ctx: &mut Context, bindings: &BindingContext) -> Result {
-        self.push_content_context(ctx, bindings)?;
+        ctx.push_root_content_scope(&self.doc);
 
         // Define components
         self.write_component_definitions(w, ctx, bindings)?;
+        // Define route handlers
+        self.write_route_definitions(w, ctx, bindings)?;
+        self.write_route_registrations(w, ctx, bindings)?;
+        self.write_query_definitions(w, ctx, bindings)?;
         self.write_root_block_render_definition(w, ctx, bindings)?;
         self.write_root_bindings_definition(w, ctx, bindings)?;
 
@@ -263,9 +343,13 @@ impl<'doc> PageWriter<'doc> {
         self.write_element_rendering_script_html(w, ctx, bindings)?;
 
         let mut store_writer = StoreWriterJs::default();
-        store_writer.write_store(w, &self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
+        store_writer.write_store(w, self.doc, self.writers.js(), ctx, bindings, self.doc.reducers_iter())?;
 
-        write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
+        if self.doc.has_routes() {
+            write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_ROUTES_IIFE)?;        
+        } else {
+            write!(w, "{}", self::STRING_HTML_CLOSE_SCRIPT_IIFE)?;
+        }
         Ok(())
     }
 
@@ -285,15 +369,6 @@ impl<'doc> PageWriter<'doc> {
         writeln!(w, "")?;
         self.write_script_html(w, ctx, bindings)?;
 
-        // Mark the DOM elements we just rendered so incdom will not attempt to replace them on initial render
-        // let keys_iter = self.output_html.keys_iter();
-        // for key in keys_iter {
-        //     writeln!(w,
-        //              "    markExisting(document.querySelector(\"[key='{}']\"));",
-        //              key)
-        //         ?;
-        // }
-
         write!(w, "{}", self::STRING_HTML_CLOSE_INCDOM_PAGE)?;
 
         Ok(())
@@ -306,6 +381,7 @@ mod tests {
     use super::*;
     use std::str;
     use processing::*;
+    use parser::loc::Loc;
 
     
     fn create_template() -> Template {

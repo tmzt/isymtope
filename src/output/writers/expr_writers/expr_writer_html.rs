@@ -1,11 +1,10 @@
 
 use std::io;
 
-use parser::ast::*;
-use processing::structs::*;
-use scope::context::*;
-use scope::bindings::*;
-use output::writers::*;
+use model::*;
+use scope::*;
+use processing::*;
+use output::*;
 
 
 #[derive(Debug, Default)]
@@ -56,7 +55,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
  
-    fn write_test(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, op: &TestOp, left: &ExprValue, right: Option<&ExprValue>) -> Result {
+    fn write_test(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _op: &TestOp, _left: &ExprValue, _right: Option<&ExprValue>) -> Result {
        Ok(())
     }
  
@@ -79,25 +78,20 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
-    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, arr: Option<I>, ty: Option<VarType>) -> Result {
+    fn write_array<'a, I: IntoIterator<Item = &'a ExprValue>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _arr: Option<I>, _ty: Option<VarType>) -> Result {
         write!(w, "[array]")?;
         Ok(())
     }
 
-    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, props: Option<I>) -> Result {
-        // write!(w, "{{")?;
-        // if let Some(props) = props {
-        //     let mut first = true;
-        //     for prop in props {
-        //         if !first { write!(w, ", ")?; }
-        //         write!(w, "\"{}\": ", &prop.0)?;
-        //         if let Some(ref v) = prop.1 {
-        //             self.write_expr_to(w, doc, value_writer, ctx, bindings, v)?;
-        //         }
-        //         first = false;
-        //     };
-        // };
-        // write!(w, "}}")?;
+    fn write_props<'a, I: IntoIterator<Item = &'a Prop>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, props: Option<I>) -> Result {
+        Ok(())
+    }
+
+    fn write_formal_params_list<'a, I: IntoIterator<Item = FormalPropRef<'a>>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _params: I) -> Result {
+        Ok(())
+    }
+
+    fn write_actual_props<'a, I: IntoIterator<Item = ActualPropRef<'a>>>(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _props: Option<I>) -> Result {
         Ok(())
     }
 
@@ -115,7 +109,7 @@ impl ExpressionWriter for ExpressionWriterHtml {
         Ok(())
     }
 
-    fn write_group(&mut self, w: &mut io::Write, doc: &Document, value_writer: &mut Self::V, ctx: &mut Context, bindings: &BindingContext, inner_expr: Option<&ExprValue>) -> Result {
+    fn write_group(&mut self, _w: &mut io::Write, _doc: &Document, _value_writer: &mut Self::V, _ctx: &mut Context, _bindings: &BindingContext, _inner_expr: Option<&ExprValue>) -> Result {
         Ok(())
     }
 

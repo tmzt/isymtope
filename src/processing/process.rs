@@ -1,13 +1,15 @@
 
 use std::iter;
 
-use parser::ast::*;
+use model::*;
+use scope::*;
 
-use processing::structs::*;
+use processing::*;
 use processing::process_content::*;
 use processing::process_store::*;
 use processing::process_comp_def::*;
-use scope::*;
+use processing::process_route::*;
+use processing::process_query::*;
 
 
 pub struct ProcessDocument<'input> {
@@ -34,7 +36,7 @@ impl<'input> ProcessDocument<'input> {
     pub fn process_component_definition(&mut self,
                                         ctx: &mut Context,
                                         bindings: &mut BindingContext,
-                                        component_data: &'input ComponentDefinitionType)
+                                        component_data: &ComponentDefinitionType)
                                         -> DocumentProcessingResult<()> {
         let mut comp_output = CompDefProcessorOutput::default();
         let mut comp_processor = CompDefProcessor::default();
@@ -51,6 +53,23 @@ impl<'input> ProcessDocument<'input> {
         Ok(())
     }
 
+    pub fn process_route_definition(&mut self, ctx: &mut Context, bindings: &mut BindingContext, route: &RouteDefinitionType) -> DocumentProcessingResult<()> {
+        let mut output = RouteProcessorOutput::default();
+        let mut processor = RouteProcessor::default();
+        processor.process_source_node(&mut self.processing, ctx, bindings, &mut output, route)?;
+        let route: Route = output.into();
+        self.processing.route_map.insert(route.pattern().to_owned(), route);
+        Ok(())
+    }
+
+    pub fn process_query_definition(&mut self, ctx: &mut Context, bindings: &mut BindingContext, query_def: &QueryDefinition) -> DocumentProcessingResult<()> {
+        let mut output = QueryDefinitionProcessorOutput::default();
+        let mut processor = QueryDefinitionProcessor::default();
+        processor.process_source_node(&mut self.processing, ctx, bindings, &mut output, query_def)?;
+        let query: Query = output.into();
+        self.processing.query_map.insert(query.name().to_owned(), query);
+        Ok(())
+    }
 
     #[allow(dead_code)]
     #[allow(unused_variables)]
@@ -58,12 +77,6 @@ impl<'input> ProcessDocument<'input> {
         let mut root_block = BlockProcessingState::default();
         let mut process_store = ProcessStore::default();
         let mut content_processor = ProcessContent::default();
-
-        for ref loc in self.ast.children.iter() {
-            if let NodeType::ComponentDefinitionNode(ref component_data) = loc.inner {
-                self.process_component_definition(ctx, bindings, component_data)?;
-            }
-        }
 
         for ref loc in self.ast.children.iter() {
             if let NodeType::StoreNode(ref scope_nodes) = loc.inner {
@@ -77,28 +90,59 @@ impl<'input> ProcessDocument<'input> {
             };
         }
 
+        ctx.push_child_scope();
+
+        // Add default action path for the default reducer key
+        if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
+            ctx.append_action_path_str(default_reducer_key);
+        };
+
         // if let Some(ref default_reducer_key) = self.processing.default_reducer_key {
         //     ctx.append_action_path_str(default_reducer_key);
         //     let binding = BindingType::ReducerPathBinding(default_reducer_key.to_owned());
         //     ctx.add_sym(default_reducer_key, Symbol::binding(&binding));
         // };
 
-        for (_, reducer_data) in self.processing.reducer_key_data.iter() {
-            let reducer_key = reducer_data.reducer_key.to_owned();
-            // let ty = reducer_data.ty
-            let binding = BindingType::ReducerPathBinding(reducer_key.clone());
-            if let Some(ref ty) = reducer_data.ty {
-                ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
-            } else {
-                ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+        // Define top-level bindings
+        // for reducer_data in self.processing.reducer_key_data.values() {
+        //     let reducer_key = reducer_data.reducer_key.to_owned();
+        //     // let ty = reducer_data.ty
+        //     let binding = BindingType::ReducerPathBinding(reducer_key.clone());
+        //     if let Some(ref ty) = reducer_data.ty {
+        //         ctx.add_sym(&reducer_key, Symbol::typed_binding(&binding, ty));
+        //     } else {
+        //         ctx.add_sym(&reducer_key, Symbol::binding(&binding));
+        //     }
+        // }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::RouteDefinitionNode(ref route) = loc.inner {
+                self.process_route_definition(ctx, bindings, route)?;
             }
         }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::QueryNode(ref query) = loc.inner {
+                self.process_query_definition(ctx, bindings, query)?;
+            }
+        }
+
+        for ref loc in self.ast.children.iter() {
+            if let NodeType::ComponentDefinitionNode(ref component_data) = loc.inner {
+                self.process_component_definition(ctx, bindings, component_data)?;
+            }
+        }
+
+        ctx.push_root_content_processing_scope(&self.processing);
 
         for ref loc in self.ast.children.iter() {
             if let NodeType::ContentNode(ref content_node) = loc.inner {
                 content_processor.process_block_content_node(&mut self.processing, ctx, bindings, content_node, &mut root_block, None)?;
             };
         }
+
+        ctx.pop_scope();
+        ctx.pop_scope();
 
         self.processing.root_block = root_block;
         Ok(())

@@ -7,11 +7,11 @@
         <script src="https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js" defer="defer"></script>
     </head>
     <body>
-        <div id="root"><div key="73a"><p key="73a.af9">[Message: , ].join("")</p><p key="73a.81a" class="actions"><a key="73a.81a.8f5" href="#" href="#add">Say Hello</a></p></div></div>
+        <div id="root"><div key="1b8"><p key="1b8.caa">[Message: , ].join("")</p><p key="1b8.46a" class="actions"><a key="1b8.46a.b70" href="#" href="#add">Say Hello</a></p></div></div>
 
 
         <script>
-            (function() {
+            (function(_global) {
                 function Blank() {}
                 Blank.prototype = Object.create(null);
                 
@@ -43,15 +43,15 @@
                     IncrementalDOM.patch(root_el, render.bind(null, store));
                 }
 /* {"lines": (Some(ArrayVar(Some(Primitive(StringVar)))), Some(LiteralArray(Some([LiteralString("The first hello.")]))))} */
-/* Some([InstanceComponent("greeter", "73a", Some("greeter"), Some(["lines"]), Some(GetLens("lines", SymbolReference(Symbol(Binding(ReducerPathBinding("lines")), Some(ArrayVar(Some(Primitive(StringVar)))), None)))))]) */
+/* Some([InstanceComponent("greeter", "1b8", Some("greeter"), Some([]), None)]) */
 /* None */
                 function component_greeter(key, props, store) {
 IncrementalDOM.elementOpen("div", key, ["key", key]);
-IncrementalDOM.elementOpen("p", key + ".af9", ["key", key + ".af9"]);
+IncrementalDOM.elementOpen("p", key + ".caa", ["key", key + ".caa"]);
 IncrementalDOM.text("Message: " + );
 IncrementalDOM.elementClose("p");
-IncrementalDOM.elementOpen("p", key + ".81a", ["key", key + ".81a", "class", "actions"]);
-IncrementalDOM.elementOpen("a", key + ".81a.8f5", ["key", key + ".81a.8f5", "href", "#", "href", "#add"]);
+IncrementalDOM.elementOpen("p", key + ".46a", ["key", key + ".46a", "class", "actions"]);
+IncrementalDOM.elementOpen("a", key + ".46a.b70", ["key", key + ".46a.b70", "href", "#", "href", "#add"]);
 IncrementalDOM.text("Say Hello");
 IncrementalDOM.elementClose("a");
 IncrementalDOM.elementClose("p");
@@ -62,19 +62,19 @@ IncrementalDOM.elementClose("div");
 
                 function component_bindings_greeter(key, props, store) {
       // Bind actions
-setEventListener(key + ".81a.8f5", document.querySelector("[key='" + key + ".81a.8f5" + "']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
+setEventListener(key + ".46a.b70", document.querySelector("[key='" + key + ".46a.b70" + "']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
 });
 
                 }
 
 
                 function render(store) {
-component_greeter("73a", {"lines": store.getState().lines}, store);
+component_greeter("1b8", {}, store);
                 }
 
                 function root_bindings(store) {
 
-setEventListener("73a.81a.8f5", document.querySelector("[key='73a.81a.8f5']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
+setEventListener("1b8.46a.b70", document.querySelector("[key='1b8.46a.b70']"), "click", function(event) { store.dispatch({"type": "LINES.ADD"}); 
 });
                 }
 
