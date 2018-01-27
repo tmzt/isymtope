@@ -1,12 +1,17 @@
 use html;
 
 store {
-    let todos = [{text: "One", complete: false, id: 0}, {text: "Two", complete: true, id: 1}];
+    let todos = [
+        {text: "One", complete: false, id: 0},
+        {text: "Two", complete: true, id: 1},
+        {text: "Three", complete: true, id: 2},
+        {text: "Four", complete: false, id: 3}
+    ];
     let entry = "";
     let showing = "all";
 
     todos {
-        action add(entry) => state + (entry + {complete: false, id: (value.map(item.id).max(x) + 1)});
+        action add(entry) => state + (entry + {complete: false, id: (value.max(item.id) + 1)});
         action toggle_all(checked) => state | set complete = (checked);
         action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id) |unique id;
     }
@@ -24,7 +29,7 @@ component todo_item (todo) {
     li (class={completed: todo.complete}) {
         div (class="view") {
             input(class="toggle", type="checkbox") bind todo.complete as complete
-                change || { dispatch toggle_complete(id: todo.id); } {}
+                change || { dispatch toggle_complete(id: todo.id) to todos; } {}
             label { (todo.text) }
             button(class="destroy") {}
         }
@@ -39,25 +44,48 @@ component todo_list (todos, showing) {
 
 component new_todo (entry) {
     input(class="new-todo", placeholder="What needs to be done?", autofocus="autofocus") bind entry
-        enterkey || { dispatch add(entry: {text: entry}); } {}
+        enterkey || {
+            dispatch add(entry: {text: entry}) to todos;
+            dispatch clear() to entry;
+        } {}
 }
 
 component toggle_all (checked) {
     input(class="toggle-all", id="toggle-all", type="checkbox")
-        change || { dispatch toggle_all(checked: value); } {}
-    label(class="", for="toggle-all") { ("Mark all as complete") }
+        change || { dispatch toggle_all() to todos; } {}
+    label(class="", for="toggle-all") { "Mark all as complete" }
 }
 
-link(rel="stylesheet", href="https://unpkg.com/todomvc-common@1.0.3/base.css", type="text/css") {}
+component filter (showing, path, mode, label) {
+    li {
+        a(href = path, class = {selected: (showing == mode)}) || { navigate path; } { (label) }
+    }
+}
+
+component filters (showing) {
+    ul(class="filters") {
+        filter(showing = showing, path = "/", mode = "all", label = "All") {}
+        filter(showing = showing, path = "/active", mode = "active", label = "Active") {}
+        filter(showing = showing, path = "/completed", mode = "completed", label = "Completed") {}
+    }
+}
+
+component remaining_todos (todos) {
+    span(class="todo-count") {
+        strong() { (todos.count(!(item.complete))) }
+        (" todos left")
+    }
+}
+
 link(rel="stylesheet", href="https://unpkg.com/todomvc-app-css@2.1.0/index.css", type="text/css") {}
 
-route "/all" || { dispatch filter(mode: "all") to showing; }
+route "/" || { dispatch filter(mode: "all") to showing; }
 route "/completed" || { dispatch filter(mode: "completed") to showing; }
 route "/active" || { dispatch filter(mode: "active") to showing; }
 
 query visible_todos(todos, showing) {
     (todos) where (showing == "all");
-    (todos.filter(item.complete)) where (showing == "complete");
+    (todos.filter(item.complete)) where (showing == "completed");
     (todos.filter(!(item.complete))) where (showing == "active");
 }
 
@@ -70,5 +98,10 @@ section(class="todoapp") {
     section(class="main") {
         toggle_all(checked=true) {}
         todo_list(query visible_todos(get todos, get showing) as todos) {}
+    }
+
+    footer(class="footer") {
+        remaining_todos(get todos) {}
+        filters(get showing) {}
     }
 }

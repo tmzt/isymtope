@@ -1,19 +1,21 @@
-#[cfg(test)]
-#[macro_use]
-pub mod tests;
 
-extern crate uuid;
-extern crate itertools;
+use std::io;
+use error::*;
+
+use expressions::*;
 
 pub mod writers;
-pub mod path_writer;
-pub mod page_writer;
-pub mod store_writer;
-pub mod events_writer;
-
-pub use processing::structs::Result;
 pub use self::writers::*;
-pub use self::path_writer::*;
-pub use self::page_writer::*;
-pub use self::store_writer::*;
-pub use self::events_writer::*;
+
+pub mod context;
+pub use self::context::*;
+
+
+#[derive(Debug)]
+pub struct HtmlOutput {}
+#[derive(Debug)]
+pub struct JsOutput {}
+
+pub trait ObjectWriter<T, O> {
+    fn write_object(&mut self, w: &mut io::Write, ctx: &mut OutputContext<ProcessedExpression>, obj: &T) -> DocumentProcessingResult<()>;
+}

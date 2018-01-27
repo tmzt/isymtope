@@ -1,0 +1,589 @@
+
+use util::*;
+use common::*;
+use expressions::*;
+use objects::*;
+use ast::*;
+
+use input::parser::loc::Loc;
+use input::parser::token::{self, Token};
+
+
+grammar;
+
+
+///
+/// Utilities
+///
+
+#[inline]
+AtLeastOneOf<S, T> : Vec<T> = {
+    <v:(<T> S)*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
+};
+
+
+///
+/// Basic Operators
+///
+
+#[inline]
+UnaryOpType: UnaryOpType =
+{
+    "!" => UnaryOpType::Negate
+};
+
+#[inline]
+TopLevelBinaryOpType : BinaryOpType =
+{
+    "+" => BinaryOpType::Add,
+    "-" => BinaryOpType::Sub,
+
+    // Comparisons
+    "==" => BinaryOpType::EqualTo,
+    "!=" => BinaryOpType::NotEqualTo,
+    "<" => BinaryOpType::LessThan,
+    ">" => BinaryOpType::GreaterThan,
+    "<=" => BinaryOpType::LessThanOrEqualTo,
+    ">=" => BinaryOpType::GreaterThanOrEqualTo
+};
+
+#[inline]
+FactorBinaryOpType : BinaryOpType =
+{
+    "*" => BinaryOpType::Mul,
+    "/" => BinaryOpType::Div,
+};
+
+///
+/// Lens
+///
+
+#[inline]
+SourceLensValue : SourceLensValue<SourceExpression> = {
+    ForKeyword <alias:(<Id> InKeyword)?> <e:ExpressionTerm> => SourceLensValue::ForLens(alias, Box::new(e), Default::default()),
+    GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)?> => SourceLensValue::GetLens(alias, Box::new(e), Default::default()),
+    QueryKeyword <name:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>> ")" <alias:(AsKeyword <Id>)?> => {
+        // let params: Vec<QueryParamValue<T>> = TryProcessFrom::try_process_from(params)?;
+        let query_call: LensQueryCall<SourceExpression> = LensQueryCall::new(name, params);
+        SourceLensValue::QueryLens(alias, query_call, Default::default())
+    }
+};
+
+
+///
+/// Basic expressions
+///
+
+ExpressionValue : ExpressionValue<SourceExpression> =
+{
+    /// Filter (SQL-like pipeline) begining with component
+    <e:ExpressionComponent> "|" <v:AtLeastOneOf<"|", FilterComponentValue>> => ExpressionValue::Expression(Expression::Filter(FilterValue::new(e, v), Default::default())),
+
+    /// Single component
+    ExpressionComponent
+};
+
+ExpressionComponent : ExpressionValue<SourceExpression> =
+{
+    /// Top-level binary expression (a +/- b)
+    <a:ExpressionValue> <op:TopLevelBinaryOpType> <b:ExpressionFactor> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+
+    /// Source lens expression (keyword and expression term)
+    <e:SourceLensValue> => ExpressionValue::SourceLens(e, Default::default()),
+
+    // ForKeyword <alias:(<Id> InKeyword)?> <e:ExpressionTerm> => ExpressionValue::Lens(SourceLensValue::ForLens(alias, Box::new(e), Default::default())),
+    // GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)?> => ExpressionValue::Lens(SourceLensValue::GetLens(alias, Box::new(e), Default::default())),
+    // QueryKeyword <q:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>?> ")" AsKeyword <alias:Id> => ExpressionValue::Lens(SourceLensValue::QueryLens(None, q, Default::default())),
+    // QueryKeyword <q:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>?> ")" => ExpressionValue::Lens(SourceLensValue::QueryLens(None, q, Default::default())),
+
+    /// Single factor
+    ExpressionFactor
+
+    // // <e:FilterHeadValue> "|" <v:AtLeastOneOf<"|", FilterComponentValue>> => ExpressionValue::Expression(Expression::Filter(FilterValue::new(e, v), Default::default())),
+
+    // // <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionFactor> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+
+    // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
+    // <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    // ExpressionFactor
+};
+
+ExpressionFactor : ExpressionValue<SourceExpression> =
+{
+    /// Path (method and member chain)
+    // <e:ExpressionTerm> "." <v:(<AtLeastOneOf<".", PathComponentValue>>)?> => ExpressionValue::Expression(Expression::Path(PathValue::new(e, v), Default::default())),
+
+    /// Pipeline (method and member chain)
+    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+
+    /// Factor binary operation
+    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+
+    /// Single term
+    ExpressionTerm
+
+    // // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
+    // // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    // ExpressionTerm
+};
+
+ExpressionTerm : ExpressionValue<SourceExpression> =
+{
+    /// Unary operation
+    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
+
+    /// Grouping operation
+    "(" <e:ExpressionValue?> ")" => ExpressionValue::Expression(Expression::Group(e.map(Box::new))),
+
+    /// Composite (object/array)
+    "{" <v:(AtLeastOneOf<",", PropValue>)?> "}" => ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(v.map(Box::new)))),
+    "[" <v:(AtLeastOneOf<",", ParamValue>)?> "]" => ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(v.map(Box::new)))),
+
+    /// Primitive value
+    <e:Primitive> => ExpressionValue::Primitive(e),
+
+    ///
+    /// Binding values
+    ///
+
+    StateKeyword => ExpressionValue::Binding(CommonBindings::CurrentReducerState(Default::default()), Default::default()),
+    // FIXME: Treat value as state binding
+    ValueKeyword => ExpressionValue::Binding(CommonBindings::CurrentReducerState(Default::default()), Default::default()),
+    /// Binding to item in current where clause, map, or loop
+    ItemKeyword => ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default()),
+
+    ///
+    /// Single identifier
+    ///
+
+    <s:Id> => ExpressionValue::Expression(Expression::Ident(s, Default::default())),
+};
+
+#[inline]
+Primitive: Primitive = {
+    <n:LitNum> => Primitive::Int32Val(n),
+    <s:LitStr> => Primitive::StringVal(s),
+    <b:LitBool> => Primitive::BoolVal(b)
+};
+
+///
+/// Common expression constructions
+///
+
+#[inline]
+FormalParams : FormalParams<SourceExpression> = {
+    <params:(AtLeastOneOf<",", Id>)?> => FormalParams::new(params)
+};
+
+#[inline]
+PropValue : PropValue<SourceExpression> = {
+    <key:Id> ":" <e:ExpressionValue> => PropValue::new(key, e)
+};
+
+#[inline]
+PropValueTerm : PropValue<SourceExpression> = {
+    <key:Id> ":" <e:ExpressionTerm> => PropValue::new(key, e)
+};
+
+#[inline]
+ParamValue : ParamValue<SourceExpression> = {
+    <e:ExpressionValue> => ParamValue::new(e)
+};
+
+
+///
+/// Template node
+///
+
+#[inline]
+UseStmtNode : TemplateNode<SourceExpression> = { UseKeyword <s:Id> ";" => TemplateNode::UseStmt(s) };
+
+pub Template: Template = {
+    <uses:(Loc<UseStmtNode>*)> <other:(Loc<MainTemplateNode>*)> => {
+        // let uses = uses.into_iter();
+        // let other = other.into_iter();
+
+        // let children: Vec<TemplateNode<SourceExpression>> = uses.into_iter()
+        //     .chain(other.into_iter())
+        //     .flat_map(|n| n.inner)
+        //     .collect();
+
+        let children: Vec<_> = other.into_iter()
+            .map(|n| n.inner).collect();
+
+        Template::new(children)
+    }
+};
+
+#[inline]
+MainTemplateNode: TemplateNode<SourceExpression> = {
+    <n:ComponentDefinition> => TemplateNode::ComponentDefinition(n, Default::default()),
+
+    <n:RouteDefinition> => TemplateNode::RouteDefinition(n, Default::default()),
+
+    <n:StoreDefinition> => TemplateNode::StoreDefinition(n, Default::default()),
+
+    <n:QueryDefinition> => TemplateNode::QueryDefinition(n, Default::default()),
+
+    <n:ContentNode> => TemplateNode::Content(n, Default::default()),
+};
+
+
+// FIXME: This would make sense if we were supporting let statements, etc.
+// within components, but it should be it's own enum anyway
+
+// #[inline]
+// ComponentTemplateNode: TemplateNode<SourceExpression> = {
+//     <n:ContentNode> => TemplateNode::Content(n, Default::default())
+// };
+
+///
+/// Component
+///
+
+#[inline]
+ComponentDefinition : ComponentDefinition<SourceExpression> = {
+    ComponentKeyword <name:Id> "(" <params:FormalParams> ")" "{" <children:ContentNode*> "}" => ComponentDefinition::new(name, params, Some(children))
+};
+
+///
+/// Store
+///
+
+#[inline]
+StoreDefinition: StoreDefinition<SourceExpression> = {
+    StoreKeyword "{" <children:StoreRootScopeNode*> "}" => StoreDefinition::new(Some(children))
+};
+
+#[inline]
+StoreCommonNode: StoreCommonNode<SourceExpression> = {
+    LetKeyword <var:Id> <e:("=" <ExpressionValue>)?> ";" => StoreCommonNode::LetNode(var, e, Default::default()),
+    // ApiKeyword <name:Id> "{" <v:(StoreApiChildNode+)?> "}" => StoreCommonNode::ApiNode(name, v, Default::default()),
+
+    ExternKeyword <name:Id> ";" => StoreCommonNode::ExternReducerNode(ExternReducerNode::new(name), Default::default()),
+
+    <name:Id> "{" <v:(StoreChildScopeNode+)?> "}" => StoreCommonNode::ChildScopeNode(name, v)
+};
+
+#[inline]
+StoreRootScopeNode: StoreRootScopeNode<SourceExpression> = {
+    <n:StoreCommonNode> => StoreRootScopeNode::Common(n, Default::default())
+};
+
+#[inline]
+StoreChildScopeNode: StoreChildScopeNode<SourceExpression> = {
+    <n:StoreCommonNode> => StoreChildScopeNode::Common(n, Default::default()),
+
+    // FIXME: FormalParams needs to be optional
+    // ActionKeyword <name:Id> <e:("=>" <ExpressionTerm>)?> ";" => {
+    //     StoreChildScopeNode::Action(name, FormalParams::default(), e, Default::default())
+    // },
+
+    ActionKeyword <name:Id> <params:("(" <FormalParams> ")")?> <e:("=>" <ExpressionValue>)?> ";" => {
+        // StoreChildScopeNode::Action(name, params.unwrap_or_default(), e, Default::default())
+        let action = ReducerAction::new(name, params.unwrap_or_default(), e);
+
+        StoreChildScopeNode::Action(action, Default::default())
+    }
+};
+
+///
+/// Query
+///
+
+#[inline]
+QueryComponent: QueryComponent<SourceExpression> = {
+    "(" <e:ExpressionFactor> ")" WhereKeyword "(" <cond:ExpressionValue> ")" ";"  => QueryComponent::CaseWhere(Box::new(e), Box::new(cond), Default::default())
+};
+
+#[inline]
+QueryDefinition: QueryDefinition<SourceExpression> = {
+    QueryKeyword <name:Id> "(" <params:FormalParams> ")" "{" <components:QueryComponent*> "}" => QueryDefinition::new(name, params, components)
+};
+
+#[inline]
+ParsedQueryParamValue : ParsedQueryParamValue<SourceExpression> = {
+    GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)?> => ParsedQueryParamValue::Lens(SourceLensValue::GetLens(alias, Box::new(e), Default::default())),
+
+    // GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)> => ParsedQueryParamValue::GetLens(Some(alias), Box::new(e), Default::default()),
+    // GetKeyword <e:ExpressionTerm> => ParsedQueryParamValue::GetLens(None, Box::new(e), Default::default()),
+
+    <p:PropValue> => ParsedQueryParamValue::Prop(p, Default::default())
+};
+
+///
+/// Route
+///
+
+#[inline]
+RouteDefinition: RouteDefinition<SourceExpression> =
+{
+    RouteKeyword <pattern:LitStr> "|" <params:FormalParams> "|" "{" <actions:ActionOp*> "}" =>
+    {
+        RouteDefinition::new(pattern, params, RouteAction::Actions(Some(actions), Default::default()))
+    },
+
+    RouteKeyword <pattern:LitStr> "(" <params:FormalParams> ")" "{" <children:ContentNode*> "}" =>
+    {
+        RouteDefinition::new(pattern, params, RouteAction::Content(Some(children), Default::default()))
+    }
+};
+
+
+///
+/// Content
+///
+
+ContentNode : ContentNode<SourceExpression> = {
+    // Extern
+    ExternKeyword "{" <children:ContentNode*> "}" => ContentNode::Extern(ExternNode::new(Some(children)), Default::default()),
+
+    // ForKeyword <for_var:(<Id> InKeyword)?> <coll_var:ExprValue> "{" <body:ContentNodeType*> "}" => ContentNodeType::ForNode(for_var, coll_var, Some(body)),
+    // <e:SourceExpr> => ContentNodeType::S[ourceExprNode(e, allocate_element_key()),
+    // <e:ElementNode> => ContentNode::Element(e, Default::default()),
+
+    /// Expression (can be content expression)
+    // "{" <e:ExpressionValue> "}" => ContentNode::ExpressionValue(Box::new(e), allocate_element_key(), Default::default()),
+
+    /// Expression (can be content expression)
+    "(" <e:ExpressionValue> ")" => ContentNode::ExpressionValue(Box::new(e), allocate_element_key(), Default::default()),
+
+    /// Element
+    // <tag:Id> "{" <children:ContentNode*> "}" => ContentNode::Element(ElementNode::new(tag, None, Some(children)), Default::default()),
+
+    <tag:Id> <attrs:("(" <AtLeastOneOf<",", ElementAttrValue>> ")")?>  <bindings:ElementBinding*> "{" <children:ContentNode*> "}" => ContentNode::Element(ElementNode::new(tag, attrs, Some(children), Some(bindings)), Default::default()),
+
+    <tag:Id> "(" ")" <bindings:ElementBinding*> "{" <children:ContentNode*> "}" => ContentNode::Element(ElementNode::new(tag, None, Some(children), Some(bindings)), Default::default()),
+
+    /// Primitive value (does not need parenthesis or braces)
+    <p:Primitive> => ContentNode::Primitive(p, Default::default())
+};
+
+
+// TODO: These should be supported in expressions
+// ElementAttr : ElementAttr<SourceExpression> = {
+//     ForKeyword <alias:(<Id> InKeyword)> <e:ExpressionTerm> => ElementAttr::ForLens(Some(alias), Box::new(e), Default::default()),
+
+//     GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)> => ElementAttr::GetLens(Some(alias), Box::new(e), Default::default()),
+//     GetKeyword <e:ExpressionTerm> => ElementAttr::GetLens(None, Box::new(e), Default::default()),
+
+//     QueryKeyword <q:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>?> ")" AsKeyword <alias:Id> => ElementAttr::QueryLens(None, q, Default::default()),
+//     QueryKeyword <q:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>?> ")" => ElementAttr::QueryLens(None, q, Default::default()),
+
+//     ForKeyword "=" <e:ExpressionTerm> => ElementAttr::ElementPropValue(Box::new(ElementPropValue::new("for".into(), e)), Default::default()),
+//     <key:Id> "=" <e:ExpressionTerm> => ElementAttr::ElementPropValue(Box::new(ElementPropValue::new(key, e)), Default::default())
+//     // <e:ElementPropValue> => ElementAttr::ElementPropValue(Box::new(e), Default::default())
+// };
+
+
+#[inline]
+ElementPropValue : ElementPropValue<SourceExpression> = {
+    <key:Id> "=" <e:ExpressionTerm> => ElementPropValue::new(key, e),
+    ForKeyword "=" <e:ExpressionTerm> => ElementPropValue::new("for".into(), e)
+};
+
+#[inline]
+ElementAttrValue : ElementAttrValue<SourceExpression> = {
+    <p:ElementPropValue> => ElementAttrValue::Prop(p),
+    <e:ExpressionValue> => ElementAttrValue::Positional(e)
+};
+
+#[inline]
+ElementBinding: ElementBinding<SourceExpression> = {
+    /// Value
+    BindKeyword <e:AtLeastOneOf<".", Id>> AsKeyword <alias:Id> => {
+        let binding: CommonBindings<SourceExpression> = CommonBindings::CurrentElementValue(Default::default());
+        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), Some(alias)), Default::default())
+    },
+    
+    BindKeyword <e:AtLeastOneOf<".", Id>> => {
+        let alias = e.get(0).map(|s| s.to_owned());
+        let binding: CommonBindings<SourceExpression> = CommonBindings::CurrentElementValue(Default::default());
+        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), alias), Default::default())
+    },
+
+    // Default event
+    "|" <params:FormalParams> "|" "{" <action_ops:ActionOp*> "}" => ElementBinding::Event(ElementEventBinding::new(None, params, Some(action_ops)), Default::default()),
+
+    /// Event
+    <event:Id> "|" <params:FormalParams> "|" "{" <action_ops:ActionOp*> "}" => ElementBinding::Event(ElementEventBinding::new(Some(event), params, Some(action_ops)), Default::default())
+};
+
+#[inline]
+ActionOp: ActionOp<SourceExpression> = {
+    DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ";" => ActionOp::DispatchAction(key, attrs.map(Box::new), Default::default()),
+    DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, attrs.map(Box::new), path, Default::default()),
+    NavigateKeyword <path:ExpressionFactor> ";" => ActionOp::Navigate(path, Default::default()),
+};
+
+///
+/// Path (method chain)
+///
+
+#[inline]
+PathComponentValue : PathComponentValue<SourceExpression> = {
+    <s:Id> "(" <params:(AtLeastOneOf<",", ParamValue>)?> ")" => PathComponentValue::MethodCall(s, params, Default::default()),
+    <s:Id> => PathComponentValue::Member(s, Default::default())
+};
+
+///
+/// Pipeline (method chain)
+///
+
+#[inline]
+PipelineComponentValue : PipelineComponentValue<SourceExpression> = {
+    <s:Id> "(" <params:(AtLeastOneOf<",", ParamValue>)?> ")" => PipelineComponentValue::MethodCall(s, params, Default::default()),
+    <s:Id> => PipelineComponentValue::Member(s)
+};
+
+
+///
+/// Filter (SQL-like) expressions
+///
+
+// #[inline]
+// FilterValue : FilterValue<SourceExpression> = {
+//     <e:FilterHeadValue> "|" <v:AtLeastOneOf<"|", FilterComponentValue>> => FilterValue::new(e, v)
+// };
+
+// #[inline]
+// FilterHeadValue : FilterHeadValue<SourceExpression> = {
+//     <e:ExpressionTerm> => FilterHeadValue::ExpressionValue(Box::new(e), Default::default()),
+
+//     // StateKeyword => FilterHeadValue::Binding(CommonBindings::CurrentReducerState(Default::default()), Default::default()),
+//     // // FIXME: Treat value as state binding
+//     // ValueKeyword => FilterHeadValue::Binding(CommonBindings::CurrentReducerState(Default::default()), Default::default()),
+//     // /// Binding to item in current where clause, map, or loop
+//     // ItemKeyword => FilterHeadValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())
+// };
+
+#[inline]
+FilterComponentValue : FilterComponentValue<SourceExpression> = {
+    // <where_clause: FilterWhereClause> => FilterComponentValue::Where(where_clause, Default::default()),
+
+    // SetKeyword <s:(<Id> "=" <ExpressionTerm>)> => FilterComponentValue::Set(vec![FilterSetAssignment::SetMemberTo(s.0, s.1, Default::default())], None, Default::default()),
+
+    SetKeyword <s:(<Id> "=" <ExpressionTerm>)> <where_clause: FilterWhereClause?> => FilterComponentValue::Set(vec![FilterSetAssignment::SetMemberTo(s.0, s.1, Default::default())], where_clause, Default::default()),
+
+    // // SetKeyword <v:AtLeastOneOf<",", (<Id> "=" <ExpressionTermOrPipeline>)>> => FilterComponentValue::Set(v.map(|(a, b) => FilterSetAssignment::SetMemberTo(a, b, Default::default())), None, Default::default()),
+
+    // // SetKeyword <set_assignments:(AtLeastOneOf<",", FilterSetAssignment>)> <where_clause: FilterWhereClause?> => FilterComponentValue::Set(set_assignments, where_clause, Default::default()),
+
+    // // SetKeyword <set_assignments:(AtLeastOneOf<",", FilterSetAssignment>)> => FilterComponentValue::Set(set_assignments, None, Default::default()),
+
+    DeleteKeyword <ident:Id> => FilterComponentValue::Delete(ident),
+    UniqueKeyword <ident:Id> => FilterComponentValue::Unique(ident)
+};
+
+#[inline]
+FilterWhereClause: FilterWhereClause<SourceExpression> = {
+    WhereKeyword <anded_conditions:AtLeastOneOf<AndKeyword, ExpressionTerm>> => FilterWhereClause::new(anded_conditions)
+};
+
+#[inline]
+FilterSetAssignment: FilterSetAssignment<SourceExpression> = {
+    <key:Id> "=" <e:ExpressionTerm> => FilterSetAssignment::SetMemberTo(key, e, Default::default())
+
+};
+
+///
+/// Common values
+///
+
+#[inline]
+MethodType : MethodType = {
+    GetKeyword => MethodType::Get,
+    PostKeyword => MethodType::Post,
+    PutKeyword => MethodType::Put,
+    DelKeyword => MethodType::Delete,
+    PatchKeyword => MethodType::Patch
+};
+
+#[inline]
+Loc<Inner> : Loc<Inner, (usize, usize)> = <s:@L> <inner:Inner> <e:@R> => Loc { pos: (s, e), inner: inner };
+
+extern {
+    type Location = usize;
+    type Error = token::Error;
+
+    enum Token {
+        "=>" => Token::HashRocket,
+        "==" => Token::EqualTo,
+        "!=" => Token::NotEqualTo,
+        ">=" => Token::GreaterThanOrEqualTo,
+        "<=" => Token::LessThanOrEqualTo,
+
+        "|" => Token::Pipe,
+
+        ">" => Token::GreaterThan,
+        "<" => Token::LessThan,
+
+        "{" => Token::OpenBrace,
+        "}" => Token::CloseBrace,
+        "[" => Token::OpenBracket,
+        "]" => Token::CloseBracket,
+        "(" => Token::OpenParen,
+        ")" => Token::CloseParen,
+        "," => Token::Comma,
+        "." => Token::Dot,
+        "=" => Token::Equals,
+        ":" => Token::Colon,
+        ";" => Token::Semi,
+        "!" => Token::Bang,
+        "+" => Token::Plus,
+        "-" => Token::Minus,
+        "*" => Token::Mul,
+        "/" => Token::Div,
+
+        Id => Token::Identifier(<String>),
+        LitNum => Token::LiteralNumber(<i32>),
+        LitStr => Token::LiteralString(<String>),
+        LitBool => Token::LiteralBool(<bool>),
+        UseKeyword => Token::UseKeyword,
+        LetKeyword => Token::LetKeyword,
+        ForKeyword => Token::ForKeyword,
+        InKeyword => Token::InKeyword,
+        BindKeyword => Token::BindKeyword,
+        AsKeyword => Token::AsKeyword,
+        WhereKeyword => Token::WhereKeyword,
+        ToKeyword => Token::ToKeyword,
+
+        QueryKeyword => Token::QueryKeyword,
+
+        SetKeyword => Token::SetKeyword,
+        DeleteKeyword => Token::DeleteKeyword,
+        UniqueKeyword => Token::UniqueKeyword,
+        AndKeyword => Token::AndKeyword,
+
+        ComponentKeyword => Token::ComponentKeyword,
+        RouteKeyword => Token::RouteKeyword,
+        StoreKeyword => Token::StoreKeyword,
+        ActionKeyword => Token::ActionKeyword,
+        ExternKeyword => Token::ExternKeyword,
+        ApiKeyword => Token::ApiKeyword,
+        ResourceKeyword => Token::ResourceKeyword,
+        MethodsKeyword => Token::MethodsKeyword,
+
+        GetKeyword => Token::GetKeyword,
+        PostKeyword => Token::PostKeyword,
+        PutKeyword => Token::PutKeyword,
+        DelKeyword => Token::DelKeyword,
+        PatchKeyword => Token::PatchKeyword,
+
+        EventKeyword => Token::EventKeyword,
+        DispatchKeyword => Token::DispatchKeyword,
+        NavigateKeyword => Token::NavigateKeyword,
+
+        StateKeyword => Token::StateKeyword,
+        ValueKeyword => Token::ValueKeyword,
+        ItemKeyword => Token::ItemKeyword,
+
+        // TrueKeyword => Token::LiteralBool(true),
+        // FalseKeyword => Token::LiteralBool(false),
+    }
+}
