@@ -14,7 +14,6 @@ use error::*;
 use common::*;
 use traits::*;
 use expressions::*;
-use scope::*;
 use objects::*;
 use input::*;
 

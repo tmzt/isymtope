@@ -12,9 +12,8 @@ use futures::{self, Future};
 use hyper::Error as HyperError;
 use regex::RegexSet;
 
-use input::*;
-use scope::*;
-use processing::*;
+use isymtope_build::input::*;
+use isymtope_build::processing::*;
 use server::*;
 
 

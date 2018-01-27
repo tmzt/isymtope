@@ -14,11 +14,10 @@ use hyper;
 use hyper::server::{Server, Http, Request, Response, NewService, Service};
 use regex::RegexSet;
 
-use error::*;
-use ast::*;
-use scope::*;
-use input::*;
-use processing::*;
+use isymtope_build::error::*;
+use isymtope_build::ast::*;
+use isymtope_build::input::*;
+use isymtope_build::processing::*;
 
 pub mod errors;
 pub mod srs_generator;
@@ -45,7 +44,6 @@ pub trait ServiceInject: Debug {
     type ServiceImpl: Service;    
 }
 
-#[cfg(feature="server")]
 pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
     let addr = addr.parse()?;
 

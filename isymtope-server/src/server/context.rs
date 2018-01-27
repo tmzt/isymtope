@@ -7,11 +7,11 @@ use time::Duration;
 use futures;
 use futures::future::{self, Future, FutureResult};
 
-use traits::*;
-use error::*;
-use expressions::*;
-use objects::*;
-use output::*;
+use isymtope_build::traits::*;
+use isymtope_build::error::*;
+use isymtope_build::expressions::*;
+use isymtope_build::objects::*;
+use isymtope_build::output::*;
 use server::*;
 
 

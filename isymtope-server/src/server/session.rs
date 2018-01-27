@@ -3,10 +3,10 @@ use std::collections::hash_map::{HashMap, Entry};
 
 use time::{Timespec, Duration, get_time};
 
-use error::*;
-use traits::*;
-use expressions::*;
-use server::*;
+use isymtope_build::error::*;
+use isymtope_build::ast::*;
+use isymtope_build::traits::*;
+use isymtope_build::expressions::*;
 
 
 #[derive(Debug)]

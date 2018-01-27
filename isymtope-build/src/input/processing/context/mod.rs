@@ -16,7 +16,6 @@ use common::*;
 use traits::*;
 use expressions::*;
 use ast::*;
-use scope::*;
 use objects::*;
 use input::*;
 

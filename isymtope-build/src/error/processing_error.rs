@@ -1,9 +1,9 @@
 
-use failure::{Error, Backtrace};
-
-use std::fmt::{Formatter, Display, Debug, Error as FormatError, Result as FormatResult};
+use std::fmt::Error as FormatError;
 use std::str::Utf8Error;
 use std::io::Error as IOError;
+
+use failure::Backtrace;
 
 use input::parser::token::Error as ParsingError;
 

@@ -8,8 +8,8 @@ use std::fmt::Debug;
 use hyper::{Response, StatusCode};
 use regex::RegexSet;
 
-use common::*;
-use expressions::*;
+use isymtope_build::common::*;
+use isymtope_build::expressions::*;
 use server::*;
 
 

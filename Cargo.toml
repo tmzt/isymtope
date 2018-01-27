@@ -1,49 +1,12 @@
 [package]
 authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
-build = "build.rs"
 name = "isymtope"
 version = "0.3.0"
 
-[build-dependencies]
-lalrpop = "0.13.1"
+[dependencies.isymtope-build]
+path = "./isymtope-build"
 
-[dependencies]
-backtrace = "0.3.4"
-colored = "1.6.0"
-dotenv = "0.10.1"
-failure = "0.1.1"
-itertools = "0.6.0"
-lalrpop-util = "0.13.1"
-lazy_static = "0.2.11"
-linked-hash-map = "0.5.0"
-log = "0.3.8"
-pretty_env_logger = "0.1.1"
-rand = "0.3.17"
-regex = "0.2.2"
-serde_json = "1.0.6"
-time = "0.1.38"
-tokio-core = "0.1.10"
-trimmer = "0.3.5"
+[dependencies.isymtope-server]
+path = "./isymtope-server"
 
-[dependencies.data-encoding]
-optional = true
-version = "2.1.0"
-
-[dependencies.futures]
-optional = true
-version = "0.1.17"
-
-[dependencies.hyper]
-optional = true
-version = "0.11.7"
-
-[dependencies.uuid]
-features = ["v4"]
-version = "0.5.1"
-
-[features]
-server = [
-    "futures",
-    "hyper",
-    "data-encoding",
-]
+[workspace]

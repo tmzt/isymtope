@@ -1,11 +1,11 @@
 
 use std::collections::HashMap;
 
-use traits::*;
-use objects::*;
-use expressions::*;
-use processing::*;
-use output::*;
+use isymtope_build::traits::*;
+use isymtope_build::objects::*;
+use isymtope_build::expressions::*;
+use isymtope_build::processing::*;
+use isymtope_build::output::*;
 use server::*;
 
 

@@ -9,9 +9,8 @@ use std::net::AddrParseError;
 use hyper::Error as HyperError;
 use futures::Canceled as FutureCanceled;
 use futures::sync::oneshot::Canceled as OneshotCanceled;
-use ::error::processing_error::DocumentProcessingError;
 
-use error::*;
+use isymtope_build::error::*;
 
 
 #[allow(dead_code)]

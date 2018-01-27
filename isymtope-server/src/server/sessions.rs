@@ -2,8 +2,8 @@
 use time::{Timespec, Duration, get_time};
 use std::collections::HashMap;
 
-use traits::*;
-use expressions::*;
+use isymtope_build::traits::*;
+use isymtope_build::expressions::*;
 use server::*;
 
 
