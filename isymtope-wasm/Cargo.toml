@@ -1,0 +1,13 @@
+[package]
+authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+name = "isymtope-wasm"
+version = "0.1.0"
+
+[dependencies.isymtope-build]
+default-features = false
+features = ["extern_rand"]
+path = "../isymtope-build/"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
