@@ -171,7 +171,7 @@ impl<'ctx, 'a, S: Iterator<Item = &'a PipelineComponentValue<ProcessedExpression
                                 Some(ReducedMethodCall::FirstWhere(cond))
                             } else {
                                 Some(ReducedMethodCall::First)
-                            }                            
+                            }
                         }
 
                         _ => None,

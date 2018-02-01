@@ -1,3 +1,4 @@
+pub mod common;
 pub mod expression;
 pub mod query;
 pub mod lens;
@@ -6,6 +7,8 @@ pub mod pipeline;
 pub mod pipeline_reduce;
 pub mod path;
 pub mod filter;
+
+pub use self::common::*;
 pub use self::expression::*;
 pub use self::query::*;
 pub use self::lens::*;

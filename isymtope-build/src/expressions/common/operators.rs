@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UnaryOpType {
-    Negate
+    Negate,
 }
 
 #[allow(dead_code)]
@@ -16,7 +16,7 @@ pub enum BinaryOpType {
     LessThan,
     GreaterThan,
     LessThanOrEqualTo,
-    GreaterThanOrEqualTo
+    GreaterThanOrEqualTo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
