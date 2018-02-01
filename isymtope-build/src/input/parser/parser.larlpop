@@ -64,7 +64,7 @@ FactorBinaryOpType : BinaryOpType =
 
 #[inline]
 SourceLensValue : SourceLensValue<SourceExpression> = {
-    ForKeyword <alias:(<Id> InKeyword)?> <e:ExpressionTerm> => SourceLensValue::ForLens(alias, Box::new(e), Default::default()),
+    ForKeyword <alias:(<Id> InKeyword)?> <e:ExpressionFactor> => SourceLensValue::ForLens(alias, Box::new(e), Default::default()),
     GetKeyword <e:ExpressionTerm> <alias:(AsKeyword <Id>)?> => SourceLensValue::GetLens(alias, Box::new(e), Default::default()),
     QueryKeyword <name:Id> "(" <params:AtLeastOneOf<",", ParsedQueryParamValue>> ")" <alias:(AsKeyword <Id>)?> => {
         // let params: Vec<QueryParamValue<T>> = TryProcessFrom::try_process_from(params)?;
@@ -384,7 +384,8 @@ ContentNode : ContentNode<SourceExpression> = {
 #[inline]
 ElementPropValue : ElementPropValue<SourceExpression> = {
     <key:Id> "=" <e:ExpressionTerm> => ElementPropValue::new(key, e),
-    ForKeyword "=" <e:ExpressionTerm> => ElementPropValue::new("for".into(), e)
+    ForKeyword "=" <e:ExpressionTerm> => ElementPropValue::new("for".into(), e),
+    ValueKeyword "=" <e:ExpressionTerm> => ElementPropValue::new("value".into(), e)
 };
 
 #[inline]

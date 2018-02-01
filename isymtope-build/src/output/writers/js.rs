@@ -510,6 +510,16 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
                         self.write_object(w, ctx, expr)?;
                         write!(w, ")")?;
                     }
+
+                    ReducedMethodCall::FirstWhere(ref cond) => {
+                        write!(w, ".first(_item => ")?;
+                        self.write_object(w, ctx, cond)?;
+                        write!(w, ")")?;
+                    }
+
+                    ReducedMethodCall::First => {
+                        write!(w, ".first()")?;
+                    }
                 }
                 Ok(())
             }

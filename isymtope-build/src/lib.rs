@@ -3,10 +3,15 @@
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
 
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[macro_use]
 extern crate log;
 
-#[cfg(feature = "uuid_v4")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[macro_use]
+pub mod log;
+
 extern crate uuid;
 
 #[cfg(feature = "session_time")]
@@ -17,7 +22,7 @@ extern crate linked_hash_map;
 extern crate trimmer;
 extern crate serde_json;
 extern crate regex;
-
+extern crate rand;
 
 #[macro_use]
 extern crate lazy_static;
@@ -32,7 +37,6 @@ extern crate failure;
 #[macro_use]
 pub mod error;
 pub mod common;
-pub mod util;
 pub mod traits;
 
 pub mod expressions;
@@ -43,3 +47,15 @@ pub mod input;
 pub mod output;
 
 pub use input::processing;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod util_wasm;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub mod util_uuid;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub use self::util_wasm as util;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub use self::util_uuid as util;

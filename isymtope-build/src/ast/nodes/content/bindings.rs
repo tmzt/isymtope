@@ -150,7 +150,9 @@ impl<T: Clone + Debug> ElementEventBindingName<T> {
             _ => ("click".into(), false),
         };
 
+        debug!("[event binding] generating binding name");
         let binding_name = allocate_element_key();
+        debug!("[event binding] binding_name: {}", binding_name);
         let event_props = create_element_event_props(&event);
 
         ElementEventBindingName(binding_name, event_name, event, is_enterkey, event_props)

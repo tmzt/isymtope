@@ -165,6 +165,15 @@ impl<'ctx, 'a, S: Iterator<Item = &'a PipelineComponentValue<ProcessedExpression
                             Some(ReducedMethodCall::Count(expr))
                         }
 
+                        "first" => {
+                            if let Some(ref cond) = params.get(0) {
+                                let cond = cond.value().to_owned();
+                                Some(ReducedMethodCall::FirstWhere(cond))
+                            } else {
+                                Some(ReducedMethodCall::First)
+                            }                            
+                        }
+
                         _ => None,
                     };
                     self.ctx.pop_scope();

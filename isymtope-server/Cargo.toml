@@ -13,12 +13,12 @@ hyper = "0.11.15"
 hyper-staticfile = "0.1.1"
 log = "0.4.1"
 pretty_env_logger = "0.2.0"
-rand = "0.4.2"
+rand = "0.3.20"
 regex = "0.2.5"
 time = "0.1.39"
 tokio = "0.0.0"
 tokio-core = "0.1.12"
 
 [dependencies.isymtope-build]
-path = "../isymtope-build/"
 features = ["include_templates"]
+path = "../isymtope-build/"

@@ -1,17 +1,15 @@
 
-// function fetchAndInstantiate(url, importObject) {
-//   return fetch(url).then(response => response.arrayBuffer())
-//     .then(bytes => WebAssembly.instantiate(bytes, importObject))
-//     .then(results => results.instance );
-// }
+let cache = new Map
 
-function randomValue(n) {
-    return Math.floor(Math.random() * n)
-}
-
-const memory = new WebAssembly.Memory({initial: 2000})
-const imports = {
-    env: { memory: memory, rand_value: randomValue }
+async function loadFiles(files) {
+    for(let file of files) {
+        await window.fetch(file.path)
+            .then(async resp => {
+                let body = await resp.text()
+                cache.set(file.path, body)
+                return body
+            })
+    }
 }
 
 function fetchContent(path) {
@@ -25,12 +23,29 @@ function fetchContent(path) {
     }
 }
 
-function compileTemplate(src) {
-    let buf = newString(Module, src);
-    // let outptr = Module.compile_template_source_to_html(buf)
-    let outptr = Module.roundtrip(buf)
-    let result = copyCStr(Module, outptr)
-    return result
+function switchEditor(file) {
+    let contents = cache.get(file.path)
+    editor.setValue(contents)
+}
+
+function loadFileReducer(state, action, store) {
+    switch(action.type) {
+        default: return null
+    }
+}
+
+function loadWorkspaceReducer(state, action) {
+    switch(action.type) {
+        case 'LOADWORKSPACE.LOADWORKSPACE':
+            let workspaces = new Map(action.workspaces.map(w => [w.id, w]))
+            let workspace = workspaces.get(action.id)
+            let files = workspace.files
+            let mainFile = files.filter(f => !!f.main)[0]
+            loadFiles(files)
+                .then(() => switchEditor(mainFile))
+            return true
+        default: return null
+    }
 }
 
 function editorContentReducer(state, action) {
@@ -41,27 +56,63 @@ function editorContentReducer(state, action) {
     }
 }
 
+window.addEventListener('message', ({data}) => {
+    switch(data.topic) {
+        case '/main/updatePreview':
+            let output = data.output
+            let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
+            let iframe = document.querySelector('iframe#preview')
+            iframe.src = uri
+            break;
+    }
+})
+
 function compilerReducer(state, action) {
     switch(action.type) {
         case 'COMPILER.COMPILE':
             let source = editor.getValue();
-            let output = compileTemplate(source);
-            let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
+            if (compiler)
+            {
+                compiler.postMessage({ topic: '/compiler/updatePreview', source })
+            }
             return true;
         default: return null
     }
 }
 
-async function setupCompiler() {
-    window.Module = {}
-    let mod = await fetchAndInstantiate('/isymtope-small.wasm', imports)
-    Module.memory = memory
-    // Module.compile_template_source_to_html = mod.exports.compile_template_source_to_html
-    Module.roundtrip = mod.exports.roundtrip
-    Module.alloc   = mod.exports.alloc
-    Module.dealloc = mod.exports.dealloc
-    Module.dealloc_str = mod.exports.dealloc_str
-    // Module.memory  = new Uint8Array(mod.exports.memory.buffer)
+let compiler
+function setupCompilerWorker() {
+    compiler = new Worker('/app/playground/worker.js')
+}
+
+function setupEditor() {
+    let editorComponentDiv = document.getElementById('editorComponent')
+    let editorDiv = document.createElement('div')
+    editorDiv.setAttribute('id', 'editorDiv')
+    editorComponentDiv.appendChild(editorDiv)
+
+    return new Promise(resolve => {
+        require(["vs/editor/editor.main"], function () {
+            editor = monaco.editor.create(editorDiv, {
+                value: '',
+                theme: 'vs-dark'
+            });
+
+            editor.addListener('didType', () => {
+                console.log(editor.getValue());
+            });
+
+            window.fetch('/playground.ism').then(resp => {
+                resp.text().then(body => {
+                    editor.setValue(body)
+                })
+            })
+
+            window._editor = editor
+
+            resolve()
+        });
+    })
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -75,29 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         importScripts('https://unpkg.com/monaco-editor@0.8.3/min/vs/base/worker/workerMain.js');
     `], { type: 'text/javascript' }));
 
-    let editorComponentDiv = document.getElementById('editorComponent')
-    let editorDiv = document.createElement('div')
-    editorDiv.setAttribute('id', 'editor')
-    editorComponentDiv.appendChild(editorDiv)
-
-    await setupCompiler()
-
-    require(["vs/editor/editor.main"], function () {
-        editor = monaco.editor.create(editorDiv, {
-        	value: '',
-        	theme: 'vs-dark'
-        });
-
-        editor.addListener('didType', () => {
-        	console.log(editor.getValue());
-        });
-
-        window.fetch('/playground.ism').then(resp => {
-            resp.text().then(body => {
-                editor.setValue(body)
-            })
-        })
-
-        window._editor = editor
-    });
+    setupCompilerWorker()
+    await setupEditor()
+    // await setupCompiler()
 })

@@ -416,11 +416,13 @@ impl ContentProcessor {
     }
 
     pub fn into_block(self) -> Block<ProcessedExpression> {
+        eprintln!("ContentProcessor into_block");
         let block_id = allocate_element_key();
+        eprintln!("ContentProcessor into_block: block_id: {}", block_id);
         let ops = self.ops;
         // let event_bindings = self.event_bindings;
 
-        debug!("ContentProcessor into_block: ops: {:?}", ops);
+        eprintln!("ContentProcessor into_block: ops: {:?}", ops);
         Block::new(block_id, None, Some(ops))
     }
 }
@@ -661,6 +663,7 @@ impl TryProcessFrom<Template> for Document {
             let route: Route<ProcessedExpression> =
                 TryProcessFrom::try_process_from(routing_node, ctx)?;
 
+            debug!("Document: inserting route for {}: {:?}", pattern, route);
             routes.insert(pattern, route);
         }
 
@@ -675,7 +678,9 @@ impl TryProcessFrom<Template> for Document {
         // Construct Document
         //
 
-        Ok(Document::new(
+        eprintln!("Constructing Document");
+
+        let doc = Document::new(
             root_block,
             reducers,
             extern_reducers,
@@ -684,6 +689,9 @@ impl TryProcessFrom<Template> for Document {
             queries,
             routes,
             event_bindings,
-        ))
+        );
+
+        eprintln!("Completed Constructing Document");
+        Ok(doc)
     }
 }

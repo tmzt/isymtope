@@ -44,11 +44,12 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
 
     fn push_child_scope_with_environment(&mut self, environment: ProcessingScopeEnvironment) {
         let parent_id = self.cur_scope_id.to_owned();
+        eprintln!("parent_id: {}", parent_id);
         let child: ProcessingScope<ProcessedExpression> = ProcessingScope::new(Some(parent_id.clone()), Default::default());
         let child_id = child.id().to_owned();
         self.scopes.insert(child_id.clone(), child);
         self.cur_scope_id = child_id;
-        assert!(self.scopes.len() > 1);
+        assert!(self.scopes.len() > 1, "there must be more than one scope after pushing new scope with environment");
 
         eprintln!("[ProcessingContext] Pushing child scope [{}] (parent_id: [{:?}]), there are now {} scopes.", self.cur_scope_id, parent_id, self.scopes.len());
         // eprintln!("[OutputContext] scopes: [{:?}]", self.scope_id_vec);

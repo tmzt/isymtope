@@ -8,7 +8,11 @@
 
     class IsymtopeUtilWrapper {
         constructor(m) {
-            this.m = m
+            if (typeof m === 'undefined') {
+                this.m = []
+            } else {
+                this.m = m
+            }
         }
 
         map(func, cond = undefined) {
@@ -76,17 +80,28 @@
             return this
         }
 
-        count(func = undefined) {
-            func = orTrue(orMember(func))
+        count(cond = undefined) {
+            cond = orMember(orTrue(cond))
             let arr = Array.from(this.m.entries());
 
             let res = arr.reduce((acc, [_idx, _item]) => {
-                let v = func(_item)
+                let v = cond(_item)
                 return (!!v) ? (acc + 1) : acc
             }, 0)
 
             this.m = res
             return this
+        }
+
+        first(cond = undefined) {
+            cond = orMember(orTrue(cond))
+
+            let arr = Array.from(this.m.entries())
+            let entries = arr.filter(([_idx, _item]) => !!cond(_item, _idx))
+            let first = (entries && !!entries.length && entries[0]) || []
+
+            this.m = first
+            return this            
         }
 
         // Pipeline utilities

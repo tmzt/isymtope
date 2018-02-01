@@ -40,6 +40,8 @@ where
 
         let params: FormalParams<O> = TryProcessFrom::try_process_from(&src.1, ctx)?;
         let action: RouteActionValue<O> = TryProcessFrom::try_process_from(&src.2, ctx)?;
+        eprintln!("TryProcess RouteDefinition<O>: Params(b): {:?}", params);
+        eprintln!("TryProcess RouteDefinition<O>: Action(b): {:?}", action);
 
         Ok(Route::new(src.0.to_owned(), params, action))
     }

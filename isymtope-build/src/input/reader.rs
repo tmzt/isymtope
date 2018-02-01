@@ -75,9 +75,10 @@ impl Default for DocumentProvider {
 
 impl DocumentProvider {
     pub fn create<'a, S: Into<TemplateSource<'a>>>(source: S) -> DocumentProcessingResult<DocumentProvider> {
-        let template = from_source(source)?;
+        let doc = from_source(source)?;
+        eprintln!("[provider] document: {:?}", doc);
 
-        Ok(DocumentProvider(Rc::new(template)))
+        Ok(DocumentProvider(Rc::new(doc)))
     }
 
     pub fn doc<'a>(&'a self) -> &'a Document { self.0.as_ref() }

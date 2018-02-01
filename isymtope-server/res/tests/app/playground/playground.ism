@@ -1,41 +1,62 @@
 use html;
 
 store {
-    let files = [
-        {id: "playground.ism", name: "playground.ism"},
-        {id: "app.js", name: "app.js", language: "javascript"},
-        {id: "app.css", name: "app.css", language: "css"}
+    let workspaces = [
+        {id: "playground", name: "playground", description: "This application", demo: true, files: [
+            {id: "playground/playground.ism", path: "/app/playground/playground.ism", name: "playground.ism", language: "isymtope", main: true},
+            {id: "playground/app.js", path: "/app/playground/app.js", name: "app.js", language: "javascript"},
+            {id: "playground/app.css", path: "/app/playground/app.css", name: "app.css", language: "css"}
+        ]},
+        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, files: [
+            {id: "todomvc/app.ism", path: "/app/todomvc/app.ism", name: "app.ism", language: "isymtope", main: true}
+        ]}
     ];
-
-    let editors = [];
-    let workspaceId = "1czxy";
+    let activeWorkspace = "playground";
     let activeFilename = "playground.ism";
 
-    workspaceId {
+    workspaces {}
+
+    activeFilename {
+        action chooseFilename(id) => id;
+    }
+
+    activeWorkspace {
         action chooseWorkspace(id) => id;
     }
 
-    files {
-    }
-
-    editors {
-    }
-
-    activeFilename {
-        action chooseFile(name) => name;
-    }
-
+    extern loadWorkspace;
+    extern loadFile;
     extern editorContent;
     extern compiler;
 }
 
-component workspaceHeader(id) {
-    ("Workspace: ") strong() { (id) }
+component workspaceOption(workspaceData) {
+    option(value = (workspaceData.id))
+    {
+        ( workspaceData.name ) ( " - " ) ( workspaceData.description )
+    }
 }
 
-component file(fileData) {
-    li() { 
-        a(href="#") || { 
+component listWorkspaces(workspaces, activeWorkspace) {
+    div(class="container") {
+        div(class="row") {
+            div(class="column") {
+                select(id="activeWorkspace") bind activeWorkspace as selectWorkspace
+                    change || { 
+                        dispatch chooseWorkspace(id: selectWorkspace) to activeWorkspace;
+                        dispatch loadWorkspace(workspaces: workspaces, id: selectWorkspace) to loadWorkspace;
+                    }
+                {
+                    workspaceOption(for workspaceData in workspaces) {}
+                }
+            }
+        }
+    }
+}
+
+component fileLink(fileData, activeFilename) {
+    li() {
+        a(href="#", class = {isActive: (fileData.name == activeFilename)}) || {
             dispatch chooseFile(name: fileData.name) to activeFilename;
             dispatch load(name: fileData.name) to editorContent;
         }
@@ -45,20 +66,27 @@ component file(fileData) {
     }
 }
 
-component files(files) {
-    ul() {
-        file(for fileData in files) {}
+component listFiles(files, activeFilename) {
+    ul(class="editorFiles") {
+        fileLink(for fileData in files, activeFilename) {}
+    }
+}
+
+component listWorkspaceFiles(workspaceData, activeFilename) {
+    ul(class="editorFiles") {
+        fileLink(for fileData in workspaceData.files, activeFilename) {}
     }
 }
 
 component tabs(editors) {
-
 }
 
-component editor(activeFilename) {
+component editor(filename) {
     div(class="container") {
         div(class="row") {
-            div(class="column") { (activeFilename) }
+            div(class="column") {
+                listWorkspaceFiles(query workspace_data(get workspaces, get activeWorkspace) as workspaceData, get activeFilename) {}            
+            }
         }
 
         div(class="row") {
@@ -76,7 +104,7 @@ component editor(activeFilename) {
 component preview() {
     div(class="container") {
         div(class="row") {
-            div(class="column") { 
+            div(class="column") {
                 ("Application preview ")
                 ("(")
                 a(href="#") || { dispatch compile() to compiler; }  { ("update") }
@@ -94,31 +122,35 @@ component preview() {
     }
 }
 
-route "/" || { dispatch chooseWorkspace(id: "1czxy") to workspaceId; }
+query workspace_data(workspaces, activeWorkspace) {
+    (workspaces.filter(item.id == activeWorkspace).first()) where (true);
+}
+
+route "/" || { 
+    dispatch chooseWorkspace(id: "1czxy") to workspaceId;
+}
 
 link(rel="stylesheet", href="https://unpkg.com/milligram@1.3.0/dist/milligram.css", type="text/css") {}
-link(rel="stylesheet", href="/app.css", type="text/css") {}
+link(rel="stylesheet", href="/app/playground/app.css", type="text/css") {}
 script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/javascript", defer="defer") {}
 script(src="https://www.hellorust.com/demos/bundle.js", type="text/javascript", defer="defer") {}
-script(src="/app.js", type="text/javascript") {}
+script(src="/app/playground/app.js", type="text/javascript") {}
 
 div(class="container") {
     div(class="row") {
         div(class="column column-50") {
-            workspaceHeader(get workspaceId as id) {}
         }
     }
 
     div(class="row") {
         div(class="column") {
-            files(get files) {}
+            listWorkspaces(get workspaces as workspaces) {}
         }
     }
 
     div(class="row") {
         div(class="column column-50") {
-            tabs(get editors) {}
-            editor(get activeFilename) {}
+            editor(get activeFilename as filename) {}
         }
 
         div(class="column column-50") {

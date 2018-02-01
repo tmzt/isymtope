@@ -124,6 +124,8 @@ impl InternalTemplateRenderer {
         let mut event_action_bodies: HashMap<String, HashMap<String, String>> = Default::default();
 
         for ref event_binding in doc.event_bindings() {
+            debug!("[page_templates] event_binding: {:?}", event_binding);
+
             let key = event_binding.key();
             let event = event_binding.event();
 
@@ -206,6 +208,8 @@ impl InternalTemplateRenderer {
         let mut route_bodies: HashMap<String, String> = Default::default();
 
         for route in doc.routes() {
+            debug!("[page_templates] route: {:?}", route);
+
             bytes.truncate(0);
             js_writer.write_object(&mut bytes, &mut ctx, route.action())?;
 
@@ -225,12 +229,12 @@ impl InternalTemplateRenderer {
         let mut reducer_defaults: HashMap<String, String> = Default::default();
         let mut reducer_action_keys: HashMap<String, Vec<String>> = Default::default();
 
-        eprintln!("Document: {:?}", doc);
+        // eprintln!("Document: {:?}", doc);
 
         if let Some(v) = doc.reducers() {
-            let mut bytes: Vec<u8> = Vec::with_capacity(2048);
-
             for (reducer_key, reducer) in v {
+                debug!("[page_templates] reducer with key {}: {:?}", reducer_key, reducer);
+
                 let action_keys = reducer_action_keys
                     .entry(reducer_key.to_owned())
                     .or_insert_with(|| Default::default());

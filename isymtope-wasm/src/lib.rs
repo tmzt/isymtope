@@ -1,35 +1,20 @@
-#![feature(wasm_import_memory)]
+#![feature(wasm_import_memory, panic_handler, std_panic)]
 #![wasm_import_memory]
 
 extern crate isymtope_build;
 
-use std::rc::Rc;
-
 use std::mem;
-use std::ffi::{CString, CStr};
+use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 
-use isymtope_build::error::*;
+use std::rc::Rc;
+
+use isymtope_build::traits::*;
+use isymtope_build::expressions::*;
+use isymtope_build::objects::*;
 use isymtope_build::input::*;
 use isymtope_build::output::*;
 
-
-// #[doc(hidden)]
-// #[no_mangle]
-// pub extern "C" fn __web_malloc( size: usize ) -> *mut u8 {
-//     let mut buffer = Vec::with_capacity( size );
-//     let ptr = buffer.as_mut_ptr();
-//     mem::forget( buffer );
-//     ptr
-// }
-
-// #[doc(hidden)]
-// #[no_mangle]
-// pub extern "C" fn __web_free( ptr: *mut u8, capacity: usize ) {
-//     unsafe  {
-//         let _ = Vec::from_raw_parts( ptr, 0, capacity );
-//     }
-// }
 
 #[no_mangle]
 pub extern "C" fn alloc(size: usize) -> *mut c_void {
@@ -53,24 +38,27 @@ pub extern "C" fn dealloc_str(ptr: *mut c_char) {
     }
 }
 
-// #[inline(never)]
-// fn template_source_to_html(template_source: &str) -> DocumentProcessingResult<String> {
-//     let document_provider = DocumentProvider::create(template_source)?;
-//     let internal_renderer = InternalTemplateRenderer::build(Rc::new(document_provider), None)?;
-//     let body = internal_renderer.render()?;
+#[no_mangle]
+pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
+    // panic::set_hook(Box::new(|panic_info| eprintln!("panic occurred: {:?}", panic_info.payload().downcast_ref::<&str>().unwrap())));
+    ::isymtope_build::log::install_panic_hook();
 
-//     Ok(body)
-// }
+    let cstr = unsafe { CString::from_raw(data) };
+    let src = cstr.to_string_lossy();
+    let template = Rc::new(parser::parse_str(&src).unwrap());
+    eprintln!("Parsed document");
+    let mut ctx: DefaultProcessingContext<ProcessedExpression> = DefaultProcessingContext::for_template(template.clone());
+    eprintln!("Created processing context");
+    let document: Document = TryProcessFrom::try_process_from(template.as_ref(), &mut ctx).unwrap();
+    eprintln!("Created document");
 
-// #[no_mangle]
-// pub extern "C" fn compile_template_source_to_html(data: *mut c_char) -> *mut c_char {
-//     unsafe {
-//         let data = CStr::from_ptr(data);
-//         let src = data.to_string_lossy().to_owned();
-//         // let body = template_source_to_html(&src).unwrap();
+    let document_provider = Rc::new(DocumentProvider::create(document).unwrap());
 
-//         let body = String::from("test");
-//         let s = CString::new(body).unwrap();
-//         s.into_raw()
-//     }
-// }
+    eprintln!("Building internal renderer");
+    let internal_renderer = InternalTemplateRenderer::build(document_provider.clone(), None).unwrap();
+    eprintln!("Rendering body");
+    let body = internal_renderer.render().expect("error rendering body");
+
+    let output = CString::new(body).expect("error creating CString for output");
+    output.into_raw()
+}

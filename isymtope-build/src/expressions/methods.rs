@@ -41,4 +41,6 @@ pub enum ReducedMethodCall<T> {
     MaxBy(ExpressionValue<T>),
     MinBy(ExpressionValue<T>),
     Count(ExpressionValue<T>),
+    FirstWhere(ExpressionValue<T>),
+    First
 }
