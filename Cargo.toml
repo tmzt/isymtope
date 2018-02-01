@@ -3,6 +3,10 @@ authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 name = "isymtope"
 version = "0.3.0"
 
+[dependencies.isymtope-ast-common]
+optional = true
+path = "./isymtope-ast-common"
+
 [dependencies.isymtope-build]
 optional = true
 default-features = false

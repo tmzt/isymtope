@@ -4,15 +4,16 @@
 #![feature(specialization)]
 
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[macro_use]
-extern crate log;
+// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+// #[macro_use]
+// extern crate log;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-#[macro_use]
-pub mod log;
+// #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+// #[macro_use]
+// pub mod log;
 
-extern crate uuid;
+// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+// extern crate uuid;
 
 #[cfg(feature = "session_time")]
 extern crate time;
@@ -35,27 +36,30 @@ extern crate difference;
 extern crate failure;
 
 #[macro_use]
-pub mod error;
+extern crate isymtope_ast_common;
+
+use isymtope_ast_common::*;
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[macro_use]
+extern crate log;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[macro_use]
+pub use isymtope_ast_common::log::*;
+
 pub mod common;
-pub mod traits;
-
-pub mod expressions;
-pub mod ast;
-pub mod objects;
-
+pub mod errors;
 pub mod input;
 pub mod output;
 
-pub use input::processing;
+pub use error::*;
+pub use traits::*;
+pub use expressions::*;
+pub use objects::*;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub mod util_wasm;
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub mod util_uuid;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-pub use self::util_wasm as util;
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-pub use self::util_uuid as util;
+pub use self::common::*;
+pub use self::errors::*;
+pub use self::input::*;
+pub use self::input::processing::*;
+pub use self::output::*;

@@ -14,7 +14,7 @@ impl ObjectWriter<Primitive, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Primitive,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -37,7 +37,7 @@ impl ObjectWriter<LensValue<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &LensValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -82,7 +82,7 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsW
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -101,7 +101,7 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWrit
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ExpressionValue<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -120,7 +120,7 @@ impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWr
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &CommonBindings<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -151,7 +151,7 @@ impl ObjectWriter<CommonBindings<OutputExpression>, JsOutput> for DefaultJsWrite
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &CommonBindings<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -177,7 +177,7 @@ impl ObjectWriter<ParamValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ParamValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -192,7 +192,7 @@ impl ObjectWriter<PipelineComponentValue<ProcessedExpression>, JsOutput> for Def
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PipelineComponentValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -228,7 +228,7 @@ impl ObjectWriter<PipelineComponentValue<ProcessedExpression>, JsOutput> for Def
 fn write_pipeline_head<T: Debug>(
     _self: &mut DefaultJsWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     head: &ExpressionValue<T>,
 ) -> DocumentProcessingResult<()>
 where
@@ -255,7 +255,7 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PipelineValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -285,7 +285,7 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &FilterValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -312,7 +312,7 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &FilterComponentValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -375,7 +375,7 @@ impl ObjectWriter<FilterWhereClause<ProcessedExpression>, JsOutput> for DefaultJ
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &FilterWhereClause<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -405,7 +405,7 @@ impl ObjectWriter<ReducedPipelineValue<ProcessedExpression>, JsOutput> for Defau
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ReducedPipelineValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -431,7 +431,7 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ReducedPipelineComponent<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -543,7 +543,7 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Expression<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -672,7 +672,7 @@ impl ObjectWriter<Expression<OutputExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Expression<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -712,7 +712,7 @@ impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &QueryCall<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         let name = obj.name();
@@ -738,7 +738,7 @@ impl ObjectWriter<QueryParamValue<ProcessedExpression>, JsOutput> for DefaultJsW
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &QueryParamValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         self.write_object(w, ctx, obj.value())
@@ -748,7 +748,7 @@ impl ObjectWriter<QueryParamValue<ProcessedExpression>, JsOutput> for DefaultJsW
 fn write_composite<T>(
     _self: &mut DefaultJsWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     obj: &CompositeValue<T>,
 ) -> DocumentProcessingResult<()>
 where
@@ -800,7 +800,7 @@ impl ObjectWriter<CompositeValue<ProcessedExpression>, JsOutput> for DefaultJsWr
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &CompositeValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         write_composite(self, w, ctx, obj)
@@ -811,7 +811,7 @@ impl ObjectWriter<CompositeValue<OutputExpression>, JsOutput> for DefaultJsWrite
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &CompositeValue<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         write_composite(self, w, ctx, obj)
@@ -822,7 +822,7 @@ impl ObjectWriter<PathValue<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PathValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -846,7 +846,7 @@ impl ObjectWriter<PathComponentValue<ProcessedExpression>, JsOutput> for Default
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PathComponentValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -883,7 +883,7 @@ impl ObjectWriter<PathValue<OutputExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PathValue<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -907,7 +907,7 @@ impl ObjectWriter<PathComponentValue<OutputExpression>, JsOutput> for DefaultJsW
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &PathComponentValue<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -946,7 +946,7 @@ impl ObjectWriter<Component<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Component<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -976,7 +976,7 @@ impl ObjectWriter<Block<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Block<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -997,7 +997,7 @@ impl ObjectWriter<Block<ProcessedExpression>, JsOutput> for DefaultJsWriter {
 fn write_open<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     desc: &ElementDescriptor<ProcessedExpression>,
     is_void: bool,
 ) -> DocumentProcessingResult<()> {
@@ -1102,7 +1102,7 @@ fn write_open<'s>(
 fn write_comp_desc<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     comp_desc: &ComponentInstanceDescriptor<ProcessedExpression>,
     item_key: Option<&str>,
     is_map: bool,
@@ -1172,7 +1172,7 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ElementOp<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -1258,7 +1258,7 @@ impl ObjectWriter<ReducerAction<ProcessedExpression>, JsOutput> for DefaultJsWri
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         action: &ReducerAction<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         let expr = action.expr();
@@ -1284,7 +1284,7 @@ impl ObjectWriter<Query<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         query: &Query<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         for component in query.components() {
@@ -1313,7 +1313,7 @@ impl ObjectWriter<Query<ProcessedExpression>, JsOutput> for DefaultJsWriter {
 fn write_action_prop_value<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     expr: &ExpressionValue<ProcessedExpression>,
 ) -> DocumentProcessingResult<()> {
     // Special case: lookup value by path alias
@@ -1335,7 +1335,7 @@ impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ActionOp<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -1374,7 +1374,7 @@ impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJs
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &RouteActionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {

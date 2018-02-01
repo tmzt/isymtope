@@ -8,7 +8,6 @@ use std::fs;
 
 use ast::*;
 
-
 type TokenIter = Box<Iterator<Item = token::Result<(usize, token::Token, usize)>>>;
 
 #[allow(dead_code)]

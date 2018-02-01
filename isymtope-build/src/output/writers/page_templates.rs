@@ -1,5 +1,6 @@
 use std::str;
 use std::rc::Rc;
+use std::error::Error;
 use std::collections::HashMap;
 
 use trimmer::{Context as TrimmerContext, Template as TrimmerTemplate};
@@ -17,6 +18,22 @@ pub struct InternalTemplateSource {
     preload_src: String,
 }
 
+fn parse_template(src: &str) -> DocumentProcessingResult<TrimmerTemplate> {
+    let parser = ::trimmer::Parser::new();
+    let res = parser.parse(&src);
+    match res {
+        Err(err) => Err(DocumentProcessingError::InternalParseError(err.description().to_owned())),
+        Ok(v) => Ok(v)
+    }
+}
+
+fn render_template(template: &TrimmerTemplate, tctx: &TrimmerContext) -> DocumentProcessingResult<String> {
+    match template.render(tctx) {
+        Err(err) => Err(DocumentProcessingError::InternalRenderError(err.description().to_owned())),
+        Ok(v) => Ok(v)
+    }
+}
+
 #[cfg(not(feature = "include_templates"))]
 fn template_source() -> DocumentProcessingResult<InternalTemplateSource> {
     use std::io::*;
@@ -30,9 +47,7 @@ fn template_source() -> DocumentProcessingResult<InternalTemplateSource> {
     buf.truncate(0);
 
     File::open(path).and_then(|mut f| f.read_to_string(&mut buf))?;
-
-    let parser = ::trimmer::Parser::new();
-    let template = parser.parse(&buf)?;
+    let template = self::parse_template(&buf)?;
 
     // Preload scripts
     let scripts = vec![
@@ -62,9 +77,7 @@ fn template_source() -> DocumentProcessingResult<InternalTemplateSource> {
         include_str!("../../../res/templates/page/isymtope-routing.js"),
         include_str!("../../../res/templates/page/isymtope-util.js")
     );
-
-    let parser = ::trimmer::Parser::new();
-    let template = parser.parse(&template_src)?;
+    let template = self::parse_template(&template_src)?;
 
     Ok(InternalTemplateSource {
         template: template,
@@ -102,8 +115,8 @@ impl InternalTemplateRenderer {
         state_provider: Option<Rc<ReducerStateProvider>>,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
         // Initialize output context
-        let mut ctx: OutputContext<ProcessedExpression> =
-            OutputContext::create(document_provider.clone(), state_provider);
+        let mut ctx: DefaultOutputContext =
+            DefaultOutputContext::create(document_provider.clone(), state_provider);
         let doc = document_provider.doc();
 
         // Buffers
@@ -403,7 +416,7 @@ impl InternalTemplateRenderer {
         tctx.set("PAGE_RENDER_FUNC_BODY", &self.page_render_func_body);
         tctx.set("PAGE_BODY_HTML", &self.page_body_html);
 
-        let out_buf = src.template.render(&tctx)?;
+        let out_buf = self::render_template(&src.template, &tctx)?;
         Ok(out_buf)
     }
 }

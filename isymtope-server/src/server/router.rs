@@ -1,4 +1,3 @@
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::borrow::{Borrow, BorrowMut};
@@ -8,14 +7,13 @@ use std::fmt::Debug;
 use hyper::{Response, StatusCode};
 use regex::RegexSet;
 
-use isymtope_build::common::*;
-use isymtope_build::expressions::*;
+use isymtope_ast_common::*;
+use isymtope_build::*;
 use server::*;
-
 
 #[derive(Debug, Default)]
 pub struct Router {
-    routes: Option<RegexSet>
+    routes: Option<RegexSet>,
 }
 
 impl Router {
@@ -26,7 +24,9 @@ impl Router {
         let route_patterns: Vec<_> = routes.map(|r| r.pattern()).collect();
         let routes = RegexSet::new(route_patterns.into_iter()).unwrap();
 
-        Router { routes: Some(routes) }
+        Router {
+            routes: Some(routes),
+        }
     }
 
     // // fn prepare_session<'s>(&self, ctx: &'s mut ServerContext, doc: &Document, path: Option<&str>) -> IsymtopeServerResult<ReturnedSession<'s>> {
@@ -70,7 +70,7 @@ impl Router {
 
     //     // Render page
     //     let mut html_writer = DefaultHtmlWriter::default();
-    //     let mut out_ctx: OutputContext<ProcessedExpression> = Default::default();
+    //     let mut out_ctx: OutputContext = Default::default();
 
     //     html_writer.write_object(w, &mut out_ctx, doc)?;
 
@@ -98,7 +98,7 @@ impl Router {
     // }
 
     // pub fn handle_call(&mut self, doc: &Document, req: <<Self as RouterTrait>::ServiceImpl as Service>::Request) -> <<Self as RouterTrait>::ServiceImpl as Service>::Future {
- 
+
     //     let path = req.path().to_owned();
     //     println!("Path requested: {}", &path);
 

@@ -15,7 +15,6 @@ use isymtope_build::objects::*;
 use isymtope_build::input::*;
 use isymtope_build::output::*;
 
-
 #[no_mangle]
 pub extern "C" fn alloc(size: usize) -> *mut c_void {
     let mut buf = Vec::with_capacity(size);
@@ -26,7 +25,7 @@ pub extern "C" fn alloc(size: usize) -> *mut c_void {
 
 #[no_mangle]
 pub extern "C" fn dealloc(ptr: *mut c_void, cap: usize) {
-    unsafe  {
+    unsafe {
         let _buf = Vec::from_raw_parts(ptr, 0, cap);
     }
 }
@@ -47,7 +46,8 @@ pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
     let src = cstr.to_string_lossy();
     let template = Rc::new(parser::parse_str(&src).unwrap());
     eprintln!("Parsed document");
-    let mut ctx: DefaultProcessingContext<ProcessedExpression> = DefaultProcessingContext::for_template(template.clone());
+    let mut ctx: DefaultProcessingContext<ProcessedExpression> =
+        DefaultProcessingContext::for_template(template.clone());
     eprintln!("Created processing context");
     let document: Document = TryProcessFrom::try_process_from(template.as_ref(), &mut ctx).unwrap();
     eprintln!("Created document");
@@ -55,7 +55,8 @@ pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
     let document_provider = Rc::new(DocumentProvider::create(document).unwrap());
 
     eprintln!("Building internal renderer");
-    let internal_renderer = InternalTemplateRenderer::build(document_provider.clone(), None).unwrap();
+    let internal_renderer =
+        InternalTemplateRenderer::build(document_provider.clone(), None).unwrap();
     eprintln!("Rendering body");
     let body = internal_renderer.render().expect("error rendering body");
 

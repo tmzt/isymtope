@@ -1,21 +1,25 @@
-
 use std::rc::Rc;
 use std::fmt::Debug;
 
-use time::{Timespec, get_time};
+#[cfg(feature = "session_time")]
+use time::{get_time, Timespec};
 
 use server::*;
 
-
 pub const SESSION_COOKIES_RANDOM_STRING_BYTES: usize = 128;
 
+#[cfg(feature = "session_time")]
 #[derive(Debug)]
 pub struct ReturnedCookie(String, Timespec, Timespec);
+
+#[cfg(not(feature = "session_time"))]
+#[derive(Debug)]
+pub struct ReturnedCookie(String);
 
 #[derive(Debug, Default)]
 pub struct Cookies {
     cookie_secure_prefix: Option<String>,
-    cookie_name: Option<(String, Timespec)>
+    // cookie_name: Option<(String, Timespec)>
 }
 
 impl Cookies {
@@ -23,7 +27,11 @@ impl Cookies {
         unimplemented!()
     }
 
-    fn refresh_cookie<'s>(&'s mut self, old_cookie: &str, cookie: &str) -> IsymtopeServerResult<&'s ReturnedCookie> {
+    fn refresh_cookie<'s>(
+        &'s mut self,
+        old_cookie: &str,
+        cookie: &str,
+    ) -> IsymtopeServerResult<&'s ReturnedCookie> {
         unimplemented!()
     }
 

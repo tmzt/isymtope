@@ -1,4 +1,3 @@
-
 use failure;
 
 use std::fmt::Error as FormatError;
@@ -10,8 +9,7 @@ use hyper::Error as HyperError;
 use futures::Canceled as FutureCanceled;
 use futures::sync::oneshot::Canceled as OneshotCanceled;
 
-use isymtope_build::error::*;
-
+use isymtope_ast_common::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Fail)]
@@ -51,12 +49,36 @@ pub enum IsymtopeServerError {
     SessionError(SessionError),
 }
 
-impl From<AddrParseError> for IsymtopeServerError { fn from(err: AddrParseError) -> Self { IsymtopeServerError::AddrParseError(err) } }
-impl From<HyperError> for IsymtopeServerError { fn from(err: HyperError) -> Self { IsymtopeServerError::HyperError(err) } }
-impl From<FutureCanceled> for IsymtopeServerError { fn from(err: FutureCanceled) -> Self { IsymtopeServerError::FutureCanceled(err) } }
-impl From<Utf8Error> for IsymtopeServerError { fn from(err: Utf8Error) -> Self { IsymtopeServerError::Utf8Error(err) } }
-impl From<DocumentProcessingError> for IsymtopeServerError { fn from(err: DocumentProcessingError) -> Self { IsymtopeServerError::DocumentProcessingError(err) } }
-impl From<SessionError> for IsymtopeServerError { fn from(err: SessionError) -> Self {  IsymtopeServerError::SessionError(err) } }
+impl From<AddrParseError> for IsymtopeServerError {
+    fn from(err: AddrParseError) -> Self {
+        IsymtopeServerError::AddrParseError(err)
+    }
+}
+impl From<HyperError> for IsymtopeServerError {
+    fn from(err: HyperError) -> Self {
+        IsymtopeServerError::HyperError(err)
+    }
+}
+impl From<FutureCanceled> for IsymtopeServerError {
+    fn from(err: FutureCanceled) -> Self {
+        IsymtopeServerError::FutureCanceled(err)
+    }
+}
+impl From<Utf8Error> for IsymtopeServerError {
+    fn from(err: Utf8Error) -> Self {
+        IsymtopeServerError::Utf8Error(err)
+    }
+}
+impl From<DocumentProcessingError> for IsymtopeServerError {
+    fn from(err: DocumentProcessingError) -> Self {
+        IsymtopeServerError::DocumentProcessingError(err)
+    }
+}
+impl From<SessionError> for IsymtopeServerError {
+    fn from(err: SessionError) -> Self {
+        IsymtopeServerError::SessionError(err)
+    }
+}
 
 pub type IsymtopeServerResult<T> = Result<T, IsymtopeServerError>;
 pub type IsymtopeServerVoidResult = Result<(), IsymtopeServerError>;

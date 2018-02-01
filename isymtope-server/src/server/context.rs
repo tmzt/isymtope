@@ -1,19 +1,15 @@
-
-use std::fmt::{self, Formatter, Debug};
+use std::fmt::{self, Debug, Formatter};
 use std::str;
 
+#[cfg(feature = "session_time")]
 use time::Duration;
 
 use futures;
 use futures::future::{self, Future, FutureResult};
 
-use isymtope_build::traits::*;
-use isymtope_build::error::*;
-use isymtope_build::expressions::*;
-use isymtope_build::objects::*;
-use isymtope_build::output::*;
+use isymtope_ast_common::*;
+use isymtope_build::*;
 use server::*;
-
 
 pub trait ServerContext {
     fn handle_msg(&mut self, msg: Msg) -> IsymtopeServerResult<ResponseMsg>;
@@ -26,7 +22,7 @@ pub struct DefaultServerContext {
     sessions: MemorySessions,
     router: Router,
     executor: ServerActionExecutor,
-    document_provider: Rc<DocumentProvider>
+    document_provider: Rc<DocumentProvider>,
 }
 
 impl DefaultServerContext {
@@ -39,7 +35,7 @@ impl DefaultServerContext {
             sessions: Default::default(),
             router: router,
             executor: Default::default(),
-            document_provider: document_provider
+            document_provider: document_provider,
         }
     }
 }
@@ -47,20 +43,23 @@ impl DefaultServerContext {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Msg {
-    NewSession(usize, Option<Duration>),
+    #[cfg(feature = "session_time")] NewSession(usize, Option<Duration>),
+    #[cfg(not(feature = "session_time"))] NewSession(usize),
     ValidateSession(String),
     DestroySession(String),
     SetValueInSession(String, String, ExpressionValue<OutputExpression>, bool),
     ExecuteRoute(String),
     Render,
-    RenderRoute(String)
+    RenderRoute(String),
 }
 
 #[derive(Debug)]
 pub struct RenderResponse(String);
 
 impl RenderResponse {
-    pub fn take(self) -> String { self.0 }
+    pub fn take(self) -> String {
+        self.0
+    }
 }
 
 #[derive(Debug)]
@@ -88,9 +87,18 @@ pub enum ResponseMsg {
 impl ServerContext for DefaultServerContext {
     fn handle_msg(&mut self, msg: Msg) -> IsymtopeServerResult<ResponseMsg> {
         match msg {
+            #[cfg(feature = "session_time")]
             Msg::NewSession(bytes, expires) => {
                 let cookie = self.srs.generate_secure_string(bytes)?;
                 self.sessions.create(&cookie, expires)?;
+
+                Ok(ResponseMsg::SessionCreated(cookie))
+            }
+
+            #[cfg(not(feature = "session_time"))]
+            Msg::NewSession(bytes) => {
+                let cookie = self.srs.generate_secure_string(bytes)?;
+                self.sessions.create(&cookie)?;
 
                 Ok(ResponseMsg::SessionCreated(cookie))
             }
@@ -106,7 +114,10 @@ impl ServerContext for DefaultServerContext {
             }
 
             Msg::ExecuteRoute(ref path) => {
-                eprintln!("[DefaultServerContext] Executing route against session: {}", path);
+                eprintln!(
+                    "[DefaultServerContext] Executing route against session: {}",
+                    path
+                );
                 Ok(ResponseMsg::RouteComplete)
             }
 
@@ -116,7 +127,8 @@ impl ServerContext for DefaultServerContext {
             }
 
             Msg::Render => {
-                let internal_renderer = InternalTemplateRenderer::build(self.document_provider.clone(), None)?;
+                let internal_renderer =
+                    InternalTemplateRenderer::build(self.document_provider.clone(), None)?;
                 let body = internal_renderer.render()?;
                 Ok(ResponseMsg::RenderComplete(RenderResponse((body))))
             }
@@ -126,17 +138,37 @@ impl ServerContext for DefaultServerContext {
 
                 // Create temporary session with default state
                 let mut default_state = MemorySession::default();
-                let mut default_ctx = OutputContext::create(self.document_provider.clone(), None);
-                self.executor.initialize_session_data(&mut default_state, document_provider.doc(), &mut default_ctx)?;
+                let mut default_ctx =
+                    DefaultOutputContext::create(self.document_provider.clone(), None);
+                self.executor.initialize_session_data(
+                    &mut default_state,
+                    document_provider.doc(),
+                    &mut default_ctx,
+                )?;
 
-                let mut ctx = OutputContext::create(self.document_provider.clone(), Some(Rc::new(default_state)));
+                let mut ctx = DefaultOutputContext::create(
+                    self.document_provider.clone(),
+                    Some(Rc::new(default_state)),
+                );
 
                 // Create temporary session for this route
                 let mut state = MemorySession::default();
-                self.executor.initialize_session_data(&mut state, document_provider.doc(), &mut ctx)?;
-                self.executor.execute_document_route(&mut state, document_provider.doc(), &mut ctx, path)?;
+                self.executor.initialize_session_data(
+                    &mut state,
+                    document_provider.doc(),
+                    &mut ctx,
+                )?;
+                self.executor.execute_document_route(
+                    &mut state,
+                    document_provider.doc(),
+                    &mut ctx,
+                    path,
+                )?;
 
-                let internal_renderer = InternalTemplateRenderer::build(self.document_provider.clone(), Some(Rc::new(state)))?;
+                let internal_renderer = InternalTemplateRenderer::build(
+                    self.document_provider.clone(),
+                    Some(Rc::new(state)),
+                )?;
                 let body = internal_renderer.render()?;
                 Ok(ResponseMsg::RenderComplete(RenderResponse((body))))
             }

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use linked_hash_map::LinkedHashMap;
 
 use error::*;
-use common::*;
+use common::entries::*;
 use traits::*;
 use expressions::*;
 use ast::*;

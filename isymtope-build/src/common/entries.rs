@@ -6,11 +6,8 @@ use linked_hash_map::LinkedHashMap;
 use itertools::Itertools;
 use itertools::FoldWhile::{Continue, Done};
 
+use traits::*;
 use error::*;
-
-pub trait ScopeParentId {
-    fn parent_id(&self) -> Option<&str>;
-}
 
 pub fn find_entry<S: ScopeParentId, K, V, F: FnMut(&mut S) -> Option<V>>(
     scopes: &mut LinkedHashMap<String, S>,

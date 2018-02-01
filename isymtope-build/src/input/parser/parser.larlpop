@@ -510,7 +510,7 @@ Loc<Inner> : Loc<Inner, (usize, usize)> = <s:@L> <inner:Inner> <e:@R> => Loc { p
 
 extern {
     type Location = usize;
-    type Error = token::Error;
+    type Error = token::TemplateParseError;
 
     enum Token {
         "=>" => Token::HashRocket,

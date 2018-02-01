@@ -3,8 +3,7 @@
 #![allow(unused_macros)]
 
 use std::str::{CharIndices, FromStr};
-use input::parser::token::{Token, Result, Error};
-
+use input::parser::token::{Result, TemplateParseError, Token};
 
 macro_rules! take_until {
     ($slf:expr, $start:expr, $first:pat $(| $rest:pat)*) => {{
@@ -93,7 +92,9 @@ impl<'input> Lexer<'input> {
             self.step();
         }
 
-        self.n0.map(|n| n.0).unwrap_or_else(|| self.source_str.len())
+        self.n0
+            .map(|n| n.0)
+            .unwrap_or_else(|| self.source_str.len())
     }
 
     #[inline]
@@ -187,7 +188,7 @@ impl<'input> Lexer<'input> {
             self.step();
         }
 
-        Err(Error::UnterminatedString(start).into())
+        Err(TemplateParseError::UnterminatedString(start).into())
     }
 
     fn numeric(&mut self, start: usize) -> Result<(usize, Token, usize)> {
@@ -197,7 +198,7 @@ impl<'input> Lexer<'input> {
             return Ok((start, Token::LiteralNumber(num), end));
         }
 
-        Err(Error::InvalidNumber(start).into())
+        Err(TemplateParseError::InvalidNumber(start).into())
     }
 
     fn normal(&mut self) -> Option<Result<(usize, Token, usize)>> {
@@ -219,7 +220,6 @@ impl<'input> Lexer<'input> {
             };
 
             if let Some((start, c)) = self.one() {
-
                 // println!("Char: {:?}", c);
 
                 let token = match c {
@@ -278,7 +278,7 @@ impl<'input> Lexer<'input> {
             }
         }
 
-        Some(Err(Error::Unexpected(self.pos())))
+        Some(Err(TemplateParseError::Unexpected(self.pos())))
     }
 }
 

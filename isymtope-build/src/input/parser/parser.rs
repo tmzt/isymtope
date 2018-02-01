@@ -4173,11 +4173,11 @@ mod __parse__Template {
         }).collect()
     }
     pub fn parse_Template<
-        __TOKEN: __ToTriple<Error=token::Error>,
+        __TOKEN: __ToTriple<Error=token::TemplateParseError>,
         __TOKENS: IntoIterator<Item=__TOKEN>,
     >(
         __tokens0: __TOKENS,
-    ) -> Result<Template, __lalrpop_util::ParseError<usize, Token, token::Error>>
+    ) -> Result<Template, __lalrpop_util::ParseError<usize, Token, token::TemplateParseError>>
     {
         let __tokens = __tokens0.into_iter();
         let mut __tokens = __tokens.map(|t| __ToTriple::to_triple(t));
@@ -4551,7 +4551,7 @@ mod __parse__Template {
         __states: &mut ::std::vec::Vec<i32>,
         __symbols: &mut ::std::vec::Vec<(usize,__Symbol<>,usize)>,
         _: ::std::marker::PhantomData<()>,
-    ) -> Option<Result<Template,__lalrpop_util::ParseError<usize, Token, token::Error>>>
+    ) -> Option<Result<Template,__lalrpop_util::ParseError<usize, Token, token::TemplateParseError>>>
     {
         let __nonterminal = match -__action {
             1 => {
@@ -34287,14 +34287,14 @@ pub trait __ToTriple<> {
 }
 
 impl<> __ToTriple<> for (usize, Token, usize) {
-    type Error = token::Error;
-    fn to_triple(value: Self) -> Result<(usize,Token,usize),token::Error> {
+    type Error = token::TemplateParseError;
+    fn to_triple(value: Self) -> Result<(usize,Token,usize),token::TemplateParseError> {
         Ok(value)
     }
 }
-impl<> __ToTriple<> for Result<(usize, Token, usize),token::Error> {
-    type Error = token::Error;
-    fn to_triple(value: Self) -> Result<(usize,Token,usize),token::Error> {
+impl<> __ToTriple<> for Result<(usize, Token, usize),token::TemplateParseError> {
+    type Error = token::TemplateParseError;
+    fn to_triple(value: Self) -> Result<(usize,Token,usize),token::TemplateParseError> {
         value
     }
 }

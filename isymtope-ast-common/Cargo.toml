@@ -1,0 +1,29 @@
+[package]
+authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+name = "isymtope-ast-common"
+version = "0.1.0"
+
+[dependencies]
+failure = "0.1.1"
+itertools = "0.7.6"
+lazy_static = "1.0.0"
+linked-hash-map = "0.5.0"
+rand = "0.4.2"
+regex = "0.2.5"
+
+[dependencies.log]
+optional = true
+version = "0.4.1"
+
+[dependencies.uuid]
+optional = true
+features = ["v4"]
+version = "0.5.1"
+
+[features]
+default = [
+    "log",
+    "uuid_v4",
+]
+types = []
+uuid_v4 = ["uuid"]

@@ -1,24 +1,30 @@
-
-use time::{Timespec, Duration, get_time};
+#[cfg(feature = "session_time")]
+use time::{get_time, Duration, Timespec};
 use std::collections::HashMap;
 
-use isymtope_build::traits::*;
-use isymtope_build::expressions::*;
+use isymtope_ast_common::*;
 use server::*;
-
 
 #[derive(Debug, Default)]
 pub struct MemorySessions {
-    session_map: HashMap<String, MemorySession>
+    session_map: HashMap<String, MemorySession>,
 }
 
 impl Sessions for MemorySessions {
+    #[cfg(feature = "session_time")]
     fn create(&mut self, session_id: &str, expires: Option<Duration>) -> SessionResult<()> {
         let created = get_time();
         let session = MemorySession::new(created, expires);
 
         self.session_map.insert(session_id.to_owned(), session);
+        Ok(())
+    }
 
+    #[cfg(not(feature = "session_time"))]
+    fn create(&mut self, session_id: &str) -> SessionResult<()> {
+        let session = MemorySession::new();
+
+        self.session_map.insert(session_id.to_owned(), session);
         Ok(())
     }
 
@@ -30,7 +36,11 @@ impl Sessions for MemorySessions {
         Ok(())
     }
 
-    fn execute_action(&mut self, session_id: &str, action_op: &ActionOp<ProcessedExpression>) -> SessionResult<()> {
+    fn execute_action(
+        &mut self,
+        session_id: &str,
+        action_op: &ActionOp<ProcessedExpression>,
+    ) -> SessionResult<()> {
         Ok(())
     }
 }
@@ -41,7 +51,7 @@ impl Sessions for MemorySessions {
 //     pub fn create_empty_session(&self) -> IsymtopeServerResult<Session> {
 //         let session_key = self.srs.generate_secure_string(self::SESSIONS_SECURE_STRING_BYTES);
 //         let ts = get_time();
-        
+
 //         create_session_with_key(session_key, ts)
 //     }
 
@@ -61,7 +71,7 @@ impl Sessions for MemorySessions {
 
 //     fn allocate_new_session<'s>(&'s mut self) -> IsymtopeServerResult<ReturnedSession<'s>> {
 //         let (session_key, item) = self.create_session()?;
-        
+
 //         match self.session_map.entry(session_key.clone()) {
 //             Entry::Occupied(o) => {
 //                 // This should not happen
@@ -72,7 +82,7 @@ impl Sessions for MemorySessions {
 //                 let entry = v.insert(item);
 //                 Ok(ReturnedSession(SessionCreationType::CreatedSession(session_key), entry))
 //             }
-//         }    
+//         }
 //     }
 
 //     #[allow(dead_code)]

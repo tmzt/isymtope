@@ -21,7 +21,7 @@ impl ObjectWriter<Expression<OutputExpression>, HtmlOutput> for DefaultHtmlWrite
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Expression<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -61,7 +61,7 @@ impl ObjectWriter<Primitive, HtmlOutput> for DefaultHtmlWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Primitive,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -89,7 +89,7 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, HtmlOutput> for DefaultHtml
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &ExpressionValue<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
@@ -113,7 +113,7 @@ impl ObjectWriter<Block<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter 
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         obj: &Block<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -134,7 +134,7 @@ impl ObjectWriter<Block<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter 
 fn write_event_props<'s>(
     _self: &'s mut DefaultHtmlWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     props: &Vec<(String, ExpressionValue<OutputExpression>)>,
 ) -> DocumentProcessingResult<()> {
     let mut js_writer: DefaultJsWriter = Default::default();
@@ -153,7 +153,7 @@ fn write_event_props<'s>(
     Ok(())
 }
 
-// fn get_element_key(ctx: &mut OutputContext<ProcessedExpression>) -> DocumentProcessingResult<String> {
+// fn get_element_key(ctx: &mut OutputContext) -> DocumentProcessingResult<String> {
 //     let binding = CommonBindings::CurrentElementKeyPath;
 
 //     if let Some(ExpressionValue::Primitive(Primitive::StringVal(ref key))) = ctx.find_value(&binding)? {
@@ -163,7 +163,7 @@ fn write_event_props<'s>(
 //     Err(try_eval_from_err!("Missing element key"))
 // }
 
-// fn bind_element_key(ctx: &mut OutputContext<ProcessedExpression>, key: &str, idx: Option<i32>) -> DocumentProcessingResult<()> {
+// fn bind_element_key(ctx: &mut OutputContext, key: &str, idx: Option<i32>) -> DocumentProcessingResult<()> {
 //     let binding = CommonBindings::CurrentElementKeyPath;
 
 //     let element_key = match (ctx.find_value(&binding)?, idx) {
@@ -180,7 +180,7 @@ fn write_event_props<'s>(
 fn write_open<'s>(
     _self: &'s mut DefaultHtmlWriter,
     w: &mut io::Write,
-    ctx: &mut OutputContext<ProcessedExpression>,
+    ctx: &mut OutputContext,
     desc: &ElementDescriptor<ProcessedExpression>,
     is_void: bool,
     comp_desc: Option<&ComponentInstanceDescriptor<OutputExpression>>,
@@ -329,7 +329,7 @@ impl ObjectWriter<ComponentInstanceDescriptor<ProcessedExpression>, HtmlOutput>
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         comp_desc: &ComponentInstanceDescriptor<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -371,7 +371,7 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext<ProcessedExpression>,
+        ctx: &mut OutputContext,
         el: &ElementOp<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         debug!(

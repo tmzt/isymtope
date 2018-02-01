@@ -1,11 +1,11 @@
-#![recursion_limit="240"]
+#![recursion_limit = "240"]
 #![feature(box_patterns)]
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
 
-extern crate pretty_env_logger;
 extern crate colored;
 extern crate dotenv;
+extern crate pretty_env_logger;
 
 #[macro_use]
 extern crate log;
@@ -13,16 +13,19 @@ extern crate log;
 #[macro_use]
 extern crate failure;
 
+#[cfg(feature = "session_time")]
 extern crate time;
-extern crate rand;
-extern crate hyper;
-extern crate regex;
-extern crate futures;
+
 extern crate data_encoding;
-extern crate tokio_core;
+extern crate futures;
+extern crate hyper;
 extern crate hyper_staticfile;
+extern crate rand;
+extern crate regex;
+extern crate tokio_core;
 
 #[macro_use]
+extern crate isymtope_ast_common;
 extern crate isymtope_build;
 
 use dotenv::dotenv;

@@ -1,4 +1,3 @@
-
 use std::fmt::Debug;
 use std::io::{self, Write};
 use std::path::Path;
@@ -13,13 +12,11 @@ use tokio_core::reactor::Core;
 use tokio_core::net::TcpListener;
 
 use hyper;
-use hyper::server::{Server, Http, Request, Response, NewService, Service};
+use hyper::server::{Http, NewService, Request, Response, Server, Service};
 use regex::RegexSet;
 
-use isymtope_build::error::*;
-use isymtope_build::ast::*;
-use isymtope_build::input::*;
-use isymtope_build::processing::*;
+use isymtope_ast_common::*;
+use isymtope_build::*;
 
 pub mod errors;
 pub mod srs_generator;
@@ -43,7 +40,7 @@ pub use self::service::*;
 pub use self::router::*;
 
 pub trait ServiceInject: Debug {
-    type ServiceImpl: Service;    
+    type ServiceImpl: Service;
 }
 
 pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
@@ -58,16 +55,19 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
         use futures::Stream;
         let mut core = Core::new().unwrap();
         // let ctx_handle = core.handle();
-        
+
         let document_provider: Rc<DocumentProvider> = Default::default();
         let mut shared_ctx = DefaultServerContext::new(document_provider);
         // ctx_handle.spawn(receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
-        core.run(receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
-            let response = shared_ctx.handle_msg(msg);
-            oneshot.send(response).unwrap();
+        core.run(
+            receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
+                let response = shared_ctx.handle_msg(msg);
+                oneshot.send(response).unwrap();
 
-            future::ok(())
-        })).ok().unwrap();
+                future::ok(())
+            }),
+        ).ok()
+            .unwrap();
     });
 
     let mut core = Core::new().unwrap();

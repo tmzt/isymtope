@@ -1,16 +1,14 @@
-
 use std::iter::repeat;
 use std::fmt::Debug;
 
-use rand::{Rng, OsRng};
+use rand::{OsRng, Rng};
 use data_encoding::BASE32HEX;
 
 use server::*;
 
-
 #[derive(Debug)]
 pub struct DefaultSecureRandomStringGenerator {
-    gen: OsRng
+    gen: OsRng,
 }
 
 pub trait SecureRandomStringGenerator: Debug {
