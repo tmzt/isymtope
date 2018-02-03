@@ -77,7 +77,9 @@ fn template_source() -> DocumentProcessingResult<InternalTemplateSource> {
         include_str!("../../../res/templates/page/isymtope-routing.js"),
         include_str!("../../../res/templates/page/isymtope-util.js")
     );
+    eprintln!("[page templates] parsing template");
     let template = self::parse_template(&template_src)?;
+    eprintln!("[page templates] parsed template: {:?}", template);
 
     Ok(InternalTemplateSource {
         template: template,
@@ -86,8 +88,13 @@ fn template_source() -> DocumentProcessingResult<InternalTemplateSource> {
 }
 
 #[derive(Debug)]
-pub struct InternalTemplateRenderer {
-    template_src: InternalTemplateSource,
+pub struct InternalTemplateRendererFactory {
+    template_src: InternalTemplateSource
+}
+
+#[derive(Debug)]
+pub struct InternalTemplateRenderer<'template_src> {
+    template_src: &'template_src InternalTemplateSource,
     route_keys: Vec<String>,
     route_func_keys: HashMap<String, String>,
     route_bodies: HashMap<String, String>,
@@ -109,11 +116,33 @@ pub struct InternalTemplateRenderer {
     page_body_html: String,
 }
 
-impl InternalTemplateRenderer {
+impl InternalTemplateRendererFactory {
+    pub fn create() -> DocumentProcessingResult<InternalTemplateRendererFactory> {
+        let template_src = self::template_source()?;
+        eprintln!("[page_templates_factory] got template source");
+        
+        Ok(InternalTemplateRendererFactory { template_src: template_src })
+    }
+
     pub fn build(
+        &self,
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
+        let template_src = &self.template_src;
+        let renderer = InternalTemplateRenderer::build(template_src, document_provider, state_provider)?;
+
+        eprintln!("[page_template_factory] created renderer");
+        Ok(renderer)
+    }
+}
+
+impl<'tmpl> InternalTemplateRenderer<'tmpl> {
+    pub fn build<'t>(
+        template_src: &'t InternalTemplateSource,
+        document_provider: Rc<DocumentProvider>,
+        state_provider: Option<Rc<ReducerStateProvider>>,
+    ) -> DocumentProcessingResult<InternalTemplateRenderer<'t>> {
         // Initialize output context
         let mut ctx: DefaultOutputContext =
             DefaultOutputContext::create(document_provider.clone(), state_provider);
@@ -121,13 +150,16 @@ impl InternalTemplateRenderer {
 
         // Buffers
         let mut bytes: Vec<u8> = Vec::with_capacity(8192);
+        eprintln!("[page_templates] bytes.len(): {}", bytes.len());
 
         // Writers
 
         let mut js_writer = DefaultJsWriter::default();
         let mut html_writer = DefaultHtmlWriter::default();
+        eprintln!("[page_templates] writers created");
 
-        let template_src = self::template_source()?;
+        // let template_src = self::template_source()?;
+        // eprintln!("[page_templates] got template source");
 
         // Events
 
@@ -136,8 +168,9 @@ impl InternalTemplateRenderer {
         let mut event_action_keys: HashMap<String, Vec<String>> = Default::default();
         let mut event_action_bodies: HashMap<String, HashMap<String, String>> = Default::default();
 
+        eprintln!("[page_templates] enumerating event bindings");
         for ref event_binding in doc.event_bindings() {
-            debug!("[page_templates] event_binding: {:?}", event_binding);
+            eprintln!("[page_templates] event_binding: {:?}", event_binding);
 
             let key = event_binding.key();
             let event = event_binding.event();
@@ -145,14 +178,17 @@ impl InternalTemplateRenderer {
             event_keys.push(key.clone());
             event_enterkeyflags.insert(key.clone(), event_binding.is_enterkey());
 
+            eprintln!("[page_templates] getting or creating event action key");
             let action_keys = event_action_keys
                 .entry(key.clone())
                 .or_insert_with(|| Default::default());
 
+            eprintln!("[page_templates] getting or creating event action body");
             let action_bodies = event_action_bodies
                 .entry(key.clone())
                 .or_insert_with(|| Default::default());
 
+            eprintln!("[page_templates] checking for event actions");
             if let Some(actions) = event.actions() {
                 let actions: Vec<_> = actions.collect();
 
@@ -190,6 +226,7 @@ impl InternalTemplateRenderer {
                     })
                     .collect();
 
+                eprintln!("[page_templates] enumerating path aliases");
                 for (alias, _, raw_path) in event_prop_aliases {
                     let binding = CommonBindings::PathAlias(alias.to_owned(), Default::default());
                     let expr = ExpressionValue::Expression(Expression::RawPath(
@@ -199,6 +236,7 @@ impl InternalTemplateRenderer {
                     ctx.bind_value(binding, expr)?;
                 }
 
+                eprintln!("[page_templates] enumerating actions");
                 for action in actions {
                     bytes.truncate(0);
                     js_writer.write_object(&mut bytes, &mut ctx, action)?;
@@ -221,7 +259,7 @@ impl InternalTemplateRenderer {
         let mut route_bodies: HashMap<String, String> = Default::default();
 
         for route in doc.routes() {
-            debug!("[page_templates] route: {:?}", route);
+            eprintln!("[page_templates] route: {:?}", route);
 
             bytes.truncate(0);
             js_writer.write_object(&mut bytes, &mut ctx, route.action())?;
@@ -246,7 +284,7 @@ impl InternalTemplateRenderer {
 
         if let Some(v) = doc.reducers() {
             for (reducer_key, reducer) in v {
-                debug!("[page_templates] reducer with key {}: {:?}", reducer_key, reducer);
+                eprintln!("[page_templates] reducer with key {}: {:?}", reducer_key, reducer);
 
                 let action_keys = reducer_action_keys
                     .entry(reducer_key.to_owned())

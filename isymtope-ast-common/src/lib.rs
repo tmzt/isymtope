@@ -1,19 +1,14 @@
 #![feature(box_patterns, specialization, conservative_impl_trait)]
 
 #[macro_use]
-extern crate lazy_static;
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[macro_use]
 extern crate log;
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[macro_use]
-pub mod log;
+extern crate wasm_log;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[macro_use]
-pub use self::log::*;
+extern crate lazy_static;
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 extern crate uuid;

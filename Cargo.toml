@@ -3,13 +3,17 @@ authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 name = "isymtope"
 version = "0.3.0"
 
+[dependencies.wasm-log]
+optional = true
+path = "./wasm-log"
+
 [dependencies.isymtope-ast-common]
 optional = true
 path = "./isymtope-ast-common"
 
 [dependencies.isymtope-build]
-optional = true
 default-features = false
+optional = true
 path = "./isymtope-build"
 
 [dependencies.isymtope-server]
@@ -22,12 +26,10 @@ path = "./isymtope-wasm"
 
 [features]
 server = ["isymtope-server"]
-
-[replace]
-"rand:0.3.20" = { path = "./wasm-rand" }
+[profile.release]
+debug = true
+opt-level = 2
+[replace."rand:0.3.20"]
+path = "./wasm-rand"
 
 [workspace]
-
-[profile.release]
-opt-level = 2
-debug = true

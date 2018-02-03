@@ -3,17 +3,12 @@
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
 
+#[macro_use]
+extern crate log;
 
-// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-// #[macro_use]
-// extern crate log;
-
-// #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-// #[macro_use]
-// pub mod log;
-
-// #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-// extern crate uuid;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[macro_use]
+extern crate wasm_log;
 
 #[cfg(feature = "session_time")]
 extern crate time;
@@ -39,14 +34,6 @@ extern crate failure;
 extern crate isymtope_ast_common;
 
 use isymtope_ast_common::*;
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[macro_use]
-extern crate log;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-#[macro_use]
-pub use isymtope_ast_common::log::*;
 
 pub mod common;
 pub mod errors;

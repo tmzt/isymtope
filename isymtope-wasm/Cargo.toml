@@ -3,13 +3,28 @@ authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 name = "isymtope-wasm"
 version = "0.1.0"
 
+[dependencies]
+lazy_static = "1.0.0"
+log = "0.3.9"
+
+[dependencies.isymtope-ast-common]
+default-features = false
+features = ["wasm"]
+path = "../isymtope-ast-common/"
+
 [dependencies.isymtope-build]
 default-features = false
+features = [
+    "include_templates",
+    "wasm",
+]
 path = "../isymtope-build/"
+
+[dependencies.wasm-log]
+path = "../wasm-log"
 
 [lib]
 crate-type = ["cdylib"]
 path = "src/lib.rs"
-
-[replace]
-"rand:0.3.20" = { path = "../wasm-rand" }
+[replace."log:0.3.9"]
+path = "../wasm-log"

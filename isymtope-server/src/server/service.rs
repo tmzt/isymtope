@@ -9,6 +9,8 @@ use std::error::Error;
 #[cfg(feature = "session_time")]
 use time::Duration;
 use futures::{self, Future};
+use hyper::header::ContentType;
+use hyper::mime;
 use hyper::Error as HyperError;
 use hyper_staticfile::Static;
 use regex::RegexSet;
@@ -27,13 +29,15 @@ pub type RequestMsgChannel = futures::sync::mpsc::UnboundedSender<(Msg, Response
 pub struct IsymtopeServiceFactory {
     sender: RequestMsgChannel,
     handle: Handle,
+    prefix: String
 }
 
 impl IsymtopeServiceFactory {
-    pub fn new(sender: RequestMsgChannel, handle: Handle) -> Self {
+    pub fn new(sender: RequestMsgChannel, handle: Handle, prefix: String) -> Self {
         IsymtopeServiceFactory {
             sender: sender,
             handle: handle,
+            prefix: prefix
         }
     }
 }
@@ -48,6 +52,7 @@ impl NewService for IsymtopeServiceFactory {
         Ok(IsymtopeService {
             sender: self.sender.clone(),
             handle: self.handle.clone(),
+            prefix: self.prefix.clone()
         })
     }
 }
@@ -56,6 +61,7 @@ impl NewService for IsymtopeServiceFactory {
 pub struct IsymtopeService {
     sender: RequestMsgChannel,
     handle: Handle,
+    prefix: String
 }
 
 impl Service for IsymtopeService {
@@ -65,19 +71,33 @@ impl Service for IsymtopeService {
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        if let Some(resource_dir) = env::var_os("RESOURCE_DIR") {
-            let resource_dir = Path::new(&resource_dir);
+        // if let Some(resource_dir) = env::var_os("RESOURCE_DIR") {
+        //     let resource_dir = Path::new(&resource_dir);
 
-            let trimmed_path = req.path().trim_left_matches('/').to_owned();
-            let resource_path = resource_dir.join(&trimmed_path);
+        //     let trimmed_path = req.path().trim_left_matches('/').to_owned();
+        //     let resource_path = resource_dir.join(&trimmed_path);
 
-            if resource_path.is_file() {
-                eprintln!("[service] Serving resource path: {:?}", resource_path);
-                let serve_files = Static::new(&self.handle, &resource_dir);
+        //     let is_javascript = trimmed_path.ends_with(".js");
 
-                return serve_files.call(req);
-            };
-        };
+        //     if resource_path.is_file() {
+        //         eprintln!("[service] Serving resource path: {:?}", resource_path);
+        //         let serve_files = Static::new(&self.handle, &resource_dir);
+        //         let static_resp = serve_files.call(req);
+        //         let static_resp = static_resp.map(move |response| {
+        //             let mut headers = response.headers().to_owned();
+        //             if is_javascript {
+        //                 headers.set(ContentType(mime::TEXT_JAVASCRIPT));
+        //             }
+
+        //             Response::new()
+        //                 .with_status(response.status())
+        //                 .with_headers(headers)
+        //                 .with_body(response.body())
+        //         });
+
+        //         return Box::new(static_resp);
+        //     };
+        // };
 
         let (tx1, rx1) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         #[cfg(feature = "session_time")]
@@ -89,6 +109,9 @@ impl Service for IsymtopeService {
 
         let (tx2, rx2) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let execute_route = Msg::ExecuteRoute(format!("{}", req.path()));
+
+        let original_path = req.path().to_owned();
+        // let internal_path = if req.path().starts_with(&self.prefix) { &original_path[self.prefix.len()..] } else { &original_path[..] };
 
         let (tx3, rx3) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let render = Msg::RenderRoute(format!("{}", req.path()));

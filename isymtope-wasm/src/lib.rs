@@ -1,19 +1,24 @@
 #![feature(wasm_import_memory, panic_handler, std_panic)]
 #![wasm_import_memory]
 
+#[macro_use]
+extern crate log;
+#[macro_use(eprint, eprintln)]
+extern crate wasm_log;
+#[macro_use]
+extern crate lazy_static;
+
+extern crate isymtope_ast_common;
 extern crate isymtope_build;
 
 use std::mem;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
-
 use std::rc::Rc;
+use std::sync::Mutex;
 
-use isymtope_build::traits::*;
-use isymtope_build::expressions::*;
-use isymtope_build::objects::*;
-use isymtope_build::input::*;
-use isymtope_build::output::*;
+use isymtope_ast_common::*;
+use isymtope_build::*;
 
 #[no_mangle]
 pub extern "C" fn alloc(size: usize) -> *mut c_void {
@@ -37,10 +42,15 @@ pub extern "C" fn dealloc_str(ptr: *mut c_char) {
     }
 }
 
+lazy_static!(
+    static ref FACTORY: Mutex<InternalTemplateRendererFactory> = Mutex::new(InternalTemplateRendererFactory::create().expect("error creating internal renderer factory"));
+);
+
 #[no_mangle]
 pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
+    // wasm_log::wasm_log_init();
+    // wasm_log::wasm_install_panic_hook();
     // panic::set_hook(Box::new(|panic_info| eprintln!("panic occurred: {:?}", panic_info.payload().downcast_ref::<&str>().unwrap())));
-    ::isymtope_build::log::install_panic_hook();
 
     let cstr = unsafe { CString::from_raw(data) };
     let src = cstr.to_string_lossy();
@@ -55,8 +65,11 @@ pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
     let document_provider = Rc::new(DocumentProvider::create(document).unwrap());
 
     eprintln!("Building internal renderer");
+    // let internal_renderer =
+    //     InternalTemplateRenderer::build(document_provider.clone(), None).expect("error creating internal renderer");
+    let factory = FACTORY.lock().unwrap();
     let internal_renderer =
-        InternalTemplateRenderer::build(document_provider.clone(), None).unwrap();
+        factory.build(document_provider.clone(), None).expect("error creating internal renderer");
     eprintln!("Rendering body");
     let body = internal_renderer.render().expect("error rendering body");
 

@@ -8,22 +8,21 @@ failure = "0.1.1"
 itertools = "0.7.6"
 lazy_static = "1.0.0"
 linked-hash-map = "0.5.0"
+log = "0.3.9"
 rand = "0.4.2"
 regex = "0.2.5"
 
-[dependencies.log]
-optional = true
-version = "0.4.1"
-
 [dependencies.uuid]
-optional = true
 features = ["v4"]
+optional = true
 version = "0.5.1"
 
+[dependencies.wasm-log]
+optional = true
+path = "../wasm-log"
+
 [features]
-default = [
-    "log",
-    "uuid_v4",
-]
+default = ["uuid_v4"]
 types = []
 uuid_v4 = ["uuid"]
+wasm = ["wasm-log"]

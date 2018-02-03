@@ -1,3 +1,4 @@
+use std::env;
 use std::fmt::Debug;
 use std::io::{self, Write};
 use std::path::Path;
@@ -26,6 +27,7 @@ pub mod executor;
 pub mod cookies;
 pub mod sessions;
 pub mod session;
+pub mod default_service;
 pub mod service;
 pub mod router;
 
@@ -36,6 +38,7 @@ pub use self::executor::*;
 pub use self::cookies::*;
 pub use self::sessions::*;
 pub use self::session::*;
+pub use self::default_service::*;
 pub use self::service::*;
 pub use self::router::*;
 
@@ -70,9 +73,13 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
             .unwrap();
     });
 
+    let default_app = env::var_os("DEFAULT_APP").expect("DEFAULT_APP must be provided");
+    let default_app_str: String = default_app.to_string_lossy().to_string();
+
     let mut core = Core::new().unwrap();
     let handle = core.handle();
-    let factory = IsymtopeServiceFactory::new(sender, handle.clone());
+    let isymtope_service_factory = IsymtopeServiceFactory::new(sender, handle.clone(), default_app_str);
+    let factory = DefaultServiceFactory::new(isymtope_service_factory, handle.clone());
 
     let listener = TcpListener::bind(&addr, &handle).unwrap();
     let server = listener.incoming().for_each(|(sock, addr)| {

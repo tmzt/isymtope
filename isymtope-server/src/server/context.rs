@@ -127,9 +127,9 @@ impl ServerContext for DefaultServerContext {
             }
 
             Msg::Render => {
-                let internal_renderer =
-                    InternalTemplateRenderer::build(self.document_provider.clone(), None)?;
-                let body = internal_renderer.render()?;
+                let factory = InternalTemplateRendererFactory::create()?;
+                let renderer = factory.build(self.document_provider.clone(), None)?;
+                let body = renderer.render()?;
                 Ok(ResponseMsg::RenderComplete(RenderResponse((body))))
             }
 
@@ -165,11 +165,9 @@ impl ServerContext for DefaultServerContext {
                     path,
                 )?;
 
-                let internal_renderer = InternalTemplateRenderer::build(
-                    self.document_provider.clone(),
-                    Some(Rc::new(state)),
-                )?;
-                let body = internal_renderer.render()?;
+                let factory = InternalTemplateRendererFactory::create()?;
+                let renderer = factory.build(self.document_provider.clone(), Some(Rc::new(state)))?;
+                let body = renderer.render()?;
                 Ok(ResponseMsg::RenderComplete(RenderResponse((body))))
             }
         }

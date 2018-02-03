@@ -56,16 +56,16 @@ function editorContentReducer(state, action) {
     }
 }
 
-window.addEventListener('message', ({data}) => {
-    switch(data.topic) {
-        case '/main/updatePreview':
-            let output = data.output
-            let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
-            let iframe = document.querySelector('iframe#preview')
-            iframe.src = uri
-            break;
-    }
-})
+// window.addEventListener('message', ({data}) => {
+//     switch(data.topic) {
+//         case '/main/updatePreview':
+//             let output = data.output
+//             let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
+//             let iframe = document.querySelector('iframe#preview')
+//             iframe.src = uri
+//             break;
+//     }
+// })
 
 function compilerReducer(state, action) {
     switch(action.type) {
@@ -80,9 +80,56 @@ function compilerReducer(state, action) {
     }
 }
 
+let resourceWorker
+async function setupResourceWorker() {
+    let iframe = document.querySelector('iframe#preview')
+    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/' })
+    resourceWorker = reg.active
+    // await navigator.serviceWorker.ready
+    return true
+}
+
 let compiler
 function setupCompilerWorker() {
     compiler = new Worker('/app/playground/worker.js')
+    compiler.onmessage = ({data}) => {
+        switch(data.topic) {
+            case '/main/updatePreview':
+                if (resourceWorker) {
+                    resourceWorker.postMessage({ topic: '/serviceWorker/cachePreviewObject', content: data.output })
+                }
+                // let output = data.output
+                // let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
+                // let iframe = document.querySelector('iframe#preview')
+                // iframe.src = uri
+                break;
+        }
+    }
+}
+
+navigator.serviceWorker.onmessage = ({data}) => {
+    switch (data.topic) {
+        case '/mainWindow/cachePreviewObjectUpdated':
+            let iframe = document.querySelector('iframe#preview')
+            iframe.src = window.origin + '/app/playground/preview-1bcx1/'
+            break;
+    }
+}
+
+function setupPreview() {
+    let previewId = '/app/playground/preview-1bcx1/'
+    let iframe = document.querySelector('iframe#preview')
+    iframe.src = previewId
+}
+
+function setupPreviewProxy() {
+    let origin = window.origin
+    let proxy = URL.createObjectURL(new Blob([`<html><head><script>
+        navigator.serviceWorker.register(window.origin + '/app/playground/serviceWorker.js', { scope: window.location.href + '/' })
+        navigator.serviceWorker.ready.then(reg => console.log('[preview frame proxy] Resource service worker ready'))
+    </script></head><body>(preview)</body></html>`], { type: 'text/html' }))
+    let iframe = document.querySelector('iframe#preview')
+    iframe.src = proxy
 }
 
 function setupEditor() {
@@ -102,7 +149,7 @@ function setupEditor() {
                 console.log(editor.getValue());
             });
 
-            window.fetch('/playground.ism').then(resp => {
+            window.fetch('/app/playground/playground.ism').then(resp => {
                 resp.text().then(body => {
                     editor.setValue(body)
                 })
@@ -127,6 +174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     `], { type: 'text/javascript' }));
 
     setupCompilerWorker()
+    await setupResourceWorker()
+    setupPreview()
+    // setupPreviewProxy()
     await setupEditor()
     // await setupCompiler()
 })

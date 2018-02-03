@@ -253,7 +253,7 @@ impl ContentProcessor {
         content_ctx: &mut ContentProcessingContext<ProcessedExpression>,
         n: &ElementNode<SourceExpression>,
     ) -> DocumentProcessingResult<()> {
-        debug!("ContentProcessor process_element: n: {:?}", n);
+        eprintln!("ContentProcessor process_element: n: {:?}", n);
 
         let tag = n.tag();
         let key = n.key();
@@ -382,7 +382,7 @@ impl ContentProcessor {
         content_ctx: &mut ContentProcessingContext<ProcessedExpression>,
         n: &ContentNode<SourceExpression>,
     ) -> DocumentProcessingResult<()> {
-        debug!("ContentProcessor process_content_node: n: {:?}", n);
+        eprintln!("ContentProcessor process_content_node: n: {:?}", n);
 
         match *n {
             ContentNode::Element(ref e, _) => self.process_element(ctx, content_ctx, e),
@@ -530,7 +530,7 @@ impl TryProcessFrom<Template> for Document {
             .map(|r| (r.key().to_owned(), r))
             .collect();
 
-        debug!("Document: reducers: {:?}", reducers);
+        eprintln!("Document: reducers: {:?}", reducers);
 
         //
         // Add reducer keys to context so they are available to lenses
@@ -630,18 +630,18 @@ impl TryProcessFrom<Template> for Document {
                 _ => None,
             })
             .collect();
-        debug!("Document: content_nodes: {:?}", content_nodes);
+        eprintln!("Document: content_nodes: {:?}", content_nodes);
 
         let mut content_processor: ContentProcessor = ContentProcessor::new(component_names);
         for ref n in content_nodes {
-            debug!("Document: process content node: {:?}", n);
+            eprintln!("Document: process content node: {:?}", n);
             content_processor.process_content_node(ctx, &mut content_ctx, n)?;
         }
 
         let root_block = content_processor.into_block();
 
-        debug!("Document: Template: {:?}", ast);
-        debug!("Document: root_block: {:?}", &root_block);
+        eprintln!("Document: Template: {:?}", ast);
+        eprintln!("Document: root_block: {:?}", &root_block);
 
         //
         // Routing
@@ -654,7 +654,7 @@ impl TryProcessFrom<Template> for Document {
             })
             .collect();
 
-        debug!("Document: routing_nodes: {:?}", routing_nodes);
+        eprintln!("Document: routing_nodes: {:?}", routing_nodes);
 
         let mut routes: LinkedHashMap<String, Route<ProcessedExpression>> = Default::default();
 
@@ -663,7 +663,7 @@ impl TryProcessFrom<Template> for Document {
             let route: Route<ProcessedExpression> =
                 TryProcessFrom::try_process_from(routing_node, ctx)?;
 
-            debug!("Document: inserting route for {}: {:?}", pattern, route);
+            eprintln!("Document: inserting route for {}: {:?}", pattern, route);
             routes.insert(pattern, route);
         }
 
