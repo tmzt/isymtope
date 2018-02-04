@@ -1,11 +1,15 @@
 
 importScripts('https://www.hellorust.com/demos/bundle.js')
 
-self.onmessage = ({data}) => {
-    switch(data.topic) {
-        case '/compiler/updatePreview':
-            let output = compileTemplate(data.source)
-            postMessage({ topic: '/main/updatePreview', output })
+self.onmessage = ({data, ports}) => {
+    switch(data.topic) {        
+        case '/compilerWorker/startCompilation':
+            console.info('[compiler worker] received startCompilation, will send message to resourceWorker')
+            let { source, pathname, mimeType } = data
+            let resourceWorkerPort = ports[0]
+
+            let content = compileTemplate(source)
+            resourceWorkerPort.postMessage({ topic: '/resourceWorker/compilationComplete', content, pathname, mimeType })
             break;
     }
 }

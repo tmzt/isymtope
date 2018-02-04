@@ -1,0 +1,103 @@
+@use ::output::*;
+@(data: &InternalTemplateData)
+
+<!doctype HTML>
+<html>
+<head>
+  <meta charset="utf-8" />
+  @Html(format!("{}", "<script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>"))
+  @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>"))
+</head>
+<body>
+  @Html(&data.page_body_html)
+
+  <script>
+    "use strict";
+
+    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-driver-incdom.js"))))
+    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-routing.js"))))
+    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-util.js"))))
+
+    let routes = @{@};
+    @for (pattern, body) in &data.route_bodies {
+      routes["@pattern"] = @{ handler: function(path, store) @{
+        @body
+      @}@};
+    }
+
+    let root = document.querySelector('body')
+    let rootReducer = createRootReducer()
+    let store = Isymtope.initialize(root, render, rootReducer, routes, false)
+
+    let wrap = window.__IsymtopeUtil;
+    let classes = window.__IsymtopeUtil__classes;
+
+    // Events
+    @for (event_key, event_actions) in &data.event_action_bodies {
+      function @event_key(_event, props) @{
+        @if data.event_enterkeyflags[event_key] {
+          if (_event.keyCode == 13) @{
+            @for (action_key, action_body) in event_actions {
+              @action_body
+            }
+          _event.preventDefault();
+          @}
+        } else {
+          @for (action_key, action_body) in event_actions {
+            @action_body
+          }
+          _event.preventDefault();
+        }
+      @}
+    }
+
+    // Reducers
+    @for (reducer_key, action_bodies) in &data.reducer_bodies {
+      function @format!("{}Reducer(state, action)", reducer_key) @{
+          switch (action.type) @{
+            @for (action_key, action_body) in action_bodies {
+              case "@action_key": return @Html(action_body);
+            }
+            @if let Some(reducer_default) = data.reducer_defaults.get(reducer_key) {
+              @Html(format!("default: return state || {};", reducer_default))
+            } else {
+              @format!("default: return state || null;")
+            }
+          @}
+      @}
+    }
+
+    @for (component_key, component_body) in &data.component_bodies {
+      
+      function @format!("{}Component(props)", component_key) @{
+        @Html(component_body)
+      @}
+    }
+
+    @for (query_key, query_params) in &data.query_params {
+      function query_@query_key(store
+        @for query_param in query_params {
+          , @query_param
+        }
+      ) @{
+        @Html(&data.query_bodies[query_key])
+      @}
+    }
+
+    function render(store) @{
+      @data.page_render_func_body
+    @}
+
+    function createRootReducer() @{
+      return Redux.combineReducers(@{
+        @for key in data.reducer_bodies.keys() {
+          @key: @format!("{}Reducer", key),
+        }
+        @for key in &data.extern_reducer_keys {
+          @key: @format!("{}Reducer", key),
+        }
+      @});
+    @};
+  </script>
+</body>
+</html>

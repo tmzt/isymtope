@@ -56,83 +56,64 @@ function editorContentReducer(state, action) {
     }
 }
 
-// window.addEventListener('message', ({data}) => {
-//     switch(data.topic) {
-//         case '/main/updatePreview':
-//             let output = data.output
-//             let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
-//             let iframe = document.querySelector('iframe#preview')
-//             iframe.src = uri
-//             break;
-//     }
-// })
-
 function compilerReducer(state, action) {
     switch(action.type) {
         case 'COMPILER.COMPILE':
-            let source = editor.getValue();
-            if (compiler)
-            {
-                compiler.postMessage({ topic: '/compiler/updatePreview', source })
-            }
+            let source = editor.getValue()
+            startCompilation(source)
             return true;
         default: return null
     }
 }
 
-let resourceWorker
-async function setupResourceWorker() {
-    let iframe = document.querySelector('iframe#preview')
-    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/' })
-    resourceWorker = reg.active
-    // await navigator.serviceWorker.ready
+async function startCompilation(source) {
+    let compilerWorker = getOrRegisterCompilerWorker()
+    let resourceWorker = await getOrRegisterResourceWorker()
+
+    let compilerToResourceWorker = new MessageChannel()
+    let resourceWorkerToMainWindow = new MessageChannel()
+
+    resourceWorkerToMainWindow.port1.onmessage = ({data}) => {
+        switch (data.topic) {
+            case '/mainWindow/refreshPreview':
+                let iframe = document.querySelector('iframe#preview')
+                iframe.src = window.origin + '/app/playground/preview-1bcx1/'
+        }
+    }
+
+    resourceWorker.postMessage({ topic: '/resourceWorker/compilationStarted' }, [compilerToResourceWorker.port2, resourceWorkerToMainWindow.port2])
+    compilerWorker.postMessage({ topic: '/compilerWorker/startCompilation', source, pathname: '', mimeType: 'text/html' }, [compilerToResourceWorker.port1])
     return true
 }
 
 let compiler
-function setupCompilerWorker() {
-    compiler = new Worker('/app/playground/worker.js')
-    compiler.onmessage = ({data}) => {
-        switch(data.topic) {
-            case '/main/updatePreview':
-                if (resourceWorker) {
-                    resourceWorker.postMessage({ topic: '/serviceWorker/cachePreviewObject', content: data.output })
-                }
-                // let output = data.output
-                // let uri = URL.createObjectURL(new Blob([output], {type: 'text/html'}));
-                // let iframe = document.querySelector('iframe#preview')
-                // iframe.src = uri
-                break;
-        }
+function getOrRegisterCompilerWorker() {
+    if (!compiler) {
+        compiler = new Worker('/app/playground/worker.js')        
     }
+    return compiler
 }
 
-navigator.serviceWorker.onmessage = ({data}) => {
-    switch (data.topic) {
-        case '/mainWindow/cachePreviewObjectUpdated':
-            let iframe = document.querySelector('iframe#preview')
-            iframe.src = window.origin + '/app/playground/preview-1bcx1/'
-            break;
+async function getOrRegisterResourceWorker() {
+    if (navigator.serviceWorker.controller) {
+        return navigator.serviceWorker.controller
     }
-}
 
-function setupPreview() {
-    let previewId = '/app/playground/preview-1bcx1/'
-    let iframe = document.querySelector('iframe#preview')
-    iframe.src = previewId
-}
-
-function setupPreviewProxy() {
-    let origin = window.origin
-    let proxy = URL.createObjectURL(new Blob([`<html><head><script>
-        navigator.serviceWorker.register(window.origin + '/app/playground/serviceWorker.js', { scope: window.location.href + '/' })
-        navigator.serviceWorker.ready.then(reg => console.log('[preview frame proxy] Resource service worker ready'))
-    </script></head><body>(preview)</body></html>`], { type: 'text/html' }))
-    let iframe = document.querySelector('iframe#preview')
-    iframe.src = proxy
+    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/' })
+    return reg.active
 }
 
 function setupEditor() {
+    require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.8.3/min/vs' }});
+    window.MonacoEnvironment = { getWorkerUrl: () => proxy };
+
+    let proxy = URL.createObjectURL(new Blob([`
+        self.MonacoEnvironment = {
+            baseUrl: 'https://unpkg.com/monaco-editor@0.8.3/min/'
+        };
+        importScripts('https://unpkg.com/monaco-editor@0.8.3/min/vs/base/worker/workerMain.js');
+    `], { type: 'text/javascript' }));
+
     let editorComponentDiv = document.getElementById('editorComponent')
     let editorDiv = document.createElement('div')
     editorDiv.setAttribute('id', 'editorDiv')
@@ -163,19 +144,8 @@ function setupEditor() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.8.3/min/vs' }});
-    window.MonacoEnvironment = { getWorkerUrl: () => proxy };
-
-    let proxy = URL.createObjectURL(new Blob([`
-        self.MonacoEnvironment = {
-            baseUrl: 'https://unpkg.com/monaco-editor@0.8.3/min/'
-        };
-        importScripts('https://unpkg.com/monaco-editor@0.8.3/min/vs/base/worker/workerMain.js');
-    `], { type: 'text/javascript' }));
-
-    setupCompilerWorker()
-    await setupResourceWorker()
-    setupPreview()
+    getOrRegisterCompilerWorker()
+    await getOrRegisterResourceWorker()
     // setupPreviewProxy()
     await setupEditor()
     // await setupCompiler()

@@ -8,10 +8,14 @@ const UPSTREAM_PATH = '/app/playground/'
 
 self.addEventListener('install', event => {
     console.log('% install')
+    console.log('% requesting immediate activation')
+    return self.skipWaiting()
 })
 
 self.addEventListener('activate', event => {
     console.log('% activate')
+    console.log('% claiming controller for all clients')
+    return self.clients.claim()
 })
 
 const cached = async request => {
@@ -23,19 +27,7 @@ const cached = async request => {
         return preview_match
     }
 
-    let upstream_req
-
-    // Strip preview prefix before making upstream request
-    // const preview_regex = new RegExp('^' + PREVIEW_PATH)
-    // let url = new URL(request.url)
-    // if (preview_regex.test(url.pathname)) {
-    //     let upstream_url = new URL(request.url)
-    //     upstream_url.pathname = url.pathname.replace(preview_regex, UPSTREAM_PATH)
-    //     upstream_req = new Request(upstream_url.href)
-    // } else {
-    //     upstream_req = request.clone()
-    // }
-    upstream_req = request.clone()
+    let upstream_req = request.clone()
 
     // Disable upstream cache
     // let upstream_match = await upstream.match(upstream_req)
@@ -53,15 +45,40 @@ async function cachePreviewObject(pathname, mimeType, content) {
     let cache = await caches.open(CACHE)
     let request = new Request(self.origin + PREVIEW_PATH)
     let response = new Response([content], { contentType: mimeType })
+    response.headers.set('content-type', mimeType)
     cache.put(request, response)
 }
 
-self.onmessage = async ({data}) => {
+self.onmessage = async ({data, ports}) => {
     switch (data.topic) {
-        case '/serviceWorker/cachePreviewObject':
-            await cachePreviewObject('/app/playground/preview-1bcx1/', 'text/html', data.content)
-            self.postMessage({ topic: '/mainWindow/cachePreviewObjectUpdated' })
+        case '/resourceWorker/compilationStarted':
+            console.info('[resource worker] received compilationStarted, awaiting message from compilerWorker')
+            let compilerWorkerPort = ports[0]
+            let mainWindowPort = ports[1]
+
+            compilerWorkerPort.onmessage = async ({data}) => {
+                switch (data.topic) {
+                    case '/resourceWorker/compilationComplete':
+                        let { content, pathname, mimeType } = data
+                        let fullPathname = PREVIEW_PATH + pathname
+                        await cachePreviewObject(fullPathname, mimeType, content )
+                        mainWindowPort.postMessage({ topic: '/mainWindow/refreshPreview', pathname })
+                        break;
+                }
+            }
+
             break;
+
+        // case '/serviceWorker/cachePreviewObject':
+        //     let { content, mimeType } = data
+        //     let mainWindowPort = ports[0]
+        //     let compilerWorkerPort = ports[1]
+
+        //     compilerWorkerPort
+
+        //     await cachePreviewObject('/app/playground/preview-1bcx1/', 'text/html', data.content)
+        //     ports[0].postMessage({ topic: '/mainWindow/cachePreviewObjectUpdated' })
+        //     break;
     }
 }
 

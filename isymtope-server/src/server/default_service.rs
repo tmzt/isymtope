@@ -67,6 +67,7 @@ impl Service for DefaultService {
         let default_app = env::var_os("DEFAULT_APP").expect("DEFAULT_APP must be provided");
         let default_app_str: String = default_app.to_string_lossy().to_string();
         let default_app_trimmed = default_app_str.trim_left_matches('/').to_owned();
+        let default_app_trailing = format!("{}/", default_app_trimmed);
         let default_workspace_str = format!("{}/preview-1bcx1", default_app_str);
 
         let resource_dir = env::var_os("RESOURCE_DIR").expect("RESOURCE_DIR must be provided");
@@ -79,7 +80,7 @@ impl Service for DefaultService {
         if (trimmed_path == "") {
             let response = Response::new()
                 .with_status(StatusCode::Found)
-                .with_header(Location::new(default_app_str));
+                .with_header(Location::new(default_app_trailing));
 
             return Box::new(future::ok(response));
         };

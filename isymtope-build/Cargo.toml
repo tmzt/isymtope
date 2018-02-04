@@ -17,7 +17,6 @@ log = "0.3.9"
 rand = "0.3.20"
 regex = "0.2.2"
 serde_json = "1.0.6"
-trimmer = "0.3.5"
 
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common/"
@@ -33,6 +32,9 @@ version = "0.5.1"
 [dependencies.wasm-log]
 optional = true
 path = "../wasm-log"
+
+[build-dependencies]
+ructe = "0.3.10"
 
 [features]
 default = ["session_time"]

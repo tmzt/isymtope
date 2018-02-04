@@ -43,7 +43,8 @@ pub extern "C" fn dealloc_str(ptr: *mut c_char) {
 }
 
 lazy_static!(
-    static ref FACTORY: Mutex<InternalTemplateRendererFactory> = Mutex::new(InternalTemplateRendererFactory::create().expect("error creating internal renderer factory"));
+    // static ref FACTORY: Mutex<InternalTemplateRendererFactory> = Mutex::new(InternalTemplateRendererFactory::create().expect("error creating internal renderer factory"));
+    static ref FACTORY: Mutex<InternalTemplateRendererFactory> = Default::default();
 );
 
 #[no_mangle]
