@@ -185,16 +185,17 @@ impl ContentProcessor {
             first_pos
         );
 
-        let for_lens = match first_pos {
+        let (for_lens, positionals) = match first_pos {
             Some(&ExpressionValue::Lens(LensValue::ForLens(ref key, box ref expr, _), _)) => {
-                Some((key.to_owned(), expr.to_owned()))
+                (Some((key.to_owned(), expr.to_owned())), &positionals[1..])
             }
-            _ => None,
+            _ => (None, &positionals[..])
         };
         eprintln!("ContentProcessor: for_lens: {:?}", for_lens);
+        eprintln!("ContentProcessor: (remaining) positionals: {:?}", positionals);
 
         let alias_props: Vec<_> = positionals
-            .iter()
+            .into_iter()
             .filter_map(|p| match *p {
                 ExpressionValue::Lens(ref l, _) => Some(l),
                 _ => None,
@@ -222,10 +223,21 @@ impl ContentProcessor {
             _ => Default::default(),
         };
 
+        let positionals = positionals
+            .into_iter()
+            .filter_map(|expr| {
+                let key = match *expr {
+                    ExpressionValue::Binding(ref binding, _) => binding.ident(),
+                    _ => None
+                };
+                key.map(|key| ElementPropValue::new(key.to_owned(), expr.to_owned()))
+            });
+
         let component_props: Vec<_> = named_props
             .into_iter()
             .chain(alias_props.into_iter())
             .chain(for_item_props.into_iter())
+            .chain(positionals.into_iter())
             .collect();
         eprintln!("ContentProcessor: component_props: {:?}", component_props);
 
@@ -291,7 +303,7 @@ impl ContentProcessor {
             .nth(0);
 
         ctx.push_child_scope();
-        if let Some(value_binding) = value_binding {
+        if let Some(ref value_binding) = value_binding {
             if let Some(ident) = value_binding.ident() {
                 let ident = ident.to_owned();
                 let binding = CommonBindings::CurrentElementValue(Default::default());
@@ -320,12 +332,15 @@ impl ContentProcessor {
         )?.collect();
         ctx.pop_scope();
 
+        let value_binding: Option<ElementValueBinding<ProcessedExpression>> =
+            TryProcessFrom::try_process_from(&value_binding, ctx)?;
+
         let desc = ElementDescriptor::new(
             tag.to_owned(),
             key.to_owned(),
             props,
             Some(event_bindings),
-            None,
+            value_binding,
             false,
         );
 

@@ -1,7 +1,5 @@
-#![recursion_limit="240"]
 #![feature(box_patterns)]
-#![feature(conservative_impl_trait)]
-#![feature(specialization)]
+#![recursion_limit="240"]
 
 #[macro_use]
 extern crate log;
@@ -15,7 +13,6 @@ extern crate time;
 
 extern crate itertools;
 extern crate linked_hash_map;
-extern crate trimmer;
 extern crate serde_json;
 extern crate regex;
 extern crate rand;
@@ -36,7 +33,6 @@ extern crate isymtope_ast_common;
 use isymtope_ast_common::*;
 
 pub mod common;
-pub mod errors;
 pub mod input;
 pub mod output;
 
@@ -46,7 +42,6 @@ pub use expressions::*;
 pub use objects::*;
 
 pub use self::common::*;
-pub use self::errors::*;
 pub use self::input::*;
 pub use self::input::processing::*;
 pub use self::output::*;

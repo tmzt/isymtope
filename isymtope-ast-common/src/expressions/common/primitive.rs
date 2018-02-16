@@ -55,6 +55,7 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>> for bool {
         src: &ExpressionValue<OutputExpression>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
+        eprintln!("[TryEvalFrom -> bool] Evaluating OutputExpression as bool: {:?}", src);
         match *src {
             ExpressionValue::Primitive(Primitive::BoolVal(b)) if b => Ok(true),
             ExpressionValue::Primitive(Primitive::BoolVal(_)) => Ok(false),

@@ -2,7 +2,12 @@
     _global.Isymtope = _global.Isymtope || {}
     let IsymtopeRouting = _global.Isymtope.Routing = {}
 
+    let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
+    let rootPath = baseUrl.length ? baseUrl + '/' : ''
+    let mapRoute = href => rootPath + href.replace(/^\/+/, '').replace(/\/+$/, '')
+
     function createHistory(_window) {
+
         return {
             init: function(store, dispatchCurrentRoute) {
                 dispatchCurrentRoute = !!dispatchCurrentRoute
@@ -28,7 +33,7 @@
     }
 
     function createRoutingMiddleware(routes, history) {
-        var routes = Object.keys(routes).map(function(pattern) { return { regex: new RegExp('^' + pattern.replace(/\//g, '\/') + '$'), handler: routes[pattern].handler }; });
+        var routes = Object.keys(routes).map(function(pattern) { return { regex: new RegExp('^' + mapRoute(pattern.replace(/\//g, '\/') + '$')), handler: routes[pattern].handler }; });
 
         return function(store) {
             return function(next) {
@@ -50,7 +55,7 @@
         };
     }
 
-    let navigate = href => ({ type: '@@redux-routing/navigate', href: href })
+    let navigate = href => ({ type: '@@redux-routing/navigate', href: mapRoute(href) })
 
     function startRouting(history, store, dispatchCurrentRoute) {
             dispatchCurrentRoute = !!dispatchCurrentRoute

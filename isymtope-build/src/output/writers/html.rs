@@ -1,5 +1,6 @@
 use std::str;
 use std::io;
+use std::collections::HashMap;
 
 use itertools::join;
 
@@ -116,7 +117,7 @@ impl ObjectWriter<Block<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter 
         ctx: &mut OutputContext,
         obj: &Block<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
-        debug!(
+        eprintln!(
             "ObjectWriter Block<ProcessedExpression> (HTML): obj: {:?}",
             obj
         );
@@ -198,6 +199,15 @@ fn write_open<'s>(
     first = false;
 
     // Props
+    let simple_props: HashMap<String, String> = desc.props()
+        .flat_map(|prop| {
+            let (name, expr) = (prop.name(), prop.expr());
+            match (name, expr) {
+                (k, &ExpressionValue::Primitive(Primitive::StringVal(ref v))) => Some((k.to_owned(), v.to_owned())),
+                _ => None
+            }.into_iter()
+        }).collect();
+
     for prop in desc.props() {
         if !first {
             write!(w, " ")?;
@@ -243,6 +253,26 @@ fn write_open<'s>(
         write!(w, "\"")?;
         first = false;
     }
+
+    // Value binding
+
+    if let Some(value_binding) = desc.value_binding() {
+        if (desc.tag() == "input" && simple_props.get("type").map(|s| s.as_str()) == Some("checkbox")) {
+            if let Some(read_expr) = value_binding.read_expr() {
+                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(read_expr, ctx)?;
+                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
+                let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
+
+                if (checked) {
+                    if !first {
+                        write!(w, " ")?;
+                    }
+                    write!(w, "checked=\"checked\"")?;
+                    first = false;
+                };
+            };
+        };
+    };
 
     let mut bytes: Vec<u8> = Vec::with_capacity(8192);
 

@@ -1,14 +1,17 @@
 
 importScripts('https://www.hellorust.com/demos/bundle.js')
 
-self.onmessage = ({data, ports}) => {
+let moduleLoaded = false
+
+self.onmessage = async ({data, ports}) => {
     switch(data.topic) {        
         case '/compilerWorker/startCompilation':
             console.info('[compiler worker] received startCompilation, will send message to resourceWorker')
             let { source, pathname, mimeType } = data
             let resourceWorkerPort = ports[0]
 
-            let content = compileTemplate(source)
+            await setupCompiler()
+            let content = await compileTemplate(source)
             resourceWorkerPort.postMessage({ topic: '/resourceWorker/compilationComplete', content, pathname, mimeType })
             break;
     }
@@ -23,7 +26,7 @@ function logToJs(ptr) {
     console.log('[rust] ' + result)
 }
 
-const memory = new WebAssembly.Memory({initial: 20000})
+const memory = new WebAssembly.Memory({initial: 16000})
 const imports = {
     env: {
         memory: memory, rand_value: randomValue, log_to_js: logToJs,
@@ -31,7 +34,8 @@ const imports = {
     }
 }
 
-function compileTemplate(src) {
+async function compileTemplate(src) {
+    await setupCompiler()
     console.log('[compiler worker] allocating source buffer')
     let buf = newString(Module, src);
     console.log('[compiler worker] compiling template')
@@ -42,14 +46,17 @@ function compileTemplate(src) {
 }
 
 async function setupCompiler() {
-    self.Module = {}
-    let mod = await fetchAndInstantiate('/app/playground/isymtope-small.wasm', imports)
-    console.log('[compiler worker] loaded module')
-    Module.memory = memory
-    Module.compile_template = mod.exports.compile_template
-    Module.alloc   = mod.exports.alloc
-    Module.dealloc = mod.exports.dealloc
-    Module.dealloc_str = mod.exports.dealloc_str
+    if (!moduleLoaded) {
+        self.Module = {}
+        let mod = await fetchAndInstantiate('/app/playground/isymtope-small.wasm', imports)
+        console.log('[compiler worker] loaded module')
+        Module.memory = memory
+        Module.compile_template = mod.exports.compile_template
+        Module.alloc   = mod.exports.alloc
+        Module.dealloc = mod.exports.dealloc
+        Module.dealloc_str = mod.exports.dealloc_str
+        moduleLoaded = true
+    }
 }
 
 async function main() {

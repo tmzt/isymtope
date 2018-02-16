@@ -1,14 +1,58 @@
 
+body { background: #1e1e1e; }
+
 .container { max-width: 180rem; }
 
-#editorComponent { height: 600px; }
-#editorDiv { height: 600px; }
+#editorComponent { height: 700px; }
+#editorDiv { height: 700px; overflow: hidden; }
 
-#preview { width: 100%; height: 600px; }
+#preview { width: 100%; height: 700px; margin-top: 21.5px; }
 
-.editorFiles { list-style-type: none; padding-left: 0; margin-bottom: 0; }
-.editorFiles li { font-size: 10px; display: inline-block; margin-right: 10px; }
-.editorFiles li a { color: #606c76; text-decoration: none; }
+.editorFiles { list-style-type: none; padding-left: 0; margin: 0; position: relative; }
+.editorFiles li { font-size: 14px; display: inline-block; margin-right: 10px; }
+.editorFiles li a { color: #606c76; text-decoration: none; margin-bottom: 1px; }
 .editorFiles li a:active { color: #606c76; text-decoration: none; }
 .editorFiles li a:visited { color: #606c76; text-decoration: none; }
 .editorFiles li a.isActive { color: red; text-decoration: none; }
+.editorFiles li:last-child { margin-right: 0; position: absolute; right: 0; }
+
+/* .topLayout { display: flex; width: 100%; }
+.topLayout .top { flex: 0 1 100%; }
+.topLayout .main { flex: 0 1 100%; } */
+
+.splitScreen { display: flex; width: 100%; }
+.splitScreen .splitEditor { flex: 0 1 94%; }
+.splitScreen .splitPreview { flex: 0 1 94%; }
+
+
+a.btn,.btn {
+    display: inline-block;
+    outline: none;
+    *zoom: 1;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+    font-weight: 300;
+    letter-spacing: 1px;
+    vertical-align: middle;
+    border: 1px solid;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.01);
+}
+/* Radius */
+.btn-radius {
+border-radius: 3px;
+}
+/* Sizes */
+.btn-small {
+    font-size: 0.8125em;
+    padding: 0.4125em 1.25em;
+}
+
+select {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="14"…h fill="#d1d1d1" d="M9.37727 3.625l5.08154 6.93523L19.54036 3.625"/></svg>') center right no-repeat;
+    padding-right: 3.0rem;
+}
+
+#activeWorkspace { font-size: 18px; background-color: white; padding: 6px; }

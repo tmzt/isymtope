@@ -32,6 +32,19 @@ pub enum CommonBindings<T> {
     PathAlias(String, PhantomData<T>),
 }
 
+impl<T> CommonBindings<T> {
+    pub fn ident(&self) -> Option<&str> {
+        match *self {
+            CommonBindings::NamedReducerKey(ref s, _) => Some(s.as_str()),
+            CommonBindings::NamedReducerActionParam(ref s, _) => Some(s.as_str()),
+            CommonBindings::NamedQueryParam(ref s, _) => Some(s.as_str()),
+            CommonBindings::NamedEventBoundValue(ref s, _) => Some(s.as_str()),
+            CommonBindings::PathAlias(ref s, _) => Some(s.as_str()),
+            _ => None
+        }
+    }
+}
+
 impl<I, O> TryProcessFrom<CommonBindings<I>> for CommonBindings<O>
 where
     ExpressionValue<O>: TryProcessFrom<ExpressionValue<I>>,
@@ -157,6 +170,14 @@ impl<T> ExpressionValue<T> {
         }
     }
 
+    pub fn is_array_of_objects(&self) -> bool {
+        if let ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(Some(box ref v)))) = *self {
+            return v.iter().all(|e| e.value().is_object());
+        };
+
+        false
+    }
+
     pub fn shape(&self) -> OuterShape {
         match *self {
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(..))) => {
@@ -166,6 +187,16 @@ impl<T> ExpressionValue<T> {
                 OuterShape::Array
             }
             _ => OuterShape::Singleton,
+        }
+    }
+
+    pub fn ident(&self) -> Option<String> {
+        match *self {
+            ExpressionValue::Expression(Expression::Path(ref path, _)) => {
+                path.components().and_then(|v| v.last().map(|s| s.to_owned()))
+            }
+
+            _ => None
         }
     }
 }

@@ -1,0 +1,132 @@
+use html;
+
+store {
+    let workspaces = [
+        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, files: [
+            {id: "todomvc/app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
+        ]},
+        {id: "playground", name: "playground", description: "This application", demo: true, files: [
+            {id: "playground/app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true},
+            {id: "playground/app.js", path: "app.js", name: "app.js", caption: "JS", language: "javascript"},
+            {id: "playground/app.css", path: "app.css", name: "app.css", caption: "CSS", language: "css"}
+        ]}
+    ];
+    let activeWorkspace = "todomvc";
+    let activeFilename = "app.ism";
+
+    workspaces {}
+
+    activeFilename {
+        action chooseFilename(id) => id;
+    }
+
+    activeWorkspace {
+        action chooseWorkspace(id) => id;
+    }
+
+    extern loadWorkspace;
+    extern loadFile;
+    extern editorContent;
+    extern compiler;
+}
+
+component workspaceOption(workspaceData) {
+    option(value = (workspaceData.id))
+    {
+        ( workspaceData.name ) ( " - " ) ( workspaceData.description )
+    }
+}
+
+component listWorkspaces(workspaces, activeWorkspace) {
+    select(id="activeWorkspace") bind activeWorkspace as selectWorkspace
+        change || {
+            dispatch chooseWorkspace(id: selectWorkspace) to activeWorkspace;
+            dispatch loadWorkspace(workspaces: workspaces, id: selectWorkspace) to loadWorkspace;
+        }
+    {
+        workspaceOption(for workspaceData in workspaces) {}
+    }
+}
+
+component fileLink(fileData, activeFilename) {
+    li(class = {isActive: (fileData.name == activeFilename)}) {
+        a(href="#", class="btn btn-small") || {
+            dispatch chooseFile(name: fileData.name) to activeFilename;
+            dispatch load(name: fileData.name, path: fileData.path) to editorContent;
+        }
+        {
+            ( fileData.caption )
+        }
+    }
+}
+
+component listFiles(files, activeFilename) {
+    ul(class="editorFiles") {
+        fileLink(for fileData in files, activeFilename) {}
+    }
+}
+
+component listWorkspaceFiles(workspaceData, activeFilename) {
+    ul(class="editorFiles") {
+        fileLink(for fileData in workspaceData.files, activeFilename) {}
+        li(class="updatePreview") { 
+            a(href="#", class="btn btn-small") || { dispatch compile() to compiler; }  { ("Update >") }
+        }
+    }
+}
+
+component tabs(editors) {
+}
+
+component editor(filename) {
+    div(class="editorWrap") {
+        div(class="editorButtons") {
+            listWorkspaceFiles(query workspace_data(get workspaces, get activeWorkspace) as workspaceData, get activeFilename) {}
+        }
+        div(class="editorMain") {
+            div(id="editorComponent") {
+                extern {
+                    div(id="editor") {}
+                }
+            }
+        }
+    }
+}
+
+component preview() {
+    div(id="previewComponent") {
+        iframe(id="preview", src="about:blank") {}
+    }
+}
+
+query workspace_data(workspaces, activeWorkspace) {
+    (workspaces.filter(item.id == activeWorkspace).first()) where (true);
+}
+
+route "/" || {
+    dispatch chooseWorkspace(id: "1czxy") to workspaceId;
+    dispatch chooseWorkspace(id: "todomvc") to activeWorkspace;
+}
+
+link(rel="stylesheet", href="app.css", type="text/css") {}
+script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/javascript", defer="defer") {}
+script(src="https://www.hellorust.com/demos/bundle.js", type="text/javascript", defer="defer") {}
+script(src="app.js", type="text/javascript") {}
+
+div(class="topLayout") {
+    div(class="top") {
+        listWorkspaces(get workspaces as workspaces) {}
+    }
+
+    div(class="main") {
+        div(class="splitScreen") {
+            div(class="splitEditor") {
+                    editor(get activeFilename as filename) {}
+            }
+
+            div(class="splitPreview") {
+                    preview() {}
+            }
+        }
+    }
+}

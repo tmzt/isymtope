@@ -4,19 +4,27 @@
     let toEntry = (obj) => [obj.id, obj]
     let orTrue = (func) => 'function' === typeof func ? func : _item => true
     let orSelf = (item, func, cond) => cond(item) ? func(item) : item
-    let orMember = (func) => 'function' === typeof func ? func : _item => _item[func];
+    let orMember = (func) => 'function' === typeof func ? func : _item => _item[func]
+    let valueThunk = (func) => 'function' === typeof func ? func : () => func
 
     class IsymtopeUtilWrapper {
         constructor(m) {
             if (typeof m === 'undefined') {
                 this.m = []
-            } else {
-                this.m = m
+            } else if (Array.isArray(m)) {
+                // Are all members objects
+                let supported = m.every(e => typeof e === 'object')
+                if (supported) {
+                    this.m = new Map(m.map(e => [e.id, e]))
+                    return
+                }
             }
+
+            this.m = m
         }
 
         map(func, cond = undefined) {
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
             func = orMember(func)
             cond = orMember(orTrue(cond))
             let entries = arr.map(([_idx, _item]) => toEntry(orSelf(_item, func, cond)));
@@ -27,7 +35,7 @@
 
         enumerateWithKeys() {
             let arr = Array.from(this.m.entries());
-            let entries = arr.map(([_key, _item], _idx) => [_idx, [_item, _key]]);
+            let entries = arr.map((_item, _idx) => ([_idx, _item[1]]));
             this.m = new Map(entries);
 
             return this;
@@ -36,7 +44,7 @@
         reduce(func, initial = undefined) {
             func = orMember(func)
             cond = orMember(orTrue(cond))
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
             let entries = arr.reduce((acc, item) => orSelf(item, func, cond), initial);
 
             this.m = new Map(entries)
@@ -47,7 +55,7 @@
         reduceIf(func, initial = undefined, cond = undefined) {
             func = orMember(func)
             cond = orMember(orTrue(cond))
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
             let entries = arr.reduce((acc, item) => orSelf(item, func, cond), initial);
 
             this.m = new Map(entries)
@@ -56,7 +64,7 @@
 
         min(func) {
             func = orMember(func)
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
 
             let res = arr.reduce((acc, [_idx, _item]) => {
                 let v = func(_item)
@@ -69,7 +77,7 @@
 
         max(func) {
             func = orMember(func)
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
 
             let res = arr.reduce((acc, [_idx, _item]) => {
                 let v = func(_item)
@@ -82,7 +90,7 @@
 
         count(cond = undefined) {
             cond = orMember(orTrue(cond))
-            let arr = Array.from(this.m.entries());
+            let arr = Array.from(this.m);
 
             let res = arr.reduce((acc, [_idx, _item]) => {
                 let v = cond(_item)
@@ -96,18 +104,17 @@
         first(cond = undefined) {
             cond = orMember(orTrue(cond))
 
-            let arr = Array.from(this.m.entries())
+            let arr = Array.from(this.m)
             let entries = arr.filter(([_idx, _item]) => !!cond(_item, _idx))
             let first = (entries && !!entries.length && entries[0]) || []
-
-            this.m = first
+            this.m = (Array.isArray(first) && first.length > 1) ? first[1] : first
             return this            
         }
 
         // Pipeline utilities
 
         addObject(values) {
-            let arr = Array.from(this.m.entries())
+            let arr = Array.from(this.m)
             let entry = toEntry(values)
             let entries = arr.concat([entry]);
 
@@ -116,7 +123,9 @@
         }
 
         setObject(values, cond = undefined) {
-            let setValues = (obj, values) => Object.assign({}, obj, values)
+            let valueFunc = valueThunk(orMember(values))
+            let condFunc = valueThunk(orMember(orTrue(cond)))
+            let setValues = obj => Object.assign({}, obj, valueFunc(obj))
 
             return this.map(setValues, cond)
         }
@@ -124,7 +133,7 @@
         whereObject(func) {
             func = orMember(func)
 
-            let arr = Array.from(this.m.entries())
+            let arr = Array.from(this.m)
             let entries = arr.filter(([_idx, _item]) => func(_item, _idx))
 
             this.m = new Map(entries)
@@ -143,7 +152,7 @@
             func = orMember(func)
 
             let keys = new Set();
-            let arr = Array.from(this.m.entries())
+            let arr = Array.from(this.m)
 
             let entries = arr.filter(([_idx, _item]) => {
                 let id = func(_item)

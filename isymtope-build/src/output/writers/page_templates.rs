@@ -3,8 +3,6 @@ use std::rc::Rc;
 use std::error::Error;
 use std::collections::HashMap;
 
-use trimmer::{Context as TrimmerContext, Template as TrimmerTemplate};
-
 use error::*;
 use ast::*;
 use util::*;
@@ -14,21 +12,6 @@ use output::*;
 
 include!(concat!(env!("OUT_DIR"), "/templates.rs"));
 use self::templates::*;
-
-#[derive(Debug)]
-pub struct InternalTemplateSource {
-    template: TrimmerTemplate,
-    preload_src: String,
-}
-
-
-// fn render_template(template: &TrimmerTemplate, tctx: &TrimmerContext) -> DocumentProcessingResult<String> {
-//     let res = page
-//     match template.render(tctx) {
-//         Err(err) => Err(DocumentProcessingError::InternalRenderError(err.description().to_owned())),
-//         Ok(v) => Ok(v)
-//     }
-// }
 
 #[derive(Debug, Default)]
 pub struct InternalTemplateRendererFactory;
@@ -43,8 +26,9 @@ impl InternalTemplateRendererFactory {
         &self,
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
+        base_url: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
-        let renderer = InternalTemplateRenderer::build(document_provider, state_provider)?;
+        let renderer = InternalTemplateRenderer::build(document_provider, state_provider, base_url)?;
 
         eprintln!("[page_template_factory] created renderer");
         Ok(renderer)
@@ -55,8 +39,9 @@ impl InternalTemplateRenderer {
     pub fn build(
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
+        base_url: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
-        let page_data_builder = InternalTemplateDataBuilder::new(document_provider.clone(), state_provider.map(|s| s.clone()));
+        let page_data_builder = InternalTemplateDataBuilder::new(document_provider.clone(), state_provider.map(|s| s.clone()), base_url);
         let page_data = page_data_builder.build()?;
 
         Ok(InternalTemplateRenderer {

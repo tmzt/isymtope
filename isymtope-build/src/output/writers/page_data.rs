@@ -9,6 +9,7 @@ use input::*;
 
 #[derive(Debug)]
 pub struct InternalTemplateData {
+    pub base_url: String,
     pub route_keys: Vec<String>,
     pub route_func_keys: HashMap<String, String>,
     pub route_bodies: HashMap<String, String>,
@@ -33,19 +34,22 @@ pub struct InternalTemplateData {
 #[derive(Debug)]
 pub struct InternalTemplateDataBuilder {
     document_provider: Rc<DocumentProvider>,
-    state_provider: Option<Rc<ReducerStateProvider>>
+    state_provider: Option<Rc<ReducerStateProvider>>,
+    base_url: String
 }
 
 impl InternalTemplateDataBuilder {
-    pub fn new(document_provider: Rc<DocumentProvider>, state_provider: Option<Rc<ReducerStateProvider>>) -> Self {
+    pub fn new(document_provider: Rc<DocumentProvider>, state_provider: Option<Rc<ReducerStateProvider>>, base_url: &str) -> Self {
         InternalTemplateDataBuilder {
             document_provider: document_provider,
-            state_provider: state_provider
+            state_provider: state_provider,
+            base_url: base_url.to_owned()
         }
     }
 
     pub fn build(&self) -> DocumentProcessingResult<InternalTemplateData> {
         let ref document_provider = self.document_provider;
+        let base_url = self.base_url.clone();
 
         // Initialize output context
         let mut ctx: DefaultOutputContext =
@@ -298,6 +302,7 @@ impl InternalTemplateDataBuilder {
         // eprintln!("InternalTemplateRenderer page_body_html: {}", page_body_html);
 
         Ok(InternalTemplateData {
+            base_url: base_url,
             event_keys: event_keys,
             event_enterkeyflags: event_enterkeyflags,
             event_action_keys: event_action_keys,

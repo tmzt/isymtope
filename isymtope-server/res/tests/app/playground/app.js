@@ -1,8 +1,12 @@
 
+let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
+let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
+
 let cache = new Map
 
 async function loadFiles(files) {
     for(let file of files) {
+        let url = mapRoute(file.path)
         await window.fetch(file.path)
             .then(async resp => {
                 let body = await resp.text()
@@ -15,7 +19,7 @@ async function loadFiles(files) {
 function fetchContent(path) {
     let editor = window._editor
     if (editor) {
-        window.fetch('/' + path).then(resp => {
+        window.fetch(window.origin + '/' + path).then(resp => {
             resp.text().then(body => {
                 editor.setValue(body)
             })
@@ -41,6 +45,10 @@ function loadWorkspaceReducer(state, action) {
             let workspace = workspaces.get(action.id)
             let files = workspace.files
             let mainFile = files.filter(f => !!f.main)[0]
+
+            let iframe = document.querySelector('iframe#preview')
+            iframe.src = window.origin + '/app/' + workspace.id + '/index.html'
+
             loadFiles(files)
                 .then(() => switchEditor(mainFile))
             return true
@@ -51,7 +59,8 @@ function loadWorkspaceReducer(state, action) {
 function editorContentReducer(state, action) {
     switch(action.type) {
         case 'EDITORCONTENT.LOAD':
-            fetchContent(action.name); return true;
+            let url = mapRoute(action.path)
+            fetchContent(url); return true;
         default: return null
     }
 }
@@ -89,7 +98,7 @@ async function startCompilation(source) {
 let compiler
 function getOrRegisterCompilerWorker() {
     if (!compiler) {
-        compiler = new Worker('/app/playground/worker.js')        
+        compiler = new Worker('/app/playground/worker.js')
     }
     return compiler
 }
@@ -126,11 +135,7 @@ function setupEditor() {
                 theme: 'vs-dark'
             });
 
-            editor.addListener('didType', () => {
-                console.log(editor.getValue());
-            });
-
-            window.fetch('/app/playground/playground.ism').then(resp => {
+            window.fetch(window.origin + '/app/todomvc/app.ism').then(resp => {
                 resp.text().then(body => {
                     editor.setValue(body)
                 })
@@ -143,10 +148,16 @@ function setupEditor() {
     })
 }
 
+function setupPreview() {
+    let iframe = document.querySelector('iframe#preview')
+    iframe.src = window.origin + '/app/todomvc/index.html'
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     getOrRegisterCompilerWorker()
     await getOrRegisterResourceWorker()
     // setupPreviewProxy()
     await setupEditor()
+    await setupPreview()
     // await setupCompiler()
 })

@@ -285,11 +285,11 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ElementValueBinding<T>(ExpressionValue<T>, Option<String>);
+pub struct ElementValueBinding<T>(ExpressionValue<T>, Option<String>, Option<ExpressionValue<T>>);
 
 impl<T> ElementValueBinding<T> {
-    pub fn new(e: ExpressionValue<T>, alias: Option<String>) -> Self {
-        ElementValueBinding(e, alias)
+    pub fn new(e: ExpressionValue<T>, alias: Option<String>, read_expr: Option<ExpressionValue<T>>) -> Self {
+        ElementValueBinding(e, alias, read_expr)
     }
 
     pub fn expr(&self) -> &ExpressionValue<T> {
@@ -297,6 +297,9 @@ impl<T> ElementValueBinding<T> {
     }
     pub fn ident(&self) -> Option<&str> {
         self.1.as_ref().map(|s| s.as_str())
+    }
+    pub fn read_expr(&self) -> Option<&ExpressionValue<T>> {
+        self.2.as_ref()
     }
 }
 
@@ -308,9 +311,12 @@ where
         src: &ElementValueBinding<I>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
+        let read_expr = TryProcessFrom::try_process_from(&src.2, ctx)?;
+
         Ok(ElementValueBinding(
             TryProcessFrom::try_process_from(&src.0, ctx)?,
             src.1.to_owned(),
+            read_expr
         ))
     }
 }
@@ -323,9 +329,12 @@ where
         src: &ElementValueBinding<I>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
+        let read_expr = TryEvalFrom::try_eval_from(&src.2, ctx)?;
+
         Ok(ElementValueBinding(
             TryEvalFrom::try_eval_from(&src.0, ctx)?,
             src.1.to_owned(),
+            read_expr
         ))
     }
 }

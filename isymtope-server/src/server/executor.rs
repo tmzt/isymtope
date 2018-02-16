@@ -50,9 +50,10 @@ impl ServerActionExecutor {
                     .actions()
                     .map(|v| {
                         v.map(|action| {
+                            let complete_action = format!("{}.{}", reducer_key.to_uppercase(), action.name().to_uppercase());
                             (
-                                action.name().to_uppercase(),
-                                (reducer_key.to_owned(), action),
+                                complete_action,
+                                (reducer_key.to_owned(), action)
                             )
                         }).collect()
                     })
@@ -60,6 +61,7 @@ impl ServerActionExecutor {
                 actions.into_iter()
             })
             .collect();
+        eprintln!("[server/executor] actions: {:?}", actions);
 
         if let Some(&(ref reducer_key, ref action)) = actions.get(&action_ty.to_uppercase()) {
             eprintln!(
@@ -143,7 +145,7 @@ impl ServerActionExecutor {
             }
 
             ActionOp::DispatchActionTo(ref action_ty, ref params, ref target, _) => {
-                let action_ty = format!("{}.{}", action_ty, target);
+                let action_ty = format!("{}.{}", target, action_ty);
                 let params: Vec<_> = params
                     .as_ref()
                     .map(|&box ref v| {

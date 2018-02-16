@@ -4,6 +4,9 @@ build = "build.rs"
 name = "isymtope-build"
 version = "0.3.0"
 
+[build-dependencies]
+ructe = "0.3.10"
+
 [build-dependencies.lalrpop]
 version = "0.14.0"
 
@@ -11,7 +14,7 @@ version = "0.14.0"
 failure = "0.1.1"
 itertools = "0.6.0"
 lalrpop-util = "0.14.0"
-lazy_static = "0.2.11"
+lazy_static = "1.0.0"
 linked-hash-map = "0.5.0"
 log = "0.3.9"
 rand = "0.3.20"
@@ -32,9 +35,6 @@ version = "0.5.1"
 [dependencies.wasm-log]
 optional = true
 path = "../wasm-log"
-
-[build-dependencies]
-ructe = "0.3.10"
 
 [features]
 default = ["session_time"]

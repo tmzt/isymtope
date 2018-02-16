@@ -3,6 +3,9 @@
 #![feature(conservative_impl_trait)]
 #![feature(specialization)]
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate colored;
 extern crate dotenv;
 extern crate pretty_env_logger;

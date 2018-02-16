@@ -1,4 +1,5 @@
 const UPSTREAM_CACHE = 'playground-upstream-cache'
+const RESOURCE_CACHE = 'playground-resource-cache'
 const CACHE = 'playground-preview-cache'
 
 const PREVIEW_PATH = '/app/playground/preview-1bcx1/'
@@ -18,13 +19,32 @@ self.addEventListener('activate', event => {
     return self.clients.claim()
 })
 
+const PREVIEW_PATH_REGEX = /^\/app\/playground\/preview-1bcx1\//;
+
 const cached = async request => {
     let upstream = await caches.open(UPSTREAM_CACHE)
+    let resources = await caches.open(RESOURCE_CACHE)
     let cache = await caches.open(CACHE)
 
     let preview_match = await cache.match(request)
     if (preview_match) {
         return preview_match
+    }
+
+    let original_url = new URL(request.url);
+    let original_url_path = original_url.pathname
+
+    if (original_url.origin === self.origin) {
+        if (PREVIEW_PATH_REGEX.test(original_url_path)) {
+            let resource_path = original_url_path.replace(PREVIEW_PATH_REGEX, '')
+            let resource_request_path = '/resources/app/playground/' + resource_path
+            let resource_req = new Request(self.origin + resource_request_path);
+            let resource_match = await resources.match(resource_req)
+            if (resource_match) { return resource_match }
+
+            let resource_resp = await fetch(resource_req)
+            await resources.put(resource_req, resource_resp)
+        }
     }
 
     let upstream_req = request.clone()
@@ -36,7 +56,7 @@ const cached = async request => {
     // }
 
     let upstream_response = await fetch(upstream_req)
-    upstream.put(upstream_req, upstream_response.clone())
+    await upstream.put(upstream_req, upstream_response.clone())
 
     return upstream_response
 }
@@ -46,7 +66,7 @@ async function cachePreviewObject(pathname, mimeType, content) {
     let request = new Request(self.origin + PREVIEW_PATH)
     let response = new Response([content], { contentType: mimeType })
     response.headers.set('content-type', mimeType)
-    cache.put(request, response)
+    await cache.put(request, response)
 }
 
 self.onmessage = async ({data, ports}) => {

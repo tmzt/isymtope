@@ -297,12 +297,15 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
         write_pipeline_head(self, w, ctx, obj.head())?;
         // write!(w, ")")?;
 
-        let components = obj.components();
-        for component in components {
-            // write!(w, ".")?;
-            self.write_object(w, ctx, component)?;
+        let components: Vec<_> = obj.components().collect();
+        let has_components = !components.is_empty();
+        if has_components {
+            for component in components {
+                // write!(w, ".")?;
+                self.write_object(w, ctx, component)?;
+            }
+            write!(w, ".value")?;
         }
-        // write!(w, ".value")?;
 
         Ok(())
     }
@@ -348,9 +351,8 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
                 write!(w, "}})")?;
 
                 if let &Some(ref wc) = wc {
-                    write!(w, ", _item => {{")?;
+                    write!(w, ", _item => ")?;
                     self.write_object(w, ctx, wc)?;
-                    write!(w, "}}")?;
                 };
 
                 write!(w, ")")?;
@@ -679,6 +681,20 @@ impl ObjectWriter<Expression<OutputExpression>, JsOutput> for DefaultJsWriter {
             "ObjectWriter Expression<OutputExpression> (JS): obj: {:?}",
             obj
         );
+
+        // if obj.is_array_of_objects() {
+        //     let mut first = true;
+        //     write!(w, "new Map([")?;
+        //     for param in params {
+        //         if !first {
+        //             write!(w, ", ")?;
+        //         }
+        //         self.write_object(w, ctx, param.value())?;
+        //         first = false;
+        //     }
+        //     write!(w, "]).map(_item => [_item.id, _item]))")?;
+        //     return Ok(());
+        // };
 
         match *obj {
             Expression::Composite(ref c) => self.write_object(w, ctx, c),
@@ -1134,7 +1150,7 @@ fn write_comp_desc<'s>(
             if !first {
                 write!(w, ", ")?;
             }
-            write!(w, "{}: _item[1][0]", item_key)?;
+            write!(w, "{}: _item[1]", item_key)?;
             first = false;
         };
 

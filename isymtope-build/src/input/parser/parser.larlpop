@@ -397,15 +397,15 @@ ElementAttrValue : ElementAttrValue<SourceExpression> = {
 #[inline]
 ElementBinding: ElementBinding<SourceExpression> = {
     /// Value
-    BindKeyword <e:AtLeastOneOf<".", Id>> AsKeyword <alias:Id> => {
+    BindKeyword <e:ExpressionFactor> AsKeyword <alias:Id> => {
         let binding: CommonBindings<SourceExpression> = CommonBindings::CurrentElementValue(Default::default());
-        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), Some(alias)), Default::default())
+        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), Some(alias), Some(e)), Default::default())
     },
     
-    BindKeyword <e:AtLeastOneOf<".", Id>> => {
-        let alias = e.get(0).map(|s| s.to_owned());
+    BindKeyword <e:ExpressionFactor> => {
+        let alias = e.ident();
         let binding: CommonBindings<SourceExpression> = CommonBindings::CurrentElementValue(Default::default());
-        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), alias), Default::default())
+        ElementBinding::Value(ElementValueBinding::new(ExpressionValue::Binding(binding, Default::default()), alias, Some(e)), Default::default())
     },
 
     // Default event

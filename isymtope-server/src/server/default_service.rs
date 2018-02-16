@@ -2,16 +2,18 @@ use std::env;
 use std::str::FromStr;
 use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::sync::Mutex;
 use std::error::Error;
+
+use regex::Regex;
 
 use futures::{self, Future};
 use hyper::header::{ContentType, Location};
 use hyper::mime;
 
-use hyper::{self, StatusCode, Error as HyperError, Request, Response, Method, Uri};
+use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode, Uri};
 use hyper::server::{Http, NewService, Server, Service};
 use hyper_staticfile::Static;
 
@@ -19,16 +21,27 @@ use tokio_core::reactor::Handle;
 
 use super::*;
 
+lazy_static! {
+    pub static ref APP_ROUTE: Regex = Regex::new(r"app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
+    pub static ref APP_RESOURCE_ROUTE: Regex = Regex::new(r"resources/app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
+}
+
 #[derive(Debug)]
 pub struct DefaultServiceFactory {
-    isymtope_service_factory: IsymtopeServiceFactory,
+    render_service_factory: TemplateRenderServiceFactory,
+    resource_service_factory: TemplateResourceServiceFactory,
     handle: Handle,
 }
 
 impl DefaultServiceFactory {
-    pub fn new(isymtope_service_factory: IsymtopeServiceFactory, handle: Handle) -> Self {
+    pub fn new(
+        render_service_factory: TemplateRenderServiceFactory,
+        resource_service_factory: TemplateResourceServiceFactory,
+        handle: Handle,
+    ) -> Self {
         DefaultServiceFactory {
-            isymtope_service_factory: isymtope_service_factory,
+            render_service_factory: render_service_factory,
+            resource_service_factory: resource_service_factory,
             handle: handle,
         }
     }
@@ -41,10 +54,12 @@ impl NewService for DefaultServiceFactory {
     type Instance = DefaultService;
 
     fn new_service(&self) -> Result<Self::Instance, io::Error> {
-        let isymtope_service = self.isymtope_service_factory.new_service()?;
+        let render_service = self.render_service_factory.create();
+        let resource_service = self.resource_service_factory.create();
 
         Ok(DefaultService {
-            isymtope_service: isymtope_service,
+            render_service: render_service,
+            resource_service: resource_service,
             handle: self.handle.clone(),
         })
     }
@@ -52,7 +67,8 @@ impl NewService for DefaultServiceFactory {
 
 #[derive(Debug)]
 pub struct DefaultService {
-    isymtope_service: IsymtopeService,
+    render_service: TemplateRenderService,
+    resource_service: TemplateResourceService,
     handle: Handle,
 }
 
@@ -63,64 +79,70 @@ impl Service for DefaultService {
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-
-        let default_app = env::var_os("DEFAULT_APP").expect("DEFAULT_APP must be provided");
-        let default_app_str: String = default_app.to_string_lossy().to_string();
-        let default_app_trimmed = default_app_str.trim_left_matches('/').to_owned();
-        let default_app_trailing = format!("{}/", default_app_trimmed);
-        let default_workspace_str = format!("{}/preview-1bcx1", default_app_str);
-
-        let resource_dir = env::var_os("RESOURCE_DIR").expect("RESOURCE_DIR must be provided");
-        let resource_dir = Path::new(&resource_dir);
-
         let original_path = req.path().to_owned();
         let trimmed_path = req.path().trim_left_matches('/').to_owned();
+
+        // let default_app_str = default_app.to_string_lossy().to_string();
+        // let default_app_trimmed = default_app_str.trim_left_matches('/').to_owned();
+        // let default_app_trailing = format!("{}/", default_app_trimmed);
+        let default_workspace_str = format!("/app/{}/preview-1bcx1", &*DEFAULT_APP);
+
 
         // Redirect to default app
         if (trimmed_path == "") {
             let response = Response::new()
                 .with_status(StatusCode::Found)
-                .with_header(Location::new(default_app_trailing));
+                .with_header(Location::new(format!("/app/{}/", &*DEFAULT_APP)));
 
             return Box::new(future::ok(response));
         };
 
-        if (trimmed_path.starts_with(&default_app_trimmed)) {
-            eprintln!("[default service] requested path in default app");
-
-            // Strip off workspace prefix
-            // TODO: support actually serving modified files
-            let original_path = req.path().to_owned();
-            let prefix_len = if original_path.starts_with(&default_workspace_str) { default_workspace_str.len() } else { default_app_str.len() };
-            let relative_path = original_path[prefix_len..].to_owned();
-            let trimmed_relative_path = relative_path.trim_left_matches('/').to_owned();
+        if let Some(captures) = APP_RESOURCE_ROUTE.captures(&trimmed_path) {
+            let app_name = captures.name("app").unwrap().as_str().to_owned();
+            let path = captures.name("path").map(|m| m.as_str()).unwrap_or_default();
+            let path = if path == "" { "/" } else { path }.to_owned();
+            let trimmed_resource_path = path.trim_left_matches('/').to_owned();
 
             // Handle resource file case
-            let app_resource_path = resource_dir.join(&default_app_trimmed).join(&trimmed_relative_path);
+            let app_resource_path = &*APP_DIR.join(&app_name).join(&trimmed_resource_path);
 
+            // Serve resource
             if app_resource_path.is_file() {
-                eprintln!("[default app] Serving resource path: {:?}", app_resource_path);
-                let serve_files = Static::new(&self.handle, &resource_dir);
-                let static_resp = serve_files.call(req);
-                let response = static_resp.map(move |response| {
-                    let mut headers = response.headers().to_owned();
-                    if trimmed_relative_path.ends_with(".js") {
-                        headers.set(ContentType(mime::TEXT_JAVASCRIPT));
-                    }
+                let resource_path = format!("/{}/{}", app_name, trimmed_resource_path);
+                let resource_req = Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                let response = self.resource_service
+                    .call(&app_name, resource_req);
+                return Box::new(response);
+            };
+        }
 
-                    Response::new()
-                        .with_status(response.status())
-                        .with_headers(headers)
-                        .with_body(response.body())
-                });
+        if let Some(captures) = APP_ROUTE.captures(&trimmed_path) {
+            // let captures: Vec<_> = captures.into_iter().collect();
+            let app_name = captures.name("app").unwrap().as_str().to_owned();
+            let path = captures.name("path").map(|m| m.as_str()).unwrap_or_default();
+            let path = if path == "" { "/" } else { path }.to_owned();
+            let trimmed_path_in_app = path.trim_left_matches('/').to_owned();
 
+            eprintln!("[default service] requested path [{:?}] in app {}", path, app_name);
+            let trimmed_relative_path = path.trim_left_matches('/').to_owned();
+
+            // Handle resource file case
+            let app_resource_path = &*APP_DIR.join(&app_name).join(&trimmed_path_in_app);
+
+            // Serve resource
+            if app_resource_path.is_file() {
+                let resource_path = format!("/{}/{}", app_name, trimmed_path_in_app);
+                let resource_req = Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                let response = self.resource_service
+                    .call(&app_name, resource_req);
                 return Box::new(response);
             };
 
-            // Pass request to isymtope service
-            let isymtope_path = if relative_path == "" { "/" } else { &relative_path };
-            let isymtope_req = Request::new(Method::Get, FromStr::from_str(isymtope_path).unwrap());
-            let response = self.isymtope_service.call(isymtope_req);
+            // Render route
+            // let template_path = if path == "/" { "/app.ism".to_owned() } else { path }.to_owned();
+            let isymtope_req = Request::new(Method::Get, FromStr::from_str(&path).unwrap());
+            let response = self.render_service
+                .call(&app_name, isymtope_req);
             return Box::new(response);
         };
 

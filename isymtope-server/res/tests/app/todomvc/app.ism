@@ -13,7 +13,7 @@ store {
     todos {
         action add(entry) => state + (entry + {complete: false, id: (value.max(item.id) + 1)});
         action toggle_all(checked) => state | set complete = (checked);
-        action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id) |unique id;
+        action toggle_complete(id) => state | set complete = (!item.complete) where (item.id == id);
     }
 
     entry {

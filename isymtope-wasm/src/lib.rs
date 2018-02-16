@@ -70,7 +70,7 @@ pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
     //     InternalTemplateRenderer::build(document_provider.clone(), None).expect("error creating internal renderer");
     let factory = FACTORY.lock().unwrap();
     let internal_renderer =
-        factory.build(document_provider.clone(), None).expect("error creating internal renderer");
+        factory.build(document_provider.clone(), None, "").expect("error creating internal renderer");
     eprintln!("Rendering body");
     let body = internal_renderer.render().expect("error rendering body");
 
