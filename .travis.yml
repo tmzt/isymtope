@@ -2,8 +2,15 @@ language: rust
 rust:
   - nightly
 
+before_script:
+  - |
+    rustup target add waasm32-unknown-unknown
+
 script:
   - |
+    pushd isymtope-wasm &&
+    cargo build --release --target wasm32-unknown-unknown &&
+    popd
     pushd isymtope-server &&
     cargo build --release &&
     popd
