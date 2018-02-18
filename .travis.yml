@@ -2,6 +2,11 @@ language: rust
 rust:
   - nightly
 
+script:
+  -|
+    pushd isymtope-server &&
+    cargo build --release
+
 cache:
   directories:
     - "$HOME/google-cloud-sdk"
