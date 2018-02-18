@@ -3,12 +3,14 @@ rust:
   - nightly
 
 script:
-  -|
+  - |
     pushd isymtope-server &&
-    cargo build --release
+    cargo build --release &&
+    popd
 
 cache:
   directories:
+    - "$HOME/.cargo"
     - "$HOME/google-cloud-sdk"
 
 services:
