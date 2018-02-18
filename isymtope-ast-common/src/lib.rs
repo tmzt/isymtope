@@ -3,14 +3,14 @@
 #[macro_use]
 extern crate log;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[cfg(feature = "wasm")]
 #[macro_use]
 extern crate wasm_log;
 
 #[macro_use]
 extern crate lazy_static;
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(feature = "uuid_v4")]
 extern crate uuid;
 
 #[macro_use]

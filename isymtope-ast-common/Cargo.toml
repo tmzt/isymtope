@@ -15,14 +15,14 @@ regex = "0.2.5"
 [dependencies.uuid]
 features = ["v4"]
 optional = true
-version = "0.5.1"
+version = "0.6.0"
 
 [dependencies.wasm-log]
 optional = true
 path = "../wasm-log"
 
 [features]
-default = ["uuid_v4"]
+default = []
 types = []
 uuid_v4 = ["uuid"]
 wasm = ["wasm-log"]

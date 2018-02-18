@@ -14,7 +14,7 @@ hyper-staticfile = "0.1.1"
 lazy_static = "1.0.0"
 log = "0.4.1"
 pretty_env_logger = "0.2.0"
-rand = "0.3.20"
+rand = "0.4.2"
 regex = "0.2.5"
 tokio = "0.0.0"
 tokio-core = "0.1.12"
@@ -23,7 +23,7 @@ tokio-core = "0.1.12"
 path = "../isymtope-ast-common/"
 
 [dependencies.isymtope-build]
-features = ["include_templates"]
+features = ["include_templates", "uuid_v4"]
 path = "../isymtope-build/"
 
 [dependencies.time]

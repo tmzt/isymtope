@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate log;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[cfg(feature = "wasm")]
 #[macro_use]
 extern crate wasm_log;
 
@@ -15,7 +15,6 @@ extern crate itertools;
 extern crate linked_hash_map;
 extern crate serde_json;
 extern crate regex;
-extern crate rand;
 
 #[macro_use]
 extern crate lazy_static;

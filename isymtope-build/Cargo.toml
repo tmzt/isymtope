@@ -17,27 +17,17 @@ lalrpop-util = "0.14.0"
 lazy_static = "1.0.0"
 linked-hash-map = "0.5.0"
 log = "0.3.9"
-rand = "0.3.20"
 regex = "0.2.2"
 serde_json = "1.0.6"
 
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common/"
 
-[dependencies.time]
-optional = true
-version = "0.1.39"
-
-[dependencies.uuid]
-features = ["v4"]
-version = "0.5.1"
-
 [dependencies.wasm-log]
 optional = true
 path = "../wasm-log"
 
 [features]
-default = ["session_time"]
 include_templates = []
-session_time = ["time"]
+uuid_v4=["isymtope-ast-common/uuid_v4"]
 wasm = ["wasm-log"]
