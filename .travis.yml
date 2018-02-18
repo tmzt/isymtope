@@ -27,7 +27,7 @@ before_deploy:
 
 deploy:
   - provider: script
-    script: ./scripts/deploy-production.sh
+    script: /bin/sh ./scripts/deploy-production.sh
     skip_cleanup: true
     on:
       branch: master
