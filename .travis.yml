@@ -2,3 +2,32 @@ language: rust
 rust:
   - nightly
 
+cache:
+  directories:
+    - "$HOME/google-cloud-sdk"
+
+services:
+  - docker
+
+env:
+  global:
+    - GOOGLE_APPLICATION_CREDENTIALS=~/gcloud-service-key.json
+    - PROJECT_NAME_PRD=isymtope-demo
+    - CLUSTER_NAME_PRD=cluster-1
+    - CLOUDSDK_COMPUTE_ZONE=us-central1-a
+    - DOCKER_IMAGE_NAME=isymtope-playground
+
+before_deploy:
+  - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
+  - source /home/travis/google-cloud-sdk/path.bash.inc
+  - gcloud --quiet version
+  - gcloud --quiet components update
+  - gcloud --quiet components beta update
+  - gcloud --quiet components update kubectl
+
+deploy:
+  - provider: script
+    script: ./scripts/deploy-production.sh
+    skip_cleanup: true
+    on:
+      branch: master
