@@ -7,4 +7,4 @@ ADD ./isymtope-server/res/tests/app/todomvc /res/tests/app/todomvc
 ENV DEFAULT_APP playground
 ENV APP_DIR "./res/tests/app"
 
-RUN /app
+ENTRYPOINT /app

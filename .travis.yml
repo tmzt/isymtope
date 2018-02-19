@@ -5,6 +5,7 @@ rust:
 before_script:
   - |
     rustup target add waasm32-unknown-unknown
+    cargo install --force wasm-gc
 
 script:
   - |
