@@ -4,13 +4,14 @@ rust:
 
 before_script:
   - |
-    rustup target add waasm32-unknown-unknown --toolchain
+    rustup target add wasm32-unknown-unknown --toolchain nightly
     cargo install --force wasm-gc
 
 script:
   - |
-    (cd isymtope-wasm && cargo build --release --target wasm32-unknown-unknown)
-    (cd isymtope-server && cargo build --release)
+    (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --release --target wasm32-unknown-unknown)
+    (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --release)
+    wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
 
 cache:
   directories:
