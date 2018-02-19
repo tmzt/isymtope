@@ -4,7 +4,7 @@ rust:
 
 before_script:
   - |
-    rustup target add waasm32-unknown-unknown
+    rustup target add waasm32-unknown-unknown --toolchain nightly
     cargo install --force wasm-gc
 
 script:
