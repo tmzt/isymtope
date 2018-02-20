@@ -16,6 +16,7 @@ script:
 cache:
   directories:
     - "$HOME/.cargo"
+    - "$HOME/.rustup"
     - "$HOME/google-cloud-sdk"
 
 services:
