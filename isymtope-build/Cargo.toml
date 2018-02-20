@@ -6,9 +6,7 @@ version = "0.3.0"
 
 [build-dependencies]
 ructe = "0.3.10"
-
-[build-dependencies.lalrpop]
-version = "0.14.0"
+lalrpop = "0.14.0"
 
 [dependencies]
 failure = "0.1.1"
