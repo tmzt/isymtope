@@ -29,7 +29,8 @@ before_deploy:
   - gcloud --quiet components update kubectl
 
 deploy:
-  - script: /bin/sh ./scripts/deploy-production.sh
+  - provider: script
+    script: /bin/sh ./scripts/deploy-production.sh
     skip_cleanup: true
     on:
       branch: master
