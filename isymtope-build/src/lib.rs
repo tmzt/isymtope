@@ -16,14 +16,10 @@ extern crate linked_hash_map;
 extern crate serde_json;
 extern crate regex;
 
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(test)]
 #[macro_use(assert_diff)]
 extern crate difference;
 
-#[macro_use]
 extern crate failure;
 
 #[macro_use]

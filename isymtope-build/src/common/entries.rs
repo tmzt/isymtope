@@ -23,7 +23,7 @@ where
     let scope_id = scope_id.to_owned();
 
     let res = iter::repeat(0)
-        .fold_while((scope_id, None), |acc, x| {
+        .fold_while((scope_id, None), |acc, _| {
             let (ref scope_id, _) = acc;
 
             let scope = scopes

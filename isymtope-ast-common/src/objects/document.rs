@@ -148,8 +148,8 @@ impl ContentProcessor {
 
     fn process_component_call(
         &mut self,
-        ctx: &mut ProcessingContext,
-        content_ctx: &mut ContentProcessingContext<ProcessedExpression>,
+        _ctx: &mut ProcessingContext,
+        _content_ctx: &mut ContentProcessingContext<ProcessedExpression>,
         attrs: Vec<ElementAttrValue<ProcessedExpression>>,
         el_desc: ElementDescriptor<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {

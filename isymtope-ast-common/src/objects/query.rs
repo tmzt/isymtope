@@ -193,7 +193,7 @@ impl TryEvalFrom<QueryCall<ProcessedExpression>> for ExpressionValue<OutputExpre
 
         let res = query
             .components()
-            .fold_while(acc, |acc, component| match *component {
+            .fold_while(acc, |_, component| match *component {
                 QueryComponent::CaseWhere(box ref expr, box ref cond, _) => {
                     eprintln!(
                         "[Query] TryEval QueryCall -> ExpressionValue: case cond: {:?} expr {:?}",

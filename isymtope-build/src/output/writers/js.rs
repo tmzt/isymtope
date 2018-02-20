@@ -2,7 +2,6 @@ use std::io;
 use std::fmt::Debug;
 
 use error::*;
-use common::*;
 use ast::*;
 use objects::*;
 use output::*;
@@ -360,12 +359,14 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
                 Ok(())
             }
 
-            FilterComponentValue::Delete(ref s) => {
+            // TODO: Support param
+            FilterComponentValue::Delete(ref _s) => {
                 write!(w, ".removeObject(id)")?;
                 Ok(())
             }
 
-            FilterComponentValue::Unique(ref s) => {
+            // TODO: Support condition
+            FilterComponentValue::Unique(ref _cond) => {
                 write!(w, ".unique()")?;
                 Ok(())
             }
@@ -974,9 +975,7 @@ impl ObjectWriter<Component<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 
         // NOTE: Writing of the function has moved to the internal template
 
-        let name = obj.name();
         let block = obj.block();
-
         self.write_object(w, ctx, block)?;
 
         ctx.pop_scope();
@@ -1259,11 +1258,6 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 
                 Ok(())
             }
-
-            _ => Err(try_eval_from_err!(format!(
-                "Cannot write object to JS: {:?}",
-                obj
-            ))),
         }
     }
 }

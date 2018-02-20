@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use isymtope_ast_common::*;
-use common::*;
 use output::*;
 use input::*;
 

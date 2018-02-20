@@ -1,11 +1,7 @@
 use std::str;
 use std::rc::Rc;
-use std::error::Error;
-use std::collections::HashMap;
 
 use error::*;
-use ast::*;
-use util::*;
 use traits::*;
 use input::*;
 use output::*;

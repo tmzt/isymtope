@@ -110,7 +110,6 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
     }
 
     fn environment(&self) -> ProcessingScopeEnvironment {
-        let scope_id = self.cur_scope_id.to_owned();
         let scope = self.scopes.get(&self.cur_scope_id).unwrap();
         let environment = scope.environment().to_owned();
 

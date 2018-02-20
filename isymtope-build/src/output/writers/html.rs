@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use itertools::join;
 
-use common::*;
 use error::*;
 use traits::*;
 use objects::*;
@@ -62,7 +61,7 @@ impl ObjectWriter<Primitive, HtmlOutput> for DefaultHtmlWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        ctx: &mut OutputContext,
+        _: &mut OutputContext,
         obj: &Primitive,
     ) -> DocumentProcessingResult<()> {
         debug!(
@@ -96,7 +95,7 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, HtmlOutput> for DefaultHtml
         match *obj {
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
             ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
-            ExpressionValue::Lens(ref l, _) => Ok(()),
+            ExpressionValue::Lens(..) => Ok(()),
             // ExpressionValue::Binding(ref b, _) => self.write_object(w, b),
             _ => Err(try_eval_from_err!(format!(
                 "Unsupported expression value when writing: {:?}",
@@ -184,8 +183,8 @@ fn write_open<'s>(
     ctx: &mut OutputContext,
     desc: &ElementDescriptor<ProcessedExpression>,
     is_void: bool,
-    comp_desc: Option<&ComponentInstanceDescriptor<OutputExpression>>,
-    idx: Option<i32>,
+    _comp_desc: Option<&ComponentInstanceDescriptor<OutputExpression>>,
+    _idx: Option<i32>,
 ) -> DocumentProcessingResult<()> {
     let element_key = ctx.get_element_key()?
         .map(|s| format!("{}.{}", s, desc.key()))
@@ -257,13 +256,13 @@ fn write_open<'s>(
     // Value binding
 
     if let Some(value_binding) = desc.value_binding() {
-        if (desc.tag() == "input" && simple_props.get("type").map(|s| s.as_str()) == Some("checkbox")) {
+        if desc.tag() == "input" && simple_props.get("type").map(|s| s.as_str()) == Some("checkbox") {
             if let Some(read_expr) = value_binding.read_expr() {
                 let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(read_expr, ctx)?;
                 let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
                 let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
-                if (checked) {
+                if checked {
                     if !first {
                         write!(w, " ")?;
                     }
@@ -504,8 +503,6 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
 
                 Ok(())
             }
-
-            _ => Err(reduction_err_bt!()),
         }
     }
 }
