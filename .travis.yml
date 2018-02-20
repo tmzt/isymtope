@@ -4,7 +4,6 @@ rust:
 
 stages:
   - "Build components"
-  - deploy
 
 jobs:
   include:
@@ -30,11 +29,11 @@ jobs:
           - gcloud --quiet components update beta
           - gcloud --quiet components update kubectl
 
-        deploy:
-          - script: /bin/sh ./scripts/deploy-production.sh
-            skip_cleanup: true
-            on:
-              branch: master
+deploy:
+  - script: /bin/sh ./scripts/deploy-production.sh
+    skip_cleanup: true
+    on:
+      branch: master
 
 cache:
   cargo: true
