@@ -2,8 +2,6 @@ language: rust
 rust:
   - nightly
 
-script: true
-
 stages:
   - "Build components"
   - deploy
