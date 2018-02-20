@@ -14,8 +14,8 @@ script:
     wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
 
 cache:
+  cargo: true
   directories:
-    - "$HOME/.cargo"
     - "$HOME/.rustup"
     - "$HOME/google-cloud-sdk"
 
