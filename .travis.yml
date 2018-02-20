@@ -33,8 +33,7 @@ jobs:
           - gcloud --quiet components update kubectl
 
         deploy:
-          - provider: script
-            script: /bin/sh ./scripts/deploy-production.sh
+          - script: /bin/sh ./scripts/deploy-production.sh
             skip_cleanup: true
             on:
               branch: master
