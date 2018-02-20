@@ -7,11 +7,21 @@ before_script:
     rustup target add wasm32-unknown-unknown --toolchain nightly
     cargo install --force wasm-gc
 
-script:
-  - |
-    (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --release --target wasm32-unknown-unknown)
-    (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --release)
-    wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
+# script:
+#   - |
+#     (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --release --target wasm32-unknown-unknown)
+#     (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --release)
+#     wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
+
+jobs:
+  include:
+    - stage: "Build wasm"
+    - script: - |
+      (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --release --target wasm32-unknown-unknown)
+      wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
+    - stage: "Build server"
+    -script: - |
+      (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --release)
 
 cache:
   cargo: true
