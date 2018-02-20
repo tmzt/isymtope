@@ -13,6 +13,12 @@ before_script:
 #     (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --release)
 #     wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
 
+script: true
+
+stages:
+  - "Build wasm"
+  - "Build server"
+
 jobs:
   include:
     - stage: "Build wasm"
