@@ -21,6 +21,8 @@ yes | gcloud beta container images add-tag gcr.io/${PROJECT_NAME_PRD}/${DOCKER_I
 kubectl config view
 kubectl config current-context
 
+ls $HOME/bin
+
 # kubectl set image deployment/${KUBE_DEPLOYMENT_NAME} ${KUBE_DEPLOYMENT_CONTAINER_NAME}=gcr.io/${PROJECT_NAME_PRD}/${DOCKER_IMAGE_NAME}:$TRAVIS_COMMIT
 echo "Deploying application with kedge"
 kedge apply -f ${TRAVIS_BUILD_DIR}/kedge.yaml
