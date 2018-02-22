@@ -25,7 +25,7 @@ before_deploy:
   - if [ ! -d "$HOME/bin" ]; then mkdir -p "$HOME/bin"; fi
   - if [ ! -f "$HOME/bin/kedge"]; then curl -L https://github.com/kedgeproject/kedge/releases/download/v0.9.0/kedge-linux-amd64 -o kedge; fi
   - source /home/travis/google-cloud-sdk/path.bash.inc
-  - export PATH="$HOME/bin/kedge:$PATH"
+  - export PATH="$HOME/bin:$PATH"
   - gcloud --quiet version
   - gcloud --quiet components update
   - gcloud --quiet components update beta
