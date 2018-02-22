@@ -1,6 +1,6 @@
 FROM alpine:latest
 
-ADD ./target/release/isymtope-server /app
+ADD ./target/x86_64-unknown-linux-musl/release/isymtope-server /app
 ADD ./isymtope-server/res/tests/app/playground /res/tests/app/playground
 ADD ./isymtope-server/res/tests/app/todomvc /res/tests/app/todomvc
 
