@@ -1,9 +1,9 @@
 language: rust
 os: linux
 rust: nightly
-env: TARGET=x86_64-unknown-linux-musl
 dist: trusty
 sudo: required
+
 addons:
   apt:
     packages:
