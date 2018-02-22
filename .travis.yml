@@ -1,6 +1,15 @@
 language: rust
-rust:
-  - nightly
+os: linux
+rust: nightly
+env: TARGET=x86_64-unknown-linux-musl
+dist: trusty
+sudo: required
+addons:
+  apt:
+    packages:
+      - musl
+      - musl-dev
+      - musl-tools
 
 before_script:
   - rustup target add wasm32-unknown-unknown --toolchain nightly
