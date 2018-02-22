@@ -1,0 +1,10 @@
+name: isymtope-demo
+
+deployments:
+  - containers:
+    - image: gcr.io/isymtope-demo/isymtope-playground
+
+services:
+  - type: LoadBalancer
+    portMappings:
+      - 80:3000
