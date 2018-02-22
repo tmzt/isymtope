@@ -2,24 +2,15 @@ language: rust
 rust:
   - nightly
 
-stages:
-  - "Build components"
+before_script:
+  - rustup target add wasm32-unknown-unknown --toolchain nightly
+  - rustup target add x86_64-unknown-linux-musl --toolchain nightly
+  - cargo install --force wasm-gc
 
-jobs:
-  include:
-    - stage: "Build components"
-
-      before_script:
-        - rustup target add wasm32-unknown-unknown --toolchain nightly
-        - rustup target add x86_64-unknown-linux-musl --toolchain nightly
-        - cargo install --force wasm-gc
-
-      script:
-        - (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --verbose --release --target wasm32-unknown-unknown)
-        - wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
-
-    - script:
-      - (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --verbose --release --target x86_64-unknown-linux-musl)
+script:
+  - (cd $TRAVIS_BUILD_DIR/isymtope-wasm && cargo build --verbose --release --target wasm32-unknown-unknown)
+  - wasm-gc $TRAVIS_BUILD_DIR/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/isymtope-small.wasm
+  - (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --verbose --release --target x86_64-unknown-linux-musl)
 
 before_deploy:
   - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
