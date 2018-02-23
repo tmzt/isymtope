@@ -87,7 +87,8 @@ impl IsymtopeAppService for TemplateRenderService {
 
         let (tx, rx) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let template_path = "/app.ism".to_owned();
-        let base_url = format!("http://localhost:3000/app/{}/", app_name);
+        let (scheme, authority) = (req.uri().scheme().unwrap(), req.uri().authority().unwrap());
+        let base_url = format!("{}://{}/app/{}/", scheme, authority, app_name);
         let render = Msg::RenderAppRoute(base_url.to_owned(), app_name.to_owned(), template_path, req.path().to_owned());
         self.sender.unbounded_send((render, tx)).unwrap();
 
