@@ -101,8 +101,11 @@ impl Service for DefaultService {
         let host = req.headers().get_raw("host").unwrap().one().unwrap();
         let host = str::from_utf8(&host).unwrap();
 
+        let forwarded_proto = req.headers().get_raw("x-forwarded-proto").and_then(|s| s.one()).and_then(|s| str::from_utf8(s).ok());
+        eprintln!("Forwarded proto: {:?}", forwarded_proto);
+
         let mut proto = "http";
-        if let Some(forwarded_proto) = req.headers().get_raw("x-forwarded-proto").and_then(|s| s.one()).and_then(|s| str::from_utf8(s).ok()) {
+        if let Some(forwarded_proto) = forwarded_proto {
             if forwarded_proto.to_lowercase() == "https" {
                 proto = "https";
             };
