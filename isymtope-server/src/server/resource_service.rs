@@ -55,7 +55,7 @@ impl IsymtopeAppService for TemplateResourceService {
     type Error = HyperError;
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
-    fn call(&self, app_name: &str, req: Request) -> Self::Future {
+    fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
         let path = req.path().to_owned();
 
         eprintln!("[resource service] Serving resource path: {:?}", path);

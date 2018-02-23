@@ -23,5 +23,5 @@ pub trait IsymtopeAppService {
     type Error;
     type Future;
 
-    fn call(&self, app_name: &str, req: Request) -> Self::Future;
+    fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future;
 }

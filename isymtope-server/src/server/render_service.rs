@@ -70,25 +70,10 @@ impl IsymtopeAppService for TemplateRenderService {
     type Error = HyperError;
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
-    fn call(&self, app_name: &str, req: Request) -> Self::Future {
-        // let (tx1, rx1) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
-        // #[cfg(feature = "session_time")]
-        // let new_session =
-        //     Msg::NewSession(SESSION_COOKIES_RANDOM_STRING_BYTES, Some(Duration::days(1)));
-
-        // #[cfg(not(feature = "session_time"))]
-        // let new_session = Msg::NewSession(SESSION_COOKIES_RANDOM_STRING_BYTES);
-
-        // let (tx2, rx2) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
-        // let render = Msg::RenderAppRoute(app_name.to_owned(), req.path().to_owned());
-
-        // self.sender.unbounded_send((new_session, tx1)).unwrap();
-        // self.sender.unbounded_send((render, tx2)).unwrap();
-
+    fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
         let (tx, rx) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let template_path = "/app.ism".to_owned();
-        let (scheme, authority) = (req.uri().scheme().unwrap(), req.uri().authority().unwrap());
-        let base_url = format!("{}://{}/app/{}/", scheme, authority, app_name);
+
         let render = Msg::RenderAppRoute(base_url.to_owned(), app_name.to_owned(), template_path, req.path().to_owned());
         self.sender.unbounded_send((render, tx)).unwrap();
 
