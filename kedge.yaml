@@ -3,8 +3,33 @@ name: isymtope-demo
 deployments:
   - containers:
     - image: gcr.io/isymtope-demo/isymtope-playground
+      resources:
+        requests:
+          cpu: "100m"
+        limits:
+          cpu: "100m"
 
 services:
-  - type: LoadBalancer
+  - name: isymtope-demo-playground
+    type: LoadBalancer
     portMappings:
       - 80:3000
+
+ingresses:
+  - name: isymtope-demo-playground
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+      # certmanager.k8s.io/issuer: letsencrypt-prod
+    tls:
+      - secretName: playground-isymtope-org-tls
+        hosts:
+          - playground.isymtope.org
+    rules:
+      - host: playground.isymtope.org
+        http:
+          paths:
+            - backend:
+                serviceName: isymtope-demo-playground
+                servicePort: 80
+              path: /
