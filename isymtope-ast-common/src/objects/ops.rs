@@ -53,6 +53,19 @@ impl<T> ElementDescriptor<T> {
     pub fn is_map(&self) -> bool {
         self.5
     }
+
+    pub fn string_props(&self) -> HashMap<String, String> {
+        let string_props: HashMap<_, _> = self.props()
+            .flat_map(|prop| {
+                let (name, expr) = (prop.name(), prop.expr());
+                match (name, expr) {
+                    (k, &ExpressionValue::Primitive(Primitive::StringVal(ref v))) => Some((k.to_owned(), v.to_owned())),
+                    _ => None
+                }.into_iter()
+            }).collect();
+
+        string_props
+    }
 }
 
 impl TryProcessFrom<ElementDescriptor<SourceExpression>>

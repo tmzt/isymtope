@@ -1016,14 +1016,15 @@ fn write_open<'s>(
     desc: &ElementDescriptor<ProcessedExpression>,
     is_void: bool,
 ) -> DocumentProcessingResult<()> {
+    let tag = desc.tag();
     let element_key = ctx.get_element_key()?
         .map(|s| format!("{}.{}", s, desc.key()))
         .unwrap_or_else(|| desc.key().to_owned());
 
     if !is_void {
-        write!(w, "IncrementalDOM.elementOpen(\"{}\", ", desc.tag())?;
+        write!(w, "IncrementalDOM.elementOpen(\"{}\", ", tag)?;
     } else {
-        write!(w, "IncrementalDOM.elementVoid(\"{}\", ", desc.tag())?;
+        write!(w, "IncrementalDOM.elementVoid(\"{}\", ", tag)?;
     };
 
     // Is this element being emitted within a component definition (function)?
@@ -1081,6 +1082,8 @@ fn write_open<'s>(
         })
         .collect();
 
+    // let const_prop_map: HashMap<_, _> = const_props.iter().map(|prop| (prop.name(), prop.to_owned()))
+
     // let eval_props: Vec<(String, ExpressionValue<OutputExpression>)> = TryEvalFrom::try_eval_from(&eval_props, ctx)?;
 
     // statics
@@ -1109,6 +1112,23 @@ fn write_open<'s>(
             write!(w, ")")?;
         }
     }
+
+    let string_props = desc.string_props();
+
+    if let Some(value_binding) = desc.value_binding() {
+        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox") {
+            if let Some(read_expr) = value_binding.read_expr() {
+                write!(w, ", ")?;
+
+                _self.write_object(w, ctx, read_expr)?;
+                write!(w, " ? 'checked' : null, ")?;
+
+                _self.write_object(w, ctx, read_expr)?;
+                write!(w, " ? 'checked' : null")?;
+            };
+        };
+    };
+
     writeln!(w, ");")?;
 
     Ok(())
