@@ -22,8 +22,8 @@ script:
   - (cd $TRAVIS_BUILD_DIR/isymtope-server && cargo build --verbose --release --target x86_64-unknown-linux-musl)
   - (cd $TRAVIS_BUILD_DIR/isymtope-cli && cargo build --verbose --release --target x86_64-unknown-linux-musl)
   - echo "Building cached app pages..."
-  - $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url https://playground.isymtope.org/resources/app/playground/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/index.html /app.ism
-  - DEFAULT_APP=todomvc $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url https://playground.isymtope.org/resources/app/todomvc/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/todomvc/index.html /app.ism
+  - (cd $TRAVIS_BUILD_DIR/isymtope-cli && $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url https://playground.isymtope.org/resources/app/playground/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/index.html /app.ism)
+  - (cd $TRAVIS_BUILD_DIR/isymtope-cli && sh -c 'DEFAULT_APP=todomvc $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url https://playground.isymtope.org/resources/app/todomvc/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/todomvc/index.html /app.ism')
 
 before_deploy:
   - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
