@@ -13,6 +13,15 @@ default-features = false
 optional = true
 path = "./isymtope-build"
 
+[dependencies.isymtope-cli]
+default-features = false
+optional = true
+path = "./isymtope-cli"
+
+[dependencies.isymtope-generate]
+optional = true
+path = "./isymtope-generate"
+
 [dependencies.isymtope-server]
 default-features = false
 optional = true
@@ -30,11 +39,11 @@ path = "./wasm-log"
 
 [features]
 server = ["isymtope-server"]
+[profile.dev]
+incremental = false
+
 [profile.release]
 debug = true
 opt-level = 2
-
-[profile.dev]
-incremental = false
 
 [workspace]

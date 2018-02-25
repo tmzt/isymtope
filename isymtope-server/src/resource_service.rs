@@ -16,6 +16,7 @@ use hyper_staticfile::Static;
 
 use tokio_core::reactor::Handle;
 
+use server::APP_DIR;
 use super::*;
 
 #[derive(Debug)]
@@ -25,9 +26,7 @@ pub struct TemplateResourceServiceFactory {
 
 impl TemplateResourceServiceFactory {
     pub fn new(handle: Handle) -> Self {
-        TemplateResourceServiceFactory {
-            handle: handle,
-        }
+        TemplateResourceServiceFactory { handle: handle }
     }
 }
 

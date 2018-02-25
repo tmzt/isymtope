@@ -1,9 +1,8 @@
-
 #[macro_use]
 extern crate log;
 
 use std::panic;
-use log::{Record, Level, Metadata};
+use log::{Level, Metadata, Record};
 
 extern "C" {
     pub fn log_to_js(s: *const ::std::os::raw::c_char);
@@ -35,9 +34,13 @@ impl log::Log for WasmLogger {
 }
 
 pub fn wasm_log_init() {
-        unsafe {
-            log_to_js(::std::ffi::CString::new("[wasm logger] init").unwrap().into_raw());
-        }
+    unsafe {
+        log_to_js(
+            ::std::ffi::CString::new("[wasm logger] init")
+                .unwrap()
+                .into_raw(),
+        );
+    }
     log::set_boxed_logger(Box::new(WasmLogger)).unwrap();
 }
 
@@ -50,7 +53,7 @@ pub fn wasm_install_panic_hook() {
         unsafe {
             log_to_js(::std::ffi::CString::new(msg).unwrap().into_raw());
         }
-    }));    
+    }));
 }
 
 #[macro_export]

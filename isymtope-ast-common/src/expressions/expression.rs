@@ -40,7 +40,7 @@ impl<T> CommonBindings<T> {
             CommonBindings::NamedQueryParam(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedEventBoundValue(ref s, _) => Some(s.as_str()),
             CommonBindings::PathAlias(ref s, _) => Some(s.as_str()),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -171,7 +171,10 @@ impl<T> ExpressionValue<T> {
     }
 
     pub fn is_array_of_objects(&self) -> bool {
-        if let ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(Some(box ref v)))) = *self {
+        if let ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
+            Some(box ref v),
+        ))) = *self
+        {
             return v.iter().all(|e| e.value().is_object());
         };
 
@@ -192,11 +195,10 @@ impl<T> ExpressionValue<T> {
 
     pub fn ident(&self) -> Option<String> {
         match *self {
-            ExpressionValue::Expression(Expression::Path(ref path, _)) => {
-                path.components().and_then(|v| v.last().map(|s| s.to_owned()))
-            }
+            ExpressionValue::Expression(Expression::Path(ref path, _)) => path.components()
+                .and_then(|v| v.last().map(|s| s.to_owned())),
 
-            _ => None
+            _ => None,
         }
     }
 }

@@ -2,11 +2,11 @@
 #![wasm_import_memory]
 
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 #[macro_use(eprint, eprintln)]
 extern crate wasm_log;
-#[macro_use]
-extern crate lazy_static;
 
 extern crate isymtope_ast_common;
 extern crate isymtope_build;
@@ -69,8 +69,9 @@ pub extern "C" fn compile_template(data: *mut c_char) -> *mut c_char {
     // let internal_renderer =
     //     InternalTemplateRenderer::build(document_provider.clone(), None).expect("error creating internal renderer");
     let factory = FACTORY.lock().unwrap();
-    let internal_renderer =
-        factory.build(document_provider.clone(), None, "").expect("error creating internal renderer");
+    let internal_renderer = factory
+        .build(document_provider.clone(), None, "")
+        .expect("error creating internal renderer");
     eprintln!("Rendering body");
     let body = internal_renderer.render().expect("error rendering body");
 

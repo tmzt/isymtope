@@ -19,26 +19,36 @@ impl ParsingError {
 
 #[derive(Debug, Fail)]
 pub enum DocumentProcessingError {
-    #[fail(display = "Error parsing template")] ParsingError(ParsingError),
-    #[fail(display = "IO Error occured")] IOError(IOError),
-    #[fail(display = "Error formatting template")] FormatError(FormatError),
+    #[fail(display = "Error parsing template")]
+    ParsingError(ParsingError),
+    #[fail(display = "IO Error occured")]
+    IOError(IOError),
+    #[fail(display = "Error formatting template")]
+    FormatError(FormatError),
 
     #[cfg(feature = "types")]
     #[fail(display = "Type error")]
     TypeError(DocumentTypeError),
 
-    #[fail(display = "Cannot reduce value")] ReductionErrorWithBacktrace(Backtrace),
+    #[fail(display = "Cannot reduce value")]
+    ReductionErrorWithBacktrace(Backtrace),
 
-    #[fail(display = "Error processing value")] TryProcessFromError(String, Backtrace),
-    #[fail(display = "Evaluating error")] TryEvalFromError(String, Backtrace),
+    #[fail(display = "Error processing value")]
+    TryProcessFromError(String, Backtrace),
+    #[fail(display = "Evaluating error")]
+    TryEvalFromError(String, Backtrace),
 
-    #[fail(display = "Error rendering internal template")] InternalRenderError(String),
+    #[fail(display = "Error rendering internal template")]
+    InternalRenderError(String),
 
-    #[fail(display = "Error parsing internal template")] InternalParseError(String),
+    #[fail(display = "Error parsing internal template")]
+    InternalParseError(String),
 
-    #[fail(display = "Utf8Error")] Utf8Error(Utf8Error),
+    #[fail(display = "Utf8Error")]
+    Utf8Error(Utf8Error),
 
-    #[fail(display = "Session error")] SessionError(SessionError),
+    #[fail(display = "Session error")]
+    SessionError(SessionError),
 }
 
 impl From<Utf8Error> for DocumentProcessingError {

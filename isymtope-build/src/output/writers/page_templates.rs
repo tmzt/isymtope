@@ -14,7 +14,7 @@ pub struct InternalTemplateRendererFactory;
 
 #[derive(Debug)]
 pub struct InternalTemplateRenderer {
-    data: InternalTemplateData
+    data: InternalTemplateData,
 }
 
 impl InternalTemplateRendererFactory {
@@ -24,7 +24,8 @@ impl InternalTemplateRendererFactory {
         state_provider: Option<Rc<ReducerStateProvider>>,
         base_url: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
-        let renderer = InternalTemplateRenderer::build(document_provider, state_provider, base_url)?;
+        let renderer =
+            InternalTemplateRenderer::build(document_provider, state_provider, base_url)?;
 
         eprintln!("[page_template_factory] created renderer");
         Ok(renderer)
@@ -37,12 +38,14 @@ impl InternalTemplateRenderer {
         state_provider: Option<Rc<ReducerStateProvider>>,
         base_url: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
-        let page_data_builder = InternalTemplateDataBuilder::new(document_provider.clone(), state_provider.map(|s| s.clone()), base_url);
+        let page_data_builder = InternalTemplateDataBuilder::new(
+            document_provider.clone(),
+            state_provider.map(|s| s.clone()),
+            base_url,
+        );
         let page_data = page_data_builder.build()?;
 
-        Ok(InternalTemplateRenderer {
-            data: page_data
-        })
+        Ok(InternalTemplateRenderer { data: page_data })
     }
 
     pub fn render(&self) -> DocumentProcessingResult<String> {

@@ -14,5 +14,10 @@ pub struct HtmlOutput {}
 pub struct JsOutput {}
 
 pub trait ObjectWriter<T, O> {
-    fn write_object(&mut self, w: &mut io::Write, ctx: &mut OutputContext, obj: &T) -> DocumentProcessingResult<()>;
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &T,
+    ) -> DocumentProcessingResult<()>;
 }

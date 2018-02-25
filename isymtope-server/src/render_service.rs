@@ -8,7 +8,8 @@ use std::error::Error;
 
 #[cfg(feature = "session_time")]
 use time::Duration;
-use futures::{self, Future};
+use futures::{self, future, Future};
+use hyper::{Request, Response};
 use hyper::header::ContentType;
 use hyper::mime;
 use hyper::Error as HyperError;
@@ -19,9 +20,8 @@ use tokio_core::reactor::Handle;
 
 use isymtope_build::input::*;
 use isymtope_build::processing::*;
-use server::*;
+use super::*;
 
-pub type IsymtopeServiceRouter = Router;
 pub type ResponseMsgChannel = futures::sync::oneshot::Sender<IsymtopeServerResult<ResponseMsg>>;
 pub type RequestMsgChannel = futures::sync::mpsc::UnboundedSender<(Msg, ResponseMsgChannel)>;
 
@@ -68,41 +68,43 @@ impl IsymtopeAppService for TemplateRenderService {
     type Request = Request;
     type Response = Response;
     type Error = HyperError;
-    type Future = Box<Future<Item = Response, Error = Self::Error>>;
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
         let (tx, rx) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let template_path = "/app.ism".to_owned();
 
-        let render = Msg::RenderAppRoute(base_url.to_owned(), app_name.to_owned(), template_path, req.path().to_owned());
+        let render = Msg::RenderAppRoute(
+            base_url.to_owned(),
+            app_name.to_owned(),
+            template_path,
+            req.path().to_owned(),
+        );
         self.sender.unbounded_send((render, tx)).unwrap();
 
-        let work = rx
-            .map_err(|_| {
-                HyperError::Io(IOError::new(
-                    IOErrorKind::Other,
-                    "Failed making request on ServerContext.",
-                ))
-            })
-            .and_then(move |rendered| {
-                eprintln!("Got render complete.");
-                eprintln!("Got render result: {:?}", rendered);
+        let work = rx.map_err(|_| {
+            HyperError::Io(IOError::new(
+                IOErrorKind::Other,
+                "Failed making request on ServerContext.",
+            ))
+        }).and_then(move |rendered| {
+            eprintln!("Got render complete.");
+            eprintln!("Got render result: {:?}", rendered);
 
-                match rendered {
-                    Ok(ResponseMsg::RenderComplete(response)) => {
-                        let body = response.take();
-                        let response = Response::new().with_body(body);
-                        future::ok(response)
-                    }
-
-                    _ => {
-                        let body =
-                            format!("Unknown response message from render task: {:?}", rendered);
-                        let response = Response::new().with_body(body);
-                        future::ok(response)
-                    }
+            match rendered {
+                Ok(ResponseMsg::RenderComplete(response)) => {
+                    let body = response.into_inner();
+                    let response = Response::new().with_body(body);
+                    future::ok(response)
                 }
-            });
+
+                _ => {
+                    let body = format!("Unknown response message from render task: {:?}", rendered);
+                    let response = Response::new().with_body(body);
+                    future::ok(response)
+                }
+            }
+        });
 
         Box::new(work)
     }

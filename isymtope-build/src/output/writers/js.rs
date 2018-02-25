@@ -1116,7 +1116,8 @@ fn write_open<'s>(
     let string_props = desc.string_props();
 
     if let Some(value_binding) = desc.value_binding() {
-        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox") {
+        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox")
+        {
             if let Some(read_expr) = value_binding.read_expr() {
                 write!(w, ", ")?;
 

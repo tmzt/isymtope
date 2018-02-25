@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use rand::{OsRng, Rng};
 use data_encoding::BASE32HEX;
 
-use server::*;
+use super::*;
 
 #[derive(Debug)]
 pub struct DefaultSecureRandomStringGenerator {

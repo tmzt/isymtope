@@ -1,4 +1,3 @@
-
 use std::fmt;
 use std::error::Error;
 
@@ -8,7 +7,7 @@ use error::*;
 pub enum TemplateParseError {
     Unexpected(usize),
     UnterminatedString(usize),
-    InvalidNumber(usize)
+    InvalidNumber(usize),
 }
 
 impl Error for TemplateParseError {
@@ -16,7 +15,7 @@ impl Error for TemplateParseError {
         match self {
             &TemplateParseError::Unexpected(_) => "Unexpected token",
             &TemplateParseError::UnterminatedString(_) => "Unterminated string",
-            &TemplateParseError::InvalidNumber(_) => "Invalid number"
+            &TemplateParseError::InvalidNumber(_) => "Invalid number",
         }
     }
 }
@@ -25,8 +24,12 @@ impl fmt::Display for TemplateParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &TemplateParseError::Unexpected(ref s) => write!(f, "Unexpected token at pos {0}", s),
-            &TemplateParseError::UnterminatedString(ref s) => write!(f, "Unterminated string at start {0}", s),
-            &TemplateParseError::InvalidNumber(ref s) => write!(f, "Invalid number at start {0}", s)
+            &TemplateParseError::UnterminatedString(ref s) => {
+                write!(f, "Unterminated string at start {0}", s)
+            }
+            &TemplateParseError::InvalidNumber(ref s) => {
+                write!(f, "Invalid number at start {0}", s)
+            }
         }
     }
 }

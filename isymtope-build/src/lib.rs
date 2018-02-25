@@ -1,5 +1,5 @@
 #![feature(box_patterns)]
-#![recursion_limit="240"]
+#![recursion_limit = "240"]
 
 #[macro_use]
 extern crate log;
@@ -13,8 +13,8 @@ extern crate time;
 
 extern crate itertools;
 extern crate linked_hash_map;
-extern crate serde_json;
 extern crate regex;
+extern crate serde_json;
 
 #[cfg(test)]
 #[macro_use(assert_diff)]

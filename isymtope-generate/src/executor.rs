@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 
 use isymtope_ast_common::*;
-use server::*;
+use super::*;
 
 #[derive(Debug, Default)]
-pub struct ServerActionExecutor {}
+pub struct ActionExecutor {}
 
-impl ServerActionExecutor {
+impl ActionExecutor {
     pub fn initialize_session_data(
         &self,
         state: &mut Session,
         doc: &Document,
         ctx: &mut OutputContext,
-    ) -> IsymtopeServerVoidResult {
+    ) -> IsymtopeGenerateResult<()> {
         // Initial values from reducers
         if let Some(reducers) = doc.reducers() {
             for (key, reducer) in reducers {
@@ -38,7 +38,7 @@ impl ServerActionExecutor {
         ctx: &mut OutputContext,
         action_ty: &str,
         params: Option<P>,
-    ) -> IsymtopeServerVoidResult {
+    ) -> IsymtopeGenerateResult<()> {
         let reducers: HashMap<_, _> = doc.reducers()
             .map(|v| v.map(|(key, reducer)| (key.to_owned(), reducer)).collect())
             .unwrap_or_default();
@@ -50,11 +50,12 @@ impl ServerActionExecutor {
                     .actions()
                     .map(|v| {
                         v.map(|action| {
-                            let complete_action = format!("{}.{}", reducer_key.to_uppercase(), action.name().to_uppercase());
-                            (
-                                complete_action,
-                                (reducer_key.to_owned(), action)
-                            )
+                            let complete_action = format!(
+                                "{}.{}",
+                                reducer_key.to_uppercase(),
+                                action.name().to_uppercase()
+                            );
+                            (complete_action, (reducer_key.to_owned(), action))
                         }).collect()
                     })
                     .unwrap_or_default();
@@ -121,7 +122,7 @@ impl ServerActionExecutor {
         doc: &Document,
         ctx: &mut OutputContext,
         action_op: &ActionOp<ProcessedExpression>,
-    ) -> IsymtopeServerVoidResult {
+    ) -> IsymtopeGenerateResult<()> {
         match *action_op {
             ActionOp::DispatchAction(ref action_ty, ref params, _) => {
                 let params: Vec<_> = params
@@ -183,7 +184,7 @@ impl ServerActionExecutor {
         doc: &Document,
         ctx: &mut OutputContext,
         path: &str,
-    ) -> IsymtopeServerVoidResult {
+    ) -> IsymtopeGenerateResult<()> {
         let routes: HashMap<String, Route<ProcessedExpression>> = doc.routes()
             .map(|r| (r.pattern().to_owned(), r.to_owned()))
             .collect();

@@ -1,4 +1,4 @@
-use failure;
+// use failure;
 
 use std::fmt::Error as FormatError;
 use std::io::Error as IOError;
@@ -10,6 +10,7 @@ use futures::Canceled as FutureCanceled;
 use futures::sync::oneshot::Canceled as OneshotCanceled;
 
 use isymtope_ast_common::*;
+use isymtope_generate::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Fail)]
@@ -42,11 +43,14 @@ pub enum IsymtopeServerError {
     #[fail(display = "Error rendering internal template")]
     InternalRenderError(String),
 
-    #[fail(display = "Error parsing internal template")]
-    InternalParseError(String),
+    // #[fail(display = "Error parsing internal template")]
+    // InternalParseError(String),
 
     #[fail(display = "Session error")]
     SessionError(SessionError),
+
+    #[fail(display = "Generate error")]
+    GenerateError(IsymtopeGenerateError),
 }
 
 impl From<AddrParseError> for IsymtopeServerError {
@@ -77,6 +81,11 @@ impl From<DocumentProcessingError> for IsymtopeServerError {
 impl From<SessionError> for IsymtopeServerError {
     fn from(err: SessionError) -> Self {
         IsymtopeServerError::SessionError(err)
+    }
+}
+impl From<IsymtopeGenerateError> for IsymtopeServerError {
+    fn from(err: IsymtopeGenerateError) -> Self {
+        IsymtopeServerError::GenerateError(err)
     }
 }
 

@@ -34,15 +34,19 @@ pub struct InternalTemplateData {
 pub struct InternalTemplateDataBuilder {
     document_provider: Rc<DocumentProvider>,
     state_provider: Option<Rc<ReducerStateProvider>>,
-    base_url: String
+    base_url: String,
 }
 
 impl InternalTemplateDataBuilder {
-    pub fn new(document_provider: Rc<DocumentProvider>, state_provider: Option<Rc<ReducerStateProvider>>, base_url: &str) -> Self {
+    pub fn new(
+        document_provider: Rc<DocumentProvider>,
+        state_provider: Option<Rc<ReducerStateProvider>>,
+        base_url: &str,
+    ) -> Self {
         InternalTemplateDataBuilder {
             document_provider: document_provider,
             state_provider: state_provider,
-            base_url: base_url.to_owned()
+            base_url: base_url.to_owned(),
         }
     }
 
@@ -51,8 +55,10 @@ impl InternalTemplateDataBuilder {
         let base_url = self.base_url.clone();
 
         // Initialize output context
-        let mut ctx: DefaultOutputContext =
-            DefaultOutputContext::create(document_provider.clone(), self.state_provider.as_ref().map(|s| s.clone()));
+        let mut ctx: DefaultOutputContext = DefaultOutputContext::create(
+            document_provider.clone(),
+            self.state_provider.as_ref().map(|s| s.clone()),
+        );
         let doc = document_provider.doc();
 
         // Buffers
@@ -191,7 +197,10 @@ impl InternalTemplateDataBuilder {
 
         if let Some(v) = doc.reducers() {
             for (reducer_key, reducer) in v {
-                eprintln!("[page_templates] reducer with key {}: {:?}", reducer_key, reducer);
+                eprintln!(
+                    "[page_templates] reducer with key {}: {:?}",
+                    reducer_key, reducer
+                );
 
                 let action_keys = reducer_action_keys
                     .entry(reducer_key.to_owned())

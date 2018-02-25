@@ -285,10 +285,18 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ElementValueBinding<T>(ExpressionValue<T>, Option<String>, Option<ExpressionValue<T>>);
+pub struct ElementValueBinding<T>(
+    ExpressionValue<T>,
+    Option<String>,
+    Option<ExpressionValue<T>>,
+);
 
 impl<T> ElementValueBinding<T> {
-    pub fn new(e: ExpressionValue<T>, alias: Option<String>, read_expr: Option<ExpressionValue<T>>) -> Self {
+    pub fn new(
+        e: ExpressionValue<T>,
+        alias: Option<String>,
+        read_expr: Option<ExpressionValue<T>>,
+    ) -> Self {
         ElementValueBinding(e, alias, read_expr)
     }
 
@@ -316,7 +324,7 @@ where
         Ok(ElementValueBinding(
             TryProcessFrom::try_process_from(&src.0, ctx)?,
             src.1.to_owned(),
-            read_expr
+            read_expr,
         ))
     }
 }
@@ -334,7 +342,7 @@ where
         Ok(ElementValueBinding(
             TryEvalFrom::try_eval_from(&src.0, ctx)?,
             src.1.to_owned(),
-            read_expr
+            read_expr,
         ))
     }
 }

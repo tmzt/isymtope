@@ -7,46 +7,21 @@ use std::sync::{Arc, Mutex};
 
 use std::collections::HashMap;
 
-use futures;
-use futures::Stream;
+use futures::{self, Stream};
 use futures::future::{self, FutureResult};
 
 use tokio_core::reactor::Core;
 use tokio_core::net::TcpListener;
 
-use hyper;
+// use hyper;
 use hyper::server::{Http, NewService, Request, Response, Server, Service};
+// use hyper::Service;
 use regex::RegexSet;
 
 use isymtope_ast_common::*;
 use isymtope_build::*;
-
-pub mod errors;
-pub mod srs_generator;
-
-pub mod context;
-pub mod executor;
-pub mod cookies;
-pub mod sessions;
-pub mod session;
-pub mod default_service;
-pub mod render_service;
-pub mod resource_service;
-pub mod service;
-pub mod router;
-
-pub use self::context::*;
-pub use self::errors::*;
-pub use self::srs_generator::*;
-pub use self::executor::*;
-pub use self::cookies::*;
-pub use self::sessions::*;
-pub use self::session::*;
-pub use self::default_service::*;
-pub use self::render_service::*;
-pub use self::resource_service::*;
-pub use self::service::*;
-pub use self::router::*;
+use isymtope_generate::*;
+use super::*;
 
 lazy_static! {
     pub static ref APP_DIR: Box<PathBuf> = Box::new(env::var_os("APP_DIR").expect("APP_DIR must be provided").into());
@@ -59,6 +34,8 @@ pub trait ServiceInject: Debug {
 
 pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
     let addr = addr.parse()?;
+    let app_dir = &*APP_DIR;
+
     // let mut core = Core::new().unwrap();
     // let handle = core.handle();
     // let ctx_handle = handle.clone();
@@ -74,7 +51,7 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
         // let mut shared_ctx = DefaultServerContext::new(document_provider);
         // ctx_handle.spawn(receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
 
-        let mut shared_ctx = DefaultServerContext::default();
+        let mut shared_ctx = DefaultServerContext::new(app_dir);
         core.run(
             receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
                 let response = shared_ctx.handle_msg(msg);
@@ -96,8 +73,7 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
 
     let render_service_factory =
         TemplateRenderServiceFactory::new(sender, handle.clone(), default_app_str.to_owned());
-    let resource_service_factory =
-        TemplateResourceServiceFactory::new(handle.clone());
+    let resource_service_factory = TemplateResourceServiceFactory::new(handle.clone());
 
     let factory = DefaultServiceFactory::new(
         render_service_factory,

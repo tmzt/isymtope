@@ -249,10 +249,13 @@ fn write_open<'s>(
     // Value binding
 
     if let Some(value_binding) = desc.value_binding() {
-        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox") {
+        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox")
+        {
             if let Some(read_expr) = value_binding.read_expr() {
-                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(read_expr, ctx)?;
-                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
+                let expr: ExpressionValue<OutputExpression> =
+                    TryEvalFrom::try_eval_from(read_expr, ctx)?;
+                let expr: ExpressionValue<OutputExpression> =
+                    TryEvalFrom::try_eval_from(&expr, ctx)?;
                 let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
                 if checked {

@@ -3,7 +3,8 @@ use time::{get_time, Duration, Timespec};
 use std::collections::HashMap;
 
 use isymtope_ast_common::*;
-use server::*;
+use isymtope_generate::*;
+use super::*;
 
 #[derive(Debug, Default)]
 pub struct MemorySessions {

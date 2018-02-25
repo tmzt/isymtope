@@ -34,7 +34,11 @@ pub trait Session {
     #[cfg(feature = "session_time")]
     fn expires(&self) -> Option<&Timespec>;
 
-    fn execute_action(&mut self, action_op: &ActionOp<ProcessedExpression>) -> SessionResult<()>;
+    fn execute_action(
+        &mut self,
+        session_id: &str,
+        action_op: &ActionOp<ProcessedExpression>,
+    ) -> SessionResult<()>;
 
     #[cfg(feature = "types")]
     fn set_value_with_type(

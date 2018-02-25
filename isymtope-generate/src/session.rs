@@ -1,3 +1,5 @@
+use isymtope_ast_common::*;
+
 use std::collections::hash_map::{Entry, HashMap};
 
 #[cfg(feature = "session_time")]
@@ -102,7 +104,11 @@ impl Session for MemorySession {
         self.expires.as_ref()
     }
 
-    fn execute_action(&mut self, action_op: &ActionOp<ProcessedExpression>) -> SessionResult<()> {
+    fn execute_action(
+        &mut self,
+        session_id: &str,
+        action_op: &ActionOp<ProcessedExpression>,
+    ) -> SessionResult<()> {
         Ok(())
     }
 

@@ -23,7 +23,6 @@ pub struct DefaultOutputContext {
 }
 
 impl OutputContext for DefaultOutputContext {
-
     fn doc(&self) -> &Document {
         self.document_provider.doc()
     }
@@ -170,11 +169,7 @@ impl OutputContext for DefaultOutputContext {
         })
     }
 
-    fn bind_element_key(
-        &mut self,
-        key: &str,
-        idx: Option<i32>,
-    ) -> DocumentProcessingResult<()> {
+    fn bind_element_key(&mut self, key: &str, idx: Option<i32>) -> DocumentProcessingResult<()> {
         let binding = CommonBindings::CurrentElementKeyPath;
 
         let element_key = match (self.find_value(&binding)?, idx) {
@@ -255,7 +250,8 @@ impl DefaultOutputContext {
 
     fn do_push(&mut self, environment: Option<OutputScopeEnvironment>) {
         let parent_id = self.cur_scope_id.clone();
-        let child: OutputScope<ProcessedExpression> = OutputScope::new(Some(parent_id.clone()), environment.clone());
+        let child: OutputScope<ProcessedExpression> =
+            OutputScope::new(Some(parent_id.clone()), environment.clone());
         let child_id = child.id().to_owned();
         self.scopes.insert(child_id.clone(), child);
         assert!(self.scopes.len() > 1);

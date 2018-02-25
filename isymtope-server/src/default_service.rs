@@ -9,7 +9,7 @@ use std::error::Error;
 
 use regex::Regex;
 
-use futures::{self, Future};
+use futures::{self, future, Future};
 use hyper::header::{ContentType, Location};
 use hyper::mime;
 
@@ -19,6 +19,7 @@ use hyper_staticfile::Static;
 
 use tokio_core::reactor::Handle;
 
+use server::{APP_DIR, DEFAULT_APP};
 use super::*;
 
 lazy_static! {
@@ -53,7 +54,7 @@ impl NewService for DefaultServiceFactory {
     type Error = <Self::Instance as Service>::Error;
     type Instance = DefaultService;
 
-    fn new_service(&self) -> Result<Self::Instance, io::Error> {
+    fn new_service(&self) -> Result<Self::Instance, IOError> {
         let render_service = self.render_service_factory.create();
         let resource_service = self.resource_service_factory.create();
 
@@ -101,7 +102,10 @@ impl Service for DefaultService {
         let host = req.headers().get_raw("host").unwrap().one().unwrap();
         let host = str::from_utf8(&host).unwrap();
 
-        let forwarded_proto = req.headers().get_raw("x-forwarded-proto").and_then(|s| s.one()).and_then(|s| str::from_utf8(s).ok());
+        let forwarded_proto = req.headers()
+            .get_raw("x-forwarded-proto")
+            .and_then(|s| s.one())
+            .and_then(|s| str::from_utf8(s).ok());
         eprintln!("Forwarded proto: {:?}", forwarded_proto);
 
         let mut proto = "http";
@@ -122,7 +126,10 @@ impl Service for DefaultService {
 
             eprintln!("Base uri: {:?}", base_url);
 
-            let path = captures.name("path").map(|m| m.as_str()).unwrap_or_default();
+            let path = captures
+                .name("path")
+                .map(|m| m.as_str())
+                .unwrap_or_default();
             let path = if path == "" { "/" } else { path }.to_owned();
             let trimmed_resource_path = path.trim_left_matches('/').to_owned();
 
@@ -132,7 +139,8 @@ impl Service for DefaultService {
             // Serve resource
             if app_resource_path.is_file() {
                 let resource_path = format!("/{}/{}", app_name, trimmed_resource_path);
-                let resource_req = Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                let resource_req =
+                    Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
                 let response = self.resource_service
                     .call(&base_url, &app_name, resource_req);
                 return Box::new(response);
@@ -149,11 +157,17 @@ impl Service for DefaultService {
 
             eprintln!("Base uri: {:?}", base_url);
 
-            let path = captures.name("path").map(|m| m.as_str()).unwrap_or_default();
+            let path = captures
+                .name("path")
+                .map(|m| m.as_str())
+                .unwrap_or_default();
             let path = if path == "" { "/" } else { path }.to_owned();
             let trimmed_path_in_app = path.trim_left_matches('/').to_owned();
 
-            eprintln!("[default service] requested path [{:?}] in app {}", path, app_name);
+            eprintln!(
+                "[default service] requested path [{:?}] in app {}",
+                path, app_name
+            );
             let trimmed_relative_path = path.trim_left_matches('/').to_owned();
 
             // Handle resource file case
@@ -162,7 +176,8 @@ impl Service for DefaultService {
             // Serve resource
             if app_resource_path.is_file() {
                 let resource_path = format!("/{}/{}", app_name, trimmed_path_in_app);
-                let resource_req = Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                let resource_req =
+                    Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
                 let response = self.resource_service
                     .call(&base_url, &app_name, resource_req);
                 return Box::new(response);
@@ -171,8 +186,7 @@ impl Service for DefaultService {
             // Render route
             // let template_path = if path == "/" { "/app.ism".to_owned() } else { path }.to_owned();
             let isymtope_req = Request::new(Method::Get, FromStr::from_str(&path).unwrap());
-            let response = self.render_service
-                .call(&base_url, &app_name, isymtope_req);
+            let response = self.render_service.call(&base_url, &app_name, isymtope_req);
             return Box::new(response);
         };
 

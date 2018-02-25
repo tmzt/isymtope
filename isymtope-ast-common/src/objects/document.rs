@@ -189,10 +189,13 @@ impl ContentProcessor {
             Some(&ExpressionValue::Lens(LensValue::ForLens(ref key, box ref expr, _), _)) => {
                 (Some((key.to_owned(), expr.to_owned())), &positionals[1..])
             }
-            _ => (None, &positionals[..])
+            _ => (None, &positionals[..]),
         };
         eprintln!("ContentProcessor: for_lens: {:?}", for_lens);
-        eprintln!("ContentProcessor: (remaining) positionals: {:?}", positionals);
+        eprintln!(
+            "ContentProcessor: (remaining) positionals: {:?}",
+            positionals
+        );
 
         let alias_props: Vec<_> = positionals
             .into_iter()
@@ -223,15 +226,13 @@ impl ContentProcessor {
             _ => Default::default(),
         };
 
-        let positionals = positionals
-            .into_iter()
-            .filter_map(|expr| {
-                let key = match *expr {
-                    ExpressionValue::Binding(ref binding, _) => binding.ident(),
-                    _ => None
-                };
-                key.map(|key| ElementPropValue::new(key.to_owned(), expr.to_owned()))
-            });
+        let positionals = positionals.into_iter().filter_map(|expr| {
+            let key = match *expr {
+                ExpressionValue::Binding(ref binding, _) => binding.ident(),
+                _ => None,
+            };
+            key.map(|key| ElementPropValue::new(key.to_owned(), expr.to_owned()))
+        });
 
         let component_props: Vec<_> = named_props
             .into_iter()
