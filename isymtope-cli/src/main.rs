@@ -73,7 +73,7 @@ main!(|args: Cli| {
     let TemplateResponseMsg::RenderComplete(result) = response;
     let body = result.into_inner();
 
-    let mut f = File::create("./test.html")?;
+    let mut f = File::create(args.output)?;
     f.write_all(body.as_bytes())?;
 
     // eprintln!("{}", body);
