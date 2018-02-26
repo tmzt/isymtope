@@ -6,7 +6,17 @@ body { background: #1e1e1e; }
 #editorComponent { height: 700px; }
 #editorDiv { height: 700px; overflow: hidden; }
 
-#preview { width: 100%; height: 700px; margin-top: 21.5px; }
+#previewStatus {
+    width: 100%;
+    height: 21.5px;
+}
+#previewWrap #previewStatusMsg { display: none; }
+#previewWrap.isPrerender #previewStatusMsg {
+    display: inline-block;
+    color: #606c76;
+    padding: 3px;
+}
+#preview { width: 100%; height: 700px; }
 
 .editorFiles { list-style-type: none; padding-left: 0; margin: 0; position: relative; }
 .editorFiles li { font-size: 14px; display: inline-block; margin-right: 10px; }

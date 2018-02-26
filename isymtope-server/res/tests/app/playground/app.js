@@ -38,6 +38,14 @@ function loadFileReducer(state, action, store) {
     }
 }
 
+function loadPrerenderReducer(state, action) {
+    switch(action.type) {
+        case 'LOADPRERENDER.LOADPRERENDER':
+            setupPreview(action.id)
+    }
+    return true
+}
+
 function loadWorkspaceReducer(state, action) {
     switch(action.type) {
         case 'LOADWORKSPACE.LOADWORKSPACE':
@@ -46,10 +54,8 @@ function loadWorkspaceReducer(state, action) {
             let files = workspace.files
             let mainFile = files.filter(f => !!f.main)[0]
 
-            let iframe = document.querySelector('iframe#preview')
-            iframe.src = window.origin + '/app/' + workspace.id + '/index.html'
-
-            loadFiles(files)
+            setupPreview(workspace.name, true)
+                .then(() => loadFiles(files))
                 .then(() => switchEditor(mainFile))
             return true
         default: return null
@@ -85,8 +91,7 @@ async function startCompilation(source) {
     resourceWorkerToMainWindow.port1.onmessage = ({data}) => {
         switch (data.topic) {
             case '/mainWindow/refreshPreview':
-                let iframe = document.querySelector('iframe#preview')
-                iframe.src = window.origin + '/app/playground/preview-1bcx1/'
+                setupRenderedPreview('/app/playground/preview-1bcx1/')
         }
     }
 
@@ -148,16 +153,27 @@ function setupEditor() {
     })
 }
 
-function setupPreview() {
+function setupPreview(appName) {
+    let wrapper = document.querySelector('#previewWrap')
+    wrapper.classList.remove('isBlank')
+    wrapper.classList.add('isPrerender')
     let iframe = document.querySelector('iframe#preview')
-    iframe.src = window.origin + '/app/todomvc/index.html'
+    iframe.src = window.origin + `/resources/app/${appName}`
+}
+
+function setupRenderedPreview(path) {
+    let wrapper = document.querySelector('#previewWrap')
+    wrapper.classList.remove('isBlank')
+    wrapper.classList.remove('isPrerender')        
+    let iframe = document.querySelector('iframe#preview')
+    iframe.src = window.origin + path
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     getOrRegisterCompilerWorker()
     await getOrRegisterResourceWorker()
-    // setupPreviewProxy()
     await setupEditor()
-    await setupPreview()
-    // await setupCompiler()
+
+    // Go to default route in router
+    window._go('/')
 })

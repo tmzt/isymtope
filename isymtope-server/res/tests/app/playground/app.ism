@@ -24,6 +24,7 @@ store {
         action chooseWorkspace(id) => id;
     }
 
+    extern loadPrerender;
     extern loadWorkspace;
     extern loadFile;
     extern editorContent;
@@ -40,6 +41,7 @@ component workspaceOption(workspaceData) {
 component listWorkspaces(workspaces, activeWorkspace) {
     select(id="activeWorkspace") bind activeWorkspace as selectWorkspace
         change || {
+            dispatch loadPrerender(id: selectWorkspace) to loadPrerender;
             dispatch chooseWorkspace(id: selectWorkspace) to activeWorkspace;
             dispatch loadWorkspace(workspaces: workspaces, id: selectWorkspace) to loadWorkspace;
         }
@@ -93,9 +95,14 @@ component editor(filename) {
     }
 }
 
-component preview() {
-    div(id="previewComponent") {
-        iframe(id="preview", src="about:blank") {}
+component preview(workspaceId) {
+    div(id="previewWrap", class="isBlank isPrerender") {
+        div(id="previewStatus") {
+            span(id="previewStatusMsg") { ("Prerendered preview, choose Update to rebuild") }
+        }
+        div(id="previewComponent") {
+            iframe(id="preview", src="about:blank") {}
+        }
     }
 }
 
@@ -104,6 +111,7 @@ query workspace_data(workspaces, activeWorkspace) {
 }
 
 route "/" || {
+    dispatch loadPrerender(id: "todomvc") to loadPrerender;
     dispatch chooseWorkspace(id: "1czxy") to workspaceId;
     dispatch chooseWorkspace(id: "todomvc") to activeWorkspace;
 }
@@ -125,7 +133,7 @@ div(class="topLayout") {
             }
 
             div(class="splitPreview") {
-                    preview() {}
+                    preview(get activeWorkspace as workspaceId) {}
             }
         }
     }
