@@ -100,7 +100,9 @@ impl IsymtopeAppService for TemplateRenderService {
 
                 _ => {
                     let body = format!("Unknown response message from render task: {:?}", rendered);
-                    let response = Response::new().with_body(body);
+                    let response = Response::new()
+                        .with_header(ContentType(mime::TEXT_HTML))
+                        .with_body(body);
                     future::ok(response)
                 }
             }
