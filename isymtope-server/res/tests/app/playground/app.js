@@ -41,7 +41,7 @@ function loadFileReducer(state, action, store) {
 function loadPrerenderReducer(state, action) {
     switch(action.type) {
         case 'LOADPRERENDER.LOADPRERENDER':
-            setupPreview(action.id)
+            setPreview(`/resources/app/${action.id}`, true)
     }
     return true
 }
@@ -55,7 +55,7 @@ function loadWorkspaceReducer(state, action) {
             let mainFile = files.filter(f => !!f.main)[0]
 
             setupPreview(workspace.name, true)
-                .then(() => loadFiles(files))
+            loadFiles(files)
                 .then(() => switchEditor(mainFile))
             return true
         default: return null
@@ -75,13 +75,19 @@ function compilerReducer(state, action) {
     switch(action.type) {
         case 'COMPILER.COMPILE':
             let source = editor.getValue()
-            startCompilation(source)
+            let appName = action.id
+            let baseUrl = window.origin + `/resources/app/${appName}/`
+            let templatePath = '/app.ism'
+            let path = '/'
+
+            setCompiling(true)
+            startCompilation(source, appName, baseUrl, templatePath, path)
             return true;
         default: return null
     }
 }
 
-async function startCompilation(source) {
+async function startCompilation(source, app_name, base_url, template_path, path) {
     let compilerWorker = getOrRegisterCompilerWorker()
     let resourceWorker = await getOrRegisterResourceWorker()
 
@@ -91,12 +97,24 @@ async function startCompilation(source) {
     resourceWorkerToMainWindow.port1.onmessage = ({data}) => {
         switch (data.topic) {
             case '/mainWindow/refreshPreview':
-                setupRenderedPreview('/app/playground/preview-1bcx1/')
+                setCompiling(false)
+                setPreview('/app/playground/preview-1bcx1/', false)
         }
     }
 
+    let compileReq = {
+        topic: '/compilerWorker/startCompilation',
+        source,
+        pathname: '',
+        mimeType: 'text/html',
+        app_name,
+        base_url,
+        template_path,
+        path
+    }
+
     resourceWorker.postMessage({ topic: '/resourceWorker/compilationStarted' }, [compilerToResourceWorker.port2, resourceWorkerToMainWindow.port2])
-    compilerWorker.postMessage({ topic: '/compilerWorker/startCompilation', source, pathname: '', mimeType: 'text/html' }, [compilerToResourceWorker.port1])
+    compilerWorker.postMessage(compileReq, [compilerToResourceWorker.port1])
     return true
 }
 
@@ -153,18 +171,16 @@ function setupEditor() {
     })
 }
 
-function setupPreview(appName) {
-    let wrapper = document.querySelector('#previewWrap')
-    wrapper.classList.remove('isBlank')
-    wrapper.classList.add('isPrerender')
-    let iframe = document.querySelector('iframe#preview')
-    iframe.src = window.origin + `/resources/app/${appName}`
+function setCompiling(v) {
+    let component = document.querySelector('#previewComponent')
+    component.classList.toggle('showLoading', v)
 }
 
-function setupRenderedPreview(path) {
+function setPreview(path, isPrerender) {
+    setCompiling(false)
     let wrapper = document.querySelector('#previewWrap')
-    wrapper.classList.remove('isBlank')
-    wrapper.classList.remove('isPrerender')        
+    wrapper.classList.toggle('isBlank', false)
+    wrapper.classList.toggle('isPrerender', !!isPrerender)
     let iframe = document.querySelector('iframe#preview')
     iframe.src = window.origin + path
 }

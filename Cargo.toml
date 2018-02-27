@@ -45,5 +45,6 @@ incremental = false
 [profile.release]
 debug = true
 opt-level = 2
+incremental = false
 
 [workspace]

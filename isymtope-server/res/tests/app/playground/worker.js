@@ -7,11 +7,11 @@ self.onmessage = async ({data, ports}) => {
     switch(data.topic) {        
         case '/compilerWorker/startCompilation':
             console.info('[compiler worker] received startCompilation, will send message to resourceWorker')
-            let { source, pathname, mimeType } = data
+            let { source, pathname, mimeType, app_name, base_url, template_path, path } = data
             let resourceWorkerPort = ports[0]
 
             await setupCompiler()
-            let content = await compileTemplate(source)
+            let content = await compileTemplate(source, app_name, base_url, template_path, path)
             resourceWorkerPort.postMessage({ topic: '/resourceWorker/compilationComplete', content, pathname, mimeType })
             break;
     }
@@ -34,12 +34,18 @@ const imports = {
     }
 }
 
-async function compileTemplate(src) {
+async function compileTemplate(src, app_name, base_url, template_path, path) {
     await setupCompiler()
     console.log('[compiler worker] allocating source buffer')
-    let buf = newString(Module, src);
+    let buf = newString(Module, src)
+
+    let app_name_str = newString(Module, app_name)
+    let base_url_str = newString(Module, base_url)
+    let template_path_str = newString(Module, template_path)
+    let path_str = newString(Module, path)
+
     console.log('[compiler worker] compiling template')
-    let outptr = Module.compile_template(buf)
+    let outptr = Module.compile_template(buf, app_name_str, base_url_str, template_path_str, path_str)
     console.log('[compiler worker] converting output to string')
     let result = copyCStr(Module, outptr)
     return result

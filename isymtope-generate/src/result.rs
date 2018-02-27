@@ -24,6 +24,12 @@ pub enum IsymtopeGenerateError {
     SessionError(SessionError),
 }
 
+impl From<IOError> for IsymtopeGenerateError {
+    fn from(err: IOError) -> Self {
+        IsymtopeGenerateError::IOError(err)
+    }
+}
+
 impl From<DocumentProcessingError> for IsymtopeGenerateError {
     fn from(err: DocumentProcessingError) -> Self {
         IsymtopeGenerateError::DocumentProcessingError(err)

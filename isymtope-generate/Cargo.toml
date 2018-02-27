@@ -9,12 +9,21 @@ lazy_static = "1.0.0"
 regex = "0.2.5"
 
 [dependencies.isymtope-ast-common]
-features = ["uuid_v4"]
+default-features=false
 path = "../isymtope-ast-common/"
 
 [dependencies.isymtope-build]
+default-features=false
 path = "../isymtope-build/"
+
+[dependencies.wasm-log]
+optional = true
+path = "../wasm-log"
 
 [features]
 default = []
-uuid_v4 = ["isymtope-build/uuid_v4"]
+uuid_v4 = [
+    "isymtope-ast-common/uuid_v4",
+    "isymtope-build/uuid_v4"
+]
+wasm = ["wasm-log"]

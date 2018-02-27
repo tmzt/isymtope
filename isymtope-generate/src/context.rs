@@ -78,6 +78,8 @@ impl TemplateContext for DefaultTemplateContext {
                     Some(Rc::new(default_state)),
                 );
 
+                eprintln!("Processing route: {} in document", path);
+
                 // Create temporary session for this route
                 let mut state = MemorySession::default();
                 self.executor.initialize_session_data(

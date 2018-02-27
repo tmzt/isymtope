@@ -72,7 +72,7 @@ component listWorkspaceFiles(workspaceData, activeFilename) {
     ul(class="editorFiles") {
         fileLink(for fileData in workspaceData.files, activeFilename) {}
         li(class="updatePreview") { 
-            a(href="#", class="btn btn-small") || { dispatch compile() to compiler; }  { ("Update >") }
+            a(href="#", class="btn btn-small") || { dispatch compile(id: workspaceData.id) to compiler; }  { ("Update >") }
         }
     }
 }
@@ -102,6 +102,9 @@ component preview(workspaceId) {
         }
         div(id="previewComponent") {
             iframe(id="preview", src="about:blank") {}
+            div(id="previewOverlay") {
+                span(class="loadingImg") {}
+            }
         }
     }
 }

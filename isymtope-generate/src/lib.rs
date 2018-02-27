@@ -1,5 +1,9 @@
 #![feature(box_patterns)]
 
+#[cfg(feature = "wasm")]
+#[macro_use]
+extern crate wasm_log;
+
 #[macro_use]
 extern crate failure;
 extern crate isymtope_ast_common;

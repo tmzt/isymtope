@@ -20,6 +20,11 @@ features = [
 ]
 path = "../isymtope-build/"
 
+[dependencies.isymtope-generate]
+default-features = false
+features = ["wasm"]
+path = "../isymtope-generate"
+
 [dependencies.wasm-log]
 path = "../wasm-log"
 
