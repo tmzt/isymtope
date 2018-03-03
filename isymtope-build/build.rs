@@ -20,4 +20,6 @@ fn main() {
         .process()
         .ok()
         .unwrap();
+
+    println!("cargo:rerun-if-changed=\"{}/input/parser/parser.rs\"", out_dir.to_str().unwrap());
 }

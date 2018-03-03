@@ -181,12 +181,12 @@ FormalParams : FormalParams<SourceExpression> = {
 
 #[inline]
 PropValue : PropValue<SourceExpression> = {
-    <key:Id> ":" <e:ExpressionValue> => PropValue::new(key, e)
+    <key:Id> ":" <e:ExpressionValue> => PropValue::new(key, e, None)
 };
 
 #[inline]
 PropValueTerm : PropValue<SourceExpression> = {
-    <key:Id> ":" <e:ExpressionTerm> => PropValue::new(key, e)
+    <key:Id> ":" <e:ExpressionTerm> => PropValue::new(key, e, None)
 };
 
 #[inline]

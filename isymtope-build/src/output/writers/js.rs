@@ -1345,21 +1345,37 @@ fn write_action_prop_value<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
     ctx: &mut OutputContext,
-    expr: &ExpressionValue<ProcessedExpression>,
+    prop: &PropValue<ProcessedExpression>,
 ) -> DocumentProcessingResult<()> {
-    // Special case: lookup value by path alias
-    if let ExpressionValue::Expression(Expression::Path(ref path_value, _)) = *expr {
-        let alias_string = path_value.component_string();
-        let binding = CommonBindings::PathAlias(alias_string, Default::default());
-        if let Some(alias_target) = ctx.find_value(&binding)? {
-            if let ExpressionValue::Expression(Expression::RawPath(ref s, _)) = alias_target {
-                write!(w, "props.{}", s)?;
-                return Ok(());
-            };
-            // return _self.write_object(w, ctx, &alias_target);
-        };
+    eprintln!("[Action Prop Value] prop: {:?}", prop);
+
+    // // Special case: lookup value by path alias
+    // if let ExpressionValue::Expression(Expression::Path(ref path_value, _)) = *expr {
+    //     let alias_string = path_value.component_string();
+    //     let binding = CommonBindings::PathAlias(alias_string, Default::default());
+    //     if let Some(alias_target) = ctx.find_value(&binding)? {
+    //         if let ExpressionValue::Expression(Expression::RawPath(ref s, _)) = alias_target {
+    //             // write!(w, "props.{}", s)?;
+    //             write!(w, "{}", s)?;
+    //             return Ok(());
+    //         };
+    //         // return _self.write_object(w, ctx, &alias_target);
+    //     };
+    // };
+    let value = prop.value();
+
+    let is_primitive = value.is_primitive();
+    let environment = ctx.environment()?;
+
+    if !is_primitive && environment != Some(OutputScopeEnvironment::RouteDispatchAction) {
+        let alias = prop.key().to_owned();
+        let binding: CommonBindings<ProcessedExpression> = CommonBindings::NamedComponentProp(alias.clone(), Default::default());
+        let expr = ExpressionValue::Binding(binding, Default::default());
+
+        return _self.write_object(w, ctx, &expr);
     };
-    _self.write_object(w, ctx, expr)
+
+    _self.write_object(w, ctx, value)
 }
 
 impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
@@ -1382,15 +1398,16 @@ impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
                 if let Some(box ref props) = *props {
                     for prop in props {
                         write!(w, ", \"{}\": ", prop.key())?;
-                        write_action_prop_value(self, w, ctx, prop.value())?;
+                        write_action_prop_value(self, w, ctx, prop)?;
                     }
                 };
                 writeln!(w, "}});")?;
             }
 
-            ActionOp::Navigate(ref path, _) => {
+            ActionOp::Navigate(ref prop, _) => {
                 write!(w, "            window._go(")?;
-                write_action_prop_value(self, w, ctx, path)?;
+                let prop = PropValue::new("path".to_owned(), prop.to_owned(), None);
+                write_action_prop_value(self, w, ctx, &prop)?;
                 write!(w, ");")?;
             }
         };
@@ -1414,7 +1431,9 @@ impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJs
             }
 
             RouteActionValue::Actions(Some(ref actions), _) => for action in actions {
+                ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
                 self.write_object(w, ctx, action)?;
+                ctx.pop_scope();
             },
             RouteActionValue::Actions(..) => {}
         }

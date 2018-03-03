@@ -13,6 +13,7 @@ pub enum OutputScopeEnvironment {
     MappedComponentInstance,
     SubComponentInstance,
     MappedSubComponentInstance,
+    RouteDispatchAction,
 }
 
 pub trait OutputContext: Debug {

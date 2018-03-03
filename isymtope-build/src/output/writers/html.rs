@@ -240,9 +240,36 @@ fn write_open<'s>(
             }
         };
 
-        write!(w, "{}=\"", name)?;
-        _self.write_object(w, ctx, &expr)?;
-        write!(w, "\"")?;
+        // if let ExpressionValue::Expression(Expression::BinaryOp(..)) = expr {
+        // if !expr.is_primitive() {
+        //     let expr: ExpressionValue<OutputExpression> =
+        //         TryEvalFrom::try_eval_from(&expr, ctx)?;
+        //     let expr: ExpressionValue<OutputExpression> =
+        //         TryEvalFrom::try_eval_from(&expr, ctx)?;
+
+        //     eprintln!("Writing property with computed value: {:?}", expr);
+
+        //     if let ExpressionValue::Primitive(Primitive::BoolVal(b)) = expr {
+        //         if b {
+        //             write!(w, "{}=\"{}\"", name, name)?;
+        //         }
+        //         first = false;
+        //         continue;
+        //     }
+        // };
+
+        // Handle boolean parameters differently
+        eprintln!("[html] Writing parameter {}: {:?}", name, expr);
+        if let ExpressionValue::Primitive(Primitive::BoolVal(b)) = expr {
+            if b {
+                write!(w, "{}=\"{}\"", name, name)?;
+            }
+        } else {
+            write!(w, "{}=\"", name)?;
+            _self.write_object(w, ctx, &expr)?;
+            write!(w, "\"")?;
+        }
+
         first = false;
     }
 
