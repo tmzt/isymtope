@@ -1,4 +1,5 @@
 use html;
+use thunk;
 
 store {
     let workspaces = [
@@ -22,6 +23,10 @@ store {
 
     activeFileId {
         action setFileId(fileId) => fileId;
+    }
+
+    editorEvents {
+        action contentChanged() => true;
     }
 
     extern externApp;

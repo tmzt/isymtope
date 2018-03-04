@@ -16,12 +16,14 @@ use ast::*;
 pub struct Document {
     root_block: Block<ProcessedExpression>,
     reducers: LinkedHashMap<String, Reducer<ProcessedExpression>>,
+    extern_reducer_modules: Vec<ExternReducerModuleNode>,
     extern_reducers: Vec<ExternReducerNode>,
     default_reducer_key: Option<String>,
 
     components: LinkedHashMap<String, Component<ProcessedExpression>>,
     queries: LinkedHashMap<String, Query<ProcessedExpression>>,
     routes: LinkedHashMap<String, Route<ProcessedExpression>>,
+    libraries: LinkedHashMap<String, LibraryObject>,
 
     event_bindings: Vec<ElementEventBindingName<ProcessedExpression>>,
 }
@@ -30,21 +32,25 @@ impl Document {
     pub fn new(
         root_block: Block<ProcessedExpression>,
         reducers: LinkedHashMap<String, Reducer<ProcessedExpression>>,
+        extern_reducer_modules: Vec<ExternReducerModuleNode>,
         extern_reducers: Vec<ExternReducerNode>,
         default_reducer_key: Option<String>,
         components: LinkedHashMap<String, Component<ProcessedExpression>>,
         queries: LinkedHashMap<String, Query<ProcessedExpression>>,
         routes: LinkedHashMap<String, Route<ProcessedExpression>>,
+        libraries: LinkedHashMap<String, LibraryObject>,
         event_bindings: Vec<ElementEventBindingName<ProcessedExpression>>,
     ) -> Self {
         Document {
             root_block: root_block,
             reducers: reducers,
+            extern_reducer_modules: extern_reducer_modules,
             extern_reducers: extern_reducers,
             default_reducer_key: default_reducer_key,
             components: components,
             queries: queries,
             routes: routes,
+            libraries: libraries,
             event_bindings: event_bindings,
         }
     }
@@ -61,6 +67,10 @@ impl Document {
 
     pub fn reducer<'doc>(&'doc self, key: &str) -> Option<&'doc Reducer<ProcessedExpression>> {
         self.reducers.get(key)
+    }
+
+    pub fn extern_reducer_modules<'doc>(&'doc self) -> impl Iterator<Item = &'doc ExternReducerModuleNode> {
+        self.extern_reducer_modules.iter()
     }
 
     pub fn extern_reducers<'doc>(&'doc self) -> impl Iterator<Item = &'doc ExternReducerNode> {
@@ -89,6 +99,10 @@ impl Document {
 
     pub fn routes<'a>(&'a self) -> impl Iterator<Item = &'a Route<ProcessedExpression>> {
         self.routes.values()
+    }
+
+    pub fn libraries<'a>(&'a self) -> impl Iterator<Item = (&'a str, &'a LibraryObject)> {
+        self.libraries.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     pub fn event_bindings<'a>(
@@ -448,6 +462,17 @@ impl TryProcessFrom<Template> for Document {
         ast: &Template,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Document> {
+
+        // Use statements
+        let use_statements = ast.children()
+            .filter_map(|n| match *n {
+                TemplateNode::UseStmt(ref u) => Some(u),
+                _ => None
+            });
+
+        let libraries: LinkedHashMap<String, LibraryObject> = use_statements.map(|s| (s.to_owned(), LibraryObject::new(s.to_owned(), None)))
+            .collect();
+
         // Collect values for entire document
         let mut content_ctx: DefaultContentProcessingContext = Default::default();
 
@@ -488,6 +513,16 @@ impl TryProcessFrom<Template> for Document {
                     StoreCommonNode::ChildScopeNode(ref scope, ref children),
                     _,
                 ) => Some((scope, children)),
+                _ => None,
+            })
+            .collect();
+
+        let extern_reducer_modules: Vec<_> = root_children
+            .iter()
+            .filter_map(|n| match *n {
+                &StoreRootScopeNode::Common(StoreCommonNode::ExternReducerModuleNode(ref node, _), _) => {
+                    Some(node.to_owned())
+                }
                 _ => None,
             })
             .collect();
@@ -699,11 +734,13 @@ impl TryProcessFrom<Template> for Document {
         let doc = Document::new(
             root_block,
             reducers,
+            extern_reducer_modules,
             extern_reducers,
             default_reducer_key,
             components,
             queries,
             routes,
+            libraries,
             event_bindings,
         );
 

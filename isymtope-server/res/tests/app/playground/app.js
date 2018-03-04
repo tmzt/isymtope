@@ -34,6 +34,13 @@ async function useModel() {
     window._editor.setModel(model)
 }
 
+// function attachEditorEvents(contentChanged) {
+//     _editor.onDidChangeModelContent(event => {
+//         console.log('Content changed', event)
+//         contentChanged()
+//     })
+// }
+
  function switchWorkspace(workspaceId) {
     if (_currentWorkspaceId === workspaceId) {  return }
     setPreview(`/resources/app/${workspaceId}`, true)
@@ -76,12 +83,23 @@ async function loadDefault(workspaceId) {
 function externAppReducer(state, action) {
     switch(action.type) {
         case 'EXTERNAPP.INIT':
-            let { workspaces, workspaceId, fileId } = action
-            setPreview(`/resources/app/${workspaceId}`, true)
-            _workspaces = workspaces
-            _currentWorkspaceId = workspaceId
-            _currentFileId = fileId
-            useModel()
+            return (dispatch, getState) => {
+                let { workspaces, workspaceId, fileId } = action
+                setPreview(`/resources/app/${workspaceId}`, true)
+                _workspaces = workspaces
+                _currentWorkspaceId = workspaceId
+                _currentFileId = fileId
+                useModel()
+                // attachEditorEvents(() => dispatch('EDITOREVENTS.CONTENTCHANGED'))                
+                _editor.onDidChangeModelContent(event => {
+                    if (!_isChangingContent) {
+                        let { activeWorkspaceId, activeFileId  } = getState()
+                        console.log('Content changed', event)
+                        dispatch({ type: 'EDITOREVENTS.CONTENTCHANGED', activeWorkspaceId, activeFileId })
+                    }
+                })
+            }
+
             break;
         case 'EXTERNAPP.SWITCHWORKSPACE':
             switchWorkspace(action.workspaceId); break
@@ -166,7 +184,7 @@ async function startCompilation(source, app_name, base_url, template_path, path)
 }
 
 let compiler
-function getOrRegisterCompilerWorker() {
+async function getOrRegisterCompilerWorker() {
     if (!compiler) {
         compiler = new Worker('/app/playground/worker.js')
     }
@@ -205,9 +223,9 @@ function setupEditor() {
                 theme: 'vs-dark'
             });
 
-            editor.onDidChangeModelContent(e => {
-                console.log('Changed editor content', e)
-            })
+            // editor.onDidChangeModelContent(e => {
+            //     console.log('Changed editor content', e)
+            // })
 
             window.fetch(window.origin + '/app/todomvc/app.ism').then(resp => {
                 resp.text().then(body => {
@@ -219,7 +237,7 @@ function setupEditor() {
 
             window._editor = editor
 
-            resolve()
+            resolve(editor)
         });
     })
 }
@@ -238,11 +256,31 @@ function setPreview(path, isPrerender) {
     iframe.src = window.origin + path
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    getOrRegisterCompilerWorker()
-    await getOrRegisterResourceWorker()
-    await setupEditor()
-
-    // Go to default route in router
-    window._go('/')
+Isymtope.app().registerBeforeRoutingHook(store => {
+    store.dispatch((dispatch, getState) => {
+        getOrRegisterCompilerWorker()
+            .then(() => getOrRegisterResourceWorker())
+            .then(() => setupEditor())
+            .then(editor => {
+                editor.onDidChangeModelContent(event => {
+                    if (!_isChangingContent) {
+                        let { activeWorkspaceId, activeFileId  } = getState()
+                        console.log('Content changed', event)
+                        dispatch({ type: 'EDITOREVENTS.CONTENTCHANGED', activeWorkspaceId, activeFileId })
+                    }
+                })        
+            })
+    })
 })
+
+Isymtope.app().setDefaultRoute('/')
+Isymtope.app().alwaysNavigateToDefaultRoute()
+
+// document.addEventListener('DOMContentLoaded', async () => {
+//     // getOrRegisterCompilerWorker()
+//     // await getOrRegisterResourceWorker()
+//     // await setupEditor()
+
+//     // Go to default route in router
+//     // window._go('/')
+// })

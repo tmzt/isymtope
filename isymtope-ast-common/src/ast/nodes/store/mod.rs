@@ -29,7 +29,19 @@ pub enum StoreApiChildNode<T> {
     Method(MethodType),
 }
 
-#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExternReducerModuleNode(String);
+
+impl ExternReducerModuleNode {
+    pub fn new(name: String) -> Self {
+        ExternReducerModuleNode(name)
+    }
+
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExternReducerNode(String);
 
@@ -48,6 +60,7 @@ impl ExternReducerNode {
 pub enum StoreCommonNode<T> {
     LetNode(String, Option<ExpressionValue<T>>, PhantomData<T>),
     ApiNode(String, Option<Vec<StoreApiChildNode<T>>>, PhantomData<T>),
+    ExternReducerModuleNode(ExternReducerModuleNode, PhantomData<T>),
     ExternReducerNode(ExternReducerNode, PhantomData<T>),
     ChildScopeNode(String, Option<Vec<StoreChildScopeNode<T>>>),
 }

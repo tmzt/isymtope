@@ -207,13 +207,13 @@ pub Template: Template = {
         // let uses = uses.into_iter();
         // let other = other.into_iter();
 
-        // let children: Vec<TemplateNode<SourceExpression>> = uses.into_iter()
-        //     .chain(other.into_iter())
-        //     .flat_map(|n| n.inner)
-        //     .collect();
+        let children: Vec<TemplateNode<SourceExpression>> = uses.into_iter()
+            .chain(other.into_iter())
+            .map(|n| n.inner)
+            .collect();
 
-        let children: Vec<_> = other.into_iter()
-            .map(|n| n.inner).collect();
+        // let children: Vec<_> = other.into_iter()
+        //     .map(|n| n.inner).collect();
 
         Template::new(children)
     }
@@ -264,6 +264,7 @@ StoreCommonNode: StoreCommonNode<SourceExpression> = {
     LetKeyword <var:Id> <e:("=" <ExpressionValue>)?> ";" => StoreCommonNode::LetNode(var, e, Default::default()),
     // ApiKeyword <name:Id> "{" <v:(StoreApiChildNode+)?> "}" => StoreCommonNode::ApiNode(name, v, Default::default()),
 
+    ExternKeyword ModKeyword <name:Id> ";" => StoreCommonNode::ExternReducerModuleNode(ExternReducerModuleNode::new(name), Default::default()),
     ExternKeyword <name:Id> ";" => StoreCommonNode::ExternReducerNode(ExternReducerNode::new(name), Default::default()),
 
     <name:Id> "{" <v:(StoreChildScopeNode+)?> "}" => StoreCommonNode::ChildScopeNode(name, v)
@@ -565,6 +566,7 @@ extern {
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,
         ExternKeyword => Token::ExternKeyword,
+        ModKeyword => Token::ModKeyword,
         ApiKeyword => Token::ApiKeyword,
         ResourceKeyword => Token::ResourceKeyword,
         MethodsKeyword => Token::MethodsKeyword,

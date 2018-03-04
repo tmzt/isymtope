@@ -62,8 +62,13 @@
 
             // Start routing
             history.init(store, dispatchCurrentRoute);
-    
+
+            // Before routing
+            Isymtope.app().beforeRouting(store)
+
             _global._go = function(href) { store.dispatch(navigate(href)); };
+
+            Isymtope.app().routingStarted(store, navigate)
     }
     
     IsymtopeRouting.createHistory = createHistory

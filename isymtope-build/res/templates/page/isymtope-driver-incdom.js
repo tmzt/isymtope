@@ -56,12 +56,14 @@
         return Redux.applyMiddleware.apply(null, middleware)(Redux.createStore)(rootReducer);
     };
 
-    Isymtope.initialize = function IsymtopeDriverIncDom_initialize(root, render, rootReducer, routes, dispatchCurrentRoute) {
+    Isymtope.initialize = function IsymtopeDriverIncDom_initialize(root, render, rootReducer, routes, extraMiddleware, dispatchCurrentRoute) {
         dispatchCurrentRoute = !!dispatchCurrentRoute
 
         let history = Isymtope.Routing.createHistory(window)
         let routingMiddleware = Isymtope.Routing.createRoutingMiddleware(routes, history)
-        let store = createStore(rootReducer, [routingMiddleware])
+        let middleware = extraMiddleware ? extraMiddleware.concat(routingMiddleware) : [routingMiddleware]
+
+        let store = createStore(rootReducer, middleware)
         let driver = new IsymtopeDriverIncDom(root, render, store)
 
         document.addEventListener("DOMContentLoaded", function(event) {

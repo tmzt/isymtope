@@ -65,6 +65,7 @@ pub enum Token {
     StoreKeyword,
     ActionKeyword,
     ExternKeyword,
+    ModKeyword,
     ApiKeyword,
     ResourceKeyword,
     MethodsKeyword,

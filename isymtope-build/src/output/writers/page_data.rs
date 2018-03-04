@@ -1,5 +1,5 @@
 use std::str;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use isymtope_ast_common::*;
@@ -9,6 +9,7 @@ use input::*;
 #[derive(Debug)]
 pub struct InternalTemplateData {
     pub base_url: String,
+    pub library_names: HashSet<String>,
     pub route_keys: Vec<String>,
     pub route_func_keys: HashMap<String, String>,
     pub route_bodies: HashMap<String, String>,
@@ -73,6 +74,10 @@ impl InternalTemplateDataBuilder {
 
         // let template_src = self::template_source()?;
         // eprintln!("[page_templates] got template source");
+
+        // Libraries
+
+        let library_names: HashSet<_> = doc.libraries().map(|(name, _)| name.to_owned()).collect();
 
         // Events
 
@@ -324,6 +329,7 @@ impl InternalTemplateDataBuilder {
 
         Ok(InternalTemplateData {
             base_url: base_url,
+            library_names: library_names,
             event_keys: event_keys,
             event_enterkeyflags: event_enterkeyflags,
             event_action_keys: event_action_keys,
