@@ -1100,10 +1100,22 @@ fn write_open<'s>(
 
     // attributes
     for prop in eval_props {
+        write!(w, ", ")?;
+
         let (name, expr) = prop;
         let use_classes = name == "class" && expr.is_object();
 
-        write!(w, ", \"{}\", ", name)?;
+        if (tag == "input" || tag == "button") && name == "disabled" {
+            _self.write_object(w, ctx, &expr)?;
+            write!(w, " ? 'disabled' : null, ")?;
+
+            _self.write_object(w, ctx, &expr)?;
+            write!(w, " ? 'disabled' : null")?;
+
+            continue;
+        };
+
+        write!(w, "\"{}\", ", name)?;
         if use_classes {
             write!(w, "classes(")?;
         }

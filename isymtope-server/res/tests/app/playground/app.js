@@ -2,73 +2,120 @@
 let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
 let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
 
-let cache = new Map
+let _workspaces
+let _currentWorkspaceId
+let _currentFileId
 
-async function loadFiles(files) {
-    for(let file of files) {
-        let url = mapRoute(file.path)
-        await window.fetch(file.path)
-            .then(async resp => {
-                let body = await resp.text()
-                cache.set(file.path, body)
-                return body
-            })
-    }
+let _contentCache = new Map
+let _editorModels = new Map
+
+let _isChangingContent = false
+
+let cacheKey = (workspaceId, fileId) => `[workspaceId=${workspaceId} fileId=${fileId}]`
+let fetchContent = async (workspaceId, fileData) => fetch(`${window.origin}/resources/app/${workspaceId}/${fileData.path}`).then(resp => resp.text())
+
+async function getOrCache(cache, key, func) {
+    if (cache.has(key)) { return cache.get(key) }
+    let value = func()
+    cache.set(key, value)
+    return value
 }
 
-function fetchContent(path) {
-    let editor = window._editor
-    if (editor) {
-        window.fetch(window.origin + '/' + path).then(resp => {
-            resp.text().then(body => {
-                editor.setValue(body)
-            })
-        })
-    }
+async function useModel() {
+    const [ workspaceId, fileId ] = [ _currentWorkspaceId, _currentFileId ]
+    const workspace = _workspaces.get(workspaceId)
+    const file = workspace.files.filter(f => f.id === fileId)[0]
+
+    const key = cacheKey(workspaceId, fileId)
+    const content = await getOrCache(_contentCache, key, async () => fetchContent(workspaceId, file))
+    const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(content, file.language))
+    model.setValue(content)
+    monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
+    window._editor.setModel(model)
 }
 
-function switchEditor(file) {
-    let contents = cache.get(file.path)
-    editor.setValue(contents)
+ function switchWorkspace(workspaceId) {
+    if (_currentWorkspaceId === workspaceId) {  return }
+    setPreview(`/resources/app/${workspaceId}`, true)
+    let workspace = _workspaces.get(workspaceId)
+    _currentFileId = workspace.index
+    _currentWorkspaceId = workspaceId
+    return useModel()
 }
 
-function loadFileReducer(state, action, store) {
+ function switchFile(fileId) {
+    if (_currentFileId === fileId) { return }
+    _currentFileId = fileId
+    return useModel()
+}
+
+async function compileCurrent() {
+    const [ workspaceId, fileId ] = [ _currentWorkspaceId, _currentFileId ]
+    const key = cacheKey(workspaceId, fileId)
+    const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+    const source = model.getValue()
+    const appName = workspaceId
+
+    let baseUrl = window.origin + `/resources/app/${appName}/`
+    let templatePath = '/app.ism'
+    let path = '/'
+
+    setCompiling(true)
+
+    return startCompilation(source, appName, baseUrl, templatePath, path)
+}
+
+async function loadDefault(workspaceId) {
+    _currentWorkspaceId = workspaceId
+    _currentFileId = undefined
+    return useModel()
+    // let fileData = { id: 'app.ism', path: 'app.ism', name: 'app.ism', language: 'isymtope', main: true}
+    // return setEditorFileData(workspaceId, fileData)
+}
+
+function externAppReducer(state, action) {
     switch(action.type) {
-        default: return null
-    }
-}
-
-function loadPrerenderReducer(state, action) {
-    switch(action.type) {
-        case 'LOADPRERENDER.LOADPRERENDER':
-            setPreview(`/resources/app/${action.id}`, true)
+        case 'EXTERNAPP.INIT':
+            let { workspaces, workspaceId, fileId } = action
+            setPreview(`/resources/app/${workspaceId}`, true)
+            _workspaces = workspaces
+            _currentWorkspaceId = workspaceId
+            _currentFileId = fileId
+            useModel()
+            break;
+        case 'EXTERNAPP.SWITCHWORKSPACE':
+            switchWorkspace(action.workspaceId); break
+        case 'EXTERNAPP.SWITCHFILE':
+            switchFile(action.fileId); break
+        case 'EXTERNAPP.COMPILECURRENT':
+            compileCurrent(); break
     }
     return true
 }
 
-function loadWorkspaceReducer(state, action) {
+function externWorkspaceReducer(state, action) {
     switch(action.type) {
-        case 'LOADWORKSPACE.LOADWORKSPACE':
-            let workspaces = new Map(action.workspaces.map(w => [w.id, w]))
-            let workspace = workspaces.get(action.id)
-            let files = workspace.files
-            let mainFile = files.filter(f => !!f.main)[0]
-
-            setupPreview(workspace.name, true)
-            loadFiles(files)
-                .then(() => switchEditor(mainFile))
-            return true
-        default: return null
+        case 'EXTERNWORKSPACE.SWITCHWORKSPACE':
+            _workspaces = new Map(action.workspaces.map(w => [w.id, w]))
     }
+    return true
 }
 
-function editorContentReducer(state, action) {
+function externFileReducer(state, action) {
     switch(action.type) {
-        case 'EDITORCONTENT.LOAD':
-            let url = mapRoute(action.path)
-            fetchContent(url); return true;
-        default: return null
+        case 'EXTERNFILE.SWITCHFILE':
+            _workspaces = new Map(action.workspaces.map(w => [w.id, w]))
     }
+    return true
+}
+
+function defaultWorkspaceReducer(state, action) {
+    switch(action.type) {
+        case 'DEFAULTWORKSPACE.LOADDEFAULT':
+            setPreview(`/resources/app/${action.id}`, true)
+            loadDefaultEditor(action.id)
+    }
+    return true
 }
 
 function compilerReducer(state, action) {
@@ -158,9 +205,15 @@ function setupEditor() {
                 theme: 'vs-dark'
             });
 
+            editor.onDidChangeModelContent(e => {
+                console.log('Changed editor content', e)
+            })
+
             window.fetch(window.origin + '/app/todomvc/app.ism').then(resp => {
                 resp.text().then(body => {
+                    _isChangingContent = true
                     editor.setValue(body)
+                    _isChangingContent = false
                 })
             })
 

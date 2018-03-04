@@ -2,32 +2,29 @@ use html;
 
 store {
     let workspaces = [
-        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, files: [
-            {id: "todomvc/app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
+        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, default: true, index: "app.ism", files: [
+            {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]},
-        {id: "playground", name: "playground", description: "This application", demo: true, files: [
-            {id: "playground/app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true},
-            {id: "playground/app.js", path: "app.js", name: "app.js", caption: "JS", language: "javascript"},
-            {id: "playground/app.css", path: "app.css", name: "app.css", caption: "CSS", language: "css"}
+        {id: "playground", name: "playground", description: "This application", demo: true, index: "app.ism", files: [
+            {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true},
+            {id: "app.js", path: "app.js", name: "app.js", caption: "JS", language: "javascript"},
+            {id: "app.css", path: "app.css", name: "app.css", caption: "CSS", language: "css"}
         ]}
     ];
-    let activeWorkspace = "todomvc";
-    let activeFilename = "app.ism";
+    let activeWorkspaceId = "todomvc";
+    let activeFileId = "app.ism";
 
     workspaces {}
 
-    activeFilename {
-        action chooseFilename(id) => id;
+    activeWorkspaceId {
+        action setWorkspaceId(workspaceId) => workspaceId;
     }
 
-    activeWorkspace {
-        action chooseWorkspace(id) => id;
+    activeFileId {
+        action setFileId(fileId) => fileId;
     }
 
-    extern loadPrerender;
-    extern loadWorkspace;
-    extern loadFile;
-    extern editorContent;
+    extern externApp;
     extern compiler;
 }
 
@@ -41,20 +38,19 @@ component workspaceOption(workspaceData) {
 component listWorkspaces(workspaces, activeWorkspace) {
     select(id="activeWorkspace") bind activeWorkspace as selectWorkspace
         change || {
-            dispatch loadPrerender(id: selectWorkspace) to loadPrerender;
-            dispatch chooseWorkspace(id: selectWorkspace) to activeWorkspace;
-            dispatch loadWorkspace(workspaces: workspaces, id: selectWorkspace) to loadWorkspace;
+            dispatch setWorkspaceId(workspaceId: selectWorkspace) to activeWorkspaceId;
+            dispatch switchWorkspace(workspaceId: selectWorkspace) to externApp;
         }
     {
         workspaceOption(for workspaceData in workspaces) {}
     }
 }
 
-component fileLink(fileData, activeFilename) {
-    li(class = {isActive: (fileData.name == activeFilename)}) {
+component fileLink(fileData,  activeFileId) {
+    li(class = {isActive: (fileData.id == activeFileId)}) {
         a(href="#", class="btn btn-small") || {
-            dispatch chooseFile(name: fileData.name) to activeFilename;
-            dispatch load(name: fileData.name, path: fileData.path) to editorContent;
+            dispatch setFileId(fileId: fileData.id) to activeFileId;
+            dispatch switchFile(fileId: fileData.id) to externApp;
         }
         {
             ( fileData.caption )
@@ -62,28 +58,19 @@ component fileLink(fileData, activeFilename) {
     }
 }
 
-component listFiles(files, activeFilename) {
+component listWorkspaceFiles(workspaceData, activeFileId) {
     ul(class="editorFiles") {
-        fileLink(for fileData in files, activeFilename) {}
-    }
-}
-
-component listWorkspaceFiles(workspaceData, activeFilename) {
-    ul(class="editorFiles") {
-        fileLink(for fileData in workspaceData.files, activeFilename) {}
-        li(class="updatePreview") { 
-            a(href="#", class="btn btn-small") || { dispatch compile(id: workspaceData.id) to compiler; }  { ("Update >") }
+        fileLink(for fileData in workspaceData.files, activeFileId = activeFileId) {}
+        li(class="updatePreview") {
+            button(id="compileButton", href="#", class="btn btn-small", disabled=(activeFileId != "app.ism")) || { dispatch compileCurrent() to externApp; }  { ("Compile >") }
         }
     }
 }
 
-component tabs(editors) {
-}
-
-component editor(filename) {
+component editor() {
     div(class="editorWrap") {
         div(class="editorButtons") {
-            listWorkspaceFiles(query workspace_data(get workspaces, get activeWorkspace) as workspaceData, get activeFilename) {}
+            listWorkspaceFiles(query workspace_data(get workspaces, get activeWorkspaceId) as workspaceData, get activeFileId) {}
         }
         div(class="editorMain") {
             div(id="editorComponent") {
@@ -95,10 +82,10 @@ component editor(filename) {
     }
 }
 
-component preview(workspaceId) {
+component preview() {
     div(id="previewWrap", class="isBlank isPrerender") {
         div(id="previewStatus") {
-            span(id="previewStatusMsg") { ("Prerendered preview, choose Update to rebuild") }
+            span(id="previewStatusMsg") { ("Prerendered preview, choose Compile to rebuild") }
         }
         div(id="previewComponent") {
             iframe(id="preview", src="about:blank") {}
@@ -109,14 +96,18 @@ component preview(workspaceId) {
     }
 }
 
-query workspace_data(workspaces, activeWorkspace) {
-    (workspaces.filter(item.id == activeWorkspace).first()) where (true);
+query workspace_data(workspaces, activeWorkspaceId) {
+    (workspaces.filter(item.id == activeWorkspaceId).first()) where (true);
+}
+
+query file_data(files, activeFileId) {
+    (files.filter(item.id == activeFileId).first()) where (true);
 }
 
 route "/" || {
-    dispatch loadPrerender(id: "todomvc") to loadPrerender;
-    dispatch chooseWorkspace(id: "1czxy") to workspaceId;
-    dispatch chooseWorkspace(id: "todomvc") to activeWorkspace;
+    dispatch init(workspaces: get workspaces, workspaceId: "todomvc", fileId: "app.ism") to externApp;
+    dispatch setWorkspaceId(workspaceId: "todomvc") to activeWorkspaceId;
+    dispatch setFileId(fileId: "app.ism") to activeFileId;
 }
 
 link(rel="stylesheet", href="app.css", type="text/css") {}
@@ -132,11 +123,11 @@ div(class="topLayout") {
     div(class="main") {
         div(class="splitScreen") {
             div(class="splitEditor") {
-                    editor(get activeFilename as filename) {}
+                    editor() {}
             }
 
             div(class="splitPreview") {
-                    preview(get activeWorkspace as workspaceId) {}
+                    preview() {}
             }
         }
     }

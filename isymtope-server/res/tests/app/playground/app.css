@@ -44,7 +44,7 @@ body { background: #1e1e1e; }
 .editorFiles li a { color: #606c76; text-decoration: none; margin-bottom: 1px; }
 .editorFiles li a:active { color: #606c76; text-decoration: none; }
 .editorFiles li a:visited { color: #606c76; text-decoration: none; }
-.editorFiles li a.isActive { color: red; text-decoration: none; }
+.editorFiles li.isActive a { color: #8c97a1; text-decoration: none; }
 .editorFiles li:last-child { margin-right: 0; position: absolute; right: 0; }
 
 /* .topLayout { display: flex; width: 100%; }

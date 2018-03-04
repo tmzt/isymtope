@@ -1,6 +1,5 @@
 use std::str;
 use std::io;
-use std::collections::HashMap;
 
 use itertools::join;
 
@@ -191,86 +190,53 @@ fn write_open<'s>(
         .unwrap_or_else(|| desc.key().to_owned());
 
     write!(w, "<{}", desc.tag())?;
-    let mut first = true;
 
     // Key
     write!(w, " key=\"{}\"", element_key)?;
-    first = false;
 
     // Props
     let string_props = desc.string_props();
 
     for prop in desc.props() {
-        if !first {
-            write!(w, " ")?;
-        }
         let (name, expr) = (prop.name(), prop.expr());
+
         let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(expr, ctx)?;
         let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
-        if name == "class" {
-            let expr = prop.expr();
-
-            if let ExpressionValue::Expression(Expression::Composite(
-                CompositeValue::ObjectValue(ref props),
-            )) = *expr
-            {
-                let mut classes = Vec::with_capacity(16);
-                if let Some(box ref props) = *props {
-                    for prop in props {
-                        eprintln!(
-                            "Writing class with object: {} (a): {:?}",
-                            prop.key(),
-                            prop.value()
-                        );
-                        let expr: ExpressionValue<OutputExpression> =
-                            TryEvalFrom::try_eval_from(prop.value(), ctx)?;
-                        eprintln!("Writing class with object: {} (b): {:?}", prop.key(), expr);
-                        if let ExpressionValue::Primitive(Primitive::BoolVal(b)) = expr {
-                            if b {
-                                classes.push(prop.key().to_owned());
-                            }
-                        }
-                    }
-                }
-                let classes = join(classes.into_iter(), " ");
-                write!(w, "class=\"{}\"", classes)?;
-                first = false;
-                continue;
-            }
+        let class_props = match expr {
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(Some(box ref props)))) if name =="class" => Some(props),
+            _ => None
         };
 
-        // if let ExpressionValue::Expression(Expression::BinaryOp(..)) = expr {
-        // if !expr.is_primitive() {
-        //     let expr: ExpressionValue<OutputExpression> =
-        //         TryEvalFrom::try_eval_from(&expr, ctx)?;
-        //     let expr: ExpressionValue<OutputExpression> =
-        //         TryEvalFrom::try_eval_from(&expr, ctx)?;
+        if let Some(props) = class_props {
+            let classes: Vec<PropValue<OutputExpression>> = TryEvalFrom::try_eval_from(props, ctx)?;
+            let classes: Vec<_> = classes.into_iter().filter_map(|prop| {
+                        match prop.value() {
+                            &ExpressionValue::Primitive(Primitive::BoolVal(true)) => Some(prop.key().to_owned()),
+                            _ => None
+                        }
+            }).collect();
 
-        //     eprintln!("Writing property with computed value: {:?}", expr);
+            if classes.len() > 0 {
+                let classes = join(classes.into_iter(), " ");
+                write!(w, " class=\"{}\"", classes)?;
+            };
 
-        //     if let ExpressionValue::Primitive(Primitive::BoolVal(b)) = expr {
-        //         if b {
-        //             write!(w, "{}=\"{}\"", name, name)?;
-        //         }
-        //         first = false;
-        //         continue;
-        //     }
-        // };
+            continue;
+        };
 
         // Handle boolean parameters differently
         eprintln!("[html] Writing parameter {}: {:?}", name, expr);
         if let ExpressionValue::Primitive(Primitive::BoolVal(b)) = expr {
             if b {
-                write!(w, "{}=\"{}\"", name, name)?;
-            }
-        } else {
-            write!(w, "{}=\"", name)?;
-            _self.write_object(w, ctx, &expr)?;
-            write!(w, "\"")?;
-        }
+                write!(w, " {}=\"{}\"", name, name)?;
+            };
+            continue;
+        };
 
-        first = false;
+        write!(w, " {}=\"", name)?;
+        _self.write_object(w, ctx, &expr)?;
+        write!(w, "\"")?;
     }
 
     // Value binding
@@ -286,11 +252,7 @@ fn write_open<'s>(
                 let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
                 if checked {
-                    if !first {
-                        write!(w, " ")?;
-                    }
-                    write!(w, "checked=\"checked\"")?;
-                    first = false;
+                    write!(w, " checked=\"checked\"")?;
                 };
             };
         };
@@ -300,14 +262,11 @@ fn write_open<'s>(
 
     // Events
     if let Some(events) = desc.events() {
-        if !first {
-            write!(w, " ")?;
-        }
         for event_binding in events {
             eprintln!("Event binding: {:?}", event_binding);
             write!(
                 w,
-                "on{}=\"{}(event, {{",
+                " on{}=\"{}(event, {{",
                 event_binding.event_name(),
                 event_binding.key()
             )?;
@@ -363,7 +322,6 @@ fn write_open<'s>(
             write!(w, "{}", event_props_value)?;
             write!(w, "}})\"")?;
         }
-        first = false;
     };
 
     if !is_void {
