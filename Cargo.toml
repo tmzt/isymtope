@@ -18,6 +18,10 @@ default-features = false
 optional = true
 path = "./isymtope-cli"
 
+[dependencies.isymtope-data]
+optional = true
+path = "./isymtope-data"
+
 [dependencies.isymtope-generate]
 optional = true
 path = "./isymtope-generate"
@@ -44,7 +48,7 @@ incremental = false
 
 [profile.release]
 debug = true
-opt-level = 2
 incremental = false
+opt-level = 2
 
 [workspace]

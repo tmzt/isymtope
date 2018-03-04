@@ -22,6 +22,7 @@ extern crate difference;
 
 extern crate failure;
 
+extern crate isymtope_data;
 #[macro_use]
 extern crate isymtope_ast_common;
 

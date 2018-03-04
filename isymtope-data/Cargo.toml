@@ -1,0 +1,9 @@
+[package]
+authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+name = "isymtope-data"
+version = "0.1.0"
+
+[build-dependencies]
+ructe = "0.3.10"
+
+[dependencies]
