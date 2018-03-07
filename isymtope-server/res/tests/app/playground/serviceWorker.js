@@ -89,16 +89,15 @@ self.onmessage = async ({data, ports}) => {
 
             break;
 
-        // case '/serviceWorker/cachePreviewObject':
-        //     let { content, mimeType } = data
-        //     let mainWindowPort = ports[0]
-        //     let compilerWorkerPort = ports[1]
+        case '/resourceWorker/cacheResource':
+            let mainWindowPort = ports[0]
+            let { content, pathname, mimeType } = data
+            let fullPathname = PREVIEW_PATH + pathname
 
-        //     compilerWorkerPort
-
-        //     await cachePreviewObject('/app/playground/preview-1bcx1/', 'text/html', data.content)
-        //     ports[0].postMessage({ topic: '/mainWindow/cachePreviewObjectUpdated' })
-        //     break;
+            console.log(`% caching preview object with path [${pathname}]  and mimeType [${mimeType}]`)
+            await cachePreviewObject(fullPathname, mimeType, content )
+            mainWindowPort.postMessage({ topic: '/mainWindow/refreshPreviewResource', pathname })
+            break
     }
 }
 

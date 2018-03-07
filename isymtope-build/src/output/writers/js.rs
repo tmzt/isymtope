@@ -1,4 +1,5 @@
 use std::io;
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use error::*;
@@ -1049,8 +1050,10 @@ fn write_open<'s>(
             // write!(w, "e => {}(e, props)", event_binding.key())?;
             write!(w, "e => {}(e, {{", event_binding.key())?;
 
+            let props: HashMap<String, String> =event_binding.props().map(|(alias, _, path_string)| (alias.to_string(), path_string.to_string())).collect();
+
             let mut first_prop = true;
-            for (ref alias, _, ref path_string) in event_binding.props() {
+            for (ref alias, ref path_string) in props {
                 if !first_prop {
                     write!(w, ", ")?;
                 }

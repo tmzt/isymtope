@@ -15,8 +15,9 @@
         this._defaultRoute = route
     }
 
-    IsymtopeApp.prototype.alwaysNavigateToDefaultRoute= function Isymtope_alwaysNavigateToDefaultRoute() {
-        this._alwaysNavigateToDefaultRoute = true
+    IsymtopeApp.prototype.alwaysNavigateToDefaultRoute = function Isymtope_alwaysNavigateToDefaultRoute(value) {
+        value = arguments.length ? value : true
+        this._alwaysNavigateToDefaultRoute = value
     }
 
     IsymtopeApp.prototype.beforeRouting = function Isymtope_beforeRouting(store) {

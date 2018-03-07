@@ -56,6 +56,7 @@
     }
 
     let navigate = href => ({ type: '@@redux-routing/navigate', href: mapRoute(href) })
+    Isymtope.Routing.navigate = navigate
 
     function startRouting(history, store, dispatchCurrentRoute) {
             dispatchCurrentRoute = !!dispatchCurrentRoute

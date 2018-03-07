@@ -43,10 +43,11 @@ path = "./wasm-log"
 
 [features]
 server = ["isymtope-server"]
-[profile.dev]
+
+[profile.dev-wasm]
 incremental = false
 
-[profile.release]
+[profile.release-wasm]
 debug = true
 incremental = false
 opt-level = 2
