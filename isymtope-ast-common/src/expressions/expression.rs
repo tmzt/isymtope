@@ -689,6 +689,22 @@ where
 
             let res = match (op, &a, &b) {
                 (
+                    _,
+                    &ExpressionValue::Primitive(Primitive::Int32Val(a)),
+                    &ExpressionValue::Primitive(Primitive::Int32Val(b)),
+                ) => {
+                    match op {
+                        &BinaryOpType::Add => Some(ExpressionValue::Primitive(Primitive::Int32Val(a + b))),
+                        &BinaryOpType::Sub => Some(ExpressionValue::Primitive(Primitive::Int32Val(a - b))),
+                        &BinaryOpType::Mul => Some(ExpressionValue::Primitive(Primitive::Int32Val(a * b))),
+                        &BinaryOpType::Div => Some(ExpressionValue::Primitive(Primitive::Int32Val(a / b))),
+                        &BinaryOpType::EqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
+                        &BinaryOpType::NotEqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
+                        _ => None
+                    }
+                }
+
+                (
                     &BinaryOpType::EqualTo,
                     &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
                     &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
@@ -710,18 +726,6 @@ where
                     &BinaryOpType::NotEqualTo,
                     &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
                     &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
-
-                (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref a)),
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
-
-                (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref a)),
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref b)),
                 ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
 
                 (

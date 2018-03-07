@@ -360,15 +360,19 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
                 Ok(())
             }
 
-            // TODO: Support param
-            FilterComponentValue::Delete(ref _s) => {
-                write!(w, ".removeObject(id)")?;
+            FilterComponentValue::Delete(ref wc, _) => {
+                write!(w, ".removeObject(_item => ")?;
+                self.write_object(w, ctx, wc)?;
+                write!(w, ")")?;
+
                 Ok(())
             }
 
-            // TODO: Support condition
-            FilterComponentValue::Unique(ref _cond) => {
-                write!(w, ".unique()")?;
+            FilterComponentValue::Unique(ref wc, _) => {
+                write!(w, ".unique(_item => ")?;
+                self.write_object(w, ctx, wc)?;
+                write!(w, ")")?;
+
                 Ok(())
             }
         }
@@ -610,7 +614,8 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             self.write_object(w, ctx, a)?;
                             write!(w, ").addObject(")?;
                             self.write_object(w, ctx, b)?;
-                            write!(w, ").value")?;
+                            write!(w, ")")?;
+                            // write!(w, ").value")?;
 
                             return Ok(());
                         }
@@ -1175,32 +1180,38 @@ fn write_comp_desc<'s>(
 
     write!(w, "{}Component(", tag)?;
     if let Some(component_props) = component_props {
-        write!(w, "{{")?;
-        let mut first = true;
+        write!(w, "{{\"key\": {}", key_string)?;
 
-        write!(w, "\"key\": {}", key_string)?;
-        first = false;
+        // let props = component_props.iter()
+        //     .map(|prop| {
+        //         let val;
 
-        if let Some(item_key) = item_key {
-            if !first {
-                write!(w, ", ")?;
-            }
-            write!(w, "{}: _item[1]", item_key)?;
-            first = false;
-        };
+        //         if let Some(item_key) = item_key {
+        //             val = "_item[1]";
+        //         } else {
+        //             val = prop.key().to_owned();
+        //         };
+
+        //         val
+        //     });
+
+        // if let Some(item_key) = item_key {
+        //     if !first {
+        //         write!(w, ", ")?;
+        //     }
+        //     write!(w, "{}: _item[1]", item_key)?;
+        //     first = false;
+        // };
 
         for prop in component_props {
             let key = prop.name();
-            if item_key == Some(key) {
-                continue;
-            }
 
-            if !first {
-                write!(w, ", ")?;
-            }
-            write!(w, "{}: ", prop.name())?;
-            _self.write_object(w, ctx, prop.expr())?;
-            first = false;
+            write!(w, ", {}: ", prop.name())?;
+            if item_key == Some(key) {
+                write!(w, "_item[1]")?;
+            } else {
+                _self.write_object(w, ctx, prop.expr())?;
+            };
         }
 
         // if is_map {

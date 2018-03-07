@@ -117,18 +117,27 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
     // <e:ExpressionTerm> "." <v:(<AtLeastOneOf<".", PathComponentValue>>)?> => ExpressionValue::Expression(Expression::Path(PathValue::new(e, v), Default::default())),
 
     /// Pipeline (method and member chain)
-    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+    // <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
 
     /// Factor binary operation
-    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTermOrPipeline> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
 
     /// Single term
-    ExpressionTerm
+    ExpressionTermOrPipeline
+    // ExpressionTerm
 
     // // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
     // // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
     // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
     // ExpressionTerm
+};
+
+ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
+{
+   // Pipeline (method and member chain)
+    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+
+    ExpressionTerm
 };
 
 ExpressionTerm : ExpressionValue<SourceExpression> =
@@ -477,8 +486,10 @@ FilterComponentValue : FilterComponentValue<SourceExpression> = {
 
     // // SetKeyword <set_assignments:(AtLeastOneOf<",", FilterSetAssignment>)> => FilterComponentValue::Set(set_assignments, None, Default::default()),
 
-    DeleteKeyword <ident:Id> => FilterComponentValue::Delete(ident),
-    UniqueKeyword <ident:Id> => FilterComponentValue::Unique(ident)
+    // DeleteKeyword <ident:Id> => FilterComponentValue::Delete(ident),
+    // UniqueKeyword <ident:Id> => FilterComponentValue::Unique(ident)
+    DeleteKeyword <cond:FilterWhereClause> => FilterComponentValue::Delete(cond, Default::default()),
+    UniqueKeyword <cond:ExpressionFactor> => FilterComponentValue::Unique(cond, Default::default()),
 };
 
 #[inline]

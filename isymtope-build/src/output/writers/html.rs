@@ -45,6 +45,12 @@ impl ObjectWriter<Expression<OutputExpression>, HtmlOutput> for DefaultHtmlWrite
 
             //     Ok(())
             // }
+
+            Expression::Group(..) | Expression::BinaryOp(..) | Expression::UnaryOp(..) => {
+                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(obj, ctx)?;
+                self.write_object(w, ctx, &expr)
+            }
+
             _ => {
                 eprintln!("ObjectWriter Expression<OutputExpression> (HTML): Unsupported Expression: {:?}", obj);
                 Err(try_eval_from_err!(format!(
