@@ -1,0 +1,72 @@
+use html;
+
+store {
+    let products = [
+        { id: 1, tag: "pandaCase", description: "Sooo cute!!!", price: 10 },
+        { id: 2, tag: "iLoveAnimeCase", description: "Show your love for manga!", price: 12 }
+    ];
+
+    let cart = [
+        { id: 1, productId: 1, qty: 1 }
+    ];
+
+    products {
+
+    }
+
+    cart {
+        action addProduct(id) => (state + { id: (state.max(item.id) + 1), productId: id, qty: 0 }) | unique item.productId;
+        action incrementQty(id) => state |set qty = (item.qty + 1) where (item.productId == id);
+    }
+}
+
+component productImage (product) {
+    figure() {
+        img(src="data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' viewBox='0 0 {{w}} {{h}}'><defs><symbol id='a' viewBox='0 0 90 66' opacity='0.3'><path d='M85 5v56H5V5h80m5-5H0v66h90V0z'/><circle cx='18' cy='20' r='6'/><path d='M56 14L37 39l-8-6-17 23h67z'/></symbol></defs><use xlink:href='#a' width='20%' x='40%'/></svg>") {}
+    }
+}
+
+component product (product) {
+    article(class="product") {
+        productImage(product = product) {}
+        h3() { ("Product ") (product.tag) }
+        h4() { (product.description) }
+        p(class="price") { ("$") (product.price) }
+        button(class="buyButton") || { 
+            dispatch incrementQty(id: product.id) to cart;
+            dispatch addProduct(id: product.id) to cart;
+        } { ("Buy") }
+    }
+}
+
+component productList (products) {
+    product(for product in products) {}
+}
+
+query get_product(products, productId) {
+    (products.filter(item.id == productId).first()) where (true);
+}
+
+component cartEntryProduct(cartEntry, product) {
+    p() { (product.tag) ("  x") (cartEntry.qty) ("  ($") (product.price * cartEntry.qty) (")") }
+}
+
+component cartEntry(cartEntry, products) {
+    cartEntryProduct(query get_product(products: products, productId: cartEntry.productId) as product, cartEntry = cartEntry) {}
+}
+
+component cart(products, cart) {
+    cartEntry(for cartEntry in cart, products = products) {}
+}
+
+body(style="background: white;") {
+    section (class="products") {
+        productList(get products) {}
+    }
+    section(class="cart") {
+        h2() { ("Cart:") }
+        cart(get products, get cart) {}
+    }
+}
+
+route "/" || {}
