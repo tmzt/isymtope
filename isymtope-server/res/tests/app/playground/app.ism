@@ -6,6 +6,9 @@ store {
         {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, default: true, index: "app.ism", files: [
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]},
+        {id: "shopping", name: "shopping", description: "Very basic shopping cart", demo: true, index: "app.ism", files: [
+            {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
+        ]},
         {id: "playground", name: "playground", description: "This application", demo: true, index: "app.ism", files: [
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true},
             {id: "app.js", path: "app.js", name: "app.js", caption: "JS", language: "javascript"},
