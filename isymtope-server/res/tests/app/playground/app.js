@@ -88,6 +88,7 @@ function externAppReducer(state, action) {
             _workspaces = workspaces
             _currentWorkspaceId = workspaceId
             _currentFileId = fileId
+
             useModel()
             // _editor.onDidChangeModelContent(event => {
             //     if (!_isChangingContent) {

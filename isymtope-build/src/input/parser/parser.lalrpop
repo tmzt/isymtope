@@ -427,7 +427,9 @@ ElementBinding: ElementBinding<SourceExpression> = {
 #[inline]
 ActionOp: ActionOp<SourceExpression> = {
     DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ";" => ActionOp::DispatchAction(key, attrs.map(Box::new), Default::default()),
+    DispatchKeyword <key:Id> ";" => ActionOp::DispatchAction(key, None, Default::default()),
     DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, attrs.map(Box::new), path, Default::default()),
+    DispatchKeyword <key:Id> ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, None, path, Default::default()),
     NavigateKeyword <path:ExpressionFactor> ";" => ActionOp::Navigate(path, Default::default()),
 };
 

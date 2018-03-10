@@ -37,6 +37,7 @@ impl<T> CommonBindings<T> {
         match *self {
             CommonBindings::NamedReducerKey(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedReducerActionParam(ref s, _) => Some(s.as_str()),
+            CommonBindings::NamedComponentProp(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedQueryParam(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedEventBoundValue(ref s, _) => Some(s.as_str()),
             CommonBindings::PathAlias(ref s, _) => Some(s.as_str()),

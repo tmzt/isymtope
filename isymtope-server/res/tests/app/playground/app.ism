@@ -18,6 +18,8 @@ store {
     let activeWorkspaceId = "todomvc";
     let activeFileId = "app.ism";
 
+    let selectDemoOpen = false;
+
     workspaces {}
 
     activeWorkspaceId {
@@ -32,26 +34,13 @@ store {
         action contentChanged() => true;
     }
 
+    selectDemoOpen {
+        action toggle => !state;
+        action hide => false;
+    }
+
     extern externApp;
     extern compiler;
-}
-
-component workspaceOption(workspaceData) {
-    option(value = (workspaceData.id))
-    {
-        ( workspaceData.name ) ( " - " ) ( workspaceData.description )
-    }
-}
-
-component listWorkspaces(workspaces, activeWorkspace) {
-    select(id="activeWorkspace") bind activeWorkspace as selectWorkspace
-        change || {
-            dispatch setWorkspaceId(workspaceId: selectWorkspace) to activeWorkspaceId;
-            dispatch switchWorkspace(workspaceId: selectWorkspace) to externApp;
-        }
-    {
-        workspaceOption(for workspaceData in workspaces) {}
-    }
 }
 
 component fileLink(fileData,  activeFileId) {
@@ -70,7 +59,7 @@ component listWorkspaceFiles(workspaceData, activeFileId) {
     ul(class="editorFiles") {
         fileLink(for fileData in workspaceData.files, activeFileId = activeFileId) {}
         li(class="updatePreview") {
-            button(id="compileButton", href="#", class="btn btn-small", disabled=(activeFileId != "app.ism")) || { dispatch compileCurrent() to externApp; }  { ("Compile >") }
+            button(id="compileButton", href="#", class="btn btn-small", disabled=(activeFileId != "app.ism")) || { dispatch compileCurrent to externApp; }  { ("Compile >") }
         }
     }
 }
@@ -123,19 +112,59 @@ script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/
 script(src="https://www.hellorust.com/demos/bundle.js", type="text/javascript", defer="defer") {}
 script(src="app.js", type="text/javascript") {}
 
-div(class="topLayout") {
-    div(class="top") {
-        listWorkspaces(get workspaces as workspaces) {}
+component demoMenuBodyItem(workspaceData, activeWorkspaceId) {
+    p()
+        click || {
+            dispatch setWorkspaceId(workspaceId: workspaceData.id) to activeWorkspaceId;
+            dispatch switchWorkspace(workspaceId: workspaceData.id) to externApp;
+            dispatch hide to selectDemoOpen;
+        }
+    {
+        a(href="#", class={isActive: (workspaceData.id == activeWorkspaceId)})
+        {
+            (workspaceData.name)
+        }
+    }
+}
+
+component demoMenuBodyItems(workspaces, activeWorkspaceId) {
+        demoMenuBodyItem(for workspaceData in workspaces, activeWorkspaceId) {}
+}
+
+component demoMenuBody(selectDemoOpen, workspaces, activeWorkspaceId) {
+            nav(class="choose-demo-nav", class={hidden: (!selectDemoOpen)}) {
+                demoMenuBodyItems(workspaces, activeWorkspaceId) {}
+            }
+}
+
+component demoMenu(selectDemoOpen, workspaces, activeWorkspaceId) {
+    div(class="choose-demo-container") {
+        a(href="#", class="choose-demo") || { dispatch toggle to selectDemoOpen; } { ("Choose Demo ▼") }
+        demoMenuBody(selectDemoOpen, workspaces, activeWorkspaceId) {}
+    }
+}
+
+div {
+    header(class="site-header") {
+        p(class="site-title") { ("Isymtope Playground") }
+        nav(class="right-nav") {
+            p() {
+                a(href="/", target="_blank") { ("What is Isymtope?") }
+            }
+            demoMenu(get selectDemoOpen, get workspaces, get activeWorkspaceId) {}
+        }
     }
 
-    div(class="main") {
-        div(class="splitScreen") {
-            div(class="splitEditor") {
-                    editor() {}
-            }
+    div(class="topLayout") {
+        div(class="main") {
+            div(class="splitScreen") {
+                div(class="splitEditor") {
+                        editor() {}
+                }
 
-            div(class="splitPreview") {
-                    preview() {}
+                div(class="splitPreview") {
+                        preview() {}
+                }
             }
         }
     }

@@ -1,5 +1,79 @@
 
-body { background: #1e1e1e; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #1e1e1e;
+    color: #383838;
+    font-family: "Source Sans Pro",Helvetica,Arial,sans-serif;
+}
+
+body a {
+    color: #383838;
+    text-decoration: none;
+}
+
+.site-header {
+    padding: 1%;
+    background: #fff;
+    background-image: url('./isymtope-background.png');
+    float: left;
+    width: 100%;
+}
+
+.site-title {
+    float: left;
+    font-weight: bold;
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+.site-header nav.right-nav {
+    float: right;
+    text-align: right;
+    width: 40%;
+}
+
+.site-header nav.right-nav > * {
+    display: inline-block;
+    box-sizing: border-box;
+    padding: 0 1%;
+}
+
+.choose-demo-container {
+    display: inline-block;
+    position: relative;
+}
+
+.choose-demo-container nav {
+    width: 100%;
+    position: absolute;
+    z-index: 1000;
+    top: 100%;
+    right: 0;
+    min-height: 100px;
+    background: white;
+    box-sizing: border-box;
+    padding: 2%;
+}
+
+.choose-demo-container nav p {
+    box-sizing: border-box;
+    padding: 5%;
+}
+
+.choose-demo-container nav p:hover {
+    background: rgba(80, 80, 80, 0.6);
+}
+
+.hidden {
+    display: none;
+}
+
+.topLayout { background: #1e1e1e; background-image: url('./isymtope-background.png'); width: 100%; }
 
 .container { max-width: 180rem; }
 

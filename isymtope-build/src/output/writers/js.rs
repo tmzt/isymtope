@@ -1242,8 +1242,6 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             obj
         );
 
-        write!(w, "        ")?;
-
         match *obj {
             ElementOp::ElementOpen(ref desc, _) => {
                 // ctx.push_child_scope();
