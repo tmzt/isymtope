@@ -24,6 +24,7 @@ ingresses:
     tls:
       - secretName: playground-isymtope-org-tls
         hosts:
+          - isymtope.org
           - playground.isymtope.org
     rules:
       - host: playground.isymtope.org
@@ -33,3 +34,10 @@ ingresses:
                 serviceName: isymtope-demo-playground
                 servicePort: 80
               path: /
+      - host: isymtope.org
+        http:
+          paths:
+            - backend:
+                serviceName: isymtope-demo-playground
+                servicePort: 80
+              path: /playground
