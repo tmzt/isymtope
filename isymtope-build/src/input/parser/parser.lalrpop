@@ -117,18 +117,27 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
     // <e:ExpressionTerm> "." <v:(<AtLeastOneOf<".", PathComponentValue>>)?> => ExpressionValue::Expression(Expression::Path(PathValue::new(e, v), Default::default())),
 
     /// Pipeline (method and member chain)
-    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+    // <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
 
     /// Factor binary operation
-    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTermOrPipeline> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
 
     /// Single term
-    ExpressionTerm
+    ExpressionTermOrPipeline
+    // ExpressionTerm
 
     // // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
     // // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
     // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
     // ExpressionTerm
+};
+
+ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
+{
+   // Pipeline (method and member chain)
+    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+
+    ExpressionTerm
 };
 
 ExpressionTerm : ExpressionValue<SourceExpression> =
@@ -181,12 +190,12 @@ FormalParams : FormalParams<SourceExpression> = {
 
 #[inline]
 PropValue : PropValue<SourceExpression> = {
-    <key:Id> ":" <e:ExpressionValue> => PropValue::new(key, e)
+    <key:Id> ":" <e:ExpressionValue> => PropValue::new(key, e, None)
 };
 
 #[inline]
 PropValueTerm : PropValue<SourceExpression> = {
-    <key:Id> ":" <e:ExpressionTerm> => PropValue::new(key, e)
+    <key:Id> ":" <e:ExpressionTerm> => PropValue::new(key, e, None)
 };
 
 #[inline]
@@ -207,13 +216,13 @@ pub Template: Template = {
         // let uses = uses.into_iter();
         // let other = other.into_iter();
 
-        // let children: Vec<TemplateNode<SourceExpression>> = uses.into_iter()
-        //     .chain(other.into_iter())
-        //     .flat_map(|n| n.inner)
-        //     .collect();
+        let children: Vec<TemplateNode<SourceExpression>> = uses.into_iter()
+            .chain(other.into_iter())
+            .map(|n| n.inner)
+            .collect();
 
-        let children: Vec<_> = other.into_iter()
-            .map(|n| n.inner).collect();
+        // let children: Vec<_> = other.into_iter()
+        //     .map(|n| n.inner).collect();
 
         Template::new(children)
     }
@@ -264,6 +273,7 @@ StoreCommonNode: StoreCommonNode<SourceExpression> = {
     LetKeyword <var:Id> <e:("=" <ExpressionValue>)?> ";" => StoreCommonNode::LetNode(var, e, Default::default()),
     // ApiKeyword <name:Id> "{" <v:(StoreApiChildNode+)?> "}" => StoreCommonNode::ApiNode(name, v, Default::default()),
 
+    ExternKeyword ModKeyword <name:Id> ";" => StoreCommonNode::ExternReducerModuleNode(ExternReducerModuleNode::new(name), Default::default()),
     ExternKeyword <name:Id> ";" => StoreCommonNode::ExternReducerNode(ExternReducerNode::new(name), Default::default()),
 
     <name:Id> "{" <v:(StoreChildScopeNode+)?> "}" => StoreCommonNode::ChildScopeNode(name, v)
@@ -417,7 +427,9 @@ ElementBinding: ElementBinding<SourceExpression> = {
 #[inline]
 ActionOp: ActionOp<SourceExpression> = {
     DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ";" => ActionOp::DispatchAction(key, attrs.map(Box::new), Default::default()),
+    DispatchKeyword <key:Id> ";" => ActionOp::DispatchAction(key, None, Default::default()),
     DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, attrs.map(Box::new), path, Default::default()),
+    DispatchKeyword <key:Id> ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, None, path, Default::default()),
     NavigateKeyword <path:ExpressionFactor> ";" => ActionOp::Navigate(path, Default::default()),
 };
 
@@ -476,8 +488,10 @@ FilterComponentValue : FilterComponentValue<SourceExpression> = {
 
     // // SetKeyword <set_assignments:(AtLeastOneOf<",", FilterSetAssignment>)> => FilterComponentValue::Set(set_assignments, None, Default::default()),
 
-    DeleteKeyword <ident:Id> => FilterComponentValue::Delete(ident),
-    UniqueKeyword <ident:Id> => FilterComponentValue::Unique(ident)
+    // DeleteKeyword <ident:Id> => FilterComponentValue::Delete(ident),
+    // UniqueKeyword <ident:Id> => FilterComponentValue::Unique(ident)
+    DeleteKeyword <cond:FilterWhereClause> => FilterComponentValue::Delete(cond, Default::default()),
+    UniqueKeyword <cond:ExpressionFactor> => FilterComponentValue::Unique(cond, Default::default()),
 };
 
 #[inline]
@@ -565,6 +579,7 @@ extern {
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,
         ExternKeyword => Token::ExternKeyword,
+        ModKeyword => Token::ModKeyword,
         ApiKeyword => Token::ApiKeyword,
         ResourceKeyword => Token::ResourceKeyword,
         MethodsKeyword => Token::MethodsKeyword,

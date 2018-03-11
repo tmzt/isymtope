@@ -6,8 +6,7 @@ use traits::*;
 use input::*;
 use output::*;
 
-include!(concat!(env!("OUT_DIR"), "/templates.rs"));
-use self::templates::*;
+use isymtope_data::*;
 
 #[derive(Debug, Default)]
 pub struct InternalTemplateRendererFactory;

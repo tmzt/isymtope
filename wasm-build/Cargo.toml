@@ -6,42 +6,49 @@ version = "0.3.0"
 [dependencies.isymtope-ast-common]
 default-features = false
 optional = true
-path = "./isymtope-ast-common"
+path = "../isymtope-ast-common"
 
 [dependencies.isymtope-build]
 default-features = false
 optional = true
-path = "./isymtope-build"
+path = "../isymtope-build"
 
 [dependencies.isymtope-cli]
 default-features = false
 optional = true
-path = "./isymtope-cli"
+path = "../isymtope-cli"
 
 [dependencies.isymtope-data]
 optional = true
-path = "./isymtope-data"
+path = "../isymtope-data"
 
 [dependencies.isymtope-generate]
 optional = true
-path = "./isymtope-generate"
+path = "../isymtope-generate"
 
 [dependencies.isymtope-server]
 default-features = false
 optional = true
-path = "./isymtope-server"
+path = "../isymtope-server"
 
 [dependencies.isymtope-wasm]
 default-features = false
-optional = true
-path = "./isymtope-wasm"
+path = "../isymtope-wasm"
 
 [dependencies.wasm-log]
 default-features = false
 optional = true
-path = "./wasm-log"
+path = "../wasm-log"
 
 [features]
 server = ["isymtope-server"]
+
+[profile.dev]
+incremental = false
+
+[profile.release]
+debug = true
+incremental = false
+opt-level = 2
 
 [workspace]

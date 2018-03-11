@@ -1,34 +1,11 @@
 use std::str;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
+use isymtope_data::*;
 use isymtope_ast_common::*;
 use output::*;
 use input::*;
-
-#[derive(Debug)]
-pub struct InternalTemplateData {
-    pub base_url: String,
-    pub route_keys: Vec<String>,
-    pub route_func_keys: HashMap<String, String>,
-    pub route_bodies: HashMap<String, String>,
-    pub event_keys: Vec<String>,
-    pub event_enterkeyflags: HashMap<String, bool>,
-    pub event_action_keys: HashMap<String, Vec<String>>,
-    pub event_action_bodies: HashMap<String, HashMap<String, String>>,
-    pub reducer_keys: Vec<String>,
-    pub reducer_action_keys: HashMap<String, Vec<String>>,
-    pub reducer_bodies: HashMap<String, HashMap<String, String>>,
-    pub reducer_defaults: HashMap<String, String>,
-    pub extern_reducer_keys: Vec<String>,
-    pub query_names: Vec<String>,
-    pub query_params: HashMap<String, Vec<String>>,
-    pub query_bodies: HashMap<String, String>,
-    pub component_names: Vec<String>,
-    pub component_bodies: HashMap<String, String>,
-    pub page_render_func_body: String,
-    pub page_body_html: String,
-}
 
 #[derive(Debug)]
 pub struct InternalTemplateDataBuilder {
@@ -74,6 +51,10 @@ impl InternalTemplateDataBuilder {
         // let template_src = self::template_source()?;
         // eprintln!("[page_templates] got template source");
 
+        // Libraries
+
+        let library_names: HashSet<_> = doc.libraries().map(|(name, _)| name.to_owned()).collect();
+
         // Events
 
         let mut event_keys: Vec<String> = Default::default();
@@ -105,7 +86,7 @@ impl InternalTemplateDataBuilder {
             if let Some(actions) = event.actions() {
                 let actions: Vec<_> = actions.collect();
 
-                ctx.push_child_scope();
+                // ctx.push_child_scope();
 
                 let event_prop_aliases: Vec<_> = actions
                     .iter()
@@ -115,35 +96,48 @@ impl InternalTemplateDataBuilder {
                             | ActionOp::DispatchActionTo(_, Some(box ref props), _, _) => Some(
                                 props
                                     .into_iter()
-                                    .map(|prop| (prop.key().to_owned(), prop.value().to_owned())),
+                                    .flat_map(|prop| {
+                                        match prop.value() {
+                                            &ExpressionValue::Expression(Expression::Path(ref path_value, _)) => {
+                                                let alias = path_value.component_string();
+                                                let actual_value = prop.value().to_owned();
+                                                // // let binding = CommonBindings::NamedComponentProp(prop.key().to_owned(), Default::default());
+                                                // // let actual_value = ExpressionValue::Binding(binding, Default::default());
+                                                // let actual_value = ExpressionValue::Expression(Expression::RawPath(
+                                                //     alias.to_owned(),
+                                                //     Default::default(),
+                                                // ));
+
+                                                Some((alias, actual_value))
+                                            }
+                                            _ => None
+                                        }
+                                    })
                             ),
-                            _ => None,
+                            _ => None
                         }.into_iter()
                             .flat_map(|v| v)
                             .collect();
+
                         let navigate_iter: Vec<_> = match **action {
-                            ActionOp::Navigate(ref path, _) => {
-                                Some(vec![("path".to_owned(), path.to_owned())].into_iter())
-                            }
+                            ActionOp::Navigate(ref expr, _) => Some(vec![("path".to_owned(), expr.to_owned())].into_iter()),
                             _ => None,
                         }.into_iter()
                             .flat_map(|v| v)
                             .collect();
+
                         dispatch_iter.into_iter().chain(navigate_iter.into_iter())
-                    })
-                    .filter_map(|(alias, prop)| match prop {
-                        ExpressionValue::Expression(Expression::Path(ref path_value, _)) => {
-                            Some((alias, prop.to_owned(), path_value.component_string()))
-                        }
-                        _ => None,
-                    })
-                    .collect();
+                })
+                .collect();
+
+                ctx.push_child_scope();
 
                 eprintln!("[page_templates] enumerating path aliases");
-                for (alias, _, raw_path) in event_prop_aliases {
-                    let binding = CommonBindings::PathAlias(alias.to_owned(), Default::default());
+                for (alias, expr) in event_prop_aliases {
+                    let binding: CommonBindings<ProcessedExpression> = CommonBindings::PathAlias(alias.to_owned(), Default::default());
+                    // let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, &mut ctx)?;
                     let expr = ExpressionValue::Expression(Expression::RawPath(
-                        raw_path,
+                        alias,
                         Default::default(),
                     ));
                     ctx.bind_value(binding, expr)?;
@@ -311,6 +305,7 @@ impl InternalTemplateDataBuilder {
 
         Ok(InternalTemplateData {
             base_url: base_url,
+            library_names: library_names,
             event_keys: event_keys,
             event_enterkeyflags: event_enterkeyflags,
             event_action_keys: event_action_keys,

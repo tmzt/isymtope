@@ -23,6 +23,8 @@ kubectl config current-context
 
 ls $HOME/bin
 
-# kubectl set image deployment/${KUBE_DEPLOYMENT_NAME} ${KUBE_DEPLOYMENT_CONTAINER_NAME}=gcr.io/${PROJECT_NAME_PRD}/${DOCKER_IMAGE_NAME}:$TRAVIS_COMMIT
 echo "Deploying application with kedge"
 kedge apply -f ${TRAVIS_BUILD_DIR}/kedge.yaml
+
+echo "Performing rolling update of deployment"
+kubectl set image deployment/${KUBE_DEPLOYMENT_NAME} ${KUBE_DEPLOYMENT_CONTAINER_NAME}=gcr.io/${PROJECT_NAME_PRD}/${DOCKER_IMAGE_NAME}:$TRAVIS_COMMIT

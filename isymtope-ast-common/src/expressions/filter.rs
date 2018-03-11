@@ -85,8 +85,8 @@ pub enum FilterComponentValue<T> {
         Option<FilterWhereClause<T>>,
         PhantomData<T>,
     ),
-    Delete(String),
-    Unique(String),
+    Delete(FilterWhereClause<T>, PhantomData<T>),
+    Unique(ExpressionValue<T>, PhantomData<T>),
 }
 
 impl<T: Debug> MapIdents<T> for FilterComponentValue<T> {
@@ -138,8 +138,15 @@ where
                 Ok(FilterComponentValue::Set(v, w, Default::default()))
             }
 
-            FilterComponentValue::Delete(ref s) => Ok(FilterComponentValue::Delete(s.to_owned())),
-            FilterComponentValue::Unique(ref s) => Ok(FilterComponentValue::Unique(s.to_owned())),
+            FilterComponentValue::Delete(ref w, _) => Ok(FilterComponentValue::Delete(
+                TryProcessFrom::try_process_from(w, ctx)?,
+                Default::default(),
+            )),
+
+            FilterComponentValue::Unique(ref w, _) => Ok(FilterComponentValue::Unique(
+                TryProcessFrom::try_process_from(w, ctx)?,
+                Default::default(),
+            )),
         }
     }
 }
@@ -167,8 +174,15 @@ where
                 Ok(FilterComponentValue::Set(v, w, Default::default()))
             }
 
-            FilterComponentValue::Delete(ref s) => Ok(FilterComponentValue::Delete(s.to_owned())),
-            FilterComponentValue::Unique(ref s) => Ok(FilterComponentValue::Unique(s.to_owned())),
+            FilterComponentValue::Delete(ref w, _) => Ok(FilterComponentValue::Delete(
+                TryEvalFrom::try_eval_from(w, ctx)?,
+                Default::default(),
+            )),
+
+            FilterComponentValue::Unique(ref w, _) => Ok(FilterComponentValue::Unique(
+                TryEvalFrom::try_eval_from(w, ctx)?,
+                Default::default(),
+            )),
         }
     }
 }

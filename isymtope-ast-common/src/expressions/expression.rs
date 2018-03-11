@@ -37,6 +37,7 @@ impl<T> CommonBindings<T> {
         match *self {
             CommonBindings::NamedReducerKey(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedReducerActionParam(ref s, _) => Some(s.as_str()),
+            CommonBindings::NamedComponentProp(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedQueryParam(ref s, _) => Some(s.as_str()),
             CommonBindings::NamedEventBoundValue(ref s, _) => Some(s.as_str()),
             CommonBindings::PathAlias(ref s, _) => Some(s.as_str()),
@@ -334,11 +335,11 @@ where
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PropValue<T>(String, ExpressionValue<T>);
+pub struct PropValue<T>(String, ExpressionValue<T>, Option<String>);
 
 impl<T> PropValue<T> {
-    pub fn new(key: String, e: ExpressionValue<T>) -> Self {
-        PropValue(key, e)
+    pub fn new(key: String, e: ExpressionValue<T>, alias: Option<String>) -> Self {
+        PropValue(key, e, alias)
     }
 
     pub fn key(&self) -> &str {
@@ -346,6 +347,9 @@ impl<T> PropValue<T> {
     }
     pub fn value(&self) -> &ExpressionValue<T> {
         &self.1
+    }
+    pub fn alias(&self) -> Option<&str> {
+        self.2.as_ref().map(|s| s.as_str())
     }
 }
 
@@ -360,6 +364,7 @@ where
         Ok(PropValue(
             src.0.clone(),
             TryProcessFrom::try_process_from(&src.1, ctx)?,
+            src.2.clone()
         ))
     }
 }
@@ -375,6 +380,7 @@ where
         Ok(PropValue(
             src.0.clone(),
             TryEvalFrom::try_eval_from(&src.1, ctx)?,
+            src.2.clone()
         ))
     }
 }
@@ -643,6 +649,8 @@ where
     T: ::std::fmt::Debug,
     ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
 {
+    eprintln!("[eval expression] expr: {:?}", src);
+
     Ok(match *src {
         Expression::Pipeline(ref e, _) => Some(ExpressionValue::Expression(Expression::Pipeline(
             TryEvalFrom::try_eval_from(e, ctx)?,
@@ -682,10 +690,32 @@ where
 
             let res = match (op, &a, &b) {
                 (
+                    _,
+                    &ExpressionValue::Primitive(Primitive::Int32Val(a)),
+                    &ExpressionValue::Primitive(Primitive::Int32Val(b)),
+                ) => {
+                    match op {
+                        &BinaryOpType::Add => Some(ExpressionValue::Primitive(Primitive::Int32Val(a + b))),
+                        &BinaryOpType::Sub => Some(ExpressionValue::Primitive(Primitive::Int32Val(a - b))),
+                        &BinaryOpType::Mul => Some(ExpressionValue::Primitive(Primitive::Int32Val(a * b))),
+                        &BinaryOpType::Div => Some(ExpressionValue::Primitive(Primitive::Int32Val(a / b))),
+                        &BinaryOpType::EqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
+                        &BinaryOpType::NotEqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
+                        _ => None
+                    }
+                }
+
+                (
                     &BinaryOpType::EqualTo,
                     &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
                     &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
                 ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
+
+                (
+                    &BinaryOpType::NotEqualTo,
+                    &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
+                    &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
+                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
 
                 (
                     &BinaryOpType::EqualTo,
@@ -694,16 +724,22 @@ where
                 ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
 
                 (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref a)),
-                    &ExpressionValue::Primitive(Primitive::Int32Val(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
+                    &BinaryOpType::NotEqualTo,
+                    &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
+                    &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
+                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
 
                 (
                     &BinaryOpType::EqualTo,
                     &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
                     &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
                 ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
+
+                (
+                    &BinaryOpType::NotEqualTo,
+                    &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
+                    &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
+                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
 
                 (
                     &BinaryOpType::EqualTo,
@@ -716,8 +752,23 @@ where
                     &ExpressionValue::Primitive(Primitive::Undefined),
                 ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(true))),
 
+                (
+                    &BinaryOpType::NotEqualTo,
+                    &ExpressionValue::Primitive(Primitive::NullVal),
+                    &ExpressionValue::Primitive(Primitive::NullVal),
+                )
+                | (
+                    &BinaryOpType::NotEqualTo,
+                    &ExpressionValue::Primitive(Primitive::Undefined),
+                    &ExpressionValue::Primitive(Primitive::Undefined),
+                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(false))),
+
                 (&BinaryOpType::EqualTo, _, _) => {
                     Some(ExpressionValue::Primitive(Primitive::BoolVal(false)))
+                }
+
+                (&BinaryOpType::NotEqualTo, _, _) => {
+                    Some(ExpressionValue::Primitive(Primitive::BoolVal(true)))
                 }
 
                 _ => None,

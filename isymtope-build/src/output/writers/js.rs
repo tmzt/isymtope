@@ -1,4 +1,5 @@
 use std::io;
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use error::*;
@@ -359,15 +360,19 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
                 Ok(())
             }
 
-            // TODO: Support param
-            FilterComponentValue::Delete(ref _s) => {
-                write!(w, ".removeObject(id)")?;
+            FilterComponentValue::Delete(ref wc, _) => {
+                write!(w, ".removeObject(_item => ")?;
+                self.write_object(w, ctx, wc)?;
+                write!(w, ")")?;
+
                 Ok(())
             }
 
-            // TODO: Support condition
-            FilterComponentValue::Unique(ref _cond) => {
-                write!(w, ".unique()")?;
+            FilterComponentValue::Unique(ref wc, _) => {
+                write!(w, ".unique(_item => ")?;
+                self.write_object(w, ctx, wc)?;
+                write!(w, ")")?;
+
                 Ok(())
             }
         }
@@ -609,7 +614,8 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             self.write_object(w, ctx, a)?;
                             write!(w, ").addObject(")?;
                             self.write_object(w, ctx, b)?;
-                            write!(w, ").value")?;
+                            write!(w, ")")?;
+                            // write!(w, ").value")?;
 
                             return Ok(());
                         }
@@ -1049,8 +1055,10 @@ fn write_open<'s>(
             // write!(w, "e => {}(e, props)", event_binding.key())?;
             write!(w, "e => {}(e, {{", event_binding.key())?;
 
+            let props: HashMap<String, String> =event_binding.props().map(|(alias, _, path_string)| (alias.to_string(), path_string.to_string())).collect();
+
             let mut first_prop = true;
-            for (ref alias, _, ref path_string) in event_binding.props() {
+            for (ref alias, ref path_string) in props {
                 if !first_prop {
                     write!(w, ", ")?;
                 }
@@ -1100,10 +1108,22 @@ fn write_open<'s>(
 
     // attributes
     for prop in eval_props {
+        write!(w, ", ")?;
+
         let (name, expr) = prop;
         let use_classes = name == "class" && expr.is_object();
 
-        write!(w, ", \"{}\", ", name)?;
+        if (tag == "input" || tag == "button") && name == "disabled" {
+            _self.write_object(w, ctx, &expr)?;
+            write!(w, " ? 'disabled' : null, ")?;
+
+            _self.write_object(w, ctx, &expr)?;
+            write!(w, " ? 'disabled' : null")?;
+
+            continue;
+        };
+
+        write!(w, "\"{}\", ", name)?;
         if use_classes {
             write!(w, "classes(")?;
         }
@@ -1160,32 +1180,38 @@ fn write_comp_desc<'s>(
 
     write!(w, "{}Component(", tag)?;
     if let Some(component_props) = component_props {
-        write!(w, "{{")?;
-        let mut first = true;
+        write!(w, "{{\"key\": {}", key_string)?;
 
-        write!(w, "\"key\": {}", key_string)?;
-        first = false;
+        // let props = component_props.iter()
+        //     .map(|prop| {
+        //         let val;
 
-        if let Some(item_key) = item_key {
-            if !first {
-                write!(w, ", ")?;
-            }
-            write!(w, "{}: _item[1]", item_key)?;
-            first = false;
-        };
+        //         if let Some(item_key) = item_key {
+        //             val = "_item[1]";
+        //         } else {
+        //             val = prop.key().to_owned();
+        //         };
+
+        //         val
+        //     });
+
+        // if let Some(item_key) = item_key {
+        //     if !first {
+        //         write!(w, ", ")?;
+        //     }
+        //     write!(w, "{}: _item[1]", item_key)?;
+        //     first = false;
+        // };
 
         for prop in component_props {
             let key = prop.name();
-            if item_key == Some(key) {
-                continue;
-            }
 
-            if !first {
-                write!(w, ", ")?;
-            }
-            write!(w, "{}: ", prop.name())?;
-            _self.write_object(w, ctx, prop.expr())?;
-            first = false;
+            write!(w, ", {}: ", prop.name())?;
+            if item_key == Some(key) {
+                write!(w, "_item[1]")?;
+            } else {
+                _self.write_object(w, ctx, prop.expr())?;
+            };
         }
 
         // if is_map {
@@ -1215,8 +1241,6 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             "ObjectWriter ElementOp<ProcessedExpression> (JS): obj: {:?}",
             obj
         );
-
-        write!(w, "        ")?;
 
         match *obj {
             ElementOp::ElementOpen(ref desc, _) => {
@@ -1345,21 +1369,37 @@ fn write_action_prop_value<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
     ctx: &mut OutputContext,
-    expr: &ExpressionValue<ProcessedExpression>,
+    prop: &PropValue<ProcessedExpression>,
 ) -> DocumentProcessingResult<()> {
-    // Special case: lookup value by path alias
-    if let ExpressionValue::Expression(Expression::Path(ref path_value, _)) = *expr {
-        let alias_string = path_value.component_string();
-        let binding = CommonBindings::PathAlias(alias_string, Default::default());
-        if let Some(alias_target) = ctx.find_value(&binding)? {
-            if let ExpressionValue::Expression(Expression::RawPath(ref s, _)) = alias_target {
-                write!(w, "props.{}", s)?;
-                return Ok(());
-            };
-            // return _self.write_object(w, ctx, &alias_target);
-        };
+    eprintln!("[Action Prop Value] prop: {:?}", prop);
+
+    // // Special case: lookup value by path alias
+    // if let ExpressionValue::Expression(Expression::Path(ref path_value, _)) = *expr {
+    //     let alias_string = path_value.component_string();
+    //     let binding = CommonBindings::PathAlias(alias_string, Default::default());
+    //     if let Some(alias_target) = ctx.find_value(&binding)? {
+    //         if let ExpressionValue::Expression(Expression::RawPath(ref s, _)) = alias_target {
+    //             // write!(w, "props.{}", s)?;
+    //             write!(w, "{}", s)?;
+    //             return Ok(());
+    //         };
+    //         // return _self.write_object(w, ctx, &alias_target);
+    //     };
+    // };
+    let value = prop.value();
+
+    let is_primitive = value.is_primitive();
+    let environment = ctx.environment()?;
+
+    if !is_primitive && environment != Some(OutputScopeEnvironment::RouteDispatchAction) {
+        let alias = prop.key().to_owned();
+        let binding: CommonBindings<ProcessedExpression> = CommonBindings::NamedComponentProp(alias.clone(), Default::default());
+        let expr = ExpressionValue::Binding(binding, Default::default());
+
+        return _self.write_object(w, ctx, &expr);
     };
-    _self.write_object(w, ctx, expr)
+
+    _self.write_object(w, ctx, value)
 }
 
 impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
@@ -1382,15 +1422,16 @@ impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
                 if let Some(box ref props) = *props {
                     for prop in props {
                         write!(w, ", \"{}\": ", prop.key())?;
-                        write_action_prop_value(self, w, ctx, prop.value())?;
+                        write_action_prop_value(self, w, ctx, prop)?;
                     }
                 };
                 writeln!(w, "}});")?;
             }
 
-            ActionOp::Navigate(ref path, _) => {
+            ActionOp::Navigate(ref prop, _) => {
                 write!(w, "            window._go(")?;
-                write_action_prop_value(self, w, ctx, path)?;
+                let prop = PropValue::new("path".to_owned(), prop.to_owned(), None);
+                write_action_prop_value(self, w, ctx, &prop)?;
                 write!(w, ");")?;
             }
         };
@@ -1414,7 +1455,9 @@ impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJs
             }
 
             RouteActionValue::Actions(Some(ref actions), _) => for action in actions {
+                ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
                 self.write_object(w, ctx, action)?;
+                ctx.pop_scope();
             },
             RouteActionValue::Actions(..) => {}
         }

@@ -146,6 +146,7 @@ impl<'input> Lexer<'input> {
             "store" => Token::StoreKeyword,
             "action" => Token::ActionKeyword,
             "extern" => Token::ExternKeyword,
+            "mod" => Token::ModKeyword,
             "api" => Token::ApiKeyword,
             "resource" => Token::ResourceKeyword,
             "methods" => Token::MethodsKeyword,

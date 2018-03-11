@@ -56,14 +56,20 @@
     }
 
     let navigate = href => ({ type: '@@redux-routing/navigate', href: mapRoute(href) })
+    Isymtope.Routing.navigate = navigate
 
     function startRouting(history, store, dispatchCurrentRoute) {
             dispatchCurrentRoute = !!dispatchCurrentRoute
 
             // Start routing
             history.init(store, dispatchCurrentRoute);
-    
+
+            // Before routing
+            Isymtope.app().beforeRouting(store)
+
             _global._go = function(href) { store.dispatch(navigate(href)); };
+
+            Isymtope.app().routingStarted(store, navigate)
     }
     
     IsymtopeRouting.createHistory = createHistory

@@ -1,4 +1,4 @@
-@use ::output::*;
+@use ::templates::data::*;
 @(data: &InternalTemplateData)
 
 <!doctype HTML>
@@ -7,17 +7,27 @@
   <meta charset="utf-8" />
   <base href="@data.base_url" />
   @Html(format!("{}", "<script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>"))
+  @if data.library_names.contains("redux_promise_middleware") {
+    @Html(format!("{}", "<script src=\"https://unpkg.com/redux-promise-middleware@5.0.0/dist/umd/redux-promise-middleware.js\"></script>"))    
+  }
+  @if data.library_names.contains("thunk") {
+    @Html(format!("{}", "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/redux-thunk/2.2.0/redux-thunk.js\"></script>"))    
+  }
   @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>"))
+    <script>
+      "use strict";
+
+      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope.js"))))
+      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-driver-incdom.js"))))
+      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-routing.js"))))
+      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-util.js"))))
+    </script>
 </head>
 <body>
   @Html(&data.page_body_html)
 
   <script>
     "use strict";
-
-    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-driver-incdom.js"))))
-    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-routing.js"))))
-    @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-util.js"))))
 
     let routes = @{@};
     @for (pattern, body) in &data.route_bodies {
@@ -28,7 +38,15 @@
 
     let root = document.querySelector('body')
     let rootReducer = createRootReducer()
-    let store = Isymtope.initialize(root, render, rootReducer, routes, false)
+    let middleware = []
+    @if data.library_names.contains("redux_promise_middleware") {
+      @Html("middleware.push(window.ReduxPromiseMiddleware.default())")
+    }
+    @if data.library_names.contains("thunk") {
+      @Html("middleware.push(window.ReduxThunk.default)")
+    }
+
+    let store = Isymtope.initialize(root, render, rootReducer, routes, middleware, false)
 
     let wrap = window.__IsymtopeUtil;
     let classes = window.__IsymtopeUtil__classes;
@@ -86,7 +104,7 @@
     }
 
     function render(store) @{
-      @data.page_render_func_body
+@Html(&data.page_render_func_body)
     @}
 
     function createRootReducer() @{
