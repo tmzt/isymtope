@@ -1,5 +1,6 @@
 
 ![Current build status](https://travis-ci.org/tmzt/isymtope.svg?branch=master)
+![LoC](https://tokei.rs/b1/github/tmzt/isymtope?category=code&branch=master)
 
 Isymtope
 ========
