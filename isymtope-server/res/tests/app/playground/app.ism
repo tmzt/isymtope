@@ -146,11 +146,22 @@ component demoMenu(selectDemoOpen, workspaces, activeWorkspaceId) {
 
 div {
     header(class="site-header") {
-        p(class="site-title") { ("Isymtope Playground") }
+        h1(class="site-title") { ("Isymtope ") span(class="site-section-title") { ("Playground") } }
         nav(class="right-nav") {
-            p() {
-                a(href="/", target="_blank") { ("What is Isymtope?") }
+            ul() {
+                li() {
+                    a(href="http://localhost:5000/") { ("About") }
+                }
+                li(class="separator") { ("|") }
+                li(class="active") {
+                    a(href="#") { ("Playground") }
+                }
             }
+        }
+    }
+
+    header(class="app-header") {
+        nav(class="right-nav") {
             demoMenu(get selectDemoOpen, get workspaces, get activeWorkspaceId) {}
         }
     }
