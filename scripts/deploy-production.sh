@@ -27,8 +27,4 @@ echo "Deploying application with kedge"
 kedge apply -f ${TRAVIS_BUILD_DIR}/kedge.yaml
 
 echo "Performing rolling update of deployment"
-<<<<<<< HEAD
 kubectl set image deployment/${KUBE_DEPLOYMENT_NAME} ${KUBE_DEPLOYMENT_CONTAINER_NAME}=gcr.io/${PROJECT_NAME_PRD}/${DOCKER_IMAGE_NAME}:$TRAVIS_COMMIT
-=======
-kubectl set image deployment isymtope-demo isymtope-demo=gcr.io/${PROJECT_NAME_PRD}/${DOCKER_IMAGE_NAME}:latest
->>>>>>> ecaca58267f5ebe644ce2405d8a1eb22c289a612
