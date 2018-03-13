@@ -10,7 +10,7 @@ deployments:
           cpu: "100m"
 
 services:
-  - name: isymtope-demo-playground
+  - name: isymtope-demo
     type: LoadBalancer
     portMappings:
       - 80:3000
@@ -19,84 +19,17 @@ ingresses:
   - name: playground-isymtope-org
     annotations:
       kubernetes.io/ingress.class: nginx
-      # kubernetes.io/tls-acme: "true"
-      # certmanager.k8s.io/issuer: letsencrypt-prod
+      kubernetes.io/tls-acme: "true"
+      certmanager.k8s.io/issuer: letsencrypt-prod
     tls:
       - secretName: playground-isymtope-org-tls
         hosts:
-          - isymtope.org
           - playground.isymtope.org
     rules:
       - host: playground.isymtope.org
         http:
           paths:
             - backend:
-                serviceName: isymtope-demo-playground
+                serviceName: isymtope-demo
                 servicePort: 80
               path: /
-
-  - name: isymtope-org-playground
-    annotations:
-      kubernetes.io/ingress.class: nginx
-      ingress.kubernetes.io/rewrite-target: /
-      # kubernetes.io/tls-acme: "true"
-      # certmanager.k8s.io/issuer: letsencrypt-prod
-    tls:
-      - secretName: playground-isymtope-org-tls
-        hosts:
-          - isymtope.org
-          - playground.isymtope.org
-    rules:
-      - host: isymtope.org
-        http:
-          paths:
-            - backend:
-                serviceName: isymtope-demo-playground
-                servicePort: 80
-              path: /playground
-
-  - name: isymtope-org-playground-app
-    annotations:
-      kubernetes.io/ingress.class: nginx
-      ingress.kubernetes.io/rewrite-target: /app
-    tls:
-      - secretName: playground-isymtope-org-tls
-        hosts:
-          - isymtope.org
-          - playground.isymtope.org
-    rules:
-      - host: isymtope.org
-        http:
-          paths:
-            - backend:
-                serviceName: isymtope-demo-playground
-                servicePort: 80
-              path: /playground/app
-            # Remove this after making access use base_url in app
-            - backend:
-                serviceName: isymtope-demo-playground
-                servicePort: 80
-              path: /app
-
-  - name: isymtope-org-playground-resources
-    annotations:
-      kubernetes.io/ingress.class: nginx
-      ingress.kubernetes.io/rewrite-target: /resources
-    tls:
-      - secretName: playground-isymtope-org-tls
-        hosts:
-          - isymtope.org
-          - playground.isymtope.org
-    rules:
-      - host: isymtope.org
-        http:
-          paths:
-            - backend:
-                serviceName: isymtope-demo-playground
-                servicePort: 80
-              path: /playground/resources
-            # Remove this after making access use base_url in app
-            - backend:
-                serviceName: isymtope-demo-playground
-                servicePort: 80
-              path: /resources

@@ -150,7 +150,7 @@ div {
         nav(class="right-nav") {
             ul() {
                 li() {
-                    a(href="http://localhost:5000/") { ("About") }
+                    a(href="https://isymtope.org") { ("About") }
                 }
                 li(class="separator") { ("|") }
                 li(class="active") {
