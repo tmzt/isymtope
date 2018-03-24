@@ -10,7 +10,7 @@ use std::error::Error;
 use regex::Regex;
 
 use futures::{self, future, Future};
-use hyper::header::{ContentType, Location};
+use hyper::header::{ContentType, Location, Host};
 use hyper::mime;
 
 use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode, Uri};
@@ -27,14 +27,22 @@ lazy_static! {
     pub static ref APP_RESOURCE_ROUTE: Regex = Regex::new(r"resources/app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
 }
 
+#[cfg(feature = "playground_api")]
+lazy_static! {
+    pub static ref PLAYGROUND_ROUTE: Regex = Regex::new(r"app/playground/api/(?P<path>/*(.*))").unwrap();
+}
+
 #[derive(Debug)]
 pub struct DefaultServiceFactory {
     render_service_factory: TemplateRenderServiceFactory,
     resource_service_factory: TemplateResourceServiceFactory,
+    #[cfg(feature = "playground_api")]
+    playground_service_factory: PlaygroundApiServiceFactory,
     handle: Handle,
 }
 
 impl DefaultServiceFactory {
+    #[cfg(not(feature = "playground_api"))]
     pub fn new(
         render_service_factory: TemplateRenderServiceFactory,
         resource_service_factory: TemplateResourceServiceFactory,
@@ -43,6 +51,21 @@ impl DefaultServiceFactory {
         DefaultServiceFactory {
             render_service_factory: render_service_factory,
             resource_service_factory: resource_service_factory,
+            handle: handle,
+        }
+    }
+
+    #[cfg(feature = "playground_api")]
+    pub fn new(
+        render_service_factory: TemplateRenderServiceFactory,
+        resource_service_factory: TemplateResourceServiceFactory,
+        playground_service_factory: PlaygroundApiServiceFactory,
+        handle: Handle,
+    ) -> Self {
+        DefaultServiceFactory {
+            render_service_factory: render_service_factory,
+            resource_service_factory: resource_service_factory,
+            playground_service_factory: playground_service_factory,
             handle: handle,
         }
     }
@@ -57,10 +80,14 @@ impl NewService for DefaultServiceFactory {
     fn new_service(&self) -> Result<Self::Instance, IOError> {
         let render_service = self.render_service_factory.create();
         let resource_service = self.resource_service_factory.create();
+        #[cfg(feature = "playground_api")]
+        let playground_service = self.playground_service_factory.create();
 
         Ok(DefaultService {
             render_service: render_service,
             resource_service: resource_service,
+            #[cfg(feature = "playground_api")]
+            playground_service: playground_service,
             handle: self.handle.clone(),
         })
     }
@@ -70,6 +97,8 @@ impl NewService for DefaultServiceFactory {
 pub struct DefaultService {
     render_service: TemplateRenderService,
     resource_service: TemplateResourceService,
+    #[cfg(feature = "playground_api")]
+    playground_service: PlaygroundApiService,
     handle: Handle,
 }
 
@@ -89,7 +118,7 @@ impl Service for DefaultService {
         let default_workspace_str = format!("/app/{}/preview-1bcx1", &*DEFAULT_APP);
 
         // Redirect to default app
-        if (trimmed_path == "") {
+        if trimmed_path == "" {
             let response = Response::new()
                 .with_status(StatusCode::Found)
                 .with_header(Location::new(format!("/app/{}/", &*DEFAULT_APP)));
@@ -99,13 +128,10 @@ impl Service for DefaultService {
 
         eprintln!("Request uri: {:?}", req.uri());
 
-        let host = req.headers().get_raw("host").unwrap().one().unwrap();
-        let host = str::from_utf8(&host).unwrap();
-
         let forwarded_proto = req.headers()
             .get_raw("x-forwarded-proto")
             .and_then(|s| s.one())
-            .and_then(|s| str::from_utf8(s).ok());
+            .and_then(|s| String::from_utf8(s.to_vec()).ok());
         eprintln!("Forwarded proto: {:?}", forwarded_proto);
 
         let mut proto = "http";
@@ -115,7 +141,38 @@ impl Service for DefaultService {
             };
         };
 
+        // let default_port = if proto == "http" { 80 } else { 443 };
+
+        let host = req.headers().get::<Host>().map(|h| h.hostname().to_owned()).unwrap();
+        let host = req.headers().get::<Host>().and_then(|h| h.port())
+            .map(|port| format!("{}:{}", host, port))
+            .unwrap_or_else(|| format!("{}", host));
+
         let base_url = format!("{}://{}/", proto, host);
+
+        #[cfg(feature = "playground_api")]
+        {
+            if let Some(captures) = PLAYGROUND_ROUTE.captures(&trimmed_path) {
+                let path = captures
+                    .name("path")
+                    .map(|m| m.as_str())
+                    .unwrap_or_default();
+
+                if path == "compile" {
+                    let base_url = "";
+                    let app_name = "/app.ism";
+                    // let mut api_req =
+                    //     Request::new(Method::Post, FromStr::from_str("/").unwrap());
+                    // if let Some(body_ref) = req.body_ref() {
+                    //     api_req.set_body(body_ref);
+                    // };
+
+                    let response = self.playground_service
+                        .call(&base_url, &app_name, req);
+                    return Box::new(response);
+                }
+            };
+        }
 
         if let Some(captures) = APP_RESOURCE_ROUTE.captures(&trimmed_path) {
             let app_name = captures.name("app").unwrap().as_str().to_owned();

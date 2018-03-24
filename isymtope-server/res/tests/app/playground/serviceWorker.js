@@ -21,6 +21,11 @@ self.addEventListener('activate', event => {
 
 const PREVIEW_PATH_REGEX = /^\/app\/playground\/preview-1bcx1\//;
 
+function injectScript(content) {
+    let script = '<script src="inject.js"></script></head>'
+    return content.replace(/<\/head>/, script)
+}
+
 const cached = async request => {
     let upstream = await caches.open(UPSTREAM_CACHE)
     let resources = await caches.open(RESOURCE_CACHE)
@@ -43,7 +48,17 @@ const cached = async request => {
             if (resource_match) { return resource_match }
 
             let resource_resp = await fetch(resource_req)
-            await resources.put(resource_req, resource_resp)
+            let content = resource_resp.body.toString();
+            content = injectScript(content)
+
+            if (resource_path.match(/.html$/)) {
+                let mimeType = 'text/html'
+                let injected_resp = new Response([content], { contentType: mimeType })
+
+                await resources.put(resource_req, injected_resp)    
+            } else {
+                await resources.put(resource_req, resource_resp)
+            }            
         }
     }
 
@@ -69,12 +84,30 @@ async function cachePreviewObject(pathname, mimeType, content) {
     await cache.put(request, response)
 }
 
+async function cacheInitialPreview(appPath, frameId) {
+    let cache = await caches.open(CACHE)
+    let upstreamPath = self.origin + `/resources${appPath}`
+    let previewPath = `/app/playground/previewFrame/${frameId}`
+
+    let previewReq = new Request(self.origin + `/previewFrame/${frameId}`)
+    let upstreamResp = await fetch(new Request(self.origin + previewPath));
+    let content = injectScript(await upstreamResp.text())
+    let cacheResp = new Response([content], { contentType: 'text/html' })
+    await cache.put(previewReq, cacheResp)
+}
+
 self.onmessage = async ({data, ports}) => {
+    let mainWindowPort
     switch (data.topic) {
+        case '/resourceWorker/initializePreviewFrame':
+            console.info('[resource worker] initializePreviewFrame: frameId = ' + data.frameId)
+            await cacheInitialPreview(data.appPath, data.frameId)
+            break;
+
         case '/resourceWorker/compilationStarted':
             console.info('[resource worker] received compilationStarted, awaiting message from compilerWorker')
             let compilerWorkerPort = ports[0]
-            let mainWindowPort = ports[1]
+            mainWindowPort = ports[1]
 
             compilerWorkerPort.onmessage = async ({data}) => {
                 switch (data.topic) {
@@ -90,7 +123,7 @@ self.onmessage = async ({data, ports}) => {
             break;
 
         case '/resourceWorker/cacheResource':
-            let mainWindowPort = ports[0]
+            mainWindowPort = ports[0]
             let { content, pathname, mimeType } = data
             let fullPathname = PREVIEW_PATH + pathname
 

@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use std::collections::HashMap;
 
@@ -21,6 +22,8 @@ use regex::RegexSet;
 use isymtope_ast_common::*;
 use isymtope_build::*;
 use isymtope_generate::*;
+#[cfg(feature = "playground_api")]
+use compiler_service::*;
 use super::*;
 
 lazy_static! {
@@ -32,26 +35,15 @@ pub trait ServiceInject: Debug {
     type ServiceImpl: Service;
 }
 
-pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
-    let addr = addr.parse()?;
-    let app_dir = &*APP_DIR;
-
-    // let mut core = Core::new().unwrap();
-    // let handle = core.handle();
-    // let ctx_handle = handle.clone();
-
-    // https://users.rust-lang.org/t/questions-about-tokio-futures-and-rwlock/11260/11
+pub fn spawn_server_msg_handler(app_dir: &Path) -> IsymtopeServerResult<RequestMsgChannel> {
     let (sender, receiver) = futures::sync::mpsc::unbounded();
-    let t = ::std::thread::spawn(move || {
+    let app_dir = app_dir.to_owned();
+
+    thread::spawn(move || {
         use futures::Stream;
         let mut core = Core::new().unwrap();
-        // let ctx_handle = core.handle();
+        let mut shared_ctx = DefaultServerContext::new(&app_dir);
 
-        // let document_provider: Rc<DocumentProvider> = Default::default();
-        // let mut shared_ctx = DefaultServerContext::new(document_provider);
-        // ctx_handle.spawn(receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
-
-        let mut shared_ctx = DefaultServerContext::new(app_dir);
         core.run(
             receiver.for_each(move |(msg, oneshot): (_, ResponseMsgChannel)| {
                 let response = shared_ctx.handle_msg(msg);
@@ -63,6 +55,19 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
             .unwrap();
     });
 
+    Ok(sender)
+}
+
+
+pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
+    let addr = addr.parse()?;
+    let app_dir = &*APP_DIR;
+
+    let server_msg_handler = spawn_server_msg_handler(app_dir)?;
+
+    #[cfg(feature = "playground_api")]
+    let compiler_msg_handler = spawn_compiler_service()?;
+
     // let default_app = env::var_os("DEFAULT_APP").expect("DEFAULT_APP must be provided");
     // let default_app_str: String = default_app.to_string_lossy().to_string();
 
@@ -72,12 +77,17 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
     let handle = core.handle();
 
     let render_service_factory =
-        TemplateRenderServiceFactory::new(sender, handle.clone(), default_app_str.to_owned());
+        TemplateRenderServiceFactory::new(server_msg_handler, handle.clone(), default_app_str.to_owned());
     let resource_service_factory = TemplateResourceServiceFactory::new(handle.clone());
+
+    #[cfg(feature = "playground_api")]
+    let playground_api_service = PlaygroundApiServiceFactory::new(compiler_msg_handler, handle.clone());
 
     let factory = DefaultServiceFactory::new(
         render_service_factory,
         resource_service_factory,
+        #[cfg(feature = "playground_api")]
+        playground_api_service,
         handle.clone(),
     );
 

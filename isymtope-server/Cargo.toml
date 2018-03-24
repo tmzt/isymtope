@@ -1,8 +1,8 @@
 [package]
 authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+build = "build.rs"
 name = "isymtope-server"
 version = "0.1.0"
-build = "build.rs"
 
 [dependencies]
 colored = "1.6.0"
@@ -19,6 +19,10 @@ rand = "0.4.2"
 regex = "0.2.5"
 tokio = "0.1.1"
 tokio-core = "0.1.12"
+
+[dependencies.compiler-service]
+optional = true
+path = "../compiler-service"
 
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common/"
@@ -40,3 +44,4 @@ version = "0.1.39"
 [features]
 default = []
 session_time = ["time"]
+playground_api = ["compiler-service"]

@@ -32,6 +32,9 @@ extern crate isymtope_ast_common;
 extern crate isymtope_build;
 extern crate isymtope_generate;
 
+#[cfg(feature = "playground_api")]
+extern crate compiler_service;
+
 use dotenv::dotenv;
 
 pub mod app;
@@ -47,6 +50,9 @@ pub mod service;
 pub mod server;
 pub mod srs_generator;
 
+#[cfg(feature = "playground_api")]
+pub mod playground_api_service;
+
 pub use self::app::*;
 pub use self::context::*;
 pub use self::cookies::*;
@@ -60,6 +66,9 @@ pub use self::message::*;
 pub use self::service::*;
 pub use self::server::*;
 pub use self::srs_generator::*;
+
+#[cfg(feature = "playground_api")]
+pub use self::playground_api_service::*;
 
 pub fn main() {
     dotenv().ok();
