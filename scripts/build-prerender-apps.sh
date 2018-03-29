@@ -1,10 +1,6 @@
 #!/bin/bash
 set -e
-<<<<<<< HEAD
-readonly ROOT=$(realpath $( dirname "${BASH_SOURCE[0]}")/..)
-=======
 readonly ROOT=${TRAVIS_BUILD_DIR:-"$(realpath $( dirname "${BASH_SOURCE[0]}")/..)"}
->>>>>>> development
 readonly APPS_BASE=${WORKER_APP_BASE_URL:-http://localhost:3000/app/playground/_worker/app}
 
 function log() {
