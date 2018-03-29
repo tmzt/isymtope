@@ -1,0 +1,18 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: playground-isymtope-org
+  namespace: default
+spec:
+  secretName: playground-isymtope-org-tls
+  issuerRef:
+    name: letsencrypt-prod
+  commonName: playground.isymtope.org
+  dnsNames:
+  - playground.isymtope.org
+  acme:
+    config:
+    - http01:
+        ingressClass: nginx
+      domains:
+      - playground.isymtope.org
