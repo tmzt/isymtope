@@ -18,7 +18,7 @@ before_script:
 
 script:
   - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path wasm-build/Cargo.toml --verbose --release --target wasm32-unknown-unknown)
-  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl)
+  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl --features playground_api)
   - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-cli/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl)
   - echo "Building cached app pages..."
   - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=playground $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${RESOURCES_BASE_URL}/playground/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/index.html /app.ism')
