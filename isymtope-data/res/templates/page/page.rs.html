@@ -6,8 +6,6 @@
 <head>
   <meta charset="utf-8" />
   <base href="@data.base_url" />
-  @Html(format!("{}", "<script src=\"https://unpkg.com/regenerator-runtime@0.11.1/runtime.js\"></script>"))
-  @Html(format!("{}", "<script src=\"/resources/static/scripts/third-party/nextgen.js\"></script>"))
   @Html(format!("{}", "<script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>"))
   @if data.library_names.contains("redux_promise_middleware") {
     @Html(format!("{}", "<script src=\"https://unpkg.com/redux-promise-middleware@5.0.0/dist/umd/redux-promise-middleware.js\"></script>"))
@@ -20,8 +18,6 @@
 "use strict";
 const ng = window.nextgen
 const mapItem = ng.map(e => (Array.isArray(e) && e.length == 2) ? e[1] : e)
-/* const enumerate = ng.map((() => @{ let n=0; return i => [i, n++] @})()) */
-/* const setObject = (v, wc = () => true) => ng.map(_item => wc ? Object.assign(@{@}, _item, v(_item)) : _item) */
 const classes = obj => Object.entries(obj).map(([_key, _value]) => !!_value ? _key : undefined).filter(Boolean).join(' ')
 
 let _exports = Object.create(null);
