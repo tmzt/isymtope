@@ -1,9 +1,0 @@
-name: isymtope site
-source: "site/src"
-dest: "docs"
-ignore:
-  - .git/*
-  - .gitignore
-  - build/*
-  - rustdoc/*
-  - book/*
