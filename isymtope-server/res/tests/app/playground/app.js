@@ -1,10 +1,62 @@
-
+let apiUrl = window.origin + '/app/playground/api/'
 let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
 let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
+
+
+class CompilerService
+{
+    async prepareService() {
+    }
+
+    startCompilation(opts, cb) {
+        throw new Error('Unimplemented')
+    }
+}
+
+class WasmCompilerService extends CompilerService
+{
+    prepareService() {
+        return getOrRegisterCompilerWorker()
+    }
+
+    async startCompilation(opts, cb) {
+        let compilerWorker = await getOrRegisterCompilerWorker()
+        let completion = new MessageChannel()
+        let compileReq = {
+            topic: '/compilerWorker/compile',
+            source,
+            pathname: '',
+            mimeType: 'text/html',
+            app_name,
+            baseUrl,
+            template_path,
+            path
+        }
+
+        completion.onmessage = data => cb(data.content)
+    }
+}
+
+class RemoteCompilerService extends CompilerService
+{
+    async startCompilation(opts, cb) {
+        return fetch(apiUrl + 'compile', {
+                method: 'POST',
+                body: opts.source
+            })
+            .then(resp => resp.text())
+            .then(cb)
+    }
+}
+
+let _compilerServices = new Map
+let getCompilerService = () => getOrCache(_compilerServices, 'remote', (getOrRegisterCompilerWorker) => new RemoteCompilerService())
 
 let _workspaces
 let _currentWorkspaceId
 let _currentFileId
+
+let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
 
 let _contentCache = new Map
 let _editorModels = new Map
@@ -27,9 +79,12 @@ async function useModel() {
     const file = workspace.files.filter(f => f.id === fileId)[0]
 
     const key = cacheKey(workspaceId, fileId)
+    const model = await getEditorModel()
     const content = await getOrCache(_contentCache, key, async () => fetchContent(workspaceId, file))
-    const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(content, file.language))
+
+    _isChangingContent = true
     model.setValue(content)
+    _isChangingContent = false
     monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
     window._editor.setModel(model)
 }
@@ -56,10 +111,17 @@ async function useModel() {
     return useModel()
 }
 
+async function getEditorModel() {
+    await getEditor()
+    const key = cacheKey(_currentWorkspaceId, _currentFileId)
+    return getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+}
+
 async function compileCurrent() {
     const [ workspaceId, fileId ] = [ _currentWorkspaceId, _currentFileId ]
     const key = cacheKey(workspaceId, fileId)
-    const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+    // const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+    const model = await getEditorModel()
     const source = model.getValue()
     const appName = workspaceId
 
@@ -69,8 +131,19 @@ async function compileCurrent() {
 
     setCompiling(true)
 
-    return startCompilation(source, appName, baseUrl, templatePath, path)
+    let opts = { source, appName, baseUrl, templatePath, path }
+    return startCompilation(opts)
 }
+
+function debounce(fn, delay) {
+    let timer = null
+    return function(args) {
+        clearTimeout(timer)
+        setTimeout(() => fn(args), delay)
+    }
+}
+
+const _compileCurrent = debounce(compileCurrent, 2000)
 
 async function loadDefault(workspaceId) {
     _currentWorkspaceId = workspaceId
@@ -80,16 +153,32 @@ async function loadDefault(workspaceId) {
     // return setEditorFileData(workspaceId, fileData)
 }
 
+async function initializePreviewFrame(appPath, frameId) {
+    const resourceWorker = await getOrRegisterResourceWorker()
+    const completion = new MessageChannel()
+    resourceWorker.postMessage({ topic: '/resourceWorker/initializePreviewFrame', appPath, frameId: _frameId }, [completion.port2])
+    completion.port1.onmessage = () => {
+        console.log('[initialize preview frame] got completion message from worker')
+        const wrapper = document.querySelector('#previewWrap')
+        wrapper.classList.toggle('isBlank', false)
+        wrapper.classList.toggle('isPrerender', true)
+        const iframe = document.querySelector('iframe#preview')
+        iframe.src = `/app/playground/_worker${appPath}`
+        _shouldUpdate = true
+    }
+}
+
 function externAppReducer(state, action) {
     switch(action.type) {
         case 'EXTERNAPP.INIT':
             let { workspaces, workspaceId, fileId } = action
-            setPreview(`/resources/app/${workspaceId}`, true)
+            // setPreview(`/resources/app/${workspaceId}`, true)
             _workspaces = workspaces
             _currentWorkspaceId = workspaceId
             _currentFileId = fileId
 
             useModel()
+            initializePreviewFrame(`/app/${workspaceId}`)
             // _editor.onDidChangeModelContent(event => {
             //     if (!_isChangingContent) {
             //         let { activeWorkspaceId, activeFileId  } = getState()
@@ -151,42 +240,22 @@ function compilerReducer(state, action) {
     }
 }
 
-async function startCompilation(source, app_name, base_url, template_path, path) {
-    let compilerWorker = await getOrRegisterCompilerWorker()
-    let resourceWorker = await getOrRegisterResourceWorker()
+async function startCompilation(opts) {
+    let compilerService = await getCompilerService()
 
-    let compilerToResourceWorker = new MessageChannel()
-    let resourceWorkerToMainWindow = new MessageChannel()
-
-    resourceWorkerToMainWindow.port1.onmessage = ({data}) => {
-        switch (data.topic) {
-            case '/mainWindow/refreshPreview':
-                setCompiling(false)
-                setPreview('/app/playground/preview-1bcx1/', false)
-        }
-    }
-
-    let compileReq = {
-        topic: '/compilerWorker/startCompilation',
-        source,
-        pathname: '',
-        mimeType: 'text/html',
-        app_name,
-        base_url,
-        template_path,
-        path
-    }
-
-    resourceWorker.postMessage({ topic: '/resourceWorker/compilationStarted' }, [compilerToResourceWorker.port2, resourceWorkerToMainWindow.port2])
-    compilerWorker.postMessage(compileReq, [compilerToResourceWorker.port1])
-    return true
+    setCompiling(true)
+    compilerService.startCompilation(opts, content => {
+                    setCompiling(false)
+                    if (_shouldUpdate) {
+                        setPreviewContent(content)
+                    }
+    })
 }
 
 async function updatePreviewResource(pathname, fileId) {
     const resourceWorker = await getOrRegisterResourceWorker()
     const resourceWorkerToMainWindow = new MessageChannel()
-    const key = cacheKey(_currentWorkspaceId, _currentFileId)
-    const model = await getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+    const model = await getEditorModel()
     const content = model.getValue()
     let mimeType = 'text/plain'
     if (pathname.match(/\.html$/)) { mimeType = 'text/html' }
@@ -212,7 +281,7 @@ async function getOrRegisterResourceWorker() {
         return navigator.serviceWorker.controller
     }
 
-    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/' })
+    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/_worker' })
     return reg.active
 }
 
@@ -243,17 +312,20 @@ async function getEditor() {
                 theme: 'vs-dark'
             });
 
-            // editor.onDidChangeModelContent(e => {
-            //     console.log('Changed editor content', e)
-            // })
-
-            window.fetch(window.origin + '/app/todomvc/app.ism').then(resp => {
-                resp.text().then(body => {
-                    _isChangingContent = true
-                    editor.setValue(body)
-                    _isChangingContent = false
-                })
+            editor.onDidChangeModelContent(async e => {
+                console.log('Changed editor content', e)
+                if (!_isChangingContent) {
+                    return _compileCurrent()
+                }
             })
+
+            // window.fetch(window.origin + '/app/todomvc/app.ism').then(resp => {
+            //     resp.text().then(body => {
+            //         _isChangingContent = true
+            //         editor.setValue(body)
+            //         _isChangingContent = false
+            //     })
+            // })
 
             window._editor = editor
 
@@ -267,41 +339,65 @@ function setCompiling(v) {
     component.classList.toggle('showLoading', v)
 }
 
-function setPreview(path, isPrerender) {
-    setCompiling(false)
-    let wrapper = document.querySelector('#previewWrap')
-    wrapper.classList.toggle('isBlank', false)
-    wrapper.classList.toggle('isPrerender', !!isPrerender)
+let _shouldUpdate = false
+
+function setPreviewContent(content) {
     let iframe = document.querySelector('iframe#preview')
-    iframe.src = window.origin + path
+    // iframe.contentWindow.postMessage({type: 'replaceHtml', body}, '*')
+    let msg = { _mergeDoc: content }
+    msg[`_previewIframe${_frameId}`] = true
+    iframe.contentWindow.postMessage(msg, window.origin)
+
+    document.querySelector('#previewWrap').classList.remove('isPrerender')
 }
 
-Isymtope.app().setDefaultRoute('/')
-Isymtope.app().alwaysNavigateToDefaultRoute(false)
+function injectScript(content) {
+    let script = '<script src="inject.js"></script></head>'
+    return content.replace(/<\/head>/, script)
+}
 
-Isymtope.app().registerBeforeRoutingHook(store => {
-    store.dispatch((dispatch, getState) => {
-        getOrRegisterCompilerWorker()
-            .then(() => getOrRegisterResourceWorker())
-            .then(() => getEditor())
-            .then(editor => {
-                editor.onDidChangeModelContent(event => {
-                    if (!_isChangingContent) {
-                        let { activeWorkspaceId, activeFileId  } = getState()
-                        console.log('Content changed', event)
-                        // dispatch({ type: 'EDITOREVENTS.CONTENTCHANGED', activeWorkspaceId, activeFileId })
-                        const workspace = _workspaces.get(activeWorkspaceId)
-                        const file = workspace.files.filter(f => f.id === activeFileId)[0]
-                        let pathname = `/app/playground/preview-1bcx1/${file.path}`
-                        dispatch({ type: 'EXTERNAPP.UPDATERESOURCE', pathname, fileId: activeFileId })
-                    }
-                })
-            })
-            .then(() => {
-                dispatch(Isymtope.Routing.navigate('/'))
-            })
+// function setPreview(path, isPrerender) {
+//     setCompiling(false)
+//     let wrapper = document.querySelector('#previewWrap')
+//     wrapper.classList.toggle('isBlank', false)
+//     wrapper.classList.toggle('isPrerender', !!isPrerender)
+//     let iframe = document.querySelector('iframe#preview')
+//     iframe.src = window.origin + path
+
+//     _shouldUpdate = true
+
+//     // setTimeout(() => {
+//     //     window._editor.focus()
+//     // }, 1000)
+// }
+
+// async function setPreview(appName, isPrerender) {
+//     setCompiling(false)
+//     let wrapper = document.querySelector('#previewWrap')
+//     wrapper.classList.toggle('isBlank', false)
+//     wrapper.classList.toggle('isPrerender', !!isPrerender)
+//     let iframe = document.querySelector('iframe#preview')
+
+//     // let content = await fetch(window.origin + path)
+//     // content = injectScript(content)
+//     // iframe.src = '/app/playground/preview-1bcx1/'
+//     iframe.src = '/app/playground/_worker/app/${appName}'
+//     _shouldUpdate = true
+// }
+
+const navigate = Isymtope.navigate
+
+Isymtope.app()
+    .setDefaultRoute('/')
+    .alwaysNavigateToDefaultRoute(false)
+    .registerBeforeRoutingHook(async store => {
+        store.dispatch(async (dispatch, getState) =>
+            getCompilerService()
+                .then(compilerService => compilerService.prepareService())
+                .then(() => getOrRegisterResourceWorker())
+                .then(() => getEditor())
+                .then(() => dispatch(navigate('/'))))
     })
-})
 
 // document.addEventListener('DOMContentLoaded', async () => {
 //     // getOrRegisterCompilerWorker()

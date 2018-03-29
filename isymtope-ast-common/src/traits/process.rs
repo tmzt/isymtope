@@ -56,7 +56,7 @@ pub trait ProcessingContext: Debug {
         key: &str,
     ) -> DocumentProcessingResult<Option<CommonBindings<ProcessedExpression>>>;
 
-    fn environment(&self) -> ProcessingScopeEnvironment;
+    fn environment(&mut self) -> DocumentProcessingResult<ProcessingScopeEnvironment>;
 }
 
 pub trait TryProcessFrom<Input> {

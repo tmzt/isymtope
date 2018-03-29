@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::rc::Rc;
 
-use isymtope_ast_common::*;
 use isymtope_build::*;
 use super::*;
 
@@ -58,8 +57,8 @@ impl TemplateContext for DefaultTemplateContext {
         match msg {
             TemplateRequestMsg::RenderAppRoute(
                 ref base_url,
-                ref app_name,
-                ref template_path,
+                ref _app_name,
+                ref _template_path,
                 ref path,
             ) => {
                 let ref document_provider = self.document_provider;

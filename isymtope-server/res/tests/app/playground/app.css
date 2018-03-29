@@ -169,7 +169,7 @@ body a {
 #previewOverlay { 
     z-index: 200;
     display: none;
-    background: rgba(80, 80, 80, 0.6);
+    /* background: rgba(80, 80, 80, 0.6); */
  }
  #previewOverlay .loadingImg {
     /* https://gist.github.com/nfeldman/1128011 */

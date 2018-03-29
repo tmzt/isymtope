@@ -1,6 +1,5 @@
 // use failure;
 
-use std::fmt::Error as FormatError;
 use std::io::Error as IOError;
 use std::str::Utf8Error;
 use std::net::AddrParseError;

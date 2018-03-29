@@ -8,115 +8,153 @@
   <base href="@data.base_url" />
   @Html(format!("{}", "<script src=\"https://unpkg.com/redux@3.7.1/dist/redux.js\"></script>"))
   @if data.library_names.contains("redux_promise_middleware") {
-    @Html(format!("{}", "<script src=\"https://unpkg.com/redux-promise-middleware@5.0.0/dist/umd/redux-promise-middleware.js\"></script>"))    
+    @Html(format!("{}", "<script src=\"https://unpkg.com/redux-promise-middleware@5.0.0/dist/umd/redux-promise-middleware.js\"></script>"))
   }
   @if data.library_names.contains("thunk") {
-    @Html(format!("{}", "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/redux-thunk/2.2.0/redux-thunk.js\"></script>"))    
+    @Html(format!("{}", "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/redux-thunk/2.2.0/redux-thunk.js\"></script>"))
   }
-  @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\" defer=\"defer\"></script>"))
-    <script>
-      "use strict";
+  @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\"></script>"))
+    <script data-isymtope-lib>
+"use strict";
+const ng = window.nextgen
+const mapItem = ng.map(e => (Array.isArray(e) && e.length == 2) ? e[1] : e)
+const classes = obj => Object.entries(obj).map(([_key, _value]) => !!_value ? _key : undefined).filter(Boolean).join(' ')
 
-      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope.js"))))
-      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-driver-incdom.js"))))
-      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-routing.js"))))
-      @Html(format!("{}", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/templates/page/isymtope-util.js"))))
-    </script>
+let _exports = Object.create(null);
+@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-router.js"))));
+@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver.js"))));
+@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver-incdom.js"))));
+@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app.js"))));
+window.Isymtope = _exports.Isymtope
+Isymtope.setDriver(_exports.IsymtopeAppDriverIncDom)
+
+let _utils = Object.create(null);
+@Html(format!("(function(exports){{{}}}(_utils))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-util.js"))));
+Object.assign(window, _utils)
+
+</script>
 </head>
-<body>
+<body key="@data.page_body_key">
   @Html(&data.page_body_html)
 
-  <script>
+  <script data-isymtope-main data-generation="@data.page_body_key">
     "use strict";
 
-    let routes = @{@};
-    @for (pattern, body) in &data.route_bodies {
-      routes["@pattern"] = @{ handler: function(path, store) @{
-        @body
-      @}@};
-    }
-
-    let root = document.querySelector('body')
-    let rootReducer = createRootReducer()
-    let middleware = []
-    @if data.library_names.contains("redux_promise_middleware") {
-      @Html("middleware.push(window.ReduxPromiseMiddleware.default())")
-    }
-    @if data.library_names.contains("thunk") {
-      @Html("middleware.push(window.ReduxThunk.default)")
-    }
-
-    let store = Isymtope.initialize(root, render, rootReducer, routes, middleware, false)
-
-    let wrap = window.__IsymtopeUtil;
-    let classes = window.__IsymtopeUtil__classes;
-
-    // Events
-    @for (event_key, event_actions) in &data.event_action_bodies {
-      function @event_key(_event, props) @{
-        @if data.event_enterkeyflags[event_key] {
-          if (_event.keyCode == 13) @{
-            @for (action_key, action_body) in event_actions {
-              @action_body
-            }
-          _event.preventDefault();
-          @}
-        } else {
-          @for (action_key, action_body) in event_actions {
-            @action_body
-          }
-          _event.preventDefault();
-        }
-      @}
-    }
-
-    // Reducers
-    @for (reducer_key, action_bodies) in &data.reducer_bodies {
-      function @format!("{}Reducer(state, action)", reducer_key) @{
-          switch (action.type) @{
-            @for (action_key, action_body) in action_bodies {
-              case "@action_key": return @Html(action_body);
-            }
-            @if let Some(reducer_default) = data.reducer_defaults.get(reducer_key) {
-              @Html(format!("default: return state || {};", reducer_default))
-            } else {
-              @format!("default: return state || null;")
-            }
-          @}
-      @}
-    }
-
-    @for (component_key, component_body) in &data.component_bodies {
-      
-      function @format!("{}Component(props)", component_key) @{
-        @Html(component_body)
-      @}
-    }
-
-    @for (query_key, query_params) in &data.query_params {
-      function query_@query_key(store
-        @for query_param in query_params {
-          , @query_param
-        }
-      ) @{
-        @Html(&data.query_bodies[query_key])
-      @}
-    }
-
-    function render(store) @{
-@Html(&data.page_render_func_body)
+    function createRoutes() @{
+      let routes = @{@};
+      @for (pattern, body) in &data.route_bodies {
+        routes["@pattern"] = @{ handler: function(path, store) @{
+          window._root = document.body
+          @body
+        @}@};
+      }
+      return routes
     @}
 
-    function createRootReducer() @{
-      return Redux.combineReducers(@{
-        @for key in data.reducer_bodies.keys() {
-          @key: @format!("{}Reducer", key),
+    (function(_global) @{
+      let _exports = function() @{
+        let exports = Object.create(null)
+        let middleware = []
+        @if data.library_names.contains("redux_promise_middleware") {
+          @Html("middleware.push(window.ReduxPromiseMiddleware.default())")
         }
-        @for key in &data.extern_reducer_keys {
-          @key: @format!("{}Reducer", key),
+        @if data.library_names.contains("thunk") {
+          @Html("middleware.push(window.ReduxThunk.default)")
         }
-      @});
-    @};
+
+        // Events
+        function createEvents(store) @{
+          let events = @{@}
+          @for (event_key, event_actions) in &data.event_action_bodies {
+            events.@event_key = function @event_key(_event, props) @{
+              @if data.event_enterkeyflags[event_key] {
+                if (_event.keyCode == 13) @{
+                  @for (action_key, action_body) in event_actions {
+                    @action_body
+                  }
+                _event.preventDefault();
+                @}
+              } else {
+                @for (action_key, action_body) in event_actions {
+                  @action_body
+                }
+                _event.preventDefault();
+              }
+            @}
+          }
+          return events
+        @}
+
+        // Reducers
+        @for (reducer_key, action_bodies) in &data.reducer_bodies {
+          exports.@format!("{}Reducer", reducer_key) = function @format!("{}Reducer(state, action)", reducer_key) @{
+              switch (action.type) @{
+                @for (action_key, action_body) in action_bodies {
+                  case "@action_key": return @Html(action_body);
+                }
+                @if let Some(reducer_default) = data.reducer_defaults.get(reducer_key) {
+                  @Html(format!("default: return state || {};", reducer_default))
+                } else {
+                  @format!("default: return state || null;")
+                }
+              @}
+          @}
+        }
+
+        function render(store) @{
+          @for (query_key, query_params) in &data.query_params {
+            function @format!("query_{}(store", query_key)
+              @for query_param in query_params {
+                , @query_param
+              }
+            ) @{
+              @Html(&data.query_bodies[query_key])
+            @}
+          }
+
+          @for (component_key, component_body) in &data.component_bodies {
+            function @format!("{}Component(props)", component_key) @{
+              @Html(component_body)
+            @}
+          }
+
+          @Html(&data.page_render_func_body)
+        @}
+
+        function createRootReducer() @{
+          return Redux.combineReducers(@{
+            @for key in data.reducer_bodies.keys() {
+              @key: @format!("{}Reducer", key),
+            }
+            @for key in &data.extern_reducer_keys {
+              @key: @format!("{}Reducer", key),
+            }
+          @});
+        @};
+        exports.middleware = middleware
+        exports.render = render
+        exports.createRootReducer = createRootReducer
+        exports.createEvents = createEvents
+        return exports
+      @}()
+
+      if (_global._exportedKeys) @{
+        _global._exportedKeys.forEach(k => @{ _global[k] = undefined @})
+      @}
+      Object.assign(_global, _exports)
+      _global._exportedKeys = Object.keys(_exports)
+
+      let rootDiv = document.querySelector('body')
+      let generationId = rootDiv.getAttribute('key')
+
+      Isymtope.app()
+        .configure(generationId, rootDiv, render, createRoutes(), createRootReducer, createEvents, middleware)
+
+      window.addEventListener('DOMContentLoaded', () => Isymtope.app().run())
+
+      window.navigate = Isymtope.navigate
+@}(window));
+
   </script>
 </body>
 </html>

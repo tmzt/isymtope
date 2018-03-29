@@ -22,5 +22,6 @@ pub struct InternalTemplateData {
     pub component_names: Vec<String>,
     pub component_bodies: HashMap<String, String>,
     pub page_render_func_body: String,
+    pub page_body_key: String,
     pub page_body_html: String,
 }
