@@ -263,15 +263,22 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
             obj
         );
 
-        write_pipeline_head(self, w, ctx, obj.head())?;
+        // write_pipeline_head(self, w, ctx, obj.head())?;
+        // write!(w, "ng.toArray(ng.compose(")?;
+        write!(w, "pipeGen(")?;
 
+        let mut first = true;
         if obj.has_components() {
             let components = obj.components();
             for component in components {
+                if !first { write!(w, ", ")?; }
                 self.write_object(w, ctx, component)?;
+                first = false;
             }
-            write!(w, ".value")?;
         };
+        write!(w, ")(")?;
+        self.write_object(w, ctx, obj.head())?;
+        write!(w, ")")?;
 
         Ok(())
     }
@@ -294,18 +301,47 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
         );
 
         // write!(w, "wrap(")?;
-        write_pipeline_head(self, w, ctx, obj.head())?;
+        // write_pipeline_head(self, w, ctx, obj.head())?;
         // write!(w, ")")?;
 
-        let components: Vec<_> = obj.components().collect();
-        let has_components = !components.is_empty();
-        if has_components {
-            for component in components {
-                // write!(w, ".")?;
-                self.write_object(w, ctx, component)?;
-            }
-            write!(w, ".value")?;
+        // let components: Vec<_> = obj.components().collect();
+        // let has_components = !components.is_empty();
+        // if has_components {
+        //     for component in components {
+        //         // write!(w, ".")?;
+        //         self.write_object(w, ctx, component)?;
+        //     }
+        //     write!(w, ".value")?;
+        // }
+
+        // write!(w, "ng.toArray(")?;
+
+        // if components.len() == 1 {
+        //     self.write_object(w, ctx, components[0])?;
+        // } else {
+        //     write!(w, "ng.compose(mapItem, ")?;
+        //     let mut first = true;
+
+        //     for component in components {
+        //         if !first { writeln!(w, ", ")?; }
+        //         self.write_object(w, ctx, component)?;
+        //         first = false;
+        //     }
+        //     write!(w, ")")?;
+        // }
+
+        // write!(w, "ng.compose(mapItem, ")?;
+        write!(w, "pipeGen(")?;
+        let mut first = true;
+
+        for component in obj.components() {
+            if !first { writeln!(w, ", ")?; }
+            self.write_object(w, ctx, component)?;
+            first = false;
         }
+        write!(w, ")(")?;
+        self.write_object(w, ctx, obj.head())?;
+        write!(w, ")")?;
 
         Ok(())
     }
@@ -325,7 +361,7 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
 
         match *obj {
             FilterComponentValue::Where(ref wc, _) => {
-                write!(w, ".where(_item => ")?;
+                write!(w, "filterFunc(_item => ")?;
                 self.write_object(w, ctx, wc)?;
                 write!(w, ")")?;
 
@@ -333,7 +369,17 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
             }
 
             FilterComponentValue::Set(ref v, ref wc, _) => {
-                write!(w, ".setObject(_item => ({{")?;
+                // write!(w, ".setObject(_item => ({{")?;
+
+                // if let Some(ref wc) = *wc {
+                //     write!(w, "ng.map(_item => (")?;
+                //     self.write_object(w, ctx, wc)?;
+                //     write!(w, ") ? Object.assign({{}}, _item, {{")?;
+                // } else {
+                //     write!(w, "ng.map(_item => Object.assign({{}}, _item, {{")?;
+                // }
+
+                write!(w, "setObjectFunc(_item => ({{")?;
 
                 let mut first = true;
                 for set_assignment in v {
@@ -361,7 +407,7 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
             }
 
             FilterComponentValue::Delete(ref wc, _) => {
-                write!(w, ".removeObject(_item => ")?;
+                write!(w, "_utils.removeObject(_item => ")?;
                 self.write_object(w, ctx, wc)?;
                 write!(w, ")")?;
 
@@ -369,7 +415,7 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
             }
 
             FilterComponentValue::Unique(ref wc, _) => {
-                write!(w, ".unique(_item => ")?;
+                write!(w, "_utils.unique(_item => ")?;
                 self.write_object(w, ctx, wc)?;
                 write!(w, ")")?;
 
@@ -421,16 +467,35 @@ impl ObjectWriter<ReducedPipelineValue<ProcessedExpression>, JsOutput> for Defau
             obj
         );
 
-        write!(w, "wrap(")?;
-        // write_pipeline_head(self, w, ctx, obj.head())?;
-        self.write_object(w, ctx, obj.head())?;
-        write!(w, ")")?;
+        let components: Vec<_> = obj.components().collect();
 
-        for component in obj.components() {
-            self.write_object(w, ctx, component)?;
+        // Special case, this pipeline returns a scalar value
+        let is_scalar = match components.last() {
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::First)) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::Count(..))) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MinBy(..))) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MaxBy(..))) => true,
+            _ => false
+        };
+
+        if !is_scalar {
+            write!(w, "Array.from(")?;
         }
+        write!(w, "pipe(")?;
 
-        write!(w, ".value")?;
+        let mut first = true;
+
+        for component in components {
+            if !first { writeln!(w, ", ")?; }
+            self.write_object(w, ctx, component)?;
+            first = false;
+        }
+        write!(w, ")(values(")?;
+        self.write_object(w, ctx, obj.head())?;
+        write!(w, "))")?;
+        if !is_scalar {
+            write!(w, ")")?;
+        };
         Ok(())
     }
 }
@@ -446,27 +511,28 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
             ReducedPipelineComponent::PipelineOp(ref op) => {
                 match *op {
                     ReducedMethodCall::Map(ref expr) => {
-                        write!(w, ".map(_item => ")?;
+                        write!(w, "ng.map(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ")")?;
                     }
 
-                    ReducedMethodCall::MapIf(ref expr, ref cond) => {
-                        write!(w, ".map(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ", _item => ")?;
-                        self.write_object(w, ctx, cond)?;
-                        write!(w, ")")?;
-                    }
+                    // ReducedMethodCall::MapIf(ref expr, ref cond) => {
+                    //     write!(w, ".map(_item => ")?;
+                    //     self.write_object(w, ctx, expr)?;
+                    //     write!(w, ", _item => ")?;
+                    //     self.write_object(w, ctx, cond)?;
+                    //     write!(w, ")")?;
+                    // }
 
                     ReducedMethodCall::Filter(ref cond) => {
-                        write!(w, ".filter(_item => ")?;
+                        // write!(w, "ng.filter(_item => ")?;
+                        write!(w, "filterFunc(_item => ")?;
                         self.write_object(w, ctx, cond)?;
                         write!(w, ")")?;
                     }
 
                     ReducedMethodCall::Reduce(ref expr, ref initial) => {
-                        write!(w, ".reduce(_item => ")?;
+                        write!(w, "reduceFunc(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ", ")?;
                         self.write_object(w, ctx, initial)?;
@@ -474,7 +540,7 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
                     }
 
                     ReducedMethodCall::ReduceIf(ref expr, ref cond, ref initial) => {
-                        write!(w, ".reduceIf(_item => ")?;
+                        write!(w, "_utils.reduceIf(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ", ")?;
                         self.write_object(w, ctx, initial)?;
@@ -484,49 +550,63 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
                     }
 
                     ReducedMethodCall::Uniq(ref cond) => {
-                        write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
-                        write!(
-                            w,
-                            "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
-                        )?;
+                        // write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
+                        // write!(
+                        //     w,
+                        //     "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
+                        // )?;
+                        write!(w, "uniqFunc")?;
                     }
 
-                    ReducedMethodCall::UniqByKey(ref key) => {
-                        write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
-                        write!(
-                            w,
-                            "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
-                        )?;
-                    }
+                    // ReducedMethodCall::UniqByKey(ref key) => {
+                    //     write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
+                    //     write!(
+                    //         w,
+                    //         "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
+                    //     )?;
+                    // }
 
-                    ReducedMethodCall::MinBy(ref expr) => {
-                        // write!(w, ".reduce((v, acc) => (v < acc) ? v : acc)")?;
-                        write!(w, ".min(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ")")?;
-                    }
+                    // ReducedMethodCall::MinBy(ref expr) => {
+                    //     // write!(w, ".reduce((v, acc) => (v < acc) ? v : acc)")?;
+                    //     write!(w, ".min(_item => ")?;
+                    //     self.write_object(w, ctx, expr)?;
+                    //     write!(w, ")")?;
+                    // }
 
                     ReducedMethodCall::MaxBy(ref expr) => {
                         // write!(w, ".reduce((v, acc) => (v > acc) ? v : acc)")?;
-                        write!(w, ".max(_item => ")?;
+                        write!(w, "maxByFunc(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ")")?;
                     }
 
                     ReducedMethodCall::Count(ref expr) => {
-                        write!(w, ".count(_item => ")?;
+                        // write!(w, ".count(_item => ")?;
+                        // self.write_object(w, ctx, expr)?;
+                        // write!(w, ")")?;
+                        // write!(w, "ng.map((() => { let n = 0; return _item => ")?;
+                        // self.write_object(w, ctx, expr)?;
+                        // write!(w, "})())")?;
+
+                        write!(w, "_utils.countIfFunc(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ")")?;
                     }
 
-                    ReducedMethodCall::FirstWhere(ref cond) => {
-                        write!(w, ".first(_item => ")?;
-                        self.write_object(w, ctx, cond)?;
-                        write!(w, ")")?;
-                    }
+                    // ReducedMethodCall::FirstWhere(ref cond) => {
+                    //     write!(w, ".first(_item => ")?;
+                    //     self.write_object(w, ctx, cond)?;
+                    //     write!(w, ")")?;
+                    // }
 
                     ReducedMethodCall::First => {
-                        write!(w, ".first()")?;
+                        // write!(w, ".first()")?;
+                        // write!(w, "ng.take(1)")?;
+                        write!(w, "first")?;
+                    }
+
+                    _ => {
+                        return Err(try_eval_from_err!("Reduced method call not supported."));
                     }
                 }
                 Ok(())
@@ -610,11 +690,17 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             &ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _),
                             _,
                         ) => {
-                            write!(w, "wrap(")?;
+                            write!(w, "ng.toArray(mapItem, ")?;
                             self.write_object(w, ctx, a)?;
-                            write!(w, ").addObject(")?;
+                            write!(w, ").concat(")?;
                             self.write_object(w, ctx, b)?;
                             write!(w, ")")?;
+
+                            // write!(w, "wrap(")?;
+                            // self.write_object(w, ctx, a)?;
+                            // write!(w, ").addObject(")?;
+                            // self.write_object(w, ctx, b)?;
+                            // write!(w, ")")?;
                             // write!(w, ").value")?;
 
                             return Ok(());
@@ -1027,6 +1113,13 @@ fn write_open<'s>(
         .map(|s| format!("{}.{}", s, desc.key()))
         .unwrap_or_else(|| desc.key().to_owned());
 
+    let string_props = desc.string_props();
+
+    let is_input = desc.tag() == "input";
+    let type_prop = string_props.get("type").map(|s| s.as_str());
+    let is_checkbox = is_input && type_prop == Some("checkbox");
+    let is_textbox = is_input && type_prop.is_none() ||  type_prop == Some("text") || type_prop == Some("password");
+
     if !is_void {
         write!(w, "IncrementalDOM.elementOpen(\"{}\", ", tag)?;
     } else {
@@ -1041,21 +1134,14 @@ fn write_open<'s>(
 
     write!(w, "{}, [", key_string)?;
 
-    let mut first = true;
-
     write!(w, "\"key\", {}", key_string)?;
-    first = false;
 
     if let Some(events) = desc.events() {
         for event_binding in events {
-            if !first {
-                write!(w, ", ")?;
-            }
-            write!(w, "\"on{}\", ", event_binding.event_name())?;
-            // write!(w, "e => {}(e, props)", event_binding.key())?;
-            write!(w, "e => {}(e, {{", event_binding.key())?;
+            write!(w, ", \"on{}\", ", event_binding.event_name())?;
+            write!(w, "e => _events.{}(e, {{", event_binding.key())?;
 
-            let props: HashMap<String, String> =event_binding.props().map(|(alias, _, path_string)| (alias.to_string(), path_string.to_string())).collect();
+            let props: HashMap<String, String> = event_binding.props().map(|(alias, _, path_string)| (alias.to_string(), path_string.to_string())).collect();
 
             let mut first_prop = true;
             for (ref alias, ref path_string) in props {
@@ -1067,7 +1153,6 @@ fn write_open<'s>(
             }
 
             write!(w, "}})")?;
-            first = false;
         }
     };
 
@@ -1096,13 +1181,9 @@ fn write_open<'s>(
 
     // statics
     for prop in const_props {
-        if !first {
-            write!(w, ", ")?;
-        }
         let (name, expr) = prop;
-        write!(w, "\"{}\", ", name)?;
+        write!(w, ", \"{}\", ", name)?;
         _self.write_object(w, ctx, &expr)?;
-        first = false;
     }
     write!(w, "]")?;
 
@@ -1133,11 +1214,8 @@ fn write_open<'s>(
         }
     }
 
-    let string_props = desc.string_props();
-
     if let Some(value_binding) = desc.value_binding() {
-        if desc.tag() == "input" && string_props.get("type").map(|s| s.as_str()) == Some("checkbox")
-        {
+        if is_checkbox {
             if let Some(read_expr) = value_binding.read_expr() {
                 write!(w, ", ")?;
 
@@ -1147,10 +1225,37 @@ fn write_open<'s>(
                 _self.write_object(w, ctx, read_expr)?;
                 write!(w, " ? 'checked' : null")?;
             };
-        };
+        } else if is_textbox {
+            if let Some(read_expr) = value_binding.read_expr() {
+                write!(w, ", \"value\", ")?;
+                _self.write_object(w, ctx, read_expr)?;
+            };
+        }
     };
+    write!(w, ")")?;
 
-    writeln!(w, ");")?;
+    if let Some(read_expr) = desc.value_binding().and_then(|b| b.read_expr()) {
+        if is_textbox {
+            write!(w, ".value = ")?;
+            _self.write_object(w, ctx, read_expr)?;
+        } else if is_checkbox {
+            write!(w, ".checked = ")?;
+            _self.write_object(w, ctx, read_expr)?;
+        }
+    }
+
+    writeln!(w, ";")?;
+
+    // Needed to clear a textbox, as the value is the same as the stored value in IncrementalDOM
+    // if is_textbox {
+    //     if let Some(value_binding) = desc.value_binding() {
+    //         if let Some(read_expr) = value_binding.read_expr() {
+    //             write!(w, "IncrementalDOM.applyAttr(IncrementalDOM.currentElement(), \"value\", ")?;
+    //             _self.write_object(w, ctx, read_expr)?;
+    //             writeln!(w, ");")?;
+    //         };
+    //     }
+    // };
 
     Ok(())
 }
@@ -1284,18 +1389,14 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             }
 
             ElementOp::InstanceComponent(ref comp_desc, _) => {
-                // ctx.bind_element_key(comp_desc.desc().key(), None)?;
-                write_comp_desc(self, w, ctx, comp_desc, None, false)?;
-
-                Ok(())
+                write_comp_desc(self, w, ctx, comp_desc, None, false)
             }
 
             ElementOp::MapInstanceComponent(ref comp_desc, ref item_key, ref coll, _) => {
-                // ctx.bind_element_key(comp_desc.desc().key(), None)?;
-
-                write!(w, "for (const _item of wrap(")?;
+                // write!(w, "for (const _item of ng.toArray(ng.compose(mapItem, enumerate), ")?;
+                write!(w, "for (const _item of enumerate(values(")?;
                 self.write_object(w, ctx, coll)?;
-                writeln!(w, ").enumerateWithKeys().value) {{ ")?;
+                writeln!(w, "))) {{")?;
 
                 let item_key = item_key.as_ref().map(|s| s.as_str());
                 write_comp_desc(self, w, ctx, comp_desc, item_key, true)?;
@@ -1429,10 +1530,11 @@ impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
             }
 
             ActionOp::Navigate(ref prop, _) => {
-                write!(w, "            window._go(")?;
+                // write!(w, "            window._go(")?;
+                write!(w, "store.dispatch(navigate(")?;
                 let prop = PropValue::new("path".to_owned(), prop.to_owned(), None);
                 write_action_prop_value(self, w, ctx, &prop)?;
-                write!(w, ");")?;
+                write!(w, "));")?;
             }
         };
 

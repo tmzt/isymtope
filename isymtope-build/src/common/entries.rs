@@ -9,6 +9,65 @@ use itertools::FoldWhile::{Continue, Done};
 use traits::*;
 use error::*;
 
+pub fn find_match<S: ScopeParentId, V, F: FnMut(&mut S) -> Option<V>>(
+    scopes: &mut LinkedHashMap<String, S>,
+    scope_id: &str,
+    mut f: F,
+) -> DocumentProcessingResult<Option<V>>
+where
+    V: Debug,
+{
+    assert!(scopes.len() > 0);
+    let scope_id = scope_id.to_owned();
+
+    let res = iter::repeat(0)
+        .fold_while((scope_id, None), |acc, _| {
+            let (ref scope_id, _) = acc;
+
+            let scope = scopes
+                .get_mut(scope_id)
+                .expect("scope_id from previous iteration expected to exist.");
+
+            eprintln!(
+                "[find_match]  Looking for match in scope [{}] ",
+                scope_id
+            );
+            let result = f(scope);
+
+            if let Some(result) = result {
+                eprintln!("[find_match] Found match in scope [{}]: {:?}", scope_id, result);
+
+                Done((scope_id.to_owned(), Some(result)))
+            } else {
+                eprintln!(
+                    "[find_match] Did not find match in scope {:?}.",
+                    scope_id
+                );
+
+                let parent_id = scope.parent_id();
+                eprintln!("[find_match] parent_id: {:?}", parent_id);
+
+                if parent_id.is_none() {
+                    eprintln!("[find_match] no parent_id, returning Done(None) to end fold_while.");
+                    return Done((scope_id.to_owned(), None));
+                }
+
+                let scope_id = parent_id.unwrap().to_owned();
+                eprintln!(
+                    "[find_match] continuing to search in parent_id: {:?}",
+                    parent_id
+                );
+                Continue((scope_id, None))
+            }
+        })
+        .into_inner()
+        .1;
+
+    eprintln!("[entries] find entry res: {:?}", res);
+
+    Ok(res)
+}
+
 pub fn find_entry<S: ScopeParentId, K, V, F: FnMut(&mut S) -> Option<V>>(
     scopes: &mut LinkedHashMap<String, S>,
     scope_id: &str,

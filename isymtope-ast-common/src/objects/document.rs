@@ -319,18 +319,26 @@ impl ContentProcessor {
 
         ctx.push_child_scope();
         if let Some(ref value_binding) = value_binding {
+            eprintln!("Found value binding [{:?}]", value_binding);
             if let Some(ident) = value_binding.ident() {
                 let ident = ident.to_owned();
+                eprintln!("Value binding ident: {:?}", ident);
                 let binding = CommonBindings::CurrentElementValue(Default::default());
                 let expr = value_binding.expr().to_owned();
                 eprintln!(
                     "Binding [{}] as [{:?}] to value [{:?}]",
                     ident, binding, expr
                 );
-                ctx.bind_ident(ident, binding)?;
+                ctx.bind_ident(ident.clone(), binding.clone())?;
+                eprintln!(
+                    "Binding element binding [{}] as [{:?}]",
+                    ident, binding
+                );
+                ctx.bind_element_binding(ident, binding)?;
             }
         }
 
+        ctx.push_child_scope_with_environment(ProcessingScopeEnvironment::ElementActions);
         let event_bindings: Vec<_> = ok_or_error(
             bindings
                 .iter()
@@ -345,6 +353,7 @@ impl ContentProcessor {
                     expr.and_then(|e| Ok(ElementEventBindingName::create(e)))
                 }),
         )?.collect();
+        ctx.pop_scope();
         ctx.pop_scope();
 
         let value_binding: Option<ElementValueBinding<ProcessedExpression>> =

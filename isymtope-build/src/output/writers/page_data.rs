@@ -145,6 +145,7 @@ impl InternalTemplateDataBuilder {
 
                 eprintln!("[page_templates] enumerating actions");
                 for action in actions {
+                    eprintln!("[page_templates] event action: {:?}", action);
                     bytes.truncate(0);
                     js_writer.write_object(&mut bytes, &mut ctx, action)?;
 
@@ -299,6 +300,8 @@ impl InternalTemplateDataBuilder {
         let root_block = doc.root_block();
         html_writer.write_object(&mut bytes, &mut ctx, root_block)?;
 
+        // TODO: Add this to Template as generationId
+        let page_body_key = allocate_element_key();
         let page_body_html = str::from_utf8(bytes.as_slice())?.to_owned();
 
         // eprintln!("InternalTemplateRenderer page_body_html: {}", page_body_html);
@@ -324,6 +327,7 @@ impl InternalTemplateDataBuilder {
             query_params: query_params,
             query_bodies: query_bodies,
             page_render_func_body: page_render_func_body,
+            page_body_key: page_body_key,
             page_body_html: page_body_html,
         })
     }

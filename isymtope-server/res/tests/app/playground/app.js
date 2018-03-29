@@ -3,24 +3,6 @@ let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\
 let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
 
 
-async function doCompliation(opts, func, cb) {
-    let { source, app_name, baseUrl, template_path, path } = opts
-    let resourceWorker = await getOrRegisterResourceWorker()
-
-    let compilerToResourceWorker = new MessageChannel()
-    let resourceWorkerToMainWindow = new MessageChannel()
-
-    resourceWorkerToMainWindow.port1.onmessage = ({data}) => {
-        switch (data.topic) {
-            case '/mainWindow/refreshPreview':
-                cb(true)
-        }
-    }
-
-    resourceWorker.postMessage({ topic: '/resourceWorker/compilationStarted' }, [compilerToResourceWorker.port2, resourceWorkerToMainWindow.port2])
-    await func(compilerToResourceWorker.port1)
-}
-
 class CompilerService
 {
     async prepareService() {
@@ -38,59 +20,32 @@ class WasmCompilerService extends CompilerService
     }
 
     async startCompilation(opts, cb) {
-        await doCompliation(opts, async (compilerToResourceWorker) => {
-            let compilerWorker = await getOrRegisterCompilerWorker()
-            let compileReq = {
-                topic: '/compilerWorker/startCompilation',
-                source,
-                pathname: '',
-                mimeType: 'text/html',
-                app_name,
-                baseUrl,
-                template_path,
-                path
-            }
+        let compilerWorker = await getOrRegisterCompilerWorker()
+        let completion = new MessageChannel()
+        let compileReq = {
+            topic: '/compilerWorker/compile',
+            source,
+            pathname: '',
+            mimeType: 'text/html',
+            app_name,
+            baseUrl,
+            template_path,
+            path
+        }
 
-            compilerWorker.postMessage(compileReq, [compilerToResourceWorker.port1])
-        }, cb)
+        completion.onmessage = data => cb(data.content)
     }
 }
 
 class RemoteCompilerService extends CompilerService
 {
     async startCompilation(opts, cb) {
-        await doCompliation(opts, async (compilerToResourceWorker) => {
-            fetch(apiUrl + 'compile', {
+        return fetch(apiUrl + 'compile', {
                 method: 'POST',
                 body: opts.source
             })
             .then(resp => resp.text())
-            .then(content => {
-                let pathname = '/'
-                let mimeType = 'text/html'
-
-                let script = '<script src="inject.js"></script></head>'
-                content = content.replace(/<\/head>/, script)
-
-                if (_shouldUpdate) {
-                    return setPreviewBody(content)
-                }
-
-                compilerToResourceWorker.postMessage({ topic: '/resourceWorker/compilationComplete', content, pathname, mimeType })
-            })
-        }, cb)
-
-        // let resourceWorker = await getOrRegisterResourceWorker()
-        // fetch(apiUrl + 'compile', {
-        //     method: 'POST',
-        //     body: opts.source
-        // })
-        // .then(resp => resp.text())
-        // .then(content => {
-        //     let pathname = '/'
-        //     let mimeType = 'text/html'
-        //     resourceWorker.postMessage({ topic: '/resourceWorker/compilationComplete', content, pathname, mimeType })
-        // })
+            .then(cb)
     }
 }
 
@@ -101,7 +56,7 @@ let _workspaces
 let _currentWorkspaceId
 let _currentFileId
 
-let _frameId = 'xxxx-xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
+let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
 
 let _contentCache = new Map
 let _editorModels = new Map
@@ -157,6 +112,7 @@ async function useModel() {
 }
 
 async function getEditorModel() {
+    await getEditor()
     const key = cacheKey(_currentWorkspaceId, _currentFileId)
     return getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
 }
@@ -175,7 +131,8 @@ async function compileCurrent() {
 
     setCompiling(true)
 
-    return startCompilation(source, appName, baseUrl, templatePath, path)
+    let opts = { source, appName, baseUrl, templatePath, path }
+    return startCompilation(opts)
 }
 
 function debounce(fn, delay) {
@@ -198,7 +155,17 @@ async function loadDefault(workspaceId) {
 
 async function initializePreviewFrame(appPath, frameId) {
     const resourceWorker = await getOrRegisterResourceWorker()
-    resourceWorker.postMessage({ topic: '/resourceWorker/initializePreviewFrame', appPath, frameId: _frameId })
+    const completion = new MessageChannel()
+    resourceWorker.postMessage({ topic: '/resourceWorker/initializePreviewFrame', appPath, frameId: _frameId }, [completion.port2])
+    completion.port1.onmessage = () => {
+        console.log('[initialize preview frame] got completion message from worker')
+        const wrapper = document.querySelector('#previewWrap')
+        wrapper.classList.toggle('isBlank', false)
+        wrapper.classList.toggle('isPrerender', true)
+        const iframe = document.querySelector('iframe#preview')
+        iframe.src = `/app/playground/_worker${appPath}`
+        _shouldUpdate = true
+    }
 }
 
 function externAppReducer(state, action) {
@@ -273,15 +240,14 @@ function compilerReducer(state, action) {
     }
 }
 
-async function startCompilation(source, app_name, baseUrl, template_path, path) {
+async function startCompilation(opts) {
     let compilerService = await getCompilerService()
-    let opts = { source, app_name, baseUrl, template_path, path }
 
     setCompiling(true)
-    compilerService.startCompilation(opts, () => {
+    compilerService.startCompilation(opts, content => {
                     setCompiling(false)
-                    if (!_shouldUpdate) {
-                        setPreview('/app/playground/preview-1bcx1/', false)
+                    if (_shouldUpdate) {
+                        setPreviewContent(content)
                     }
     })
 }
@@ -315,7 +281,7 @@ async function getOrRegisterResourceWorker() {
         return navigator.serviceWorker.controller
     }
 
-    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/' })
+    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/_worker' })
     return reg.active
 }
 
@@ -375,9 +341,14 @@ function setCompiling(v) {
 
 let _shouldUpdate = false
 
-function setPreviewBody(body) {
+function setPreviewContent(content) {
     let iframe = document.querySelector('iframe#preview')
-    iframe.contentWindow.postMessage({type: 'replaceHtml', body}, '*')
+    // iframe.contentWindow.postMessage({type: 'replaceHtml', body}, '*')
+    let msg = { _mergeDoc: content }
+    msg[`_previewIframe${_frameId}`] = true
+    iframe.contentWindow.postMessage(msg, window.origin)
+
+    document.querySelector('#previewWrap').classList.remove('isPrerender')
 }
 
 function injectScript(content) {
@@ -400,52 +371,33 @@ function injectScript(content) {
 //     // }, 1000)
 // }
 
-async function setPreview(path, isPrerender) {
-    setCompiling(false)
-    let wrapper = document.querySelector('#previewWrap')
-    wrapper.classList.toggle('isBlank', false)
-    wrapper.classList.toggle('isPrerender', !!isPrerender)
-    let iframe = document.querySelector('iframe#preview')
+// async function setPreview(appName, isPrerender) {
+//     setCompiling(false)
+//     let wrapper = document.querySelector('#previewWrap')
+//     wrapper.classList.toggle('isBlank', false)
+//     wrapper.classList.toggle('isPrerender', !!isPrerender)
+//     let iframe = document.querySelector('iframe#preview')
 
-    // let content = await fetch(window.origin + path)
-    // content = injectScript(content)
-    iframe.src = '/app/playground/preview-1bcx1/'
+//     // let content = await fetch(window.origin + path)
+//     // content = injectScript(content)
+//     // iframe.src = '/app/playground/preview-1bcx1/'
+//     iframe.src = '/app/playground/_worker/app/${appName}'
+//     _shouldUpdate = true
+// }
 
-    _shouldUpdate = true
-}
+const navigate = Isymtope.navigate
 
-Isymtope.app().setDefaultRoute('/')
-Isymtope.app().alwaysNavigateToDefaultRoute(false)
-
-Isymtope.app().registerBeforeRoutingHook(store => {
-    store.dispatch((dispatch, getState) => {
-        // getOrRegisterCompilerWorker()
-        getCompilerService()
-            .then(compilerService => compilerService.prepareService())
-            .then(() => getOrRegisterResourceWorker())
-            .then(() => getEditor())
-            .then(editor => {
-                editor.onDidChangeModelContent(event => {
-                    if (!_isChangingContent) {
-                        let { activeWorkspaceId, activeFileId  } = getState()
-                        console.log('Content changed', event)
-                        // dispatch({ type: 'EDITOREVENTS.CONTENTCHANGED', activeWorkspaceId, activeFileId })
-                        const workspace = _workspaces.get(activeWorkspaceId)
-                        const file = workspace.files.filter(f => f.id === activeFileId)[0]
-                        if (file.type == 'ISM') {
-                            _compileCurrent()
-                        } else {
-                            let pathname = `/app/playground/preview-1bcx1/${file.path}`
-                            dispatch({ type: 'EXTERNAPP.UPDATERESOURCE', pathname, fileId: activeFileId })
-                        }
-                    }
-                })
-            })
-            .then(() => {
-                dispatch(Isymtope.Routing.navigate('/'))
-            })
+Isymtope.app()
+    .setDefaultRoute('/')
+    .alwaysNavigateToDefaultRoute(false)
+    .registerBeforeRoutingHook(async store => {
+        store.dispatch(async (dispatch, getState) =>
+            getCompilerService()
+                .then(compilerService => compilerService.prepareService())
+                .then(() => getOrRegisterResourceWorker())
+                .then(() => getEditor())
+                .then(() => dispatch(navigate('/'))))
     })
-})
 
 // document.addEventListener('DOMContentLoaded', async () => {
 //     // getOrRegisterCompilerWorker()

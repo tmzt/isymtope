@@ -24,6 +24,7 @@ use super::*;
 
 lazy_static! {
     pub static ref APP_ROUTE: Regex = Regex::new(r"app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
+    pub static ref STATIC_RESOURCE_ROUTE: Regex = Regex::new(r"resources/static/(?P<path>(.*))").unwrap();
     pub static ref APP_RESOURCE_ROUTE: Regex = Regex::new(r"resources/app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
 }
 
@@ -36,6 +37,7 @@ lazy_static! {
 pub struct DefaultServiceFactory {
     render_service_factory: TemplateRenderServiceFactory,
     resource_service_factory: TemplateResourceServiceFactory,
+    static_resource_service_factory: StaticResourceServiceFactory,
     #[cfg(feature = "playground_api")]
     playground_service_factory: PlaygroundApiServiceFactory,
     handle: Handle,
@@ -46,11 +48,13 @@ impl DefaultServiceFactory {
     pub fn new(
         render_service_factory: TemplateRenderServiceFactory,
         resource_service_factory: TemplateResourceServiceFactory,
+        static_resource_service_factory: StaticResourceServiceFactory,
         handle: Handle,
     ) -> Self {
         DefaultServiceFactory {
             render_service_factory: render_service_factory,
             resource_service_factory: resource_service_factory,
+            static_resource_service_factory: static_resource_service_factory,
             handle: handle,
         }
     }
@@ -59,12 +63,14 @@ impl DefaultServiceFactory {
     pub fn new(
         render_service_factory: TemplateRenderServiceFactory,
         resource_service_factory: TemplateResourceServiceFactory,
+        static_resource_service_factory: StaticResourceServiceFactory,
         playground_service_factory: PlaygroundApiServiceFactory,
         handle: Handle,
     ) -> Self {
         DefaultServiceFactory {
             render_service_factory: render_service_factory,
             resource_service_factory: resource_service_factory,
+            static_resource_service_factory: static_resource_service_factory,
             playground_service_factory: playground_service_factory,
             handle: handle,
         }
@@ -80,12 +86,14 @@ impl NewService for DefaultServiceFactory {
     fn new_service(&self) -> Result<Self::Instance, IOError> {
         let render_service = self.render_service_factory.create();
         let resource_service = self.resource_service_factory.create();
+        let static_resource_service = self.static_resource_service_factory.create();
         #[cfg(feature = "playground_api")]
         let playground_service = self.playground_service_factory.create();
 
         Ok(DefaultService {
             render_service: render_service,
             resource_service: resource_service,
+            static_resource_service: static_resource_service,
             #[cfg(feature = "playground_api")]
             playground_service: playground_service,
             handle: self.handle.clone(),
@@ -97,6 +105,7 @@ impl NewService for DefaultServiceFactory {
 pub struct DefaultService {
     render_service: TemplateRenderService,
     resource_service: TemplateResourceService,
+    static_resource_service: StaticResourceService,
     #[cfg(feature = "playground_api")]
     playground_service: PlaygroundApiService,
     handle: Handle,
@@ -111,11 +120,6 @@ impl Service for DefaultService {
     fn call(&self, req: Self::Request) -> Self::Future {
         let original_path = req.path().to_owned();
         let trimmed_path = req.path().trim_left_matches('/').to_owned();
-
-        // let default_app_str = default_app.to_string_lossy().to_string();
-        // let default_app_trimmed = default_app_str.trim_left_matches('/').to_owned();
-        // let default_app_trailing = format!("{}/", default_app_trimmed);
-        let default_workspace_str = format!("/app/{}/preview-1bcx1", &*DEFAULT_APP);
 
         // Redirect to default app
         if trimmed_path == "" {
@@ -171,6 +175,24 @@ impl Service for DefaultService {
                         .call(&base_url, &app_name, req);
                     return Box::new(response);
                 }
+            };
+        }
+
+        if let Some(captures) = STATIC_RESOURCE_ROUTE.captures(&trimmed_path) {
+            let path = captures.name("path").unwrap().as_str().to_owned();
+            let trimmed_resource_path = path.trim_left_matches('/').to_owned();
+
+            // Handle resource file case
+            let resource_file_path = &*STATIC_RESOURCE_DIR.join(&trimmed_resource_path);
+
+            // Serve resource
+            if resource_file_path.is_file() {
+                let resource_path = format!("/{}", trimmed_resource_path);
+                let resource_req =
+                    Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                let response = self.static_resource_service
+                    .call(resource_req);
+                return Box::new(response);
             };
         }
 

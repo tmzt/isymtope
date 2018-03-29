@@ -88,9 +88,11 @@ pub struct PlaygroundApiService {
 //     //                             .map(|s| s.to_owned()))
 // }
 
-fn send_request(sender: &CompilerRequestChannel, source: &str) -> impl Future<Item = IsymtopeGenerateResult<CompilerResponseMsg>, Error = HyperError> {
-    let app_base_url = "/app/playground/preview-1bcx1".into();
-    let compiler_req= CompilerRequestMsg::CompileSource(source.to_owned(), app_base_url);
+fn send_request(sender: &CompilerRequestChannel, source: &str, app_name: &str) -> impl Future<Item = IsymtopeGenerateResult<CompilerResponseMsg>, Error = HyperError> {
+    // let app_base_url = "/app/playground/preview-1bcx1".into();
+    // let app_name: String = "todomvc".into();
+    let app_base_url = format!("/app/playground/_worker/app/{}", app_name);
+    let compiler_req = CompilerRequestMsg::CompileSource(source.to_owned(), app_base_url);
 
     let (tx, rx) = futures::sync::oneshot::channel::<IsymtopeGenerateResult<CompilerResponseMsg>>();
     future::result(sender.unbounded_send((compiler_req, tx)))
@@ -139,6 +141,7 @@ impl IsymtopeAppService for PlaygroundApiService {
         match req.method() {
             &Post => {
                 let sender = self.sender.clone();
+                let app_name = app_name.to_owned();
 
                 let response = req.body()
                     .concat2()
@@ -149,12 +152,10 @@ impl IsymtopeAppService for PlaygroundApiService {
                                 "Failed making request to compiler service.",
                             )))
                     )
-                    .and_then(move |source| self::send_request(&sender, &source))
+                    .and_then(move |source| self::send_request(&sender, &source, &app_name))
                     .and_then(move |compile_resp| self::make_response(compile_resp));
 
-                let boxed = Box::new(response);
-                // println!("[playground api] response: {:?}", boxed);
-                boxed
+                Box::new(response)
             }
 
             _ => {

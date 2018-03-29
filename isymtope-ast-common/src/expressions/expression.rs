@@ -83,7 +83,9 @@ where
             CommonBindings::CurrentElementValue(_) => {
                 Ok(CommonBindings::CurrentElementValue(Default::default()))
             }
-            CommonBindings::CurrentElementKeyPath => Ok(CommonBindings::CurrentElementKeyPath),
+            CommonBindings::CurrentElementKeyPath => {
+                Ok(CommonBindings::CurrentElementKeyPath)
+            }
             CommonBindings::PathAlias(ref s, _) => {
                 Ok(CommonBindings::PathAlias(s.to_owned(), Default::default()))
             }
@@ -198,6 +200,8 @@ impl<T> ExpressionValue<T> {
         match *self {
             ExpressionValue::Expression(Expression::Path(ref path, _)) => path.components()
                 .and_then(|v| v.last().map(|s| s.to_owned())),
+
+            ExpressionValue::Expression(ref expr) => expr.ident(),
 
             _ => None,
         }
@@ -517,6 +521,15 @@ pub enum Expression<T> {
     ApplyOp(ApplyOpType, Box<ExpressionValue<T>>),
 }
 
+impl<T> Expression<T> {
+    fn ident(&self) -> Option<String> {
+        match *self {
+            Expression::Ident(ref s, _) => Some(s.to_owned()),
+            _ => None
+        }
+    }
+}
+
 impl<T: Clone> TryProcessFrom<Expression<T>> for Expression<T> {
     fn try_process_from(
         src: &Expression<T>,
@@ -546,7 +559,7 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
                     ident_key
                 );
 
-                if ctx.environment() == ProcessingScopeEnvironment::ElementActions {
+                if ctx.environment()? == ProcessingScopeEnvironment::ElementActions {
                     eprintln!("Finding element_binding [{}]", ident_key);
                     if let Some(binding) = ctx.find_element_binding(ident_key)? {
                         return Ok(ExpressionValue::Binding(binding, Default::default()));

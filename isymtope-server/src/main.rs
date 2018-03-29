@@ -49,6 +49,7 @@ pub mod message;
 pub mod service;
 pub mod server;
 pub mod srs_generator;
+pub mod static_resource_service;
 
 #[cfg(feature = "playground_api")]
 pub mod playground_api_service;
@@ -66,6 +67,7 @@ pub use self::message::*;
 pub use self::service::*;
 pub use self::server::*;
 pub use self::srs_generator::*;
+pub use self::static_resource_service::*;
 
 #[cfg(feature = "playground_api")]
 pub use self::playground_api_service::*;

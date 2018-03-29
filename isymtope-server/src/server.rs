@@ -28,6 +28,7 @@ use super::*;
 
 lazy_static! {
     pub static ref APP_DIR: Box<PathBuf> = Box::new(env::var_os("APP_DIR").expect("APP_DIR must be provided").into());
+    pub static ref STATIC_RESOURCE_DIR: Box<PathBuf> = Box::new(env::var_os("STATIC_RESOURCE_DIR").expect("STATIC_RESOURCE_DIR must be provided").into());
     pub static ref DEFAULT_APP: String = env::var_os("DEFAULT_APP").expect("DEFAULT_APP must be provided").to_string_lossy().to_string();
 }
 
@@ -78,6 +79,7 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
 
     let render_service_factory =
         TemplateRenderServiceFactory::new(server_msg_handler, handle.clone(), default_app_str.to_owned());
+    let static_resource_service_factory = StaticResourceServiceFactory::new(handle.clone());
     let resource_service_factory = TemplateResourceServiceFactory::new(handle.clone());
 
     #[cfg(feature = "playground_api")]
@@ -86,6 +88,7 @@ pub fn run_server(addr: &str) -> IsymtopeServerResult<()> {
     let factory = DefaultServiceFactory::new(
         render_service_factory,
         resource_service_factory,
+        static_resource_service_factory,
         #[cfg(feature = "playground_api")]
         playground_api_service,
         handle.clone(),

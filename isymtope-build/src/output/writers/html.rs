@@ -272,7 +272,7 @@ fn write_open<'s>(
             eprintln!("Event binding: {:?}", event_binding);
             write!(
                 w,
-                " on{}=\"{}(event, {{",
+                " on{}=\"_events.{}(event, {{",
                 event_binding.event_name(),
                 event_binding.key()
             )?;

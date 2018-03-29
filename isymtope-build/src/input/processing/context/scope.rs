@@ -47,7 +47,7 @@ impl<T: Hash + Eq> ProcessingScope<T> {
             scope_id: scope_id,
             parent_id: parent_id,
 
-            environment: Default::default(),
+            environment: environment,
 
             scoped_idents: Default::default(),
             shaped_idents: Default::default(),
