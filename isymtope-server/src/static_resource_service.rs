@@ -1,8 +1,8 @@
 
-use futures::{self, Future};
-use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode, Uri};
-use hyper::server::{Http, Service};
-use hyper::header::{ContentType, Location};
+use futures::Future;
+use hyper::{Error as HyperError, Request, Response};
+use hyper::server::Service;
+use hyper::header::ContentType;
 use hyper::mime;
 
 use hyper_staticfile::Static;
@@ -10,7 +10,6 @@ use hyper_staticfile::Static;
 use tokio_core::reactor::Handle;
 
 use server::STATIC_RESOURCE_DIR;
-use super::*;
 
 #[derive(Debug)]
 pub struct StaticResourceServiceFactory {

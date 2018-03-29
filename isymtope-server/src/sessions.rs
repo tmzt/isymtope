@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use isymtope_ast_common::*;
 use isymtope_generate::*;
-use super::*;
 
 #[derive(Debug, Default)]
 pub struct MemorySessions {
@@ -29,18 +28,18 @@ impl Sessions for MemorySessions {
         Ok(())
     }
 
-    fn validate(&mut self, session_id: &str) -> SessionResult<()> {
+    fn validate(&mut self, _session_id: &str) -> SessionResult<()> {
         Ok(())
     }
 
-    fn destroy(&mut self, session_id: &str) -> SessionResult<()> {
+    fn destroy(&mut self, _session_id: &str) -> SessionResult<()> {
         Ok(())
     }
 
     fn execute_action(
         &mut self,
-        session_id: &str,
-        action_op: &ActionOp<ProcessedExpression>,
+        _session_id: &str,
+        _action_op: &ActionOp<ProcessedExpression>,
     ) -> SessionResult<()> {
         Ok(())
     }

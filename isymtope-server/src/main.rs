@@ -10,7 +10,6 @@ extern crate colored;
 extern crate dotenv;
 extern crate pretty_env_logger;
 
-#[macro_use]
 extern crate log;
 
 #[macro_use]
@@ -27,7 +26,6 @@ extern crate rand;
 extern crate regex;
 extern crate tokio_core;
 
-#[macro_use]
 extern crate isymtope_ast_common;
 extern crate isymtope_build;
 extern crate isymtope_generate;
@@ -39,6 +37,7 @@ use dotenv::dotenv;
 
 pub mod app;
 pub mod context;
+#[cfg(feature = "cookies")]
 pub mod cookies;
 pub mod sessions;
 pub mod default_service;
@@ -56,6 +55,7 @@ pub mod playground_api_service;
 
 pub use self::app::*;
 pub use self::context::*;
+#[cfg(feature = "cookies")]
 pub use self::cookies::*;
 pub use self::srs_generator::*;
 pub use self::sessions::*;
@@ -74,9 +74,5 @@ pub use self::playground_api_service::*;
 
 pub fn main() {
     dotenv().ok();
-
-    // let document_provider: Rc<DocumentProvider> = Default::default();
-    // let _ = document_provider.doc();
-
     server::run_server("0.0.0.0:3000").ok();
 }

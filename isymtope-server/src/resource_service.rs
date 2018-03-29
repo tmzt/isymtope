@@ -1,17 +1,11 @@
-use std::env;
-use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::result::Result;
-use std::sync::Mutex;
-use std::error::Error;
+use std::path::PathBuf;
 
-use futures::{self, Future};
-use hyper::header::{ContentType, Location};
+use futures::Future;
+use hyper::header::ContentType;
 use hyper::mime;
 
-use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode, Uri};
-use hyper::server::{Http, NewService, Server, Service};
+use hyper::{Error as HyperError, Request, Response};
+use hyper::server::{Server, Service};
 use hyper_staticfile::Static;
 
 use tokio_core::reactor::Handle;
@@ -54,7 +48,7 @@ impl IsymtopeAppService for TemplateResourceService {
     type Error = HyperError;
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
-    fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
+    fn call(&self, _base_url: &str, _app_name: &str, req: Request) -> Self::Future {
         let path = req.path().to_owned();
 
         eprintln!("[resource service] Serving resource path: {:?}", path);

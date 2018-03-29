@@ -1,21 +1,14 @@
-use std::env;
-use std::str::{self, FromStr};
-use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
-use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::io;
 use std::result::Result;
-use std::sync::Mutex;
-use std::error::Error;
 
 use regex::Regex;
 
-use futures::{self, future, Future};
-use hyper::header::{ContentType, Location, Host};
-use hyper::mime;
+use futures::{future, Future};
+use hyper::header::{Location, Host};
 
-use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode, Uri};
-use hyper::server::{Http, NewService, Server, Service};
-use hyper_staticfile::Static;
+use hyper::{self, Error as HyperError, Method, Request, Response, StatusCode};
+use hyper::server::{NewService, Service};
 
 use tokio_core::reactor::Handle;
 
@@ -83,7 +76,7 @@ impl NewService for DefaultServiceFactory {
     type Error = <Self::Instance as Service>::Error;
     type Instance = DefaultService;
 
-    fn new_service(&self) -> Result<Self::Instance, IOError> {
+    fn new_service(&self) -> Result<Self::Instance, io::Error> {
         let render_service = self.render_service_factory.create();
         let resource_service = self.resource_service_factory.create();
         let static_resource_service = self.static_resource_service_factory.create();
@@ -118,7 +111,6 @@ impl Service for DefaultService {
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        let original_path = req.path().to_owned();
         let trimmed_path = req.path().trim_left_matches('/').to_owned();
 
         // Redirect to default app
@@ -247,7 +239,6 @@ impl Service for DefaultService {
                 "[default service] requested path [{:?}] in app {}",
                 path, app_name
             );
-            let trimmed_relative_path = path.trim_left_matches('/').to_owned();
 
             // Handle resource file case
             let app_resource_path = &*APP_DIR.join(&app_name).join(&trimmed_path_in_app);

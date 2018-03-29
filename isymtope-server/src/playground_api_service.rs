@@ -8,14 +8,11 @@ use hyper::header::ContentType;
 use hyper::mime;
 use hyper::Error as HyperError;
 use hyper::StatusCode;
-use hyper_staticfile::Static;
-use regex::RegexSet;
 
 use tokio_core::reactor::Handle;
 
-use isymtope_build::*;
 use isymtope_generate::*;
-use compiler_service::{*, CompilerContext};
+use compiler_service::*;
 use super::*;
 
 #[derive(Debug)]

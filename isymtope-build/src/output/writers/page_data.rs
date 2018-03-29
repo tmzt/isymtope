@@ -133,9 +133,8 @@ impl InternalTemplateDataBuilder {
                 ctx.push_child_scope();
 
                 eprintln!("[page_templates] enumerating path aliases");
-                for (alias, expr) in event_prop_aliases {
+                for (alias, _) in event_prop_aliases {
                     let binding: CommonBindings<ProcessedExpression> = CommonBindings::PathAlias(alias.to_owned(), Default::default());
-                    // let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, &mut ctx)?;
                     let expr = ExpressionValue::Expression(Expression::RawPath(
                         alias,
                         Default::default(),

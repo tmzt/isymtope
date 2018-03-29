@@ -12,14 +12,11 @@ pub mod compile;
 pub use self::context::*;
 pub use self::messages::*;
 
-use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::thread;
 
 use tokio_core::reactor::Core;
 use futures::future;
 
-use isymtope_ast_common::*;
-use isymtope_build::*;
 use isymtope_generate::*;
 use self::compile::*;
 
@@ -37,7 +34,7 @@ pub fn spawn_compiler_service() -> IsymtopeGenerateResult<CompilerRequestChannel
         core.run(
             receiver.for_each(move |(msg, oneshot): (_, CompilerResponseChannel)| {
                 let response = shared_ctx.handle_msg(msg);
-                let r = oneshot.send(response);
+                oneshot.send(response).ok().unwrap();
                 // if r.is_err() {
                 //     return future::err(IOError::new(
                 //         IOErrorKind::Other,

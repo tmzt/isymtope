@@ -1,14 +1,5 @@
-use std::collections::HashMap;
-use std::fmt::{self, Debug, Formatter};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::str;
 
-use futures;
-use futures::future;
-
-use isymtope_ast_common::*;
-use isymtope_build::*;
 use isymtope_generate::*;
 use super::*;
 
@@ -20,15 +11,25 @@ pub trait ServerContext {
 pub struct DefaultServerContext {
     app_dir: PathBuf,
     srs: DefaultSecureRandomStringGenerator,
+    #[cfg(feature = "cookies")]
     cookies: Cookies,
 }
 
 impl DefaultServerContext {
+    #[cfg(not(feature = "cookies"))]
     pub fn new(app_dir: &Path) -> Self {
         DefaultServerContext {
             app_dir: app_dir.to_owned(),
             srs: Default::default(),
-            cookies: Default::default()
+        }
+    }
+
+    #[cfg(feature = "cookies")]
+    pub fn new(app_dir: &Path) -> Self {
+        DefaultServerContext {
+            app_dir: app_dir.to_owned(),
+            srs: Default::default(),
+            cookies: Default::default(),
         }
     }
 }

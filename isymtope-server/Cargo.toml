@@ -43,5 +43,6 @@ version = "0.1.39"
 
 [features]
 default = []
+cookies=[]
 session_time = ["time"]
 playground_api = ["compiler-service"]

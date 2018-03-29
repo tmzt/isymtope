@@ -1,27 +1,15 @@
 use std::env;
 use std::fmt::Debug;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::thread;
 
-use std::collections::HashMap;
-
 use futures::{self, Stream};
-use futures::future::{self, FutureResult};
+use futures::future;
 
 use tokio_core::reactor::Core;
 use tokio_core::net::TcpListener;
+use hyper::server::{Http, NewService, Service};
 
-// use hyper;
-use hyper::server::{Http, NewService, Request, Response, Server, Service};
-// use hyper::Service;
-use regex::RegexSet;
-
-use isymtope_ast_common::*;
-use isymtope_build::*;
-use isymtope_generate::*;
 #[cfg(feature = "playground_api")]
 use compiler_service::*;
 use super::*;
