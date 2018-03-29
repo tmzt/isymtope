@@ -110,7 +110,7 @@ route "/" || {
 link(rel="stylesheet", href="app.css", type="text/css") {}
 script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/javascript", defer="defer") {}
 script(src="https://www.hellorust.com/demos/bundle.js", type="text/javascript", defer="defer") {}
-script(src="app.js", type="text/javascript") {}
+script(src="app.js", type="text/javascript", defer="defer") {}
 
 component demoMenuBodyItem(workspaceData, activeWorkspaceId) {
     p()

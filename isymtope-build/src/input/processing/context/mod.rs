@@ -46,7 +46,7 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
         let parent_id = self.cur_scope_id.to_owned();
         eprintln!("parent_id: {}", parent_id);
         let child: ProcessingScope<ProcessedExpression> =
-            ProcessingScope::new(Some(parent_id.clone()), Default::default());
+            ProcessingScope::new(Some(parent_id.clone()), environment.clone());
         let child_id = child.id().to_owned();
         self.scopes.insert(child_id.clone(), child);
         self.cur_scope_id = child_id;
@@ -55,7 +55,8 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
             "there must be more than one scope after pushing new scope with environment"
         );
 
-        eprintln!("[ProcessingContext] Pushing child scope [{}] (parent_id: [{:?}]), there are now {} scopes.", self.cur_scope_id, parent_id, self.scopes.len());
+        eprintln!("[ProcessingContext] Pushing child scope [{}] with environment {:?} (parent_id: [{:?}]), there are now {} scopes.",
+            self.cur_scope_id, environment, parent_id, self.scopes.len());
         // eprintln!("[OutputContext] scopes: [{:?}]", self.scope_id_vec);
     }
 
@@ -152,11 +153,23 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
         })
     }
 
-    fn environment(&self) -> ProcessingScopeEnvironment {
-        let scope = self.scopes.get(&self.cur_scope_id).unwrap();
-        let environment = scope.environment().to_owned();
+    fn environment(&mut self) -> DocumentProcessingResult<ProcessingScopeEnvironment> {
+        let closest = find_match(&mut self.scopes, &self.cur_scope_id, |scope| {
+            let env = scope.environment();
 
-        environment
+            match env { &ProcessingScopeEnvironment::Normal => None, _ => Some(env.to_owned()) }
+        })?;
+
+        if let Some(closest) = closest {
+            return Ok(closest);
+        };
+
+        Ok(ProcessingScopeEnvironment::Normal)
+
+        // let scope = self.scopes.get(&self.cur_scope_id).unwrap();
+        // let environment = scope.environment().to_owned();
+
+        // environment
     }
 }
 

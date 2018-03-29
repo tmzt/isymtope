@@ -1,10 +1,4 @@
-use std::env;
-use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::result::Result;
-use std::sync::Mutex;
-use std::error::Error;
+use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 
 #[cfg(feature = "session_time")]
 use time::Duration;
@@ -13,13 +7,8 @@ use hyper::{Request, Response};
 use hyper::header::ContentType;
 use hyper::mime;
 use hyper::Error as HyperError;
-use hyper_staticfile::Static;
-use regex::RegexSet;
 
 use tokio_core::reactor::Handle;
-
-use isymtope_build::input::*;
-use isymtope_build::processing::*;
 use super::*;
 
 pub type ResponseMsgChannel = futures::sync::oneshot::Sender<IsymtopeServerResult<ResponseMsg>>;

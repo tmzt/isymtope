@@ -1,11 +1,3 @@
-use std::env;
-use std::io::{Error as IOError, ErrorKind as IOErrorKind, Read};
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::result::Result;
-use std::sync::Mutex;
-use std::error::Error;
-
 use hyper::Request;
 
 pub trait IsymtopeAppServiceFactory {
