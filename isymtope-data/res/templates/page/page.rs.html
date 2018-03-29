@@ -16,8 +16,6 @@
   @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\"></script>"))
     <script data-isymtope-lib>
 "use strict";
-const ng = window.nextgen
-const mapItem = ng.map(e => (Array.isArray(e) && e.length == 2) ? e[1] : e)
 const classes = obj => Object.entries(obj).map(([_key, _value]) => !!_value ? _key : undefined).filter(Boolean).join(' ')
 
 let _exports = Object.create(null);
