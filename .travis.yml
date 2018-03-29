@@ -18,12 +18,14 @@ before_script:
 
 script:
   - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path wasm-build/Cargo.toml --verbose --release --target wasm32-unknown-unknown)
-  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl)
-  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-cli/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl)
-  - echo "Building cached app pages..."
-  - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=playground $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${RESOURCES_BASE_URL}/playground/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/index.html /app.ism')
-  - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=shopping $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${RESOURCES_BASE_URL}/shopping/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/shopping/index.html /app.ism')
-  - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=todomvc $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${RESOURCES_BASE_URL}/todomvc/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/todomvc/index.html /app.ism')
+  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl --features playground_api)
+  # - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-cli/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl)
+  - echo "Building isymtope-cli and precached app pages..."
+  - (cd $TRAVIS_BUILD_DIR && ./scripts/build-prerender-apps.sh)
+  # - echo "Building cached app pages..."
+  # - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=playground $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${WORKER_APP_BASE_URL}/playground/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/playground/index.html /app.ism')
+  # - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=shopping $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${WORKER_APP_BASE_URL}/shopping/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/shopping/index.html /app.ism')
+  # - (sh -c 'APP_DIR=$TRAVIS_BUILD_DIR/isymtope-server/res/tests/app DEFAULT_APP=todomvc $TRAVIS_BUILD_DIR/target/x86_64-unknown-linux-musl/release/isymtope-cli --base-url ${WORKER_APP_BASE_URL}/todomvc/ --output $TRAVIS_BUILD_DIR/isymtope-server/res/tests/app/todomvc/index.html /app.ism')
 
 before_deploy:
   - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
@@ -62,4 +64,5 @@ env:
     - KUBE_DEPLOYMENT_NAME=isymtope-demo
     - KUBE_DEPLOYMENT_CONTAINER_NAME=isymtope-demo
 
+    - WORKER_APP_BASE_URL=https://playground.isymtope.org/app/playground/_worker/app
     - RESOURCES_BASE_URL=https://playground.isymtope.org/resources/app/
