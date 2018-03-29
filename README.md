@@ -24,9 +24,9 @@ store {
 component counter {
     h4 { "Counter: " { counter } }
     p (class="actions") {
-        a (href="#decrement") || { dispatch decrement; } { "Decrement" }
+        a (href="#decrement") || { dispatch decrement to counter; } { "Decrement" }
         { " | " }
-        a (href="#increment") || { dispatch increment; } { "Increment" }
+        a (href="#increment") || { dispatch increment to counter; } { "Increment" }
     }
 }
 
