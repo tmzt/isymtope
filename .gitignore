@@ -1,3 +1,7 @@
+
+# Pregenerated apps (these will be built by travis.ci before release)
+/isymtope-server/res/tests/app/*/index.html
+
 # Local copies of unpkg.com packages
 /res/pkg
 /isymtope-server/res/pkg
