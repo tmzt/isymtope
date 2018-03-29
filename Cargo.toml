@@ -3,6 +3,10 @@ authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
 name = "isymtope"
 version = "0.3.0"
 
+[dependencies.compiler-service]
+optional = true
+path = "./compiler-service"
+
 [dependencies.isymtope-ast-common]
 default-features = false
 optional = true

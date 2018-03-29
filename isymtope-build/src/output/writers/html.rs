@@ -272,7 +272,7 @@ fn write_open<'s>(
             eprintln!("Event binding: {:?}", event_binding);
             write!(
                 w,
-                " on{}=\"{}(event, {{",
+                " on{}=\"_events.{}(event, {{",
                 event_binding.event_name(),
                 event_binding.key()
             )?;
@@ -425,7 +425,7 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
 
             ElementOp::MapCollection(_, _, _, _) => Ok(()),
 
-            ElementOp::WriteValue(ref expr, ref key) => {
+            ElementOp::WriteValue(ref expr, _) => {
                 let expr: ExpressionValue<OutputExpression> =
                     TryEvalFrom::try_eval_from(expr, ctx)?;
 

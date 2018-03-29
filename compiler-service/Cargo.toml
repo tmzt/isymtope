@@ -1,0 +1,17 @@
+[package]
+authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+name = "compiler-service"
+version = "0.1.0"
+
+[dependencies]
+futures = "0.1.18"
+tokio-core = "0.1.12"
+
+[dependencies.isymtope-ast-common]
+path = "../isymtope-ast-common"
+
+[dependencies.isymtope-build]
+path = "../isymtope-build"
+
+[dependencies.isymtope-generate]
+path = "../isymtope-generate/"

@@ -156,6 +156,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "compiler-service"
+version = "0.1.0"
+dependencies = [
+ "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "isymtope-ast-common 0.1.0",
+ "isymtope-build 0.3.0",
+ "isymtope-generate 0.1.0",
+ "tokio-core 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -381,6 +392,7 @@ dependencies = [
 name = "isymtope"
 version = "0.3.0"
 dependencies = [
+ "compiler-service 0.1.0",
  "isymtope-ast-common 0.1.0",
  "isymtope-build 0.3.0",
  "isymtope-cli 0.1.0",
@@ -459,6 +471,7 @@ name = "isymtope-server"
 version = "0.1.0"
 dependencies = [
  "colored 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "compiler-service 0.1.0",
  "data-encoding 2.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

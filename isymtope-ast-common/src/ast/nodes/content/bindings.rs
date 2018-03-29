@@ -62,7 +62,12 @@ impl TryProcessFrom<ElementEventProp<SourceExpression>> for ElementEventProp<Pro
         src: &ElementEventProp<SourceExpression>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
-        let prop: ExpressionValue<ProcessedExpression> =
+         eprintln!(
+            "TryProcess ElementEventProp -> ElementEventProp: src: {:?}",
+            src
+        );
+
+       let prop: ExpressionValue<ProcessedExpression> =
             TryProcessFrom::try_process_from(&src.1, ctx)?;
         Ok(ElementEventProp(src.0.to_owned(), prop, src.2.to_owned()))
     }
@@ -77,6 +82,11 @@ where
         src: &ElementEventProp<T>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
+         eprintln!(
+            "TryEval ElementEventProp -> ElementEventProp: src: {:?}",
+            src
+        );
+
         let prop: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&src.1, ctx)?;
         Ok(ElementEventProp(src.0.to_owned(), prop, src.2.to_owned()))
     }
@@ -102,6 +112,7 @@ where
             }.into_iter()
                 .flat_map(|v| v)
                 .collect();
+
             let navigate_iter: Vec<_> = match **action {
                 ActionOp::Navigate(ref path, _) => {
                     Some(vec![("path".to_owned(), path.to_owned())].into_iter())
@@ -123,6 +134,9 @@ where
             ),
             ExpressionValue::Binding(CommonBindings::NamedComponentProp(ref s, _), _) => Some(
                 ElementEventProp(alias, prop.to_owned(), format!("props.{}", s)),
+            ),
+            ExpressionValue::Binding(CommonBindings::CurrentElementValue(_), _) => Some(
+                ElementEventProp(alias, prop.to_owned(), format!("_event.target.value"))
             ),
             _ => None,
         })
@@ -192,6 +206,11 @@ impl TryProcessFrom<ElementEventBinding<SourceExpression>>
         src: &ElementEventBinding<SourceExpression>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
+         eprintln!(
+            "TryProcess ElementEventBinding -> ElementEventBinding: src: {:?}",
+            src
+        );
+
         let formal_params: FormalParams<ProcessedExpression> =
             TryProcessFrom::try_process_from(&src.1, ctx)?;
 
@@ -215,6 +234,11 @@ impl TryProcessFrom<ElementEventBindingName<SourceExpression>>
         src: &ElementEventBindingName<SourceExpression>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
+         eprintln!(
+            "TryProcess ElementEventBindingName -> ElementEventBindingName: src: {:?}",
+            src
+        );
+
         let name = src.name().to_owned();
         let event_name = src.event_name().to_owned();
         let event: ElementEventBinding<ProcessedExpression> =
@@ -314,11 +338,18 @@ impl<T> ElementValueBinding<T> {
 impl<I, O> TryProcessFrom<ElementValueBinding<I>> for ElementValueBinding<O>
 where
     ExpressionValue<O>: TryProcessFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
 {
     fn try_process_from(
         src: &ElementValueBinding<I>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
+        eprintln!(
+            "TryProcess ElementValueBinding -> ElementValueBinding: src: {:?}",
+            src
+        );
+
         let read_expr = TryProcessFrom::try_process_from(&src.2, ctx)?;
 
         Ok(ElementValueBinding(
@@ -332,11 +363,18 @@ where
 impl<I, O> TryEvalFrom<ElementValueBinding<I>> for ElementValueBinding<O>
 where
     ExpressionValue<O>: TryEvalFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
 {
     fn try_eval_from(
         src: &ElementValueBinding<I>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
+        eprintln!(
+            "TryEval ElementValueBinding -> ElementValueBinding: src: {:?}",
+            src
+        );
+
         let read_expr = TryEvalFrom::try_eval_from(&src.2, ctx)?;
 
         Ok(ElementValueBinding(

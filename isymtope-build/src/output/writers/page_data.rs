@@ -133,9 +133,8 @@ impl InternalTemplateDataBuilder {
                 ctx.push_child_scope();
 
                 eprintln!("[page_templates] enumerating path aliases");
-                for (alias, expr) in event_prop_aliases {
+                for (alias, _) in event_prop_aliases {
                     let binding: CommonBindings<ProcessedExpression> = CommonBindings::PathAlias(alias.to_owned(), Default::default());
-                    // let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, &mut ctx)?;
                     let expr = ExpressionValue::Expression(Expression::RawPath(
                         alias,
                         Default::default(),
@@ -145,6 +144,7 @@ impl InternalTemplateDataBuilder {
 
                 eprintln!("[page_templates] enumerating actions");
                 for action in actions {
+                    eprintln!("[page_templates] event action: {:?}", action);
                     bytes.truncate(0);
                     js_writer.write_object(&mut bytes, &mut ctx, action)?;
 
@@ -299,6 +299,8 @@ impl InternalTemplateDataBuilder {
         let root_block = doc.root_block();
         html_writer.write_object(&mut bytes, &mut ctx, root_block)?;
 
+        // TODO: Add this to Template as generationId
+        let page_body_key = allocate_element_key();
         let page_body_html = str::from_utf8(bytes.as_slice())?.to_owned();
 
         // eprintln!("InternalTemplateRenderer page_body_html: {}", page_body_html);
@@ -324,6 +326,7 @@ impl InternalTemplateDataBuilder {
             query_params: query_params,
             query_bodies: query_bodies,
             page_render_func_body: page_render_func_body,
+            page_body_key: page_body_key,
             page_body_html: page_body_html,
         })
     }

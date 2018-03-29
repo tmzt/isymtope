@@ -29,6 +29,11 @@ where
         src: &ActionOp<I>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
+         eprintln!(
+            "TryProcess ActionOp -> ActionOp: src: {:?}",
+            src
+        );
+
         match *src {
             ActionOp::DispatchAction(ref a, Some(box ref b), _) => Ok(ActionOp::DispatchAction(
                 a.to_owned(),
@@ -70,6 +75,11 @@ where
     T: Debug,
 {
     fn try_eval_from(src: &ActionOp<T>, ctx: &mut OutputContext) -> DocumentProcessingResult<Self> {
+         eprintln!(
+            "TryEval ActionOp -> ActionOp: src: {:?}",
+            src
+        );
+
         match *src {
             ActionOp::DispatchAction(ref a, Some(box ref b), _) => Ok(ActionOp::DispatchAction(
                 a.to_owned(),
