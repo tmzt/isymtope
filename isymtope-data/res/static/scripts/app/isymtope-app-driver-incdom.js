@@ -19,9 +19,9 @@ function markExisting(nodes) {
 }
 
 class IsymtopeAppDriverIncDom extends IsymtopeAppDriver {
-    constructor() {
+    constructor(rootDiv) {
         super()
-        this._rootDiv = null
+        this.bindRootDiv(rootDiv)
     }
 
     bindRootDiv(rootDiv) {

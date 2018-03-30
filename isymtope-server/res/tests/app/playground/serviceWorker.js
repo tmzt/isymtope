@@ -46,6 +46,8 @@ function injectScript(content, frameId) {
                 document.body.innerHTML = doc.body.innerHTML;
                 mergeScripts(headScr, document.head, true);
                 mergeScripts(bodyScr, document.body, false);
+
+                Isymtope.app().update().then(() => e.ports[0].postMessage({}))
             } } else { if (_onmessage) { _onmessage.apply(window, [].slice.call(arguments)) } } }}())</script>`
     return content.replace(/<\/head>/, script)
 }

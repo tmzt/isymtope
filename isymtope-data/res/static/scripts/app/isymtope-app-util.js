@@ -1,4 +1,6 @@
 
+const classes = obj => Object.entries(obj).map(([_key, _value]) => !!_value ? _key : undefined).filter(Boolean).join(' ')
+
 function pipe(...fns){
     return xf => {
         for(let l=fns.length, i=0; i<l; i++ ) {
@@ -116,6 +118,7 @@ const maxBy = (f = o => o, arr) => reduce(Math.max, 0, map(f, arr))
 const maxByFunc = f => arr => maxBy(f, arr)
 
 Object.assign(exports, {
+    classes,
     pipe,
     pipeGen,
     first,
