@@ -13,14 +13,14 @@ addons:
 
 before_script:
   - rustup target add x86_64-unknown-linux-musl --toolchain nightly
-  - ([ "${BUILD_WASM}x" -eq "1x" ] && rustup target add wasm32-unknown-unknown --toolchain nightly && cargo install --force wasm-gc)
+  - if [[ "x$BUILD_WASM" == "xtrue" ]]; then rustup target add wasm32-unknown-unknown --toolchain nightly; cargo install --force wasm-gc; fi
 
 script:
   - echo "Building isymtope-server..."
   - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl --features playground_api)
   - echo "Building isymtope-cli and precached app pages..."
   - (cd $TRAVIS_BUILD_DIR && ./scripts/build-prerender-apps.sh)
-  - ([ "${BUILD_WASM}x" -eq "1x" ] && cd $TRAVIS_BUILD_DIR && ./scripts/build-wasm.sh)
+  - if [[ "x$BUILD_WASM" == "xtrue" ]]; then ./scripts/build-wasm.sh; fi
 
 before_deploy:
   - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
@@ -59,6 +59,6 @@ env:
     - KUBE_DEPLOYMENT_NAME=isymtope-demo
     - KUBE_DEPLOYMENT_CONTAINER_NAME=isymtope-demo
 
-    - BUILD_WASM=0
+    - BUILD_WASM=false
     - WORKER_APP_BASE_URL=https://playground.isymtope.org/app/playground/_worker/app
     - RESOURCES_BASE_URL=https://playground.isymtope.org/resources/app/
