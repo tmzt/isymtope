@@ -26,7 +26,7 @@ class IsymtopeAppPrivate {
     constructor(driver) {
         this._generationId = null
 
-        this._driver = new driver()
+        this._driver = driver
         this._router = new IsymtopeAppRouter()
         this._store = null
         this._opts = createDefaultOpts()
@@ -47,15 +47,14 @@ class IsymtopeAppPrivate {
         return this
     }
 
-    configure(generationId, rootDiv, render, routes, createRootReducer, createEvents, extraMiddleware = []) {
-        const lastGeneration = this._generationId
-        if (lastGeneration == generationId) {
+    configure(render, routes, createRootReducer, createEvents, extraMiddleware = []) {
+        const rootDiv = document.querySelector('body')
+        const generationId = rootDiv.getAttribute('key')
+
+        if (this._generationId == generationId) {
             return
         }
-        this._lastGeneration = lastGeneration
-        this._generationId = generationId
 
-        this._driver.bindRootDiv(rootDiv)
         this._router.routes = routes
         this._createRootReducer = createRootReducer
         this._createEvents = createEvents
@@ -71,21 +70,31 @@ class IsymtopeAppPrivate {
         return this._store
     }
 
-    async run(dispatchDefault = false) {
-        const store = this.store
+    async update() {
+        const rootDiv = document.querySelector('body')
+        const generationId = rootDiv.getAttribute('data-generation') || rootDiv.getAttribute('key')
 
-        if (this._lastGeneration !== this._generationId) {
-            const events = this._createEvents(store)
-            this._eventKeys = Object.keys(events)
-            if (this._eventKeys) {
-                this._eventKeys.forEach(k => window[k] = undefined)
-            }
-            Object.assign(window, events)
-            Object.assign(window, { _events: events })
+        if (this._generationId == generationId) {
+            return
         }
+        this._lastGeneration = this._generationId
+        this._generationId = generationId
 
+        this._driver.bindRootDiv(rootDiv)
+
+        const store = this.store
+        const events = this._createEvents(store)
+        const oldKeys = Object.keys(window._events)
+        oldKeys.forEach(k => { delete window._events[k] })
+        Object.assign(window._events, events)
+    }
+
+    async run(dispatchDefault = false) {
+        await this.update()
+
+        const store = this.store
         const hooks = this._opts.beforeRoutingHooks || []
-        await Promise.all(hooks.map(fn => fn(this._store)))
+        await Promise.all(hooks.map(fn => fn(this.store)))
 
         const navigate = this._router.navigate
         const optDispatch = this._opts.alwaysNavigateToDefaultRoute && this._opts.defaultRoute
@@ -97,16 +106,17 @@ class IsymtopeAppPrivate {
 }
 
 let _app = null
-let _driver = null
+let _driverFactory = null
 
 class Isymtope {
-    static setDriver(driver) {
-        _driver = driver
+    static setDriverFactory(driverFactory) {
+        _driverFactory = driverFactory
     }
 
     static app() {
         if (_app == null) {
-            _app = new IsymtopeAppPrivate(_driver)
+            const driver = _driverFactory()
+            _app = new IsymtopeAppPrivate(driver)
         }
 
         return _app
