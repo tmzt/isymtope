@@ -181,6 +181,22 @@ body a {
 #preview {  z-index: 100; }
 #previewComponent.showLoading #previewOverlay { display: block; }
 
+#compilationErrorOverlay {
+    z-index: 300;
+    position: absolute;
+    top: 20px;
+    width: calc(100% - 40px);
+    background: rgba(130, 130, 130, 0.7);
+    color: black;
+    border-radius: 6px 6px;
+    margin: 0 20px;
+    padding: 20px;
+    display: none;
+}
+#compilationErrorOverlay.show {
+    display: block;
+}
+
 .editorFiles { list-style-type: none; padding-left: 0; margin: 0; position: relative; }
 .editorFiles li { font-size: 14px; display: inline-block; margin-right: 10px; }
 .editorFiles li a { color: #606c76; text-decoration: none; margin-bottom: 1px; }

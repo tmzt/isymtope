@@ -8,7 +8,7 @@ class CompilerService
     async prepareService() {
     }
 
-    startCompilation(opts, cb) {
+    async startCompilation(opts) {
         throw new Error('Unimplemented')
     }
 }
@@ -19,33 +19,52 @@ class WasmCompilerService extends CompilerService
         return getOrRegisterCompilerWorker()
     }
 
-    async startCompilation(opts, cb) {
-        let compilerWorker = await getOrRegisterCompilerWorker()
-        let completion = new MessageChannel()
-        let compileReq = {
-            topic: '/compilerWorker/compile',
-            source,
-            pathname: '',
-            mimeType: 'text/html',
-            app_name,
-            baseUrl,
-            template_path,
-            path
-        }
+    async startCompilation(opts) {
+        const compilerWorker = await getOrRegisterCompilerWorker()
 
-        completion.onmessage = data => cb(data.content)
+        return new Promise((resolve, reject) => {
+            let completion = new MessageChannel()
+            let compileReq = {
+                topic: '/compilerWorker/compile',
+                source,
+                pathname: '',
+                mimeType: 'text/html',
+                app_name,
+                baseUrl,
+                template_path,
+                path
+            }
+
+            completion.onmessage = data => {
+                if (data.error) {
+                    resolve(data.content)
+                } else {
+                    reject(data.error)
+                }
+            }
+        })
+    }
+}
+
+class CompilationError extends Error {
+    constructor(err) {
+        super()
     }
 }
 
 class RemoteCompilerService extends CompilerService
 {
-    async startCompilation(opts, cb) {
-        return fetch(apiUrl + 'compile', {
-                method: 'POST',
-                body: opts.source
-            })
-            .then(resp => resp.text())
-            .then(cb)
+    startCompilation(opts) {
+        return new Promise((resolve, reject) =>
+            fetch(apiUrl +'compile', { method: 'POST', body: opts.source })
+                .then(async resp => {
+                    if (!resp.ok) {
+                        return reject(await resp.text())
+                        // return reject(new CompilationError(await resp.text()))
+                    }
+
+                    return resolve(resp.text())
+                }))
     }
 }
 
@@ -129,9 +148,11 @@ async function compileCurrent() {
     let templatePath = '/app.ism'
     let path = '/'
 
-    setCompiling(true)
-
     let opts = { source, appName, baseUrl, templatePath, path }
+
+    setCompiling(true)
+    setCompilationStatus(true)
+
     return startCompilation(opts)
 }
 
@@ -234,7 +255,13 @@ function compilerReducer(state, action) {
             let path = '/'
 
             setCompiling(true)
-            startCompilation(source, appName, baseUrl, templatePath, path)
+            setCompilationStatus(true)
+            try {
+                startCompilation(source, appName, baseUrl, templatePath, path)
+            } catch(ex) {
+                console.log(`[compiler] Remote compiler error: ${ex.message}`)
+                setCompilationStatus(false, ex.message)
+            }
             return true;
         default: return null
     }
@@ -244,12 +271,19 @@ async function startCompilation(opts) {
     let compilerService = await getCompilerService()
 
     setCompiling(true)
-    compilerService.startCompilation(opts, content => {
+    setCompilationStatus(true, "")
+    return compilerService.startCompilation(opts)
+        .then(content => {
                     setCompiling(false)
                     if (_shouldUpdate) {
                         setPreviewContent(content)
                     }
-    })
+        })
+        .catch(err => {
+            console.log(`[compiler] Remote compiler error: ${err}`)
+            setCompiling(false)
+            setCompilationStatus(false, err)
+        })
 }
 
 async function updatePreviewResource(pathname, fileId) {
@@ -337,6 +371,14 @@ async function getEditor() {
 function setCompiling(v) {
     let component = document.querySelector('#previewComponent')
     component.classList.toggle('showLoading', v)
+}
+
+function setCompilationStatus(successful, err_text) {
+    const compilation = document.querySelector('#compilationErrorOverlay')
+    compilation.classList.toggle('show', !successful)
+    if (!successful) {
+        compilation.querySelector('.err_text').innerText = err_text
+    }
 }
 
 let _shouldUpdate = false

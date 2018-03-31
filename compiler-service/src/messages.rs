@@ -1,3 +1,4 @@
+use isymtope_generate::*;
 
 #[derive(Debug)]
 pub enum CompilerRequestMsg {
@@ -6,5 +7,5 @@ pub enum CompilerRequestMsg {
 
 #[derive(Debug)]
 pub enum CompilerResponseMsg {
-    CompileComplete(String)
+    CompileComplete(IsymtopeGenerateResult<String>)
 }
