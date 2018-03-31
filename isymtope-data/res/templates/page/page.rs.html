@@ -16,20 +16,20 @@
   @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\"></script>"))
     <script data-isymtope-lib>
 "use strict";
-const classes = obj => Object.entries(obj).map(([_key, _value]) => !!_value ? _key : undefined).filter(Boolean).join(' ')
 
-let _exports = Object.create(null);
-@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-router.js"))));
-@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver.js"))));
-@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver-incdom.js"))));
-@Html(format!("(function(exports){{{}}}(_exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app.js"))));
+window._exports = Object.create(null);
+@Html(format!("(function(exports){{{}}}(window._exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-router.js"))));
+@Html(format!("(function(exports){{{}}}(window._exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver.js"))));
+@Html(format!("(function(exports){{{}}}(window._exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-driver-incdom.js"))));
+@Html(format!("(function(exports){{{}}}(window._exports))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app.js"))));
 window.Isymtope = _exports.Isymtope
-Isymtope.setDriver(_exports.IsymtopeAppDriverIncDom)
+Isymtope.setDriverFactory(() => new _exports.IsymtopeAppDriverIncDom(document.querySelector('body')))
 
-let _utils = Object.create(null);
-@Html(format!("(function(exports){{{}}}(_utils))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-util.js"))));
+window._utils = Object.create(null);
+@Html(format!("(function(exports){{{}}}(window._utils))", include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/isymtope-app-util.js"))));
 Object.assign(window, _utils)
 
+window._events = Object.create(null);
 </script>
 </head>
 <body key="@data.page_body_key">
@@ -142,11 +142,8 @@ Object.assign(window, _utils)
       Object.assign(_global, _exports)
       _global._exportedKeys = Object.keys(_exports)
 
-      let rootDiv = document.querySelector('body')
-      let generationId = rootDiv.getAttribute('key')
-
       Isymtope.app()
-        .configure(generationId, rootDiv, render, createRoutes(), createRootReducer, createEvents, middleware)
+        .configure(render, createRoutes(), createRootReducer, createEvents, middleware)
 
       window.addEventListener('DOMContentLoaded', () => Isymtope.app().run())
 

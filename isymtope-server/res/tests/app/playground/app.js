@@ -384,13 +384,20 @@ function setCompilationStatus(successful, err_text) {
 let _shouldUpdate = false
 
 function setPreviewContent(content) {
-    let iframe = document.querySelector('iframe#preview')
-    // iframe.contentWindow.postMessage({type: 'replaceHtml', body}, '*')
-    let msg = { _mergeDoc: content }
-    msg[`_previewIframe${_frameId}`] = true
-    iframe.contentWindow.postMessage(msg, window.origin)
+    return new Promise(resolve => {
+        const completion = new MessageChannel()
+        const wrapper = document.querySelector('#previewWrap')
+        const iframe = document.querySelector('iframe#preview')
 
-    document.querySelector('#previewWrap').classList.remove('isPrerender')
+        const msg = { _mergeDoc: content, [`_previewIframe${_frameId}`]: true }
+        iframe.contentWindow.postMessage(msg, window.origin, [completion.port2])
+
+        completion.port1.onmessage = () => {
+            console.log('[setPreviewContent] got completion message from iframe')
+            wrapper.classList.remove('isPrerender')
+            resolve()
+        }
+    })
 }
 
 function injectScript(content) {
