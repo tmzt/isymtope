@@ -7,11 +7,11 @@ use isymtope_ast_common::*;
 #[derive(Debug, Fail)]
 pub enum IsymtopeGenerateError {
     #[fail(display = "Internal error: IOError")]
-    IOError(IOError),
+    IOError(#[cause] IOError),
     #[fail(display = "Internal error: Utf8 error")]
-    Utf8Error(Utf8Error),
+    Utf8Error(#[cause] Utf8Error),
     #[fail(display = "Internal error: document processing error")]
-    DocumentProcessingError(DocumentProcessingError),
+    DocumentProcessingError(#[cause] DocumentProcessingError),
 
     #[fail(display = "Error rendering internal template")]
     InternalRenderError(String),

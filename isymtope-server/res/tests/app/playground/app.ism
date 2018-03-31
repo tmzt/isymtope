@@ -85,6 +85,9 @@ component preview() {
             span(id="previewStatusMsg") { ("Prerendered preview, choose Compile to rebuild") }
         }
         div(id="previewComponent") {
+            div(id="compilationErrorOverlay") {
+                span(class="err_text") {}
+            }
             iframe(id="preview", src="about:blank") {}
             div(id="previewOverlay") {
                 span(class="loadingImg") {}

@@ -1,5 +1,8 @@
+use std::error::Error;
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::str;
+
+use failure::Fail;
 
 use futures::{self, future, Future, Stream};
 use hyper::{Request, Response};
@@ -11,6 +14,7 @@ use hyper::StatusCode;
 
 use tokio_core::reactor::Handle;
 
+use isymtope_ast_common::*;
 use isymtope_generate::*;
 use compiler_service::*;
 use super::*;
@@ -50,44 +54,7 @@ pub struct PlaygroundApiService {
     handle: Handle,
 }
 
-// fn process_body(req: Request) -> impl Future<Item = String, Error = HyperError> {
-//     req.body()
-//         .map_err(|_|
-//             HyperError::Io(IOError::new(
-//                 IOErrorKind::Other,
-//                 "Failed making request to compiler service.",
-//             ))
-//         )
-//         .map(|chunk| {
-//             println!("==> CHUNK: {}", String::from_utf8(chunk.to_vec()).unwrap());
-//             chunk
-//         })
-//         // .fold(Vec::with_capacity(8192 * 4), |mut vector, chunk| {
-//         .fold(Vec::new(), |mut vector, chunk| {
-//             vector.extend_from_slice(&chunk);
-
-//             Ok(vector)
-//         })
-//         .and_then(|vector| future::result(String::from_utf8(vector))
-//             .map_err(|_: std::string::FromUtf8Error|
-//                 HyperError::Io(IOError::new(
-//                     IOErrorKind::Other,
-//                     "Failed making request to compiler service.",
-//                 ))))
-
-//     // req.body().concat2().and_then(|s| str::from_utf8(&s)
-//     //                             .map_err(|_| {
-//     //                                     HyperError::Io(IOError::new(
-//     //                                         IOErrorKind::Other,
-//     //                                         "Failed making request to compiler service.",
-//     //                                     ))
-//     //                             })
-//     //                             .map(|s| s.to_owned()))
-// }
-
 fn send_request(sender: &CompilerRequestChannel, source: &str, app_name: &str) -> impl Future<Item = IsymtopeGenerateResult<CompilerResponseMsg>, Error = HyperError> {
-    // let app_base_url = "/app/playground/preview-1bcx1".into();
-    // let app_name: String = "todomvc".into();
     let app_base_url = format!("/app/playground/_worker/app/{}", app_name);
     let compiler_req = CompilerRequestMsg::CompileSource(source.to_owned(), app_base_url);
 
@@ -110,10 +77,26 @@ fn make_response(compiler_resp: IsymtopeGenerateResult<CompilerResponseMsg>) -> 
     println!("[playground api] compiler_resp: {:?}", compiler_resp);
 
     match compiler_resp {
-        Ok(CompilerResponseMsg::CompileComplete(body)) => {
-            response = Response::new()
-                .with_body(body)
-                .with_header(ContentType(mime::TEXT_HTML));
+        Ok(CompilerResponseMsg::CompileComplete(res)) => {
+            match res {
+                Ok(body) => {
+                    response = Response::new()
+                        .with_body(body)
+                        .with_header(ContentType(mime::TEXT_HTML));
+                }
+
+                Err(err) => {
+
+                    let err_text = err.cause()
+                            .and_then(|cause| cause.downcast_ref::<ParsingError>())
+                            .map(|err| err.description().to_owned())
+                        .unwrap_or_else(|| "Unknown error".to_owned());
+
+                    response = Response::new()
+                        .with_body(err_text)
+                        .with_status(StatusCode::InternalServerError);
+                }
+            }
         }
 
         _ => {
@@ -134,7 +117,7 @@ impl IsymtopeAppService for PlaygroundApiService {
     type Error = HyperError;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
-    fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
+    fn call(&self, _: &str, app_name: &str, req: Request) -> Self::Future {
         match req.method() {
             &Post => {
                 let sender = self.sender.clone();

@@ -1,4 +1,5 @@
-use std::fmt::Error as FormatError;
+use std::error::Error;
+use std::fmt::{self, Display};
 use std::str::Utf8Error;
 use std::io::Error as IOError;
 
@@ -17,14 +18,27 @@ impl ParsingError {
     }
 }
 
+impl Error for ParsingError {
+    fn description(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for ParsingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
 #[derive(Debug, Fail)]
 pub enum DocumentProcessingError {
     #[fail(display = "Error parsing template")]
-    ParsingError(ParsingError),
+    ParsingError(#[cause] ParsingError),
+
     #[fail(display = "IO Error occured")]
     IOError(IOError),
     #[fail(display = "Error formatting template")]
-    FormatError(FormatError),
+    FormatError(fmt::Error),
 
     #[cfg(feature = "types")]
     #[fail(display = "Type error")]
