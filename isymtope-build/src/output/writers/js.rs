@@ -250,7 +250,8 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
 
         // write_pipeline_head(self, w, ctx, obj.head())?;
         // write!(w, "ng.toArray(ng.compose(")?;
-        write!(w, "pipeGen(")?;
+        // write!(w, "pipeGen(")?;
+        write!(w, "pipe(")?;
 
         let mut first = true;
         if obj.has_components() {
@@ -261,9 +262,9 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
                 first = false;
             }
         };
-        write!(w, ")(")?;
+        write!(w, ")(values(")?;
         self.write_object(w, ctx, obj.head())?;
-        write!(w, ")")?;
+        write!(w, "))")?;
 
         Ok(())
     }
@@ -285,7 +286,8 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
             obj
         );
 
-        write!(w, "pipeGen(")?;
+        // write!(w, "pipeGen(")?;
+        write!(w, "pipe(")?;
         let mut first = true;
 
         for component in obj.components() {
@@ -293,9 +295,9 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
             self.write_object(w, ctx, component)?;
             first = false;
         }
-        write!(w, ")(")?;
+        write!(w, ")(values(")?;
         self.write_object(w, ctx, obj.head())?;
-        write!(w, ")")?;
+        write!(w, "))")?;
 
         Ok(())
     }
@@ -358,9 +360,9 @@ impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for Defau
                 Ok(())
             }
 
-            FilterComponentValue::Unique(ref wc, _) => {
-                write!(w, "_utils.unique(_item => ")?;
-                self.write_object(w, ctx, wc)?;
+            FilterComponentValue::Unique(ref mapping, _) => {
+                write!(w, "_utils.uniqFunc(_item => ")?;
+                self.write_object(w, ctx, mapping)?;
                 write!(w, ")")?;
 
                 Ok(())
@@ -635,11 +637,17 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             &ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _),
                             _,
                         ) => {
-                            write!(w, "Array.from(values(")?;
+                            write!(w, "flatten(values(")?;
                             self.write_object(w, ctx, a)?;
-                            write!(w, ")).concat(")?;
+                            write!(w, "), ")?;
                             self.write_object(w, ctx, b)?;
                             write!(w, ")")?;
+
+                            // write!(w, "Array.from(values(")?;
+                            // self.write_object(w, ctx, a)?;
+                            // write!(w, ")).concat(")?;
+                            // self.write_object(w, ctx, b)?;
+                            // write!(w, ")")?;
 
                             return Ok(());
                         }
@@ -1355,15 +1363,15 @@ impl ObjectWriter<ReducerAction<ProcessedExpression>, JsOutput> for DefaultJsWri
         let expr = action.expr();
 
         if expr.is_none() {
-            write!(w, "return state || null;")?;
+            write!(w, "state || null;")?;
             return Ok(());
         };
 
         let expr = expr.unwrap();
 
-        write!(w, "return state || ")?;
+        write!(w, "asMap(undefined, ")?;
         self.write_object(w, ctx, expr)?;
-        write!(w, ";")?;
+        write!(w, ")")?;
 
         Ok(())
     }

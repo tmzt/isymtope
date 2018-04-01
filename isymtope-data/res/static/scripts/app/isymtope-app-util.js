@@ -69,19 +69,20 @@ function* filter(f, arr) {
     }
 }
 
-function* uniq(arr) {
-    let values = new Set()
-    for(let value of arr) {
-        if (!values.has(value)) {
-            values.add(value)
-            yield value
+function* uniq(f = e => e, arr) {
+    let keys = new Set()
+    for(let item of arr) {
+        let key = f(item)
+        if (!keys.has(key)) {
+            keys.add(key)
+            yield item
         }
     }
 }
 
 function setObject(values = {}, wc = () => true, arr) {
     const valueFunc = "function" === typeof values ? values : () => values
-    return map(o => wc(o) ? Object.assign({}, valueFunc(o)) : o, arr)
+    return map(o => wc(o) ? Object.assign({}, o, valueFunc(o)) : o, arr)
 }
 
 function values(obj) {
@@ -93,18 +94,60 @@ function values(obj) {
         return obj
     }
 
-    if (obj instanceof Iterator) {
+    if (typeof obj[Symbol.iterator] === 'function') {
         return obj
     }
 
     return Array.of(obj)
 }
 
+function asMap(f = e => (Array.isArray(e) && e.length == 2) ? e : e.id, obj) {
+    if (obj instanceof Map) {
+        return obj
+    }
+
+    if (obj instanceof Array || 'function' === typeof obj[Symbol.iterator]) {
+        return new Map(map(e => [f(e), e], obj))
+    }
+}
+
+// function* flatten() {
+//     const args = arguments || []
+//     for(const obj of args) {
+//         if (obj instanceof Array || 'function' === typeof obj[Symbol.iterator]) {
+//             for(const el of flatten(obj)) {
+//                 yield el
+//             }
+//         } else {
+//             yield obj
+//         }
+//     }
+// }
+
+function* flatten() {
+    const [first, ...rest] = arguments;
+  
+    if ('function' === typeof first[Symbol.iterator]) {
+        for (const item of first) {
+            console.log(item)
+            yield* flatten(item)
+        }
+    } else if (first instanceof Array && first.length) {
+      yield* flatten(first);
+    } else if (!(first instanceof Array)) {
+      yield first;
+    }
+  
+    if (rest instanceof Array && rest.length) {
+      yield* flatten(rest);
+    }
+  }
+
 const mapFunc = f => arr => map(f, arr)
 const enumerateFunc = arr => enumerate(arr)
 const takeFunc = n => arr => take(n, arr)
 const filterFunc = f => arr => filter(f, arr)
-const uniqFunc = arr => uniq(arr)
+const uniqFunc = f => arr => uniq(f, arr)
 const min = arr => reduce(Math.min, 0, arr)
 const max = arr => reduce(Math.max, 0, arr)
 const count = arr => reduce(a => a + 1, 0, arr)
@@ -116,6 +159,8 @@ const minBy = (f = o => o, arr) => reduce(Math.min, 0, map(f, arr))
 const minByFunc = f => arr => minBy()
 const maxBy = (f = o => o, arr) => reduce(Math.max, 0, map(f, arr))
 const maxByFunc = f => arr => maxBy(f, arr)
+
+const asMapFunc = f => obj => asMap(f, obj)
 
 Object.assign(exports, {
     classes,
@@ -145,5 +190,8 @@ Object.assign(exports, {
     countIfFunc,
     setObject,
     setObjectFunc,
-    values
+    values,
+    asMap,
+    asMapFunc,
+    flatten
 })

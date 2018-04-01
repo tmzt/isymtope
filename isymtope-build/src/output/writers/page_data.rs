@@ -214,7 +214,8 @@ impl InternalTemplateDataBuilder {
                             let name = action.name().to_uppercase();
 
                             bytes.truncate(0);
-                            js_writer.write_object(&mut bytes, &mut ctx, expr)?;
+                            // Write the action, not the expression
+                            js_writer.write_object(&mut bytes, &mut ctx, action)?;
 
                             let value = str::from_utf8(bytes.as_slice())?;
                             eprintln!("Value: {}", value);

@@ -108,20 +108,13 @@ async function useModel() {
     window._editor.setModel(model)
 }
 
-// function attachEditorEvents(contentChanged) {
-//     _editor.onDidChangeModelContent(event => {
-//         console.log('Content changed', event)
-//         contentChanged()
-//     })
-// }
-
- function switchWorkspace(workspaceId) {
+async  function switchWorkspace(workspaceId) {
     if (_currentWorkspaceId === workspaceId) {  return }
-    setPreview(`/resources/app/${workspaceId}`, true)
-    let workspace = _workspaces.get(workspaceId)
+    const workspace = _workspaces.get(workspaceId)
     _currentFileId = workspace.index
     _currentWorkspaceId = workspaceId
-    return useModel()
+    await useModel()
+    return initializePreviewFrame(`/app/${workspaceId}`)
 }
 
  function switchFile(fileId) {
