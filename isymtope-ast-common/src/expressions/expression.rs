@@ -1,19 +1,13 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::collections::HashSet;
-use std::iter;
 
 use itertools::Itertools;
 use itertools::FoldWhile::{Continue, Done};
-use itertools::join;
 
-use common::*;
 use error::*;
 use traits::*;
 use expressions::*;
-use objects::*;
 use ast::*;
-// use output::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -52,7 +46,7 @@ where
 {
     fn try_process_from(
         src: &CommonBindings<I>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
             CommonBindings::CurrentReducerState(_) => {
@@ -98,6 +92,7 @@ pub enum OuterShape {
     Singleton,
     Array,
     Object,
+    Map,
 }
 
 impl Default for OuterShape {
@@ -107,7 +102,7 @@ impl Default for OuterShape {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BindingShape<T>(CommonBindings<T>, OuterShape);
+pub struct BindingShape<T>(pub CommonBindings<T>, pub OuterShape);
 
 impl<T: Debug> BindingShape<T> {
     pub fn new(binding: CommonBindings<T>, shape: OuterShape) -> Self {
@@ -136,6 +131,9 @@ where
         ))
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ShapedExpressionValue<T>(pub OuterShape, pub ExpressionValue<T>);
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -191,6 +189,9 @@ impl<T> ExpressionValue<T> {
             }
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(..))) => {
                 OuterShape::Array
+            }
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(..))) => {
+                OuterShape::Map
             }
             _ => OuterShape::Singleton,
         }
@@ -268,7 +269,7 @@ where
 {
     fn try_process_from(
         src: &FormalParams<I>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(FormalParams(src.0.clone(), Default::default()))
     }
@@ -280,7 +281,7 @@ where
 {
     fn try_eval_from(
         src: &FormalParams<I>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(FormalParams(src.0.clone(), Default::default()))
     }
@@ -315,7 +316,6 @@ where
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(ParamValue(TryProcessFrom::try_process_from(&src.0, ctx)?))
-        // Ok(ParamValue(TryProcessFrom::try_process_from(&src.0)?, Default::default()))
     }
 }
 
@@ -496,35 +496,10 @@ pub struct MapValue<T>(pub Option<String>, pub Option<Box<Vec<ObjectValue<T>>>>)
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompositeValue<T> {
-    // ObjectValue(Option<Box<Vec<PropValue<T>>>>),
     ObjectValue(ObjectValue<T>),
-    // ArrayValue(Option<Box<Vec<ParamValue<T>>>>),
     ArrayValue(ArrayValue<T>),
-    // MapValue(Option<String>, Option<Box<Vec<ObjectValue<T>>>>),
-    // MapValue(Option<String>, ArrayOf<ObjectValue<T>>),
     MapValue(MapValue<T>)
 }
-
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// pub enum MapEntry<T> {
-//     Auto(String),
-//     Prop(PropValue<T>)
-// }
-
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// pub struct MapValue(Option<String)
-
-// impl<T> CompositeValue<T> {
-//     pub fn map_value(entries: Vec<MapEntry<T>>) -> Self {
-//         let auto = entries.iter().filter_map(|e| match *e { MapEntry::Auto(ref id) => Some(id.to_owned()), _ => None }).nth(0);
-//         let props: Vec<_> = entries.into_iter().filter_map(|e| match e { MapEntry::Prop(prop) => Some(prop), _ => None }).collect();
-//         let props = match props { _ if !props.is_empty() => Some(props), _ => None };
-
-//         // let props: Vec<_> = entries.and_then(|entries| entries.into_iter().filter_map(|e| match e { MapEntry::Prop(prop) => Some(prop), _ => None }).collect());
-
-//         CompositeValue::MapValue(auto, props.map(Box::new))
-//     }
-// }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct SourceExpression {}

@@ -210,12 +210,24 @@ impl InternalTemplateDataBuilder {
                     for action in v {
                         eprintln!("Action: {:?}", action);
 
-                        if let Some(expr) = action.expr() {
+                        if let Some(_) = action.expr() {
                             let name = action.name().to_uppercase();
+
+                            ctx.push_child_scope();
+
+                            if let Some(shape) = reducer.shape() {
+                                let shape = shape.clone();
+
+                                let binding = CommonBindings::CurrentReducerState(Default::default());
+                                let shaped: ExpressionValue<OutputExpression> = ExpressionValue::BindingShape(BindingShape(binding, shape), Default::default());
+                                ctx.bind_value(CommonBindings::CurrentReducerState(Default::default()), shaped)?;
+                            };
 
                             bytes.truncate(0);
                             // Write the action, not the expression
                             js_writer.write_object(&mut bytes, &mut ctx, action)?;
+
+                            ctx.pop_scope();
 
                             let value = str::from_utf8(bytes.as_slice())?;
                             eprintln!("Value: {}", value);

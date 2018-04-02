@@ -19,8 +19,9 @@ impl Default for ProcessingScopeEnvironment {
 
 pub trait ProcessingContext: Debug {
     fn template(&self) -> &Template;
-    fn add_reducer_key(&mut self, key: String) -> DocumentProcessingResult<()>;
+    fn add_reducer_key(&mut self, key: String, shape: Option<OuterShape>) -> DocumentProcessingResult<()>;
     fn is_reducer_key(&self, key: &str) -> DocumentProcessingResult<bool>;
+    fn get_reducer_shape(&self, key: &str) -> DocumentProcessingResult<Option<OuterShape>>;
 
     fn push_child_scope_with_environment(&mut self, environment: ProcessingScopeEnvironment);
     fn push_child_scope(&mut self);

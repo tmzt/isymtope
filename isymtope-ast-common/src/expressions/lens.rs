@@ -146,7 +146,7 @@ impl TryEvalFrom<LensValue<ProcessedExpression>> for ExpressionValue<OutputExpre
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
-            LensValue::ForLens(ref s, box ref a, _) => Err(try_eval_from_err!(
+            LensValue::ForLens(..) => Err(try_eval_from_err!(
                 "For lens cannot be evaluated as a value"
             )),
 

@@ -596,9 +596,13 @@ impl TryProcessFrom<Template> for Document {
         // Add reducer keys to context so they are available to lenses
         //
 
-        for reducer_key in reducers.keys() {
-            ctx.add_reducer_key(reducer_key.to_owned())?;
+        for (key, value) in reducers.iter() {
+            ctx.add_reducer_key(key.to_owned(), value.shape().to_owned())?;
         }
+
+        // for reducer_key in reducers.keys() {
+        //     ctx.add_reducer_key(reducer_key.to_owned())?;
+        // }
 
         // Queries
         let queries: Vec<_> = ast.children()

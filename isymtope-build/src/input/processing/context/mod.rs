@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::hash::Hash;
 use std::cmp::Eq;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use linked_hash_map::LinkedHashMap;
 
@@ -24,6 +24,7 @@ pub struct DefaultProcessingContext<T: Hash + Eq> {
 
     // reducers: LinkedHashMap<String, Reducer<ProcessedExpression>>,
     reducer_keys: HashSet<String>,
+    reducer_shapes: HashMap<String, OuterShape>,
     default_reducer_key: Option<String>,
 }
 
@@ -32,14 +33,22 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
         self.template.as_ref()
     }
 
-    fn add_reducer_key(&mut self, key: String) -> DocumentProcessingResult<()> {
-        self.reducer_keys.insert(key);
+    fn add_reducer_key(&mut self, key: String, shape: Option<OuterShape>) -> DocumentProcessingResult<()> {
+        self.reducer_keys.insert(key.clone());
+        if let Some(shape) = shape {
+            self.reducer_shapes.insert(key, shape);
+        };
+
         Ok(())
     }
 
     fn is_reducer_key(&self, key: &str) -> DocumentProcessingResult<bool> {
         let res = self.reducer_keys.contains(key);
         Ok(res)
+    }
+
+    fn get_reducer_shape(&self, key: &str) -> DocumentProcessingResult<Option<OuterShape>> {
+        Ok(self.reducer_shapes.get(key).map(|shape| shape.to_owned()))
     }
 
     fn push_child_scope_with_environment(&mut self, environment: ProcessingScopeEnvironment) {
@@ -191,6 +200,7 @@ impl<T: Hash + Eq> DefaultProcessingContext<T> {
 
             // reducers: Default::default(),
             reducer_keys: Default::default(),
+            reducer_shapes: Default::default(),
             default_reducer_key: None,
         };
 

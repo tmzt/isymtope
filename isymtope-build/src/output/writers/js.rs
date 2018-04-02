@@ -236,6 +236,103 @@ where
     Ok(())
 }
 
+fn get_binding_shape(ctx: &mut OutputContext, binding: &CommonBindings<ProcessedExpression>) -> DocumentProcessingResult<Option<OuterShape>> {
+    if let Some(ExpressionValue::BindingShape(BindingShape(_, ref shape), _)) = ctx.find_value(binding)? {
+        return Ok(Some(shape.to_owned()));
+    };
+
+    Ok(None)
+}
+
+fn get_current_reducer_shape(ctx: &mut OutputContext) -> DocumentProcessingResult<Option<OuterShape>> {
+    let binding = CommonBindings::CurrentReducerState(Default::default());
+    get_binding_shape(ctx, &binding)
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct EvaluateValue<T>(pub ExpressionValue<T>);
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct ReducerOutputValue<T>(pub ExpressionValue<T>);
+
+impl ObjectWriter<EvaluateValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &EvaluateValue<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        let shape = match obj.0 {
+            ExpressionValue::Binding(ref binding, _) => get_binding_shape(ctx, binding)?,
+            _ => None
+        };
+
+        match shape {
+            Some(OuterShape::Array) | Some(OuterShape::Map) => {
+                write!(w, ")(values(")?;
+                self.write_object(w, ctx, &obj.0)?;
+                write!(w, "))")?;
+            }
+
+            _ => {
+                self.write_object(w, ctx, &obj.0)?;
+            }
+        };
+
+        Ok(())
+    }
+}
+
+impl ObjectWriter<ReducerOutputValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ReducerOutputValue<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        let shape = get_current_reducer_shape(ctx)?;
+
+        if shape == Some(OuterShape::Array) || shape == Some(OuterShape::Map) {
+            write!(w, "asMap(undefined, ")?;
+            self.write_object(w, ctx, &obj.0)?;
+            write!(w, ")")?;
+        } else {
+            self.write_object(w, ctx, &obj.0)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ObjectWriter<ShapedExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ShapedExpressionValue<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        match obj.0 {
+            OuterShape::Array => {
+                write!(w, ")(values(")?;
+                self.write_object(w, ctx, &obj.1)?;
+                write!(w, "))")?;
+            }
+
+            OuterShape::Map => {
+                write!(w, ")(values(")?;
+                self.write_object(w, ctx, &obj.1)?;
+                write!(w, "))")?;
+            }
+
+            _ => {
+                self.write_object(w, ctx, &obj.1)?;
+            }
+        };
+
+        Ok(())
+    }
+}
+
 impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
@@ -262,9 +359,13 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
                 first = false;
             }
         };
-        write!(w, ")(values(")?;
-        self.write_object(w, ctx, obj.head())?;
-        write!(w, "))")?;
+
+        let write_shape = EvaluateValue(obj.head().to_owned());
+        self.write_object(w, ctx, &write_shape)?;
+
+        // write!(w, ")(values(")?;
+        // self.write_object(w, ctx, obj.head())?;
+        // write!(w, "))")?;
 
         Ok(())
     }
@@ -295,9 +396,11 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
             self.write_object(w, ctx, component)?;
             first = false;
         }
-        write!(w, ")(values(")?;
-        self.write_object(w, ctx, obj.head())?;
-        write!(w, "))")?;
+        // write!(w, ")(values(")?;
+        // self.write_object(w, ctx, obj.head())?;
+        // write!(w, "))")?;
+        let write_shape = EvaluateValue(obj.head().to_owned());
+        self.write_object(w, ctx, &write_shape)?;
 
         Ok(())
     }
@@ -1400,7 +1503,6 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             }
 
             ElementOp::MapInstanceComponent(ref comp_desc, ref item_key, ref coll, _) => {
-                // write!(w, "for (const _item of ng.toArray(ng.compose(mapItem, enumerate), ")?;
                 write!(w, "for (const _item of enumerate(values(")?;
                 self.write_object(w, ctx, coll)?;
                 writeln!(w, "))) {{")?;
@@ -1433,9 +1535,8 @@ impl ObjectWriter<ReducerAction<ProcessedExpression>, JsOutput> for DefaultJsWri
 
         let expr = expr.unwrap();
 
-        write!(w, "asMap(undefined, ")?;
-        self.write_object(w, ctx, expr)?;
-        write!(w, ")")?;
+        let reducer_output = ReducerOutputValue(expr.to_owned());
+        self.write_object(w, ctx, &reducer_output)?;
 
         Ok(())
     }
