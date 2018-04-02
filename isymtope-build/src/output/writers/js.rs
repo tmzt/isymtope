@@ -269,9 +269,9 @@ impl ObjectWriter<EvaluateValue<ProcessedExpression>, JsOutput> for DefaultJsWri
 
         match shape {
             Some(OuterShape::Array) | Some(OuterShape::Map) => {
-                write!(w, ")(values(")?;
+                write!(w, "values(")?;
                 self.write_object(w, ctx, &obj.0)?;
-                write!(w, "))")?;
+                write!(w, ")")?;
             }
 
             _ => {
@@ -312,16 +312,10 @@ impl ObjectWriter<ShapedExpressionValue<ProcessedExpression>, JsOutput> for Defa
         obj: &ShapedExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match obj.0 {
-            OuterShape::Array => {
-                write!(w, ")(values(")?;
+            OuterShape::Array | OuterShape::Map => {
+                write!(w, "values(")?;
                 self.write_object(w, ctx, &obj.1)?;
-                write!(w, "))")?;
-            }
-
-            OuterShape::Map => {
-                write!(w, ")(values(")?;
-                self.write_object(w, ctx, &obj.1)?;
-                write!(w, "))")?;
+                write!(w, ")")?;
             }
 
             _ => {
@@ -345,11 +339,8 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
             obj
         );
 
-        // write_pipeline_head(self, w, ctx, obj.head())?;
-        // write!(w, "ng.toArray(ng.compose(")?;
-        // write!(w, "pipeGen(")?;
+        // Construct composite pipeline (function)
         write!(w, "pipe(")?;
-
         let mut first = true;
         if obj.has_components() {
             let components = obj.components();
@@ -359,13 +350,13 @@ impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWri
                 first = false;
             }
         };
+        write!(w, ")")?;
 
+        // Apply pipeline as a function to a value
+        write!(w, "(")?;
         let write_shape = EvaluateValue(obj.head().to_owned());
         self.write_object(w, ctx, &write_shape)?;
-
-        // write!(w, ")(values(")?;
-        // self.write_object(w, ctx, obj.head())?;
-        // write!(w, "))")?;
+        write!(w, ")")?;
 
         Ok(())
     }
@@ -387,20 +378,24 @@ impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWrite
             obj
         );
 
-        // write!(w, "pipeGen(")?;
+        // Construct composite pipeline (function)
         write!(w, "pipe(")?;
         let mut first = true;
+        if obj.has_components() {
+            let components = obj.components();
+            for component in components {
+                if !first { write!(w, ", ")?; }
+                self.write_object(w, ctx, component)?;
+                first = false;
+            }
+        };
+        write!(w, ")")?;
 
-        for component in obj.components() {
-            if !first { writeln!(w, ", ")?; }
-            self.write_object(w, ctx, component)?;
-            first = false;
-        }
-        // write!(w, ")(values(")?;
-        // self.write_object(w, ctx, obj.head())?;
-        // write!(w, "))")?;
+        // Apply pipeline as a function to a value
+        write!(w, "(")?;
         let write_shape = EvaluateValue(obj.head().to_owned());
         self.write_object(w, ctx, &write_shape)?;
+        write!(w, ")")?;
 
         Ok(())
     }
@@ -560,7 +555,7 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
             ReducedPipelineComponent::PipelineOp(ref op) => {
                 match *op {
                     ReducedMethodCall::Map(ref expr) => {
-                        write!(w, "ng.map(_item => ")?;
+                        write!(w, "mapFunc(_item => ")?;
                         self.write_object(w, ctx, expr)?;
                         write!(w, ")")?;
                     }
@@ -746,12 +741,6 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             self.write_object(w, ctx, b)?;
                             write!(w, ")")?;
 
-                            // write!(w, "Array.from(values(")?;
-                            // self.write_object(w, ctx, a)?;
-                            // write!(w, ")).concat(")?;
-                            // self.write_object(w, ctx, b)?;
-                            // write!(w, ")")?;
-
                             return Ok(());
                         }
 
@@ -823,20 +812,6 @@ impl ObjectWriter<Expression<OutputExpression>, JsOutput> for DefaultJsWriter {
             "ObjectWriter Expression<OutputExpression> (JS): obj: {:?}",
             obj
         );
-
-        // if obj.is_array_of_objects() {
-        //     let mut first = true;
-        //     write!(w, "new Map([")?;
-        //     for param in params {
-        //         if !first {
-        //             write!(w, ", ")?;
-        //         }
-        //         self.write_object(w, ctx, param.value())?;
-        //         first = false;
-        //     }
-        //     write!(w, "]).map(_item => [_item.id, _item]))")?;
-        //     return Ok(());
-        // };
 
         match *obj {
             Expression::Composite(ref c) => self.write_object(w, ctx, c),
@@ -1002,21 +977,6 @@ impl<T> ObjectWriter<MapValue<T>, JsOutput> for DefaultJsWriter
         Ok(())
     }
 }
-
-// impl ObjectWriter<CompositeValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-//     fn write_object(
-//         &mut self,
-//         w: &mut io::Write,
-//         ctx: &mut OutputContext,
-//         obj: &CompositeValue<ProcessedExpression>,
-//     ) -> DocumentProcessingResult<()> {
-//         match *obj {
-//             CompositeValue::ArrayValue(ref value) => self.write_object(w, ctx, value),
-//             CompositeValue::ObjectValue(ref value) => self.write_object(w, ctx, value),
-//             CompositeValue::MapValue(ref value) => self.write_object(w, ctx, value),
-//         }
-//     }
-// }
 
 impl<T> ObjectWriter<CompositeValue<T>, JsOutput> for DefaultJsWriter
     where DefaultJsWriter : ObjectWriter<ArrayValue<T>, JsOutput>,
@@ -1344,6 +1304,7 @@ fn write_open<'s>(
     };
     write!(w, ")")?;
 
+    // Needed to update a value when the value would (nominally) be the same as the attribute, such as for inputs
     if let Some(read_expr) = desc.value_binding().and_then(|b| b.read_expr()) {
         if is_textbox {
             write!(w, ".value = ")?;
@@ -1355,17 +1316,6 @@ fn write_open<'s>(
     }
 
     writeln!(w, ";")?;
-
-    // Needed to clear a textbox, as the value is the same as the stored value in IncrementalDOM
-    // if is_textbox {
-    //     if let Some(value_binding) = desc.value_binding() {
-    //         if let Some(read_expr) = value_binding.read_expr() {
-    //             write!(w, "IncrementalDOM.applyAttr(IncrementalDOM.currentElement(), \"value\", ")?;
-    //             _self.write_object(w, ctx, read_expr)?;
-    //             writeln!(w, ");")?;
-    //         };
-    //     }
-    // };
 
     Ok(())
 }
