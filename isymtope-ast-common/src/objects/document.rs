@@ -459,7 +459,6 @@ impl ContentProcessor {
         let block_id = allocate_element_key();
         eprintln!("ContentProcessor into_block: block_id: {}", block_id);
         let ops = self.ops;
-        // let event_bindings = self.event_bindings;
 
         eprintln!("ContentProcessor into_block: ops: {:?}", ops);
         Block::new(block_id, None, Some(ops))
@@ -599,10 +598,6 @@ impl TryProcessFrom<Template> for Document {
         for (key, value) in reducers.iter() {
             ctx.add_reducer_key(key.to_owned(), value.shape().to_owned())?;
         }
-
-        // for reducer_key in reducers.keys() {
-        //     ctx.add_reducer_key(reducer_key.to_owned())?;
-        // }
 
         // Queries
         let queries: Vec<_> = ast.children()
