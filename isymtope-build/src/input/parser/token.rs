@@ -84,6 +84,9 @@ pub enum Token {
     ValueKeyword,
     ItemKeyword,
 
+    MapKeyword,
+    AutoKeyword,
+
     HashRocket,
     EqualTo,
     NotEqualTo,

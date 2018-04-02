@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 use itertools::Itertools;
 use itertools::FoldWhile::*;
 
-use common::*;
 use error::*;
 use traits::*;
 use expressions::*;
@@ -185,7 +184,7 @@ where
 fn apply_filter(
     cond: &ExpressionValue<ProcessedExpression>,
     // expr: &ExpressionValue<OutputExpression>,
-    arr: Option<&Vec<ParamValue<OutputExpression>>>,
+    arr: Option<&Vec<ExpressionValue<OutputExpression>>>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<Vec<ExpressionValue<OutputExpression>>> {
     // let arr = match *expr {
@@ -208,8 +207,7 @@ fn apply_filter(
 
     let res: Vec<_> = arr.unwrap()
         .iter()
-        .map(move |param| {
-            let value = param.value();
+        .map(move |value| {
 
             let binding = CommonBindings::CurrentItem(Default::default());
             let item_value: ExpressionValue<OutputExpression> =
@@ -251,8 +249,22 @@ fn apply_filter(
 #[derive(Debug)]
 enum PipelineResult<T> {
     SingleValue(ExpressionValue<T>, PhantomData<T>),
-    ArrayValue(Option<Box<Vec<ParamValue<T>>>>, PhantomData<T>),
+    ArrayValue(ArrayValue<T>, PhantomData<T>),
+    MapValue(MapValue<T>, PhantomData<T>),
     NoResult(PhantomData<T>),
+}
+
+fn pipeline_state_items<T: Debug + Clone>(value: &PipelineResult<T>) -> DocumentProcessingResult<Option<Vec<ExpressionValue<T>>>> {
+    match *value {
+        PipelineResult::ArrayValue(ArrayValue(Some(box ref params)), _) => Ok(Some(params.into_iter().map(|e| e.value().to_owned()).collect::<Vec<_>>())),
+        PipelineResult::ArrayValue(..) => Ok(None),
+        PipelineResult::MapValue(MapValue(_, Some(box ref entries)), _) => Ok(Some(entries.into_iter().map(|e| ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(e.to_owned())))).collect::<Vec<_>>())),
+        PipelineResult::MapValue(..) => Ok(None),
+        _ => Err(try_eval_from_err!(format!(
+            "Unsupported pipeline state [{:?}], expected to contain items (array or map)",
+            value
+        ))),
+    }
 }
 
 fn eval_reduced_pipeline(
@@ -265,8 +277,11 @@ fn eval_reduced_pipeline(
         ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(v))) => {
             Ok(PipelineResult::ArrayValue(v, Default::default()))
         }
+        ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(v))) => {
+            Ok(PipelineResult::MapValue(v, Default::default()))
+        }
         _ => Err(try_eval_from_err!(format!(
-            "Unsupported initial value for pipeline (must be array) [{:?}]",
+            "Unsupported initial value for pipeline (must be array or map) [{:?}]",
             head
         ))),
     }?;
@@ -278,20 +293,13 @@ fn eval_reduced_pipeline(
             if let ReducedPipelineComponent::PipelineOp(ref method) = *x {
                 return match *method {
                     ReducedMethodCall::Filter(ref cond) => {
-                        let params = match value {
-                            PipelineResult::ArrayValue(Some(box ref params), _) => Ok(Some(params)),
-                            PipelineResult::ArrayValue(_, _) => Ok(None),
-                            _ => Err(try_eval_from_err!(format!(
-                                "Unsupported pipeline state [{:?}] for filter() call",
-                                value
-                            ))),
-                        };
+                        let params = pipeline_state_items(&value);
 
                         eprintln!(
                             "[pipeline] eval_reduced_pipeline: (filter) cond: {:?}",
                             cond
                         );
-                        let res = params.and_then(|params| apply_filter(cond, params, ctx));
+                        let res = params.and_then(|params| apply_filter(cond, params.as_ref(), ctx));
 
                         match res {
                             Ok(res) => {
@@ -301,7 +309,7 @@ fn eval_reduced_pipeline(
                                 //     CompositeValue::ArrayValue(Some(Box::new(params))),
                                 // ));
                                 let pipe_res = PipelineResult::ArrayValue(
-                                    Some(Box::new(params)),
+                                    ArrayValue(Some(Box::new(params))),
                                     Default::default(),
                                 );
                                 Continue(Ok(pipe_res))
@@ -311,17 +319,10 @@ fn eval_reduced_pipeline(
                     }
 
                     ReducedMethodCall::Count(ref cond) => {
-                        let params = match value {
-                            PipelineResult::ArrayValue(Some(box ref params), _) => Ok(Some(params)),
-                            PipelineResult::ArrayValue(_, _) => Ok(None),
-                            _ => Err(try_eval_from_err!(format!(
-                                "Unsupported pipeline state [{:?}] for count() call",
-                                value
-                            ))),
-                        };
+                        let params = pipeline_state_items(&value);
 
                         eprintln!("[pipeline] eval_reduced_pipeline: (count) cond: {:?}", cond);
-                        let res = params.and_then(|params| apply_filter(cond, params, ctx));
+                        let res = params.and_then(|params| apply_filter(cond, params.as_ref(), ctx));
 
                         match res {
                             Ok(res) => {
@@ -337,20 +338,13 @@ fn eval_reduced_pipeline(
                     }
 
                     ReducedMethodCall::FirstWhere(ref cond) => {
-                        let params = match value {
-                            PipelineResult::ArrayValue(Some(box ref params), _) => Ok(Some(params)),
-                            PipelineResult::ArrayValue(_, _) => Ok(None),
-                            _ => Err(try_eval_from_err!(format!(
-                                "Unsupported pipeline state [{:?}] for first() call",
-                                value
-                            ))),
-                        };
+                        let params = pipeline_state_items(&value);
 
                         eprintln!(
                             "[pipeline] eval_reduced_pipeline: (firstWhere) cond: {:?}",
                             cond
                         );
-                        let res = params.and_then(|params| apply_filter(cond, params, ctx));
+                        let res = params.and_then(|params| apply_filter(cond, params.as_ref(), ctx));
 
                         match res {
                             Ok(res) => {
@@ -372,14 +366,17 @@ fn eval_reduced_pipeline(
                     }
 
                     ReducedMethodCall::First => {
-                        let res = match value {
-                            PipelineResult::ArrayValue(Some(box ref params), _) => Ok(Some(params)),
-                            PipelineResult::ArrayValue(_, _) => Ok(None),
-                            _ => Err(try_eval_from_err!(format!(
-                                "Unsupported pipeline state [{:?}] for first() call",
-                                value
-                            ))),
-                        };
+                        // let res = match value {
+                        //     PipelineResult::ArrayValue(ArrayValue(Some(box ref params)), _) => Ok(Some(params.iter().map(|e| e.value().to_owned()).collect::<Vec<_>>())),
+                        //     PipelineResult::ArrayValue(_, _) => Ok(None),
+                        //     PipelineResult::MapValue(MapValue(_, Some(box ref entries)), _) => Ok(Some(entries.iter().map(|e| ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(e)))).collect::<Vec<_>>())),
+                        //     PipelineResult::MapValue(_, _) => Ok(None),
+                        //     _ => Err(try_eval_from_err!(format!(
+                        //         "Unsupported pipeline state [{:?}] for first() call",
+                        //         value
+                        //     ))),
+                        // };
+                        let res = pipeline_state_items(&value);
                         eprintln!("[pipeline] eval_reduced_pipeline: (first)");
 
                         match res {
@@ -388,7 +385,7 @@ fn eval_reduced_pipeline(
                                     .nth(0)
                                     .map(|expr| {
                                         PipelineResult::SingleValue(
-                                            expr.value().to_owned(),
+                                            expr.to_owned(),
                                             Default::default(),
                                         )
                                     })
@@ -413,6 +410,9 @@ fn eval_reduced_pipeline(
     let res = match res {
         PipelineResult::ArrayValue(v, _) => Ok(ExpressionValue::Expression(
             Expression::Composite(CompositeValue::ArrayValue(v)),
+        )),
+        PipelineResult::MapValue(v, _) => Ok(ExpressionValue::Expression(
+            Expression::Composite(CompositeValue::MapValue(v)),
         )),
         PipelineResult::SingleValue(v, _) => Ok(v),
         _ => Err(try_eval_from_err!(format!(

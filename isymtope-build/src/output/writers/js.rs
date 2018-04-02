@@ -797,76 +797,140 @@ impl ObjectWriter<QueryParamValue<ProcessedExpression>, JsOutput> for DefaultJsW
     }
 }
 
-fn write_composite<T>(
-    _self: &mut DefaultJsWriter,
-    w: &mut io::Write,
-    ctx: &mut OutputContext,
-    obj: &CompositeValue<T>,
-) -> DocumentProcessingResult<()>
-where
-    DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>,
+impl<T> ObjectWriter<ObjectValue<T>, JsOutput> for DefaultJsWriter
+    where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
 {
-    match *obj {
-        CompositeValue::ObjectValue(Some(box ref props)) => {
-            let mut first = true;
-            write!(w, "{{")?;
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ObjectValue<T>,
+    ) -> DocumentProcessingResult<()> {
+        let mut first = true;
+        write!(w, "{{")?;
+        if let Some(&box ref props) = obj.0.as_ref() {
             for prop in props {
                 if !first {
                     write!(w, ", ")?;
                 }
                 write!(w, "\"{}\": ", prop.key())?;
-                _self.write_object(w, ctx, prop.value())?;
+                self.write_object(w, ctx, prop.value())?;
                 first = false;
             }
-            write!(w, "}}")?;
-            Ok(())
-        }
+        };
+        write!(w, "}}")?;
+        Ok(())
+    }
+}
 
-        CompositeValue::ObjectValue(_) => {
-            write!(w, "{{}}")?;
-            Ok(())
-        }
-
-        CompositeValue::ArrayValue(Some(box ref params)) => {
-            let mut first = true;
-            write!(w, "[")?;
+impl<T> ObjectWriter<ArrayValue<T>, JsOutput> for DefaultJsWriter
+    where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
+{
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ArrayValue<T>,
+    ) -> DocumentProcessingResult<()> {
+        let mut first = true;
+        write!(w, "[")?;
+        if let Some(box ref params) = obj.0 {
             for param in params {
                 if !first {
                     write!(w, ", ")?;
                 }
-                _self.write_object(w, ctx, param.value())?;
+                self.write_object(w, ctx, param.value())?;
                 first = false;
             }
-            write!(w, "]")?;
-            Ok(())
-        }
-
-        CompositeValue::ArrayValue(_) => {
-            write!(w, "[]")?;
-            Ok(())
-        } // _ => Err(reduction_err_bt!())
-    }.into()
-}
-
-impl ObjectWriter<CompositeValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &CompositeValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        write_composite(self, w, ctx, obj)
+        };
+        write!(w, "]")?;
+        Ok(())
     }
 }
 
-impl ObjectWriter<CompositeValue<OutputExpression>, JsOutput> for DefaultJsWriter {
+impl<T> ObjectWriter<ArrayOf<T>, JsOutput> for DefaultJsWriter
+    where DefaultJsWriter: ObjectWriter<T, JsOutput>
+{
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &CompositeValue<OutputExpression>,
+        obj: &ArrayOf<T>,
     ) -> DocumentProcessingResult<()> {
-        write_composite(self, w, ctx, obj)
+        let mut first = true;
+        write!(w, "[")?;
+        if let Some(box ref params) = obj.0 {
+            for param in params {
+                if !first {
+                    write!(w, ", ")?;
+                }
+                self.write_object(w, ctx, param)?;
+                first = false;
+            }
+        };
+        write!(w, "]")?;
+        Ok(())
+    }
+}
+
+impl<T> ObjectWriter<MapValue<T>, JsOutput> for DefaultJsWriter
+    where DefaultJsWriter: ObjectWriter<ObjectValue<T>, JsOutput>
+{
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &MapValue<T>,
+    ) -> DocumentProcessingResult<()> {
+        let auto_id = obj.0.as_ref().map(|s| s.to_owned())
+            .unwrap_or("id".to_owned());
+        write!(w, "asMap(e => e.{}, [", auto_id)?;
+        if let Some(box ref entries) = obj.1 {
+            let mut first = true;
+            for entry in entries {
+                if !first {
+                    write!(w, ", ")?;
+                }
+                self.write_object(w, ctx, entry)?;
+                first = false;
+            }
+        };
+        write!(w, "])")?;
+        Ok(())
+    }
+}
+
+// impl ObjectWriter<CompositeValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &CompositeValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         match *obj {
+//             CompositeValue::ArrayValue(ref value) => self.write_object(w, ctx, value),
+//             CompositeValue::ObjectValue(ref value) => self.write_object(w, ctx, value),
+//             CompositeValue::MapValue(ref value) => self.write_object(w, ctx, value),
+//         }
+//     }
+// }
+
+impl<T> ObjectWriter<CompositeValue<T>, JsOutput> for DefaultJsWriter
+    where DefaultJsWriter : ObjectWriter<ArrayValue<T>, JsOutput>,
+        DefaultJsWriter: ObjectWriter<ObjectValue<T>, JsOutput>,
+        DefaultJsWriter: ObjectWriter<MapValue<T>, JsOutput>
+{
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &CompositeValue<T>,
+    ) -> DocumentProcessingResult<()> {
+        match *obj {
+            CompositeValue::ArrayValue(ref value) => self.write_object(w, ctx, value),
+            CompositeValue::ObjectValue(ref value) => self.write_object(w, ctx, value),
+            CompositeValue::MapValue(ref value) => self.write_object(w, ctx, value),
+        }
     }
 }
 
