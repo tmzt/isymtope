@@ -140,6 +140,27 @@ ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
     ExpressionTerm
 };
 
+// MapEntry : MapEntry<SourceExpression> =
+// {
+//     AutoKeyword <id:Ident> => MapEntry::Auto(id.to_owned()),
+//     <prop:PropValue> => MapEntry::Prop(prop)
+// };
+
+ObjectValue: ObjectValue<SourceExpression> =
+{
+    "{" <v:(AtLeastOneOf<",", PropValue>)?> "}" => ObjectValue(v.map(Box::new))
+};
+
+ArrayValue: ArrayValue<SourceExpression> =
+{
+    "[" <v:(AtLeastOneOf<",", ParamValue>)?> "]" => ArrayValue(v.map(Box::new))
+};
+
+MapValue: MapValue<SourceExpression> =
+{
+    MapKeyword "[" <auto:(AutoKeyword <Id> ",")?> <v:(AtLeastOneOf<",", ObjectValue>)?> "]" => MapValue(auto.to_owned(), v.map(Box::new))
+};
+
 ExpressionTerm : ExpressionValue<SourceExpression> =
 {
     /// Unary operation
@@ -148,9 +169,11 @@ ExpressionTerm : ExpressionValue<SourceExpression> =
     /// Grouping operation
     "(" <e:ExpressionValue?> ")" => ExpressionValue::Expression(Expression::Group(e.map(Box::new))),
 
-    /// Composite (object/array)
-    "{" <v:(AtLeastOneOf<",", PropValue>)?> "}" => ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(v.map(Box::new)))),
-    "[" <v:(AtLeastOneOf<",", ParamValue>)?> "]" => ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(v.map(Box::new)))),
+    /// Composite (object/array/map)
+
+    <v:ObjectValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(v))),
+    <v:ArrayValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(v))),
+    <v:MapValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(v))),
 
     /// Primitive value
     <e:Primitive> => ExpressionValue::Primitive(e),
@@ -270,7 +293,7 @@ StoreDefinition: StoreDefinition<SourceExpression> = {
 
 #[inline]
 StoreCommonNode: StoreCommonNode<SourceExpression> = {
-    LetKeyword <var:Id> <e:("=" <ExpressionValue>)?> ";" => StoreCommonNode::LetNode(var, e, Default::default()),
+    LetKeyword <var:Id> <e:("=" <ExpressionTerm>)?> ";" => StoreCommonNode::LetNode(var, e, Default::default()),
     // ApiKeyword <name:Id> "{" <v:(StoreApiChildNode+)?> "}" => StoreCommonNode::ApiNode(name, v, Default::default()),
 
     ExternKeyword ModKeyword <name:Id> ";" => StoreCommonNode::ExternReducerModuleNode(ExternReducerModuleNode::new(name), Default::default()),
@@ -597,6 +620,9 @@ extern {
         StateKeyword => Token::StateKeyword,
         ValueKeyword => Token::ValueKeyword,
         ItemKeyword => Token::ItemKeyword,
+
+        MapKeyword => Token::MapKeyword,
+        AutoKeyword => Token::AutoKeyword,
 
         // TrueKeyword => Token::LiteralBool(true),
         // FalseKeyword => Token::LiteralBool(false),

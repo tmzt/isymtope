@@ -1,19 +1,13 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::collections::HashSet;
-use std::iter;
 
 use itertools::Itertools;
 use itertools::FoldWhile::{Continue, Done};
-use itertools::join;
 
-use common::*;
 use error::*;
 use traits::*;
 use expressions::*;
-use objects::*;
 use ast::*;
-// use output::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -52,7 +46,7 @@ where
 {
     fn try_process_from(
         src: &CommonBindings<I>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
             CommonBindings::CurrentReducerState(_) => {
@@ -98,6 +92,7 @@ pub enum OuterShape {
     Singleton,
     Array,
     Object,
+    Map,
 }
 
 impl Default for OuterShape {
@@ -107,7 +102,7 @@ impl Default for OuterShape {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BindingShape<T>(CommonBindings<T>, OuterShape);
+pub struct BindingShape<T>(pub CommonBindings<T>, pub OuterShape);
 
 impl<T: Debug> BindingShape<T> {
     pub fn new(binding: CommonBindings<T>, shape: OuterShape) -> Self {
@@ -136,6 +131,9 @@ where
         ))
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ShapedExpressionValue<T>(pub OuterShape, pub ExpressionValue<T>);
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -175,7 +173,7 @@ impl<T> ExpressionValue<T> {
 
     pub fn is_array_of_objects(&self) -> bool {
         if let ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
-            Some(box ref v),
+            ArrayValue(Some(box ref v)),
         ))) = *self
         {
             return v.iter().all(|e| e.value().is_object());
@@ -191,6 +189,9 @@ impl<T> ExpressionValue<T> {
             }
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(..))) => {
                 OuterShape::Array
+            }
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(..))) => {
+                OuterShape::Map
             }
             _ => OuterShape::Singleton,
         }
@@ -268,7 +269,7 @@ where
 {
     fn try_process_from(
         src: &FormalParams<I>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(FormalParams(src.0.clone(), Default::default()))
     }
@@ -280,7 +281,7 @@ where
 {
     fn try_eval_from(
         src: &FormalParams<I>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(FormalParams(src.0.clone(), Default::default()))
     }
@@ -315,7 +316,6 @@ where
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(ParamValue(TryProcessFrom::try_process_from(&src.0, ctx)?))
-        // Ok(ParamValue(TryProcessFrom::try_process_from(&src.0)?, Default::default()))
     }
 }
 
@@ -482,11 +482,23 @@ where
 /// Path, composite, pipeline, filter
 ///
 
-#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ObjectValue<T>(pub Option<Box<Vec<PropValue<T>>>>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ArrayValue<T>(pub Option<Box<Vec<ParamValue<T>>>>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ArrayOf<T>(pub Option<Box<Vec<T>>>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MapValue<T>(pub Option<String>, pub Option<Box<Vec<ObjectValue<T>>>>);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompositeValue<T> {
-    ObjectValue(Option<Box<Vec<PropValue<T>>>>),
-    ArrayValue(Option<Box<Vec<ParamValue<T>>>>),
+    ObjectValue(ObjectValue<T>),
+    ArrayValue(ArrayValue<T>),
+    MapValue(MapValue<T>)
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -879,27 +891,192 @@ impl TryProcessFrom<ExpressionValue<SourceExpression>> for ExpressionValue<Proce
     }
 }
 
+impl<I, O> TryProcessFrom<ObjectValue<I>> for ObjectValue<O>
+where
+    ExpressionValue<O>: TryProcessFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_process_from(
+        src: &ObjectValue<I>,
+        ctx: &mut ProcessingContext,
+    ) -> DocumentProcessingResult<Self> {
+        let props = match src.0.as_ref() {
+            Some(&box ref props) => {
+                let props: Vec<PropValue<O>> =
+                    TryProcessFrom::try_process_from(props, ctx)?;
+
+                Some(Box::new(props))
+            }
+
+            _ => None
+        };
+
+        Ok(ObjectValue(props))
+    }
+}
+
+impl<I, O> TryEvalFrom<ObjectValue<I>> for ObjectValue<O>
+where
+    ExpressionValue<O>: TryEvalFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_eval_from(
+        src: &ObjectValue<I>,
+        ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<ObjectValue<O>> {
+        let props = match src.0.as_ref() {
+            Some(&box ref props) => {
+                let props: Vec<PropValue<O>> =
+                    TryEvalFrom::try_eval_from(props, ctx)?;
+
+                Some(Box::new(props))
+            }
+
+            _ => None
+        };
+
+        Ok(ObjectValue(props))
+    }
+}
+
+impl<I, O> TryProcessFrom<ArrayValue<I>> for ArrayValue<O>
+where
+    ExpressionValue<O>: TryProcessFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_process_from(
+        src: &ArrayValue<I>,
+        ctx: &mut ProcessingContext,
+    ) -> DocumentProcessingResult<ArrayValue<O>> {
+        let params = match src.0.as_ref() {
+            Some(&box ref params) => {
+                let params: Vec<ParamValue<O>> =
+                    TryProcessFrom::try_process_from(params, ctx)?;
+
+                Some(Box::new(params))
+            }
+
+            _ => None
+        };
+
+        Ok(ArrayValue(params))
+    }
+}
+
+impl<I, O> TryEvalFrom<ArrayValue<I>> for ArrayValue<O>
+where
+    ExpressionValue<O>: TryEvalFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_eval_from(
+        src: &ArrayValue<I>,
+        ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<ArrayValue<O>> {
+        let params = match src.0.as_ref() {
+            Some(&box ref params) => {
+                let params: Vec<ParamValue<O>> =
+                    TryEvalFrom::try_eval_from(params, ctx)?;
+
+                Some(Box::new(params))
+            }
+
+            _ => None
+        };
+
+        Ok(ArrayValue(params))
+    }
+}
+
+impl<I, O> TryProcessFrom<MapValue<I>> for MapValue<O>
+where
+    ExpressionValue<O>: TryProcessFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_process_from(
+        src: &MapValue<I>,
+        ctx: &mut ProcessingContext,
+    ) -> DocumentProcessingResult<Self> {
+        let entries = match src.1.as_ref() {
+            Some(&box ref entries) => {
+                let entries: Vec<ObjectValue<O>> =
+                    TryProcessFrom::try_process_from(entries, ctx)?;
+
+                Some(Box::new(entries))
+            }
+
+            _ => None
+        };
+
+        let auto = src.0.as_ref().map(|s| s.to_owned());
+        Ok(MapValue(auto, entries))
+    }
+}
+
+impl<I, O> TryEvalFrom<ArrayOf<I>> for ArrayOf<O>
+where
+    O: TryEvalFrom<I>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_eval_from(
+        src: &ArrayOf<I>,
+        ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<ArrayOf<O>> {
+        let entries = match src.0.as_ref() {
+            Some(&box ref entries) => {
+                let entries: Vec<O> =
+                    TryEvalFrom::try_eval_from(entries, ctx)?;
+
+                Some(Box::new(entries))
+            }
+
+            _ => None
+        };
+
+        Ok(ArrayOf(entries))
+    }
+}
+
+impl<I, O> TryEvalFrom<MapValue<I>> for MapValue<O>
+where
+    ExpressionValue<O>: TryEvalFrom<ExpressionValue<I>>,
+    I: ::std::fmt::Debug,
+    O: ::std::fmt::Debug,
+{
+    fn try_eval_from(
+        src: &MapValue<I>,
+        ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<MapValue<O>> {
+        let entries = match src.1.as_ref() {
+            Some(&box ref entries) => {
+                let entries: Vec<ObjectValue<O>> =
+                    TryEvalFrom::try_eval_from(entries, ctx)?;
+
+                Some(Box::new(entries))
+            }
+
+            _ => None
+        };
+
+        let auto: Option<String> = src.0.as_ref().map(|s| s.to_owned());
+        Ok(MapValue(auto, entries))
+    }
+}
+
 impl TryProcessFrom<CompositeValue<SourceExpression>> for CompositeValue<ProcessedExpression> {
     fn try_process_from(
         src: &CompositeValue<SourceExpression>,
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
-            CompositeValue::ObjectValue(Some(box ref props)) => {
-                let props: Vec<PropValue<ProcessedExpression>> =
-                    TryProcessFrom::try_process_from(props, ctx)?;
-                Ok(CompositeValue::ObjectValue(Some(Box::new(props))))
-            }
-
-            CompositeValue::ObjectValue(_) => Ok(CompositeValue::ObjectValue(None)),
-
-            CompositeValue::ArrayValue(Some(box ref params)) => {
-                let params: Vec<ParamValue<ProcessedExpression>> =
-                    TryProcessFrom::try_process_from(params, ctx)?;
-                Ok(CompositeValue::ArrayValue(Some(Box::new(params))))
-            }
-
-            CompositeValue::ArrayValue(_) => Ok(CompositeValue::ArrayValue(None)),
+            CompositeValue::ObjectValue(ref value) => Ok(CompositeValue::ObjectValue(TryProcessFrom::try_process_from(value, ctx)?)),
+            CompositeValue::ArrayValue(ref value) => Ok(CompositeValue::ArrayValue(TryProcessFrom::try_process_from(value, ctx)?)),
+            CompositeValue::MapValue(ref value) => Ok(CompositeValue::MapValue(TryProcessFrom::try_process_from(value, ctx)?)),
         }
     }
 }
@@ -915,19 +1092,9 @@ where
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<CompositeValue<O>> {
         match *src {
-            CompositeValue::ObjectValue(Some(box ref props)) => {
-                let props: Vec<PropValue<O>> = TryEvalFrom::try_eval_from(props, ctx)?;
-                Ok(CompositeValue::ObjectValue(Some(Box::new(props))))
-            }
-
-            CompositeValue::ObjectValue(_) => Ok(CompositeValue::ObjectValue(None)),
-
-            CompositeValue::ArrayValue(Some(box ref params)) => {
-                let params: Vec<ParamValue<O>> = TryEvalFrom::try_eval_from(params, ctx)?;
-                Ok(CompositeValue::ArrayValue(Some(Box::new(params))))
-            }
-
-            CompositeValue::ArrayValue(_) => Ok(CompositeValue::ArrayValue(None)),
+            CompositeValue::ObjectValue(ref value) => Ok(CompositeValue::ObjectValue(TryEvalFrom::try_eval_from(value, ctx)?)),
+            CompositeValue::ArrayValue(ref value) => Ok(CompositeValue::ArrayValue(TryEvalFrom::try_eval_from(value, ctx)?)),
+            CompositeValue::MapValue(ref value) => Ok(CompositeValue::MapValue(TryEvalFrom::try_eval_from(value, ctx)?)),
         }
     }
 }
@@ -1138,17 +1305,28 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>>
 {
     fn try_eval_from(
         src: &ExpressionValue<OutputExpression>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
+        eprintln!("TryEval ExpressionValue -> Option<Vec<_>>: src: {:?}", src);
         match *src {
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
-                Some(box ref arr),
+                ArrayValue(Some(box ref arr)),
             ))) => {
                 let arr: Vec<_> = arr.into_iter()
                     .map(|item| item.value().to_owned())
                     .collect();
                 Ok(Some(arr))
             }
+
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(
+                MapValue(_, Some(box ref arr)),
+            ))) => {
+                let arr: Vec<_> = arr.into_iter()
+                    .map(|item| ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(item.to_owned()))))
+                    .collect();
+                Ok(Some(arr))
+            }
+
             _ => Err(try_process_from_err!(
                 "Cannot evaluate non-composite values as vec."
             )),

@@ -166,6 +166,9 @@ impl<'input> Lexer<'input> {
             "value" => Token::ValueKeyword,
             "item" => Token::ItemKeyword,
 
+            "map" => Token::MapKeyword,
+            "auto" => Token::AutoKeyword,
+
             "true" => Token::LiteralBool(true),
             "false" => Token::LiteralBool(false),
 

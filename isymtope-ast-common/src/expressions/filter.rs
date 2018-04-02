@@ -23,6 +23,11 @@ impl<T> FilterValue<T> {
         let box ref v = self.1;
         v.iter()
     }
+
+    pub fn has_components(&self) -> bool {
+        let box ref v = self.1;
+        !v.is_empty()
+    }
 }
 
 impl<T: Debug> MapIdents<T> for FilterValue<T> {

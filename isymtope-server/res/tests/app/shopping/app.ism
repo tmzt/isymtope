@@ -59,7 +59,11 @@ component cart(products, cart) {
     cartEntry(for cartEntry in cart, products = products) {}
 }
 
-body(style="background: white;") {
+style() {
+    ("body { background: white; }")
+}
+
+div(style="background: white;") {
     section (class="products") {
         productList(get products) {}
     }
