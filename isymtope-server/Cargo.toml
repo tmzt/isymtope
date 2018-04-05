@@ -44,5 +44,6 @@ version = "0.1.39"
 [features]
 default = []
 cookies=[]
+copy_wasm=[]
 session_time = ["time"]
 playground_api = ["compiler-service"]

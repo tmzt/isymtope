@@ -10,7 +10,7 @@ function log() {
 function prerender() {
     local APP_NAME=$1
     log "Building ${APP_NAME} prerender with base_url (${APPS_BASE})..."
-    APP_DIR=./res/tests/app DEFAULT_APP=$APP_NAME ../target/x86_64-unknown-linux-musl/debug/isymtope-cli --base-url $APPS_BASE/todomvc --output ./res/tests/app/${APP_NAME}/index.html /app.ism 2>/dev/null
+    APP_DIR=./res/tests/app DEFAULT_APP=$APP_NAME ../target/x86_64-unknown-linux-musl/debug/isymtope-cli --base-url "${APPS_BASE}/${APP_NAME}/" --output ./res/tests/app/${APP_NAME}/index.html /app.ism 2>/dev/null
 }
 
 pushd ${ROOT}/isymtope-server

@@ -3,6 +3,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[cfg(feature = "copy_wasm")]
 fn main() {
     // Copy compiled wasm application
     let in_wasm = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../wasm-build/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm");
@@ -21,4 +22,9 @@ fn main() {
     println!("{}",  str::from_utf8(wasm_gc.stderr.as_slice()).unwrap());
 
     println!("cargo:rerun-if-changed=\"{}\"", in_wasm.to_str().unwrap());
+}
+
+#[cfg(not(feature = "copy_wasm"))]
+fn main() {
+
 }
