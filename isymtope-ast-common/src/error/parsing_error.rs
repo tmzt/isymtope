@@ -24,7 +24,7 @@ impl Error for TemplateParseError {
 
 impl fmt::Display for TemplateParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
+        match *self {
             TemplateParseError::UnrecognizedToken(n) => write!(f, "Unrecognized token at pos {0}", n),
             TemplateParseError::UnexpectedToken(n) => write!(f, "Unexpected token at pos {0}", n),
             TemplateParseError::UnterminatedString(n) => write!(f, "Unterminated string starting at pos {0}", n),
