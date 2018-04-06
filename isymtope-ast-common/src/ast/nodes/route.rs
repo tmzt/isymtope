@@ -81,7 +81,7 @@ where
         );
 
         Ok(match *src {
-            RouteAction::Content(ref a, _) => {
+            RouteAction::Content(..) => {
                 let block_id = allocate_element_key();
                 let ops: Vec<ElementOp<O>> = Default::default();
 
