@@ -2,10 +2,6 @@ pub mod token;
 pub mod lexer;
 pub mod parser;
 
-use std::path::Path;
-use std::io::{self, Read};
-use std::fs;
-
 use isymtope_ast_common::*;
 use lalrpop_util::ParseError;
 
