@@ -419,6 +419,40 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
 
             ElementOp::SkipNode => Ok(()),
 
+            ElementOp::SkipOuterElement(ref e) | ElementOp::SkipElement(ref e) => {
+                match *e {
+                    SkipElementOp::ElementOpen(ref desc, _) => {
+                        ctx.push_child_scope();
+                        write_open(self, w, ctx, desc, false, None, None)?;
+                        Ok(())
+                    }
+
+                    SkipElementOp::ElementClose(ref tag) => {
+                        write!(w, "</{}>", tag)?;
+                        ctx.pop_scope();
+                        Ok(())
+                    }
+
+                    SkipElementOp::ElementVoid(ref desc, _) => {
+                        ctx.push_child_scope();
+                        write_open(self, w, ctx, desc, true, None, None)?;
+                        ctx.pop_scope();
+                        Ok(())
+                    }
+
+                    SkipElementOp::WriteValue(ref expr, _) => {
+                        let expr: ExpressionValue<OutputExpression> =
+                            TryEvalFrom::try_eval_from(expr, ctx)?;
+
+                        eprintln!(
+                            "ObjectWriter SkipElementOp<ProcessedExpression> (HTML) WriteValue expr: {:?}",
+                            expr
+                        );
+                        self.write_object(w, ctx, &expr)
+                    }
+                }
+            }
+
             ElementOp::StartBlock(_) => Ok(()),
 
             ElementOp::EndBlock(_) => Ok(()),

@@ -15,6 +15,7 @@ extern crate itertools;
 extern crate linked_hash_map;
 extern crate regex;
 extern crate serde_json;
+extern crate lalrpop_util;
 
 #[cfg(test)]
 #[macro_use(assert_diff)]

@@ -5,8 +5,6 @@ use std::io::Error as IOError;
 
 use failure::Backtrace;
 
-// use input::parser::token::Error as ParsingError;
-
 use super::*;
 
 #[derive(Debug)]
@@ -33,7 +31,7 @@ impl Display for ParsingError {
 #[derive(Debug, Fail)]
 pub enum DocumentProcessingError {
     #[fail(display = "Error parsing template")]
-    ParsingError(#[cause] ParsingError),
+    TemplateParseError(#[cause] TemplateParseError),
 
     #[fail(display = "IO Error occured")]
     IOError(IOError),
@@ -52,19 +50,24 @@ pub enum DocumentProcessingError {
     #[fail(display = "Evaluating error")]
     TryEvalFromError(String, Backtrace),
 
-    #[fail(display = "Error rendering internal template")]
-    InternalRenderError(String),
+    // #[fail(display = "Error rendering internal template")]
+    // InternalRenderError(String),
 
-    #[fail(display = "Error parsing internal template")]
-    InternalParseError(String),
+    // #[fail(display = "Error parsing internal template")]
+    // InternalParseError(String),
 
     #[fail(display = "Utf8Error")]
-    Utf8Error(Utf8Error),
+    Utf8Error(#[cause] Utf8Error),
 
     #[fail(display = "Session error")]
-    SessionError(SessionError),
+    SessionError(#[cause] SessionError),
 }
 
+impl From<TemplateParseError> for DocumentProcessingError {
+    fn from(err: TemplateParseError) -> Self {
+        DocumentProcessingError::TemplateParseError(err)
+    }
+}
 impl From<Utf8Error> for DocumentProcessingError {
     fn from(err: Utf8Error) -> Self {
         DocumentProcessingError::Utf8Error(err)

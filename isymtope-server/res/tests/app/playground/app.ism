@@ -3,16 +3,19 @@ use thunk;
 
 store {
     let workspaces = [
-        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, default: true, index: "app.ism", files: [
+        {id: "todomvc", name: "todomvc", description: "The famous TodoMvc demo", demo: true, default: true, index: "app.ism", prerender: true, files: [
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]},
-        {id: "shopping", name: "shopping", description: "Very basic shopping cart", demo: true, index: "app.ism", files: [
+        {id: "shopping", name: "shopping", description: "Very basic shopping cart", demo: true, index: "app.ism", prerender: true, files: [
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]},
-        {id: "playground", name: "playground", description: "This application", demo: true, index: "app.ism", files: [
+        {id: "playground", name: "playground", description: "This application", demo: true, index: "app.ism", prerender: true, files: [
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true},
             {id: "app.js", path: "app.js", name: "app.js", caption: "JS", language: "javascript"},
             {id: "app.css", path: "app.css", name: "app.css", caption: "CSS", language: "css"}
+        ]},
+        {id: "materializecss", name: "materializecss", description: "A materializecss css framework demo", demo: true, index: "app.ism", prerender: false, files: [
+            {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]}
     ];
     let activeWorkspaceId = "todomvc";
@@ -40,7 +43,6 @@ store {
     }
 
     extern externApp;
-    extern compiler;
 }
 
 component fileLink(fileData,  activeFileId) {
@@ -72,7 +74,7 @@ component editor() {
         div(class="editorMain") {
             div(id="editorComponent") {
                 extern {
-                    div(id="editor") {}
+                    div(id="editorDiv") {}
                 }
             }
         }
@@ -110,10 +112,11 @@ route "/" || {
     dispatch setFileId(fileId: "app.ism") to activeFileId;
 }
 
-link(rel="stylesheet", href="app.css", type="text/css") {}
-script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/javascript", defer="defer") {}
-script(src="https://www.hellorust.com/demos/bundle.js", type="text/javascript", defer="defer") {}
-script(src="app.js", type="text/javascript", defer="defer") {}
+extern {
+    link(rel="stylesheet", href="app.css", type="text/css") {}
+    script(src="https://unpkg.com/monaco-editor@0.7.0/min/vs/loader.js", type="text/javascript", defer="defer") {}
+    script(src="app.js", type="text/javascript", defer="defer") {}
+}
 
 component demoMenuBodyItem(workspaceData, activeWorkspaceId) {
     p()

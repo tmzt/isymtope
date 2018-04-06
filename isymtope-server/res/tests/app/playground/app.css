@@ -164,6 +164,7 @@ body a {
     position: relative;
     flex-direction: column;
     overflow: hidden;
+    background: white;
 }
 #preview, #previewOverlay { position: absolute; }
 #previewOverlay { 

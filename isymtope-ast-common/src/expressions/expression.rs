@@ -731,6 +731,12 @@ where
                 }
 
                 (
+                    &BinaryOpType::Add,
+                    &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
+                    &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
+                ) => Some(ExpressionValue::Primitive(Primitive::StringVal(format!("{}{}", a, b)))),
+
+                (
                     &BinaryOpType::EqualTo,
                     &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
                     &ExpressionValue::Primitive(Primitive::CharVal(ref b)),

@@ -1,4 +1,4 @@
-#![feature(box_patterns, specialization, conservative_impl_trait)]
+#![feature(box_patterns, specialization)]
 
 #[macro_use]
 extern crate log;

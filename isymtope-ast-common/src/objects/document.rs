@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use linked_hash_map::LinkedHashMap;
+use itertools::Itertools;
 
 use util::*;
 use error::*;
@@ -391,23 +392,48 @@ impl ContentProcessor {
         let needs_close = is_script || is_iframe || is_div || is_span;
         let has_content = (has_children && !is_link) || needs_close;
 
+        let is_extern = ctx.is_environment(&ProcessingScopeEnvironment::ExternNodeChildren)?;
+        let is_outer_extern = ctx.is_environment(&ProcessingScopeEnvironment::ExternNode)?;
+
         if has_content {
-            let open = ElementOp::ElementOpen(desc, Default::default());
-            let close = ElementOp::ElementClose(tag.to_owned());
+            let open: ElementOp<ProcessedExpression> = match true {
+                _ if is_extern => ElementOp::SkipElement(SkipElementOp::ElementOpen(desc, Default::default())),
+                _ if is_outer_extern => ElementOp::SkipOuterElement(SkipElementOp::ElementOpen(desc, Default::default())),
+                _ => ElementOp::ElementOpen(desc, Default::default())
+            };
+
+            let close: ElementOp<ProcessedExpression> = match true {
+                _ if is_extern => ElementOp::SkipElement(SkipElementOp::ElementClose(tag.to_owned())),
+                _ if is_outer_extern => ElementOp::SkipOuterElement(SkipElementOp::ElementClose(tag.to_owned())),
+                _ => ElementOp::ElementClose(tag.to_owned())
+            };
+
+            // if is_extern { ElementOp::SkipElement(SkipElementOp::ElementOpen(desc, Default::default())) } else { ElementOp::ElementOpen(desc, Default::default()) };
+            // let close = if is_extern { ElementOp::SkipElement(SkipElementOp::ElementClose(tag.to_owned())) } else { ElementOp::ElementClose(tag.to_owned()) };
 
             self.ops.push(open);
 
-            self.element_key.push(key.to_owned());
-
-            for child in children {
-                self.process_content_node(ctx, content_ctx, child)?;
-            }
-
-            self.element_key.pop();
+            if !children.is_empty() {
+                self.element_key.push(key.to_owned());
+                if is_outer_extern || is_extern {
+                    ctx.push_child_scope_with_environment(ProcessingScopeEnvironment::ExternNodeChildren);
+                }
+                for child in children {
+                    self.process_content_node(ctx, content_ctx, child)?;
+                }
+                if is_outer_extern || is_extern {
+                    ctx.pop_scope();
+                }
+                self.element_key.pop();
+            };
 
             self.ops.push(close);
         } else {
-            let void_el = ElementOp::ElementVoid(desc, Default::default());
+            let void_el: ElementOp<ProcessedExpression> = match true {
+                _ if is_extern => ElementOp::SkipElement(SkipElementOp::ElementVoid(desc, Default::default())),
+                _ if is_outer_extern => ElementOp::SkipOuterElement(SkipElementOp::ElementVoid(desc, Default::default())),
+                _ => ElementOp::ElementVoid(desc, Default::default())
+            };
 
             self.ops.push(void_el);
         }
@@ -434,18 +460,22 @@ impl ContentProcessor {
             }
 
             ContentNode::Extern(ref ext, _) => {
-                if let Some(children) = ext.children() {
-                    for child in children {
-                        match *child {
-                            ContentNode::Element(..)
-                            | ContentNode::ExpressionValue(..)
-                            | ContentNode::Primitive(..) => {
-                                self.ops.push(ElementOp::SkipNode);
-                            }
 
-                            _ => {}
-                        };
+                if let Some(children) = ext.children() {
+                    ctx.push_child_scope_with_environment(ProcessingScopeEnvironment::ExternNode);
+                    for child in children {
+                        self.process_content_node(ctx, content_ctx, child)?;
+                        // match *child {
+                        //     ContentNode::Element(..)
+                        //     | ContentNode::ExpressionValue(..)
+                        //     | ContentNode::Primitive(..) => {
+                        //         self.ops.push(ElementOp::SkipNode);
+                        //     }
+
+                        //     _ => {}
+                        // };
                     }
+                    ctx.pop_scope();
                 };
                 Ok(())
             }
@@ -631,11 +661,19 @@ impl TryProcessFrom<Template> for Document {
             })
             .collect();
 
+        let extern_component_names: Vec<_> = ast.children()
+            .filter_map(|n| match *n {
+                TemplateNode::ExternComponentDefinition(ref n, _) => Some(n.name().to_owned()),
+                _ => None,
+            })
+            .collect();
+
         // Extract names first
         let component_names: Rc<HashSet<_>> = Rc::new(
             component_nodes
                 .iter()
                 .map(|n| n.name().to_owned())
+                .chain(extern_component_names.into_iter())
                 .collect(),
         );
 

@@ -1,6 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+// use std::sync::Mutex;
 use std::str;
 
 #[cfg(feature = "session_time")]
@@ -10,7 +11,7 @@ use isymtope_generate::*;
 use super::*;
 
 thread_local! {
-    pub static APP_CACHE: Mutex<HashMap<String, DefaultAppContext>> = Default::default();
+    pub static APP_CACHE: RefCell<HashMap<String, DefaultAppContext>> = Default::default();
 }
 
 pub trait AppContext {
@@ -42,7 +43,7 @@ impl DefaultAppContext {
             app_root, template_path
         );
 
-        let template_context = DefaultTemplateContext::create(app_root, template_path).unwrap();
+        let template_context = DefaultTemplateContext::create(app_root, template_path)?;
         let app_context = DefaultAppContext::new(app_root, template_context);
 
         Ok(app_context)

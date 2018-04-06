@@ -105,9 +105,14 @@ const cached = async request => {
     return upstreamResp
 }
 
-async function cacheInitialPreview(appPath, frameId, completion) {
+async function cacheInitialPreview(appPath, frameId, isPrerender, completion) {
     let cache = await caches.open(WORKER_ROOT_CACHE)
-    let upstreamPath = self.origin + `/resources${appPath}/index.html`
+    let upstreamPath
+    if (isPrerender) {
+        upstreamPath = self.origin + `/resources${appPath}/index.html`
+    } else {
+        upstreamPath = self.origin + `${appPath}`
+    }
     let previewPath = `/app/playground/_worker${appPath}`
     let previewReq = new Request(self.origin + previewPath)
 
@@ -136,7 +141,7 @@ self.onmessage = async ({data, ports}) => {
     switch (data.topic) {
         case '/resourceWorker/initializePreviewFrame':
             console.info(`[resource worker] initializePreviewFrame: frameId = ${data.frameId}`)
-            await cacheInitialPreview(data.appPath, data.frameId, ports[0])
+            await cacheInitialPreview(data.appPath, data.frameId, data.isPrerender, ports[0])
             break;
 
         case '/resourceWorker/updateResource':
