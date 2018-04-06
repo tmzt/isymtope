@@ -1,8 +1,5 @@
 
-use util::*;
-use expressions::*;
-use objects::*;
-use ast::*;
+use isymtope_ast_common::*;
 
 use input::parser::loc::Loc;
 use input::parser::token::{self, Token};
@@ -255,6 +252,8 @@ pub Template: Template = {
 MainTemplateNode: TemplateNode<SourceExpression> = {
     <n:ComponentDefinition> => TemplateNode::ComponentDefinition(n, Default::default()),
 
+    <n:ExternComponentDefinition> => TemplateNode::ExternComponentDefinition(n, Default::default()),
+
     <n:RouteDefinition> => TemplateNode::RouteDefinition(n, Default::default()),
 
     <n:StoreDefinition> => TemplateNode::StoreDefinition(n, Default::default()),
@@ -280,6 +279,11 @@ MainTemplateNode: TemplateNode<SourceExpression> = {
 #[inline]
 ComponentDefinition : ComponentDefinition<SourceExpression> = {
     ComponentKeyword <name:Id> "(" <params:FormalParams> ")" "{" <children:ContentNode*> "}" => ComponentDefinition::new(name, params, Some(children))
+};
+
+#[inline]
+ExternComponentDefinition : ExternComponentDefinition<SourceExpression> = {
+    ComponentKeyword <name:Id> "(" <params:FormalParams> ")" ";" => ExternComponentDefinition::new(name, params)
 };
 
 ///
@@ -546,7 +550,7 @@ Loc<Inner> : Loc<Inner, (usize, usize)> = <s:@L> <inner:Inner> <e:@R> => Loc { p
 
 extern {
     type Location = usize;
-    type Error = token::TemplateParseError;
+    type Error = TemplateParseError;
 
     enum Token {
         "=>" => Token::HashRocket,

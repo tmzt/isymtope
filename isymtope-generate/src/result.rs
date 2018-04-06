@@ -13,8 +13,11 @@ pub enum IsymtopeGenerateError {
     #[fail(display = "Internal error: document processing error")]
     DocumentProcessingError(#[cause] DocumentProcessingError),
 
-    #[fail(display = "Error rendering internal template")]
-    InternalRenderError(String),
+    #[fail(display = "Internal error: error parsing template")]
+    TemplateParseError(#[cause] TemplateParseError),
+
+    // #[fail(display = "Error rendering internal template")]
+    // InternalRenderError(String),
 
     #[fail(display = "Session error")]
     SessionError(SessionError),
@@ -23,6 +26,12 @@ pub enum IsymtopeGenerateError {
 impl From<IOError> for IsymtopeGenerateError {
     fn from(err: IOError) -> Self {
         IsymtopeGenerateError::IOError(err)
+    }
+}
+
+impl From<TemplateParseError> for IsymtopeGenerateError {
+    fn from(err: TemplateParseError) -> Self {
+        IsymtopeGenerateError::TemplateParseError(err)
     }
 }
 

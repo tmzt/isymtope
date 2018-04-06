@@ -180,6 +180,36 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
 
         // environment
     }
+
+    fn is_environment(&mut self, env: &ProcessingScopeEnvironment) -> DocumentProcessingResult<bool> {
+        let found = find_match(&mut self.scopes, &self.cur_scope_id, |scope| {
+            if scope.environment() == env {
+                return Some(true);
+            }
+
+            None
+        })?;
+
+        Ok(found.unwrap_or(false))
+    }
+
+    fn is_closest_environment(&mut self, env: &ProcessingScopeEnvironment) -> DocumentProcessingResult<bool> {
+        let found = find_match(&mut self.scopes, &self.cur_scope_id, |scope| {
+            let scope_env = scope.environment();
+
+            if scope_env == env {
+                return Some(true);
+            }
+
+            if scope_env != &ProcessingScopeEnvironment::Normal {
+                return Some(false);
+            }
+
+            None
+        })?;
+
+        Ok(found.unwrap_or(false))
+    }
 }
 
 impl<T: Hash + Eq> DefaultProcessingContext<T> {

@@ -1,8 +1,10 @@
+pub mod parsing_error;
 pub mod processing_error;
 pub mod session_error;
 #[cfg(feature = "types")]
 pub mod type_error;
 
+pub use self::parsing_error::*;
 pub use self::processing_error::*;
 pub use self::session_error::*;
 #[cfg(feature = "types")]

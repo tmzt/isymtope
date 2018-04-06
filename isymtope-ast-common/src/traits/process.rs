@@ -9,6 +9,8 @@ pub enum ProcessingScopeEnvironment {
     Normal,
     Reducer(String),
     ElementActions,
+    ExternNode,
+    ExternNodeChildren,
 }
 
 impl Default for ProcessingScopeEnvironment {
@@ -58,6 +60,9 @@ pub trait ProcessingContext: Debug {
     ) -> DocumentProcessingResult<Option<CommonBindings<ProcessedExpression>>>;
 
     fn environment(&mut self) -> DocumentProcessingResult<ProcessingScopeEnvironment>;
+
+    fn is_environment(&mut self, env: &ProcessingScopeEnvironment) -> DocumentProcessingResult<bool>;
+    fn is_closest_environment(&mut self, env: &ProcessingScopeEnvironment) -> DocumentProcessingResult<bool>;
 }
 
 pub trait TryProcessFrom<Input> {

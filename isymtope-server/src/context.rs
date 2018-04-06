@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 
 use isymtope_generate::*;
@@ -65,10 +66,18 @@ impl ServerContext for DefaultServerContext {
                 // eprintln!("[server context] get or creating context for app with key ({})", app_key);
 
                 let app_response = APP_CACHE.with(|cache| {
-                    let mut cache = cache.lock().unwrap();
-                    let app_context = cache.entry(app_key.clone()).or_insert_with(|| {
-                        DefaultAppContext::create(&app_root, template_path).unwrap()
-                    });
+                    let mut cache = cache.borrow_mut();
+
+                    let app_context = match cache.entry(app_key.clone()) {
+                        Entry::Occupied(e) => e.into_mut(),
+                        Entry::Vacant(v) => {
+                            v.insert(DefaultAppContext::create(&app_root, template_path)?)
+                        }
+                    };
+
+                    // let app_context = cache.entry(app_key.clone()).or_insert_with(|| {
+                    //     DefaultAppContext::create(&app_root, template_path).unwrap()
+                    // });
 
                     let template_req_msg = TemplateRequestMsg::RenderAppRoute(
                         base_url.to_owned(),
@@ -78,9 +87,9 @@ impl ServerContext for DefaultServerContext {
                     );
                     let app_req_msg = AppRequestMsg::TemplateRequest(template_req_msg);
                     app_context.handle_msg(app_req_msg)
-                });
+                })?;
 
-                let AppResponseMsg::TemplateResponse(template_response) = app_response?;
+                let AppResponseMsg::TemplateResponse(template_response) = app_response;
                 let TemplateResponseMsg::RenderComplete(render_response) = template_response;
 
                 Ok(ResponseMsg::RenderComplete(render_response))

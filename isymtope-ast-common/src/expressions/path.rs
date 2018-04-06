@@ -1,17 +1,12 @@
-use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use itertools::Itertools;
 use itertools::FoldWhile::Done;
 use itertools::join;
 
-use common::*;
-use error::*;
 use traits::*;
-use expressions::*;
-use objects::*;
-use ast::*;
-// use output::*;
+use error::*;
+use super::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -125,7 +120,7 @@ fn eval_path<T>(
 ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>
 where
     ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
-    T: Debug,
+    T: ::std::fmt::Debug,
 {
     let head = src.head();
     let components: Vec<_> = src.components().map(|v| v.collect()).unwrap_or_default();

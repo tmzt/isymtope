@@ -18,5 +18,6 @@ pushd ${ROOT}/isymtope-server
     (cd ../isymtope-cli && cargo build --target x86_64-unknown-linux-musl) && \
         prerender playground && \
         prerender todomvc && \
-        prerender shopping
+        prerender shopping && \
+        prerender materializecss
 popd

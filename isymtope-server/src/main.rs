@@ -1,7 +1,5 @@
 #![recursion_limit = "240"]
-#![feature(box_patterns)]
-#![feature(conservative_impl_trait)]
-#![feature(specialization)]
+#![feature(box_patterns, specialization)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -74,5 +72,7 @@ pub use self::playground_api_service::*;
 
 pub fn main() {
     dotenv().ok();
+    pretty_env_logger::init();
+
     server::run_server("0.0.0.0:3000").ok();
 }

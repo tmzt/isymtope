@@ -735,11 +735,22 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                             &ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _),
                             _,
                         ) => {
-                            write!(w, "flatten(values(")?;
-                            self.write_object(w, ctx, a)?;
-                            write!(w, "), ")?;
-                            self.write_object(w, ctx, b)?;
-                            write!(w, ")")?;
+                            let shape = get_current_reducer_shape(ctx)?;
+                            match shape {
+                                Some(OuterShape::Array) | Some(OuterShape::Map) => {
+                                    write!(w, "flatten(values(")?;
+                                    self.write_object(w, ctx, a)?;
+                                    write!(w, "), ")?;
+                                    self.write_object(w, ctx, b)?;
+                                    write!(w, ")")?;
+                                }
+
+                                _ => {
+                                    self.write_object(w, ctx, a)?;
+                                    write!(w, " + ")?;
+                                    self.write_object(w, ctx, b)?;
+                                }
+                            };
 
                             return Ok(());
                         }
@@ -1430,7 +1441,25 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             }
 
             ElementOp::SkipNode => {
-                writeln!(w, "IncrementalDOM.skipNode();")?;
+                writeln!(w, "// old SkipNode")?;
+                Ok(())
+            }
+            
+            ElementOp::SkipOuterElement(ref e) => {
+                match *e {
+                    SkipElementOp::ElementOpen(..) | SkipElementOp::ElementVoid(..) | SkipElementOp::WriteValue(..) => {
+                        writeln!(w, "IncrementalDOM.skipNode();")?;
+                    }
+
+                    _ => {}
+                };
+
+                Ok(())
+            }
+
+            ElementOp::SkipElement(..) => {
+                // Don't call skipNode() for children
+                writeln!(w, "// not skipping element")?;
                 Ok(())
             }
 

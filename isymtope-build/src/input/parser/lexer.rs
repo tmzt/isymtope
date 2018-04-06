@@ -3,7 +3,10 @@
 #![allow(unused_macros)]
 
 use std::str::{CharIndices, FromStr};
-use input::parser::token::{Result, TemplateParseError, Token};
+
+use isymtope_ast_common::*;
+use input::parser::token::Token;
+// use input::parser::token::{Result, TemplateParseError, Token};
 
 macro_rules! take_until {
     ($slf:expr, $start:expr, $first:pat $(| $rest:pat)*) => {{
@@ -116,7 +119,7 @@ impl<'input> Lexer<'input> {
         self.n0.map(|n| n.0).unwrap_or(self.source_len)
     }
 
-    fn identifier(&mut self, start: usize) -> Result<(usize, Token, usize)> {
+    fn identifier(&mut self, start: usize) -> TemplateParseResult<(usize, Token, usize)> {
         let (end, content) = take!(self, start, 'a'...'z' | 'A'...'Z' | '_' | '0'...'9');
 
         let token = match content {
@@ -178,7 +181,7 @@ impl<'input> Lexer<'input> {
         return Ok((start, token, end));
     }
 
-    fn string(&mut self, start: usize) -> Result<(usize, Token, usize)> {
+    fn string(&mut self, start: usize) -> TemplateParseResult<(usize, Token, usize)> {
         self.buffer.clear();
         self.step();
 
@@ -195,7 +198,7 @@ impl<'input> Lexer<'input> {
         Err(TemplateParseError::UnterminatedString(start).into())
     }
 
-    fn numeric(&mut self, start: usize) -> Result<(usize, Token, usize)> {
+    fn numeric(&mut self, start: usize) -> TemplateParseResult<(usize, Token, usize)> {
         // TODO: Support negative numbers
         let (end, content) = take!(self, start, '0'...'9');
         if let Ok(num) = i32::from_str(content) {
@@ -205,7 +208,7 @@ impl<'input> Lexer<'input> {
         Err(TemplateParseError::InvalidNumber(start).into())
     }
 
-    fn normal(&mut self) -> Option<Result<(usize, Token, usize)>> {
+    fn normal(&mut self) -> Option<TemplateParseResult<(usize, Token, usize)>> {
         loop {
             if let Some((start, a, b)) = self.two() {
                 let token = match (a, b) {
@@ -282,12 +285,12 @@ impl<'input> Lexer<'input> {
             }
         }
 
-        Some(Err(TemplateParseError::Unexpected(self.pos())))
+        Some(Err(TemplateParseError::UnexpectedToken(self.pos())))
     }
 }
 
 impl<'input> Iterator for Lexer<'input> {
-    type Item = Result<(usize, Token, usize)>;
+    type Item = TemplateParseResult<(usize, Token, usize)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(Ok((start, token, end))) = self.normal() {
