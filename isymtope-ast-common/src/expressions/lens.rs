@@ -150,7 +150,7 @@ impl TryEvalFrom<LensValue<ProcessedExpression>> for ExpressionValue<OutputExpre
                 "For lens cannot be evaluated as a value"
             )),
 
-            LensValue::GetLens(ref s, box ref a, _) => {
+            LensValue::GetLens(_, box ref a, _) => {
                 eprintln!("[GetLens] a: {:?}", a);
 
                 // TODO: Only resolve to reducer keys at top level
@@ -162,7 +162,7 @@ impl TryEvalFrom<LensValue<ProcessedExpression>> for ExpressionValue<OutputExpre
                 Err(try_process_from_err!("Error processing GetLens"))
             }
 
-            LensValue::QueryLens(ref alias, ref query_call, _) => {
+            LensValue::QueryLens(_, ref query_call, _) => {
                 TryEvalFrom::try_eval_from(query_call, ctx)
             }
         }

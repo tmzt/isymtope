@@ -1,10 +1,11 @@
-use std::str;
-use std::env;
-use std::path::PathBuf;
-use std::process::Command;
 
 #[cfg(feature = "copy_wasm")]
 fn main() {
+    use std::str;
+    use std::env;
+    use std::path::PathBuf;
+    use std::process::Command;
+
     // Copy compiled wasm application
     let in_wasm = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../wasm-build/target/wasm32-unknown-unknown/release/isymtope_wasm.wasm");
     let out_wasm = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("res/tests/app/playground/isymtope-small.wasm");
@@ -26,5 +27,4 @@ fn main() {
 
 #[cfg(not(feature = "copy_wasm"))]
 fn main() {
-
 }

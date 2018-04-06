@@ -1,7 +1,6 @@
 use error::*;
 use traits::*;
 use expressions::*;
-// use output::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Primitive {
@@ -16,7 +15,7 @@ pub enum Primitive {
 impl TryProcessFrom<ExpressionValue<OutputExpression>> for Primitive {
     fn try_process_from(
         src: &ExpressionValue<OutputExpression>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
             ExpressionValue::Primitive(ref p) => Ok(p.to_owned()),
@@ -28,7 +27,7 @@ impl TryProcessFrom<ExpressionValue<OutputExpression>> for Primitive {
 impl TryEvalFrom<ExpressionValue<OutputExpression>> for Primitive {
     fn try_eval_from(
         src: &ExpressionValue<OutputExpression>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
             ExpressionValue::Primitive(ref p) => Ok(p.to_owned()),
@@ -40,7 +39,7 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>> for Primitive {
 impl TryProcessFrom<ExpressionValue<OutputExpression>> for bool {
     fn try_process_from(
         src: &ExpressionValue<OutputExpression>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
             ExpressionValue::Primitive(Primitive::BoolVal(b)) if b => Ok(true),
@@ -53,7 +52,7 @@ impl TryProcessFrom<ExpressionValue<OutputExpression>> for bool {
 impl TryEvalFrom<ExpressionValue<OutputExpression>> for bool {
     fn try_eval_from(
         src: &ExpressionValue<OutputExpression>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         eprintln!(
             "[TryEvalFrom -> bool] Evaluating OutputExpression as bool: {:?}",

@@ -2,7 +2,7 @@
 use isymtope_ast_common::*;
 
 use input::parser::loc::Loc;
-use input::parser::token::{self, Token};
+use input::parser::token::Token;
 
 
 grammar;

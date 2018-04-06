@@ -66,14 +66,14 @@ window._events = Object.create(null);
             events.@event_key = function @event_key(_event, props) @{
               @if data.event_enterkeyflags[event_key] {
                 if (_event.keyCode == 13) @{
-                  @for (action_key, action_body) in event_actions {
-                    @action_body
+                  @for pair in event_actions {
+                    @pair.1
                   }
                 _event.preventDefault();
                 @}
               } else {
-                @for (action_key, action_body) in event_actions {
-                  @action_body
+                @for pair in event_actions {
+                  @pair.1
                 }
                 _event.preventDefault();
               }

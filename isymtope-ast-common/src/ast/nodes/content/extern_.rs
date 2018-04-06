@@ -4,7 +4,6 @@ use error::*;
 use traits::*;
 use expressions::*;
 use ast::*;
-// use output::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExternNode<T>(Option<Box<Vec<ContentNode<T>>>>, PhantomData<T>);
@@ -39,8 +38,8 @@ impl TryProcessFrom<ExternNode<SourceExpression>> for ExternNode<ProcessedExpres
 
 impl TryEvalFrom<ExternNode<ProcessedExpression>> for ExternNode<OutputExpression> {
     fn try_eval_from(
-        src: &ExternNode<ProcessedExpression>,
-        ctx: &mut OutputContext,
+        _src: &ExternNode<ProcessedExpression>,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         Err(try_eval_from_err!("Cannot evaluate"))
     }

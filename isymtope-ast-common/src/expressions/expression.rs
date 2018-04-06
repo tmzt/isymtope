@@ -545,7 +545,7 @@ impl<T> Expression<T> {
 impl<T: Clone> TryProcessFrom<Expression<T>> for Expression<T> {
     fn try_process_from(
         src: &Expression<T>,
-        ctx: &mut ProcessingContext,
+        _ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         Ok(src.to_owned())
     }

@@ -115,7 +115,7 @@ impl TryProcessFrom<ElementNode<SourceExpression>> for ElementNode<ProcessedExpr
 
 impl TryEvalFrom<ElementNode<ProcessedExpression>> for ElementNode<OutputExpression> {
     fn try_eval_from(
-        src: &ElementNode<ProcessedExpression>,
+        _src: &ElementNode<ProcessedExpression>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         Err(try_eval_from_err!("Cannot evaluate"))
