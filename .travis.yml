@@ -17,10 +17,7 @@ before_script:
 
 script:
   - echo "Building isymtope binaries..."
-  - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl --features playground_api)
-  # - (cd $TRAVIS_BUILD_DIR && cargo build --manifest-path isymtope-server/Cargo.toml --verbose --release --target x86_64-unknown-linux-musl --features playground_api)
-  # - echo "Building isymtope-cli and precached app pages..."
-  # - (cd $TRAVIS_BUILD_DIR && ./scripts/build-prerender-apps.sh)
+  - ./scripts/build.sh
   - if [[ "x$BUILD_WASM" == "xtrue" ]]; then ./scripts/build-wasm.sh; fi
 
 before_deploy:
