@@ -138,6 +138,11 @@ where
             ExpressionValue::Binding(CommonBindings::CurrentElementValue(_), _) => Some(
                 ElementEventProp(alias, prop.to_owned(), format!("_event.target.value"))
             ),
+            ExpressionValue::Binding(CommonBindings::NamedElementBoundValue(ref element_key, _), _) => Some(
+                ElementEventProp(alias, prop.to_owned(), format!("document.querySelector(\"[key = '\" + props.key + \"xxx.{}']\").value", element_key))
+            ),
+            // ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(Some(props)))) => {
+            // }
             _ => None,
         })
         .collect();

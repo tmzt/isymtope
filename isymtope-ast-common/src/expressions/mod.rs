@@ -7,6 +7,7 @@ pub mod pipeline;
 pub mod pipeline_reduce;
 pub mod path;
 pub mod filter;
+pub mod visitor;
 
 pub use self::common::*;
 pub use self::expression::*;
@@ -17,3 +18,4 @@ pub use self::pipeline::*;
 pub use self::pipeline_reduce::*;
 pub use self::path::*;
 pub use self::filter::*;
+pub use self::visitor::*;

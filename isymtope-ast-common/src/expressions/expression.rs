@@ -1160,6 +1160,14 @@ impl TryEvalFrom<CommonBindings<ProcessedExpression>> for ExpressionValue<Output
                 ));
             }
 
+            // // Skip evaluation on first pass
+            // CommonBindings::NamedComponentProp(ref name, _) => {
+            //     return Ok(ExpressionValue::Binding(
+            //         CommonBindings::NamedComponentProp(name.clone(), Default::default()),
+            //         Default::default(),
+            //     ));
+            // }
+
             CommonBindings::NamedElementBoundValue(ref element_key, _) => {
                 return Ok(ExpressionValue::Binding(
                     CommonBindings::NamedElementBoundValue(element_key.clone(), Default::default()),

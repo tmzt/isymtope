@@ -22,14 +22,14 @@ struct Cli {
     #[structopt(long = "base-url")]
     base_url: String,
 
-    #[structopt(long = "template_path")]
+    #[structopt(long = "template-path")]
     template_path: Option<String>,
 
-    #[structopt(long = "app_name")]
+    #[structopt(long = "app-name")]
     app_name: Option<String>,
 
     #[structopt(long = "output", short = "o")]
-    output: String
+    output: String,
 }
 
 main!(|args: Cli| {

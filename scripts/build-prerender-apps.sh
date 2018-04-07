@@ -12,10 +12,11 @@ function log() {
 
 function prerender() {
     local APP_NAME=$1
-    local out="./res/tests/app/${APP_NAME}/index.html"
+    local -r out="./res/tests/app/${APP_NAME}/index.html"
+    local -r base_url="${APPS_BASE}/${APP_NAME}/"
 
-    log "Building ${APP_NAME} prerender with base_url (${APPS_BASE})..."
-    APP_DIR=./res/tests/app ${CLI_BIN} --base-url "${APPS_BASE}/${APP_NAME}/" --output ${out} /app.ism 2>/dev/null
+    log "Building ${APP_NAME} prerender with base_url (${base_url})..."
+    APP_DIR=./res/tests/app ${CLI_BIN} --app-name ${APP_NAME} --base-url ${base_url} --template-path /app.ism -o ${out} 2>/dev/null
 }
 
 pushd ${ROOT}/isymtope-server

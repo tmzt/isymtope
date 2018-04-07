@@ -6,7 +6,6 @@ use itertools::join;
 use error::*;
 use traits::*;
 use objects::*;
-use ast::*;
 use output::*;
 
 #[derive(Debug, Default, Clone)]
@@ -136,6 +135,46 @@ impl ObjectWriter<Block<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter 
     }
 }
 
+// Event binding (within attribute list)
+impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ElementEventBindingOutput<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        eprintln!(
+            "ObjectWriter ElementEventBindingOutput<ProcessedExpression> (HTML): obj: {:?}",
+            obj
+        );
+
+        let name = obj.0.as_ref().map(|s| s.to_owned()).unwrap_or("click".to_owned());
+        let key = &obj.1;
+
+        let props: ObjectValue<OutputExpression> =
+            TryEvalFrom::try_eval_from(&obj.2, ctx)?;
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(1024);
+        let mut js = DefaultJsWriter::default();
+        js.write_object(&mut bytes, ctx, &props)?;
+
+        let props_str = str::from_utf8(bytes.as_slice())?
+            .replace("\"", "&quot;")
+            .replace("_event", "event");
+
+        write!(
+            w,
+            " on{}=\"_events.{}(event, {})\"",
+            name,
+            key,
+            props_str
+        )?;
+
+        Ok(())
+    }
+}
+
+
 fn write_event_props<'s>(
     _self: &'s mut DefaultHtmlWriter,
     w: &mut io::Write,
@@ -264,69 +303,13 @@ fn write_open<'s>(
         };
     };
 
-    let mut bytes: Vec<u8> = Vec::with_capacity(8192);
-
     // Events
     if let Some(events) = desc.events() {
         for event_binding in events {
             eprintln!("Event binding: {:?}", event_binding);
-            write!(
-                w,
-                " on{}=\"_events.{}(event, {{",
-                event_binding.event_name(),
-                event_binding.key()
-            )?;
 
-            let actions: Vec<_> = event_binding
-                .event()
-                .actions()
-                .map(|v| v.into_iter().collect())
-                .unwrap_or_default();
-            eprintln!("Event actions: {:?}", &actions);
-
-            let const_props: Vec<_> = actions
-                .into_iter()
-                .flat_map(|action| {
-                    let dispatch_iter: Vec<_> = match *action {
-                        ActionOp::DispatchAction(_, Some(box ref props), _)
-                        | ActionOp::DispatchActionTo(_, Some(box ref props), _, _) => Some(
-                            props
-                                .into_iter()
-                                .map(|prop| (prop.key().to_owned(), prop.value().to_owned())),
-                        ),
-                        _ => None,
-                    }.into_iter()
-                        .flat_map(|v| v)
-                        .collect();
-                    let navigate_iter: Vec<_> = match *action {
-                        ActionOp::Navigate(ref path, _) => {
-                            Some(vec![("path".to_owned(), path.to_owned())].into_iter())
-                        }
-                        _ => None,
-                    }.into_iter()
-                        .flat_map(|v| v)
-                        .collect();
-
-                    dispatch_iter.into_iter().chain(navigate_iter.into_iter())
-                })
-                .collect();
-
-            eprintln!("[HTML] write_open: const_props(a): {:?}", const_props);
-
-            let const_props: Vec<(String, ExpressionValue<OutputExpression>)> =
-                TryEvalFrom::try_eval_from(&const_props, ctx)?;
-            eprintln!("[HTML] write_open: const_props(b): {:?}", const_props);
-
-            bytes.truncate(0);
-
-            write_event_props(_self, &mut bytes, ctx, &const_props)?;
-
-            let event_props_value = str::from_utf8(bytes.as_slice())?
-                .replace("\"", "&quot;")
-                .replace("_event", "event");
-
-            write!(w, "{}", event_props_value)?;
-            write!(w, "}})\"")?;
+            let event_output: ElementEventBindingOutput<ProcessedExpression> = event_binding.into();
+            _self.write_object(w, ctx, &event_output)?;
         }
     };
 
