@@ -124,11 +124,14 @@ impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWr
             CommonBindings::ComponentPropsObject(_) => write!(w, "props"),
             CommonBindings::NamedEventBoundValue(_, _) => write!(w, "_event.target.value"),
             CommonBindings::NamedElementBoundValue(ref element_key, _) => {
-                let element_key = ctx.get_element_key()?
-                    .map(|s| format!("{}.{}", s, element_key))
-                    .unwrap_or_else(|| element_key.to_owned());
-
-                write!(w, "document.querySelector(\"[key = '{}']\").value", element_key)
+                // Is this element being emitted within a component definition (function)?
+                let is_component = ctx.environment()? == Some(OutputScopeEnvironment::Component);
+                let element_key = match ctx.get_element_key()? {
+                    Some(ref s) if is_component => format!("document.querySelector(\"[key = '\" + props.key + \"{}']\").value", s),
+                    Some(ref s) => format!("document.querySelector(\"[key = '{}.{}']\").value", element_key, s),
+                    _ => format!("document.querySelector(\"[key = '{}']\").value", element_key)
+                };
+                write!(w, "{}", element_key)
             }
             CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
             CommonBindings::CurrentElementKeyPath => write!(w, "props.key"),
@@ -156,11 +159,14 @@ impl ObjectWriter<CommonBindings<OutputExpression>, JsOutput> for DefaultJsWrite
             CommonBindings::CurrentItemIndex => write!(w, "_idx"),
             CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
             CommonBindings::NamedElementBoundValue(ref element_key, _) => {
-                let element_key = ctx.get_element_key()?
-                    .map(|s| format!("{}.{}", s, element_key))
-                    .unwrap_or_else(|| element_key.to_owned());
-
-                write!(w, "document.querySelector(\"[key = '{}']\").value", element_key)
+                // Is this element being emitted within a component definition (function)?
+                let is_component = ctx.environment()? == Some(OutputScopeEnvironment::Component);
+                let element_key = match ctx.get_element_key()? {
+                    Some(ref s) if is_component => format!("document.querySelector(\"[key = '\" + props.key + \"{}']\").value", s),
+                    Some(ref s) => format!("document.querySelector(\"[key = '{}.{}']\").value", element_key, s),
+                    _ => format!("document.querySelector(\"[key = '{}']\").value", element_key)
+                };
+                write!(w, "{}", element_key)
             }
             _ => Err(try_eval_from_err!(format!(
                 "Unsupported output binding: {:?}",
