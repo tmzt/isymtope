@@ -1,5 +1,4 @@
 use std::io;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use error::*;
@@ -1571,6 +1570,7 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
         ctx: &mut OutputContext,
         obj: &ActionOpOutput<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
+        let is_route_dispatch = ctx.environment()? == Some(OutputScopeEnvironment::RouteDispatchAction);
         let action = &obj.1;
         let prefix = obj.0.as_ref().map(|s| format!("props.{}", s)).unwrap_or_else(|| "props".to_owned());
         match *action {
@@ -1586,7 +1586,7 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
                 if let Some(box ref props) = *props {
                     for prop in props {
                         write!(w, ", \"{}\": ", prop.key())?;
-                        if prop.value().is_primitive() {
+                        if is_route_dispatch || prop.value().is_primitive() {
                             self.write_object(w, ctx, prop.value())?;
                         } else {
                             write!(w, "{}.{}", prefix, prop.key())?;
@@ -1598,7 +1598,7 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
 
             ActionOp::Navigate(ref prop, _) => {
                 write!(w, "store.dispatch(navigate(")?;
-                if prop.is_primitive() {
+                if  is_route_dispatch || prop.is_primitive() {
                     self.write_object(w, ctx, prop)?;
                 } else {
                     write!(w, "{}", prefix)?;

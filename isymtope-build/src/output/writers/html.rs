@@ -174,53 +174,6 @@ impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, HtmlOutput> fo
     }
 }
 
-
-fn write_event_props<'s>(
-    _self: &'s mut DefaultHtmlWriter,
-    w: &mut io::Write,
-    ctx: &mut OutputContext,
-    props: &Vec<(String, ExpressionValue<OutputExpression>)>,
-) -> DocumentProcessingResult<()> {
-    let mut js_writer: DefaultJsWriter = Default::default();
-    let mut first_prop = true;
-
-    for &(ref prop_key, ref expr) in props {
-        if !first_prop {
-            write!(w, ", ")?;
-        }
-
-        write!(w, "\"{}\": ", prop_key)?;
-        js_writer.write_object(w, ctx, expr)?;
-        first_prop = false;
-    }
-
-    Ok(())
-}
-
-// fn get_element_key(ctx: &mut OutputContext) -> DocumentProcessingResult<String> {
-//     let binding = CommonBindings::CurrentElementKeyPath;
-
-//     if let Some(ExpressionValue::Primitive(Primitive::StringVal(ref key))) = ctx.find_value(&binding)? {
-//         return Ok(key.to_owned());
-//     };
-
-//     Err(try_eval_from_err!("Missing element key"))
-// }
-
-// fn bind_element_key(ctx: &mut OutputContext, key: &str, idx: Option<i32>) -> DocumentProcessingResult<()> {
-//     let binding = CommonBindings::CurrentElementKeyPath;
-
-//     let element_key = match (ctx.find_value(&binding)?, idx) {
-//         (Some(ExpressionValue::Primitive(Primitive::StringVal(ref prefix))), Some(idx)) => format!("{}.{}.{}", prefix, key, idx),
-//         (Some(ExpressionValue::Primitive(Primitive::StringVal(ref prefix))), _) => format!("{}.{}", prefix, key),
-//         (_, Some(idx)) => format!("{}.{}", key, idx),
-//         (_, _) => key.to_owned()
-//     };
-
-//     eprintln!("[html] bind_element_key: adding binding for CurrentElementKeyPath: {}", element_key);
-//     ctx.bind_value(binding, ExpressionValue::Primitive(Primitive::StringVal(element_key)))
-// }
-
 fn write_open<'s>(
     _self: &'s mut DefaultHtmlWriter,
     w: &mut io::Write,
