@@ -105,7 +105,7 @@ impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWr
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        _ctx: &mut OutputContext,
+        ctx: &mut OutputContext,
         obj: &CommonBindings<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -123,6 +123,13 @@ impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWr
             CommonBindings::NamedComponentProp(ref ident, _) => write!(w, "props.{}", ident),
             CommonBindings::ComponentPropsObject(_) => write!(w, "props"),
             CommonBindings::NamedEventBoundValue(_, _) => write!(w, "_event.target.value"),
+            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+                let element_key = ctx.get_element_key()?
+                    .map(|s| format!("{}.{}", s, element_key))
+                    .unwrap_or_else(|| element_key.to_owned());
+
+                write!(w, "document.querySelector(\"[key = '{}']\").value", element_key)
+            }
             CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
             CommonBindings::CurrentElementKeyPath => write!(w, "props.key"),
             CommonBindings::PathAlias(ref path, _) => write!(w, "{}", path),
@@ -136,7 +143,7 @@ impl ObjectWriter<CommonBindings<OutputExpression>, JsOutput> for DefaultJsWrite
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        _ctx: &mut OutputContext,
+        ctx: &mut OutputContext,
         obj: &CommonBindings<OutputExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
@@ -148,6 +155,13 @@ impl ObjectWriter<CommonBindings<OutputExpression>, JsOutput> for DefaultJsWrite
             CommonBindings::CurrentItem(_) => write!(w, "_item"),
             CommonBindings::CurrentItemIndex => write!(w, "_idx"),
             CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
+            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+                let element_key = ctx.get_element_key()?
+                    .map(|s| format!("{}.{}", s, element_key))
+                    .unwrap_or_else(|| element_key.to_owned());
+
+                write!(w, "document.querySelector(\"[key = '{}']\").value", element_key)
+            }
             _ => Err(try_eval_from_err!(format!(
                 "Unsupported output binding: {:?}",
                 obj

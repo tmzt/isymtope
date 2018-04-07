@@ -1,11 +1,10 @@
-use std::path::PathBuf;
 
 use futures::Future;
 use hyper::header::ContentType;
 use hyper::mime;
 
 use hyper::{Error as HyperError, Request, Response};
-use hyper::server::{Server, Service};
+use hyper::server::Service;
 use hyper_staticfile::Static;
 
 use tokio_core::reactor::Handle;

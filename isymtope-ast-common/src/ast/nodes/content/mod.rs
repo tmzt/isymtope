@@ -2,19 +2,19 @@ use std::marker::PhantomData;
 
 use error::*;
 use traits::*;
-use common::*;
 use expressions::*;
-// use output::*;
 
 pub mod bindings;
 pub mod attr;
 pub mod element;
 pub mod extern_;
+pub mod visitor;
 
 pub use self::bindings::*;
 pub use self::attr::*;
 pub use self::element::*;
 pub use self::extern_::*;
+pub use self::visitor::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ContentNode<T> {

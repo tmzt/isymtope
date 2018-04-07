@@ -82,6 +82,7 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
         );
 
         let popped = self.scopes.pop_back().unwrap();
+        debug!("[ProcessingContext] popped scope [{:?}]", popped);
         let parent_id = popped.1.parent_id().unwrap().to_owned();
 
         self.cur_scope_id = parent_id;
@@ -97,12 +98,27 @@ impl ProcessingContext for DefaultProcessingContext<ProcessedExpression> {
         scope.add_ident(key, binding)
     }
 
+    fn find_ident(
+        &mut self,
+        key: &str,
+    ) -> DocumentProcessingResult<Option<CommonBindings<ProcessedExpression>>> {
+        eprintln!(
+            "[ProcessingContext] find_ident: cur_scope_id: {}",
+            self.cur_scope_id
+        );
+        assert!(self.scopes.len() > 0);
+
+        find_entry(&mut self.scopes, &self.cur_scope_id, key, |scope| {
+            scope.get_ident(key)
+        })
+    }
+
     fn must_find_ident(
         &mut self,
         key: &str,
     ) -> DocumentProcessingResult<CommonBindings<ProcessedExpression>> {
         eprintln!(
-            "[ProcessingContext] find_ident: cur_scope_id: {}",
+            "[ProcessingContext] must_find_ident: cur_scope_id: {}",
             self.cur_scope_id
         );
         assert!(self.scopes.len() > 0);

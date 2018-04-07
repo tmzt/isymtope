@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use linked_hash_map::LinkedHashMap;
-use itertools::Itertools;
 
 use util::*;
 use error::*;
@@ -533,8 +532,7 @@ impl TryProcessFrom<Template> for Document {
         let root_default_nodes: Vec<_> = root_children
             .iter()
             .filter_map(|n| match **n {
-                StoreRootScopeNode::Common(ref c, _) => Some(c),
-                _ => None,
+                StoreRootScopeNode::Common(ref c, _) => Some(c)
             })
             .filter_map(|n| match *n {
                 StoreCommonNode::LetNode(ref s, ref e, _) => Some((s.to_owned(), e.to_owned())),
@@ -684,7 +682,7 @@ impl TryProcessFrom<Template> for Document {
                 .unwrap_or_default();
             let mut content_processor = ContentProcessor::new(component_names.clone());
 
-            ctx.push_child_scope();
+            ctx.push_child_scope_with_environment(ProcessingScopeEnvironment::ComponentDefinition);
 
             // Define props
             if let Some(params) = component_node.params() {
@@ -700,6 +698,25 @@ impl TryProcessFrom<Template> for Document {
                 }
             }
 
+            // Define value bindings (aliases)
+            let value_mappings = component_node.gather_value_binding_mappings()?;
+            for (alias, element_key) in value_mappings {
+                debug!("Found value binding from alias {} to element key {}", alias, element_key);
+                let binding = CommonBindings::NamedElementBoundValue(element_key.to_owned(), Default::default());
+
+                debug!(
+                    "Binding value binding alias {} to element_key {} as [{:?}]",
+                    alias, element_key, binding
+                );
+                ctx.bind_ident(alias.clone(), binding.clone())?;
+                // debug!(
+                //     "Binding element value binding alias {} binding to element key {} as [{:?}]",
+                //     alias, element_key, binding
+                // );
+                // ctx.bind_element_binding(alias, binding)?;
+            }
+
+            // Process children
             for ref child in children {
                 content_processor.process_content_node(ctx, &mut content_ctx, child)?;
             }

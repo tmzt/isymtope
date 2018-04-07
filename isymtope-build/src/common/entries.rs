@@ -9,7 +9,7 @@ use itertools::FoldWhile::{Continue, Done};
 use traits::*;
 use error::*;
 
-pub fn find_match<S: ScopeParentId, V, F: FnMut(&mut S) -> Option<V>>(
+pub fn find_match<S: ScopeParentId + Debug, V, F: FnMut(&mut S) -> Option<V>>(
     scopes: &mut LinkedHashMap<String, S>,
     scope_id: &str,
     mut f: F,
@@ -29,23 +29,23 @@ where
                 .expect("scope_id from previous iteration expected to exist.");
 
             eprintln!(
-                "[find_match]  Looking for match in scope [{}] ",
-                scope_id
+                "[find_match]  Looking for match in scope [{:?}] ",
+                scope
             );
             let result = f(scope);
 
             if let Some(result) = result {
-                eprintln!("[find_match] Found match in scope [{}]: {:?}", scope_id, result);
+                eprintln!("[find_match] Found match in scope [{:?}]: {:?}", scope, result);
 
                 Done((scope_id.to_owned(), Some(result)))
             } else {
                 eprintln!(
                     "[find_match] Did not find match in scope {:?}.",
-                    scope_id
+                    scope
                 );
 
                 let parent_id = scope.parent_id();
-                eprintln!("[find_match] parent_id: {:?}", parent_id);
+                // eprintln!("[find_match] parent_id: {:?}", parent_id);
 
                 if parent_id.is_none() {
                     eprintln!("[find_match] no parent_id, returning Done(None) to end fold_while.");
@@ -63,12 +63,12 @@ where
         .into_inner()
         .1;
 
-    eprintln!("[entries] find entry res: {:?}", res);
+    eprintln!("[find_match] find entry res: {:?}", res);
 
     Ok(res)
 }
 
-pub fn find_entry<S: ScopeParentId, K, V, F: FnMut(&mut S) -> Option<V>>(
+pub fn find_entry<S: ScopeParentId + Debug, K, V, F: FnMut(&mut S) -> Option<V>>(
     scopes: &mut LinkedHashMap<String, S>,
     scope_id: &str,
     key: K,
@@ -90,8 +90,8 @@ where
                 .expect("scope_id from previous iteration expected to exist.");
 
             eprintln!(
-                "[entries]  Looking for entry for key [{:?}] in scope [{}] ",
-                key, scope_id
+                "[entries]  Looking for entry for key [{:?}] in scope [{:?}] ",
+                key, scope
             );
             let entry = f(scope);
 
@@ -101,12 +101,12 @@ where
                 Done((scope_id.to_owned(), Some(entry)))
             } else {
                 eprintln!(
-                    "[entries] Did not find entry for key [{:?}] in scope {:?}.",
-                    key, scope_id
+                    "[entries] Did not find entry for key [{:?}] in scope [{:?}].",
+                    key, scope
                 );
 
                 let parent_id = scope.parent_id();
-                eprintln!("[entries] parent_id: {:?}", parent_id);
+                // eprintln!("[entries] parent_id: {:?}", parent_id);
 
                 if parent_id.is_none() {
                     eprintln!("[entries] no parent_id, returning Done(None) to end fold_while.");
@@ -129,7 +129,7 @@ where
     Ok(res)
 }
 
-pub fn must_find_entry<S: ScopeParentId, K, V, F: FnMut(&mut S) -> Option<V>>(
+pub fn must_find_entry<S: ScopeParentId + Debug, K, V, F: FnMut(&mut S) -> Option<V>>(
     scopes: &mut LinkedHashMap<String, S>,
     scope_id: &str,
     key: K,

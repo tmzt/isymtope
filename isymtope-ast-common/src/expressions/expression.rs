@@ -20,6 +20,7 @@ pub enum CommonBindings<T> {
     NamedQueryParam(String, PhantomData<T>),
     NamedComponentProp(String, PhantomData<T>),
     ComponentPropsObject(PhantomData<T>),
+    NamedElementBoundValue(String, PhantomData<T>),
     NamedEventBoundValue(String, PhantomData<T>),
     CurrentElementValue(PhantomData<T>),
     CurrentElementKeyPath,
@@ -73,6 +74,9 @@ where
             }
             CommonBindings::NamedEventBoundValue(ref s, _) => Ok(
                 CommonBindings::NamedEventBoundValue(s.to_owned(), Default::default()),
+            ),
+            CommonBindings::NamedElementBoundValue(ref s, _) => Ok(
+                CommonBindings::NamedElementBoundValue(s.to_owned(), Default::default()),
             ),
             CommonBindings::CurrentElementValue(_) => {
                 Ok(CommonBindings::CurrentElementValue(Default::default()))
@@ -574,6 +578,12 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
                 if ctx.environment()? == ProcessingScopeEnvironment::ElementActions {
                     eprintln!("Finding element_binding [{}]", ident_key);
                     if let Some(binding) = ctx.find_element_binding(ident_key)? {
+                        debug!("Found element_binding for [{}]: [{:?}]", ident_key, binding);
+                        return Ok(ExpressionValue::Binding(binding, Default::default()));
+                    };
+
+                    if let Some(binding) = ctx.find_ident(ident_key)? {
+                        debug!("Found binding for [{}]: [{:?}]", ident_key, binding);
                         return Ok(ExpressionValue::Binding(binding, Default::default()));
                     };
                 }
@@ -1146,6 +1156,13 @@ impl TryEvalFrom<CommonBindings<ProcessedExpression>> for ExpressionValue<Output
             CommonBindings::CurrentItem(_) => {
                 return Ok(ExpressionValue::Binding(
                     CommonBindings::CurrentItem(Default::default()),
+                    Default::default(),
+                ));
+            }
+
+            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+                return Ok(ExpressionValue::Binding(
+                    CommonBindings::NamedElementBoundValue(element_key.clone(), Default::default()),
                     Default::default(),
                 ));
             }

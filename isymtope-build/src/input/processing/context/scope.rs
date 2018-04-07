@@ -1,4 +1,4 @@
-// use std::fmt::Debug;
+use std::fmt;
 use std::cmp::Eq;
 use std::hash::Hash;
 
@@ -10,7 +10,7 @@ use traits::*;
 
 use super::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ProcessingScope<T: Hash + Eq> {
     scope_id: String,
     parent_id: Option<String>,
@@ -31,6 +31,12 @@ impl<T: Hash + Eq> Default for ProcessingScope<T> {
 impl<T: Hash + Eq> ScopeParentId for ProcessingScope<T> {
     fn parent_id(&self) -> Option<&str> {
         self.parent_id.as_ref().map(|s| s.as_str())
+    }
+}
+
+impl<T: Hash + Eq> fmt::Debug for ProcessingScope<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({:?})", self.id(), self.environment())
     }
 }
 
