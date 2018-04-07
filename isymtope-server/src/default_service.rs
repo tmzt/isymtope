@@ -24,6 +24,7 @@ lazy_static! {
 #[cfg(feature = "playground_api")]
 lazy_static! {
     pub static ref PLAYGROUND_ROUTE: Regex = Regex::new(r"app/playground/api/(?P<path>/*(.*))").unwrap();
+    pub static ref PLAYGROUND_RESOURCE_ROUTE: Regex = Regex::new(r"app/playground/_worker/app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
 }
 
 #[derive(Debug)]
@@ -168,6 +169,41 @@ impl Service for DefaultService {
                     return Box::new(response);
                 }
             };
+
+            if let Some(captures) = PLAYGROUND_RESOURCE_ROUTE.captures(&trimmed_path) {
+                let app_name = captures.name("app").unwrap().as_str().to_owned();
+                let base_url = format!("{}app/{}/", base_url, app_name);
+
+                eprintln!("Base uri: {:?}", base_url);
+
+                let path = captures
+                    .name("path")
+                    .map(|m| m.as_str())
+                    .unwrap_or_default();
+                let trimmed_path = path.trim_left_matches('/').to_owned();
+                let trimmed_resource_path = if trimmed_path == "" { "index.html".to_owned() } else { trimmed_path };
+
+                // Handle resource file case
+                let app_resource_path = &*APP_DIR.join(&app_name).join(&trimmed_resource_path);
+
+                println!("default_service: looking for worker resource at path {:?}", app_resource_path);
+
+                // Serve resource
+                if app_resource_path.is_file() {
+                    let resource_path = format!("/{}/{}", app_name, trimmed_resource_path);
+                    let resource_req =
+                        Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+                    let response = self.resource_service
+                        .call(&base_url, &app_name, resource_req);
+                    return Box::new(response);
+                };
+
+                // Return not found error
+                let response = hyper::Response::new()
+                    .with_status(StatusCode::NotFound)
+                    .with_body("Resource not found");
+                return Box::new(future::ok(response));
+            }
         }
 
         if let Some(captures) = STATIC_RESOURCE_ROUTE.captures(&trimmed_path) {
@@ -201,11 +237,13 @@ impl Service for DefaultService {
                 .name("path")
                 .map(|m| m.as_str())
                 .unwrap_or_default();
-            let path = if path == "" { "/" } else { path }.to_owned();
-            let trimmed_resource_path = path.trim_left_matches('/').to_owned();
+            let trimmed_path = path.trim_left_matches('/').to_owned();
+            let trimmed_resource_path = if trimmed_path == "" { "index.html".to_owned() } else { trimmed_path };
 
             // Handle resource file case
             let app_resource_path = &*APP_DIR.join(&app_name).join(&trimmed_resource_path);
+
+            println!("default_service: looking for resource at path {:?}", app_resource_path);
 
             // Serve resource
             if app_resource_path.is_file() {
@@ -216,6 +254,25 @@ impl Service for DefaultService {
                     .call(&base_url, &app_name, resource_req);
                 return Box::new(response);
             };
+
+            // Default file
+            // let default_resource_path = app_resource_path.join("index.html");
+
+            // println!("default_service: looking for default resource at path {:?}", default_resource_path);
+
+            // if default_resource_path.is_file() {
+            //     let resource_path = format!("/{}/{}/index.html", app_name, trimmed_resource_path);
+            //     let resource_req =
+            //         Request::new(Method::Get, FromStr::from_str(&resource_path).unwrap());
+            //     let response = self.resource_service
+            //         .call(&base_url, &app_name, resource_req);
+            //     return Box::new(response);
+            // };
+
+            let response = hyper::Response::new()
+                .with_status(StatusCode::NotFound)
+                .with_body("Resource not found");
+            return Box::new(future::ok(response));
         }
 
         if let Some(captures) = APP_ROUTE.captures(&trimmed_path) {

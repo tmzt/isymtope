@@ -8,6 +8,7 @@ extern crate colored;
 extern crate dotenv;
 extern crate pretty_env_logger;
 
+#[macro_use]
 extern crate log;
 
 #[macro_use]
