@@ -8,6 +8,7 @@ use ast::*;
 pub enum ProcessingScopeEnvironment {
     Normal,
     Reducer(String),
+    ComponentDefinition,
     ElementActions,
     ExternNode,
     ExternNodeChildren,
@@ -34,6 +35,12 @@ pub trait ProcessingContext: Debug {
         key: String,
         binding: CommonBindings<ProcessedExpression>,
     ) -> DocumentProcessingResult<()>;
+
+    fn find_ident(
+        &mut self,
+        key: &str,
+    ) -> DocumentProcessingResult<Option<CommonBindings<ProcessedExpression>>>;
+
     fn must_find_ident(
         &mut self,
         key: &str,

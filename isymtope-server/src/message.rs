@@ -1,5 +1,4 @@
 use isymtope_generate::*;
-use super::*;
 
 #[derive(Debug)]
 pub enum AppRequestMsg {

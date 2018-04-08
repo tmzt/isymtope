@@ -6,9 +6,6 @@ pub use self::nodes::*;
 
 use expressions::*;
 
-// #[cfg(feature="parser")]
-// pub type LocToken<Inner> = Loc<Inner, (usize, usize)>;
-
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Template(Vec<TemplateNode<SourceExpression>>);
 

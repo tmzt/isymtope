@@ -17,7 +17,7 @@ pub struct ElementNode<T>(
     PhantomData<T>,
 );
 
-impl<T: Clone> ElementNode<T> {
+impl<T> ElementNode<T> {
     pub fn new(
         tag: String,
         props: Option<Vec<ElementAttrValue<T>>>,
@@ -116,7 +116,7 @@ impl TryProcessFrom<ElementNode<SourceExpression>> for ElementNode<ProcessedExpr
 impl TryEvalFrom<ElementNode<ProcessedExpression>> for ElementNode<OutputExpression> {
     fn try_eval_from(
         _src: &ElementNode<ProcessedExpression>,
-        ctx: &mut OutputContext,
+        _ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         Err(try_eval_from_err!("Cannot evaluate"))
     }

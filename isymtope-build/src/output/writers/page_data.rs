@@ -143,10 +143,13 @@ impl InternalTemplateDataBuilder {
                 }
 
                 eprintln!("[page_templates] enumerating actions");
-                for action in actions {
+                for (idx, action) in actions.into_iter().enumerate() {
                     eprintln!("[page_templates] event action: {:?}", action);
                     bytes.truncate(0);
-                    js_writer.write_object(&mut bytes, &mut ctx, action)?;
+
+                    let props_key = format!("a{}", idx);
+                    let output_action = ActionOpOutput(Some(props_key), action.to_owned());
+                    js_writer.write_object(&mut bytes, &mut ctx, &output_action)?;
 
                     let event_action_key = format!("{}_{}", key, allocate_element_key());
                     let event_action_body = str::from_utf8(bytes.as_slice())?.to_owned();

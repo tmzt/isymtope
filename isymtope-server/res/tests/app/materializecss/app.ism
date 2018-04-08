@@ -2,9 +2,25 @@ use html;
 
 store {
     let counter = 0;
+    let employees = [
+        {id: 0, name: "Tim", years: 1},
+        {id: 1, name: "Julian", years: 4},
+        {id: 2, name: "Not", years: 1}
+    ];
+
+    let edit_employee = { name: "", years: 0 };
 
     counter {
-        action increment => value + 1;        
+        action increment => value + 1;
+    }
+
+    employees {
+        action add(entry) => state + (entry + {id: (value.max(item.id) + 1), name: entry.name, years: entry.years});
+        action remove(id) => state.filter(item.id != id);
+    }
+
+    edit_employee {
+        action clear => { name: "", years: 0 };
     }
 }
 
@@ -17,8 +33,81 @@ component show_counter(counter) {
     (" times")
 }
 
+component single_employee(employee) {
+    tr() {
+        td() { (employee.name) }
+        td() { (employee.years) }
+        td() { a(href="#", class="btn btn-floating") || { dispatch remove(id: employee.id) to employees; } { i(class="material-icons") {("delete")} } }
+    }
+}
+
+component list_employees(employees) {
+    table() {
+        thead() {
+            th() { ("Name") }
+            th() { ("Years worked") }
+            td() { ("") }
+        }
+        single_employee(for employee in employees) {}
+    }
+}
+
+component simple_counter(counter) {
+    h2(class="header") { ("Simple Counter") }
+    div(class="card horizontal") {
+        div(class="card-content") {
+            div(class="card-content") {
+                show_counter(counter=counter) {}
+            }
+
+            div(class="card-action") {
+                a(class="waves-effect waves-light btn") click || { dispatch increment to counter; } { ("Button") }
+            }
+        }
+    }
+}
+
+component show_employees(employees) {
+    h2(class="header") { ("Employees") }
+    p() { ("There are currently ") (employees.count(true)) (" employees") }
+    div(class="card horizontal") {
+        div(class="container") {
+            div(class="col s12 m7") {
+                list_employees(employees=employees) {}
+            }
+        }
+    }
+}
+
+component new_employee(employee) {
+    form() {
+        div(class="card-panel") {
+            div(class="card-content") {
+                div(class="container") {
+                    h5() { ("New employee") }
+                    div(class="col s12 m7 input-field") {
+                        input(placeholder="Name") bind employee.name as name {}
+                    }
+                    div(class="col s12 m7 input-field") {
+                        input(placeholder="Years") bind employee.years as years {}
+                    }
+                }
+            }
+
+            div(class="card-action") {
+                button(type="submit", class="waves-effect waves-light btn") click || {
+                    dispatch add(entry: {name: name, years: years}) to employees;
+                    dispatch clear() to edit_employee;
+                } { ("Add employee") }
+            }
+        }
+    }
+}
+
 extern {
     link(rel="stylesheet", type="text/css", href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css") {}
+    link(rel="stylesheet", type="text/css", href="https://fonts.googleapis.com/css?family=Roboto") {}
+    link(rel="stylesheet", type="text/css", href="https://fonts.googleapis.com/icon?family=Material+Icons") {}
     script(src="https://code.jquery.com/jquery-3.2.1.min.js") {}
     script(src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js") {}
 }
@@ -26,18 +115,12 @@ extern {
 div(id="app") {
     div(class="container") {
         div(class="col s12 m7") {
-            h2(class="header") { ("Simple Counter") }
-            div(class="card horizontal") {
-                div(class="card-content") {
-                    div(class="card-content") {
-                        show_counter(get counter) {}
-                    }
+            simple_counter(get counter) {}
+        }
 
-                    div(class="card-action") {
-                        a(class="waves-effect waves-light btn") click || { dispatch increment to counter; } { ("Button") }
-                    }
-                }
-            }
+        div(class="col s12 m7") {
+            show_employees(get employees) {}
+            new_employee(get edit_employee as employee) {}
         }
     }
 }

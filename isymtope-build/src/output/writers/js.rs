@@ -1,5 +1,4 @@
 use std::io;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use error::*;
@@ -101,15 +100,15 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWrit
     }
 }
 
-impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
-        _ctx: &mut OutputContext,
-        obj: &CommonBindings<ProcessedExpression>,
+        ctx: &mut OutputContext,
+        obj: &CommonBindings<T>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
-            "ObjectWriter CommonBindings<ProcessedExpression> (JS): obj: {:?}",
+            "ObjectWriter CommonBindings (JS): obj: {:?}",
             obj
         );
 
@@ -123,35 +122,20 @@ impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWr
             CommonBindings::NamedComponentProp(ref ident, _) => write!(w, "props.{}", ident),
             CommonBindings::ComponentPropsObject(_) => write!(w, "props"),
             CommonBindings::NamedEventBoundValue(_, _) => write!(w, "_event.target.value"),
+            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+                // Is this element being emitted within a component definition (function)?
+                let is_component = ctx.environment()? == Some(OutputScopeEnvironment::Component);
+                // Also check if we have an element key in the context (if we are actually being output as HTML)
+                let element_key = match ctx.get_element_key()? {
+                    Some(ref s) => format!("document.querySelector(\"[key = '{}.{}']\").value", s, element_key),
+                    _ if is_component => format!("document.querySelector(\"[key = '\" + props.key + \".{}']\").value", element_key),
+                    _ => format!("document.querySelector(\"[key = '{}']\").value", element_key)
+                };
+                write!(w, "{}", element_key)
+            }
             CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
             CommonBindings::CurrentElementKeyPath => write!(w, "props.key"),
             CommonBindings::PathAlias(ref path, _) => write!(w, "{}", path),
-        }?;
-
-        Ok(())
-    }
-}
-
-impl ObjectWriter<CommonBindings<OutputExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        _ctx: &mut OutputContext,
-        obj: &CommonBindings<OutputExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter CommonBindings<OutputExpression> (JS): obj: {:?}",
-            obj
-        );
-
-        match *obj {
-            CommonBindings::CurrentItem(_) => write!(w, "_item"),
-            CommonBindings::CurrentItemIndex => write!(w, "_idx"),
-            CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
-            _ => Err(try_eval_from_err!(format!(
-                "Unsupported output binding: {:?}",
-                obj
-            )))?,
         }?;
 
         Ok(())
@@ -1182,6 +1166,44 @@ impl ObjectWriter<Block<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     }
 }
 
+// Event binding (within attribute list)
+impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ElementEventBindingOutput<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        eprintln!(
+            "ObjectWriter ElementEventBindingOutput<ProcessedExpression> (JS): obj: {:?}",
+            obj
+        );
+
+        let name = obj.0.as_ref().map(|s| s.to_owned()).unwrap_or("click".to_owned());
+        let key = &obj.1;
+
+        write!(
+            w,
+            ", \"on{}\", e => _events.{}(e, ",
+            name,
+            key
+        )?;
+
+        // let obj: ObjectValue<OutputExpression> =
+        //     TryEvalFrom::try_eval_from(&obj.2, ctx)?;
+        let props = &obj.2;
+
+        self.write_object(w, ctx, props)?;
+
+        write!(
+            w,
+            ")"
+        )?;
+
+        Ok(())
+    }
+}
+
 fn write_open<'s>(
     _self: &'s mut DefaultJsWriter,
     w: &mut io::Write,
@@ -1217,26 +1239,6 @@ fn write_open<'s>(
 
     write!(w, "\"key\", {}", key_string)?;
 
-    if let Some(events) = desc.events() {
-        for event_binding in events {
-            write!(w, ", \"on{}\", ", event_binding.event_name())?;
-            write!(w, "e => _events.{}(e, {{", event_binding.key())?;
-
-            let props: HashMap<String, String> = event_binding.props().map(|(alias, _, path_string)| (alias.to_string(), path_string.to_string())).collect();
-
-            let mut first_prop = true;
-            for (ref alias, ref path_string) in props {
-                if !first_prop {
-                    write!(w, ", ")?;
-                }
-                write!(w, "{}: {}", alias, path_string)?;
-                first_prop = false;
-            }
-
-            write!(w, "}})")?;
-        }
-    };
-
     let props: Vec<_> = desc.props()
         .map(|prop| (prop.name().to_owned(), prop.expr().to_owned()))
         .collect();
@@ -1267,6 +1269,14 @@ fn write_open<'s>(
         _self.write_object(w, ctx, &expr)?;
     }
     write!(w, "]")?;
+
+    // events (cannot be static)
+    if let Some(events) = desc.events() {
+        for event_binding in events {
+            let event_output: ElementEventBindingOutput<ProcessedExpression> = event_binding.into();
+            _self.write_object(w, ctx, &event_output)?;
+        }
+    }
 
     // attributes
     for prop in eval_props {
@@ -1444,7 +1454,7 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
                 writeln!(w, "// old SkipNode")?;
                 Ok(())
             }
-            
+
             ElementOp::SkipOuterElement(ref e) => {
                 match *e {
                     SkipElementOp::ElementOpen(..) | SkipElementOp::ElementVoid(..) | SkipElementOp::WriteValue(..) => {
@@ -1553,54 +1563,20 @@ impl ObjectWriter<Query<ProcessedExpression>, JsOutput> for DefaultJsWriter {
 
 /// Actions
 
-fn write_action_prop_value<'s>(
-    _self: &'s mut DefaultJsWriter,
-    w: &mut io::Write,
-    ctx: &mut OutputContext,
-    prop: &PropValue<ProcessedExpression>,
-) -> DocumentProcessingResult<()> {
-    eprintln!("[Action Prop Value] prop: {:?}", prop);
-
-    // // Special case: lookup value by path alias
-    // if let ExpressionValue::Expression(Expression::Path(ref path_value, _)) = *expr {
-    //     let alias_string = path_value.component_string();
-    //     let binding = CommonBindings::PathAlias(alias_string, Default::default());
-    //     if let Some(alias_target) = ctx.find_value(&binding)? {
-    //         if let ExpressionValue::Expression(Expression::RawPath(ref s, _)) = alias_target {
-    //             // write!(w, "props.{}", s)?;
-    //             write!(w, "{}", s)?;
-    //             return Ok(());
-    //         };
-    //         // return _self.write_object(w, ctx, &alias_target);
-    //     };
-    // };
-    let value = prop.value();
-
-    let is_primitive = value.is_primitive();
-    let environment = ctx.environment()?;
-
-    if !is_primitive && environment != Some(OutputScopeEnvironment::RouteDispatchAction) {
-        let alias = prop.key().to_owned();
-        let binding: CommonBindings<ProcessedExpression> = CommonBindings::NamedComponentProp(alias.clone(), Default::default());
-        let expr = ExpressionValue::Binding(binding, Default::default());
-
-        return _self.write_object(w, ctx, &expr);
-    };
-
-    _self.write_object(w, ctx, value)
-}
-
-impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &ActionOp<ProcessedExpression>,
+        obj: &ActionOpOutput<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
-        match *obj {
+        let is_route_dispatch = ctx.environment()? == Some(OutputScopeEnvironment::RouteDispatchAction);
+        let action = &obj.1;
+        let prefix = obj.0.as_ref().map(|s| format!("props.{}", s)).unwrap_or_else(|| "props".to_owned());
+        match *action {
             ActionOp::DispatchAction(ref name, ref props, _)
             | ActionOp::DispatchActionTo(ref name, ref props, _, _) => {
-                let action = match *obj {
+                let action = match *action {
                     ActionOp::DispatchActionTo(_, _, ref target, _) => {
                         format!("{}.{}", target.to_uppercase(), name.to_uppercase())
                     }
@@ -1610,17 +1586,23 @@ impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
                 if let Some(box ref props) = *props {
                     for prop in props {
                         write!(w, ", \"{}\": ", prop.key())?;
-                        write_action_prop_value(self, w, ctx, prop)?;
+                        if is_route_dispatch || prop.value().is_primitive() {
+                            self.write_object(w, ctx, prop.value())?;
+                        } else {
+                            write!(w, "{}.{}", prefix, prop.key())?;
+                        }
                     }
                 };
                 writeln!(w, "}});")?;
             }
 
             ActionOp::Navigate(ref prop, _) => {
-                // write!(w, "            window._go(")?;
                 write!(w, "store.dispatch(navigate(")?;
-                let prop = PropValue::new("path".to_owned(), prop.to_owned(), None);
-                write_action_prop_value(self, w, ctx, &prop)?;
+                if  is_route_dispatch || prop.is_primitive() {
+                    self.write_object(w, ctx, prop)?;
+                } else {
+                    write!(w, "{}", prefix)?;
+                };
                 write!(w, "));")?;
             }
         };
@@ -1645,7 +1627,8 @@ impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJs
 
             RouteActionValue::Actions(Some(ref actions), _) => for action in actions {
                 ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
-                self.write_object(w, ctx, action)?;
+                let  action_output = ActionOpOutput(None, action.to_owned());
+                self.write_object(w, ctx, &action_output)?;
                 ctx.pop_scope();
             },
             RouteActionValue::Actions(..) => {}
