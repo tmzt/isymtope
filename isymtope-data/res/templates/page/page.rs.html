@@ -14,7 +14,11 @@
     @Html(format!("{}", "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/redux-thunk/2.2.0/redux-thunk.js\"></script>"))
   }
   @Html(format!("{}", "<script src=\"https://ajax.googleapis.com/ajax/libs/incrementaldom/0.5.1/incremental-dom.js\"></script>"))
-    <script data-isymtope-lib>
+
+<script data-isymtope-inject data-isymtope-script-key="inject">
+  @Html(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/static/scripts/app/playground/inject.js")));
+</script>
+<script data-isymtope-lib data-isymtope-script-key="lib">
 "use strict";
 
 window._exports = Object.create(null);

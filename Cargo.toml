@@ -47,6 +47,7 @@ path = "./wasm-log"
 
 [features]
 playground_api = ["isymtope-server/playground_api"]
+site_app = ["isymtope-server/site_app"]
 
 [profile.dev]
 debug-assertions = true
