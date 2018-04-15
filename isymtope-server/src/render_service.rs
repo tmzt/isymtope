@@ -62,12 +62,13 @@ impl IsymtopeAppService for TemplateRenderService {
     fn call(&self, base_url: &str, app_name: &str, req: Request) -> Self::Future {
         let (tx, rx) = futures::sync::oneshot::channel::<IsymtopeServerResult<ResponseMsg>>();
         let template_path = "/app.ism".to_owned();
+        let path = req.path().to_owned();
 
         let render = Msg::RenderAppRoute(
             base_url.to_owned(),
             app_name.to_owned(),
             template_path,
-            req.path().to_owned(),
+            path
         );
         self.sender.unbounded_send((render, tx)).unwrap();
 

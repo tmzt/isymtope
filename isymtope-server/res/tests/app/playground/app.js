@@ -24,7 +24,6 @@ let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/
 // Globals
 let _workspaces
 let _currentWorkspaceId
-let _setContentCalled = false
 
 let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
 
@@ -35,39 +34,6 @@ class CompilerService
 
     async startCompilation(opts) {
         throw new Error('Unimplemented')
-    }
-}
-
-class WasmCompilerService extends CompilerService
-{
-    prepareService() {
-        return getOrRegisterCompilerWorker()
-    }
-
-    async startCompilation(opts) {
-        const compilerWorker = await getOrRegisterCompilerWorker()
-
-        return new Promise((resolve, reject) => {
-            let completion = new MessageChannel()
-            let compileReq = {
-                topic: '/compilerWorker/compile',
-                source,
-                pathname: '',
-                mimeType: 'text/html',
-                app_name,
-                baseUrl,
-                template_path,
-                path
-            }
-
-            completion.onmessage = data => {
-                if (data.error) {
-                    resolve(data.content)
-                } else {
-                    reject(data.error)
-                }
-            }
-        })
     }
 }
 
@@ -97,33 +63,61 @@ class PreviewFrameService {
     constructor() {
         this._wrapper = document.querySelector('#previewWrap')
         this._iframe = this._wrapper.querySelector('#preview')
+        this._frameOrigin = null
+    }
+
+    loadOrigin(origin) {
+        return new Promise(resolve => {
+            const iframe = this._iframe
+            const load = () => resolve()
+            iframe.addEventListener('load', () => {
+                load()
+                iframe.removeEventListener('load', load)
+            })
+            iframe.src = origin
+        })
+    }
+
+    async sendMessage(msg, origin, load = false) {
+        if (load) { await this.loadOrigin(origin) }
+        return new Promise(resolve => {
+            const completion = new MessageChannel()
+            const iframe = this._iframe
+            completion.port1.onmessage = () => {
+                console.log(`[PreviewFrameService] [${msg.type}] got completion message from iframe`)
+                resolve()
+            }
+            console.log(`[PreviewFrameService] [${msg.type}] sending message to iframe`)
+            iframe.contentWindow.postMessage({  __isymtopePlaygroundFrameMsg: msg }, origin, [completion.port2])
+        })
     }
 
     async setupInitialPreview() {
-        const contentWorkerService = await getService(ContentWorkerService)
-
         const workspace = await app.getCurrentWorkspace()
         const isPrerender = workspace.data.prerender !== false
-        const appPath = `/app/${workspace.id}`
 
-        const opts = { appPath, frameId: _frameId, isPrerender }
-        return contentWorkerService.initializePreviewFrame(opts)
+        const opts = { frameId: _frameId, appName: workspace.id, isPrerender }
+        return this.initializePreviewFrame(opts)
+    }
+
+    async initializePreviewFrame(opts) {
+        this._frameOrigin = `http://s1234.${opts.appName}.app.isymtope.ws.localhost:3000/`
+
+        const wrapper = document.querySelector('#previewWrap')
+        return this.sendMessage({ type: 'registerWorker' }, this._frameOrigin, true)
+        .then(() => {
+            console.log('[initializePreviewFrame] got completion message from iframe')
+            wrapper.classList.toggle('isBlank', false)
+            wrapper.classList.toggle('isPrerender', true)
+        })
+    }
+
+    async forwardWorkerMessage(workerMsg) {
+        return this.sendMessage({ type: 'forwardMessage', msg: workerMsg }, this._frameOrigin)
     }
 
     async updatePreview(workspaceId, frameId, content) {
-        return new Promise(resolve => {
-            const completion = new MessageChannel()
-            const wrapper = this._wrapper
-            const iframe = this._iframe
-    
-            const msg = { _mergeDoc: content, [`_previewIframe${_frameId}`]: true }
-            completion.port1.onmessage = () => {
-                console.log('[setPreviewContent] got completion message from iframe')
-                wrapper.classList.remove('isPrerender')
-                resolve()
-            }
-            iframe.contentWindow.postMessage(msg, window.origin, [completion.port2])
-        })
+        return this.sendMessage({ type: 'mergeDoc', content }, this._frameOrigin)
     }
 }
 
@@ -138,47 +132,6 @@ const determineMimeType = (pathname) => {
     return mimeType
 }
 
-class ContentWorkerService {
-    constructor() {
-    }
-
-    async initializePreviewFrame(opts) {
-        const resourceWorker = await getOrRegisterResourceWorker()
-        return new Promise(resolve => {
-            const completion = new MessageChannel()
-            completion.port1.onmessage = () => {
-                console.log('[initialize preview frame] got completion message from worker')
-                const wrapper = document.querySelector('#previewWrap')
-                wrapper.classList.toggle('isBlank', false)
-                wrapper.classList.toggle('isPrerender', true)
-                const iframe = document.querySelector('iframe#preview')
-                iframe.src = `/app/playground/_worker${appPath}`
-                // _shouldUpdate = true
-                resolve()
-            }
-            const { appPath, frameId, isPrerender } = opts
-            resourceWorker.postMessage({ topic: '/resourceWorker/initializePreviewFrame', appPath, frameId, isPrerender }, [completion.port2])
-        })
-    }
-
-    async updateResource(pathname, content, mimeType = undefined) {
-        const resourceWorker = await getOrRegisterResourceWorker()
-        mimeType = mimeType || determineMimeType(pathname)
-
-        return new Promise(async resolve => {
-            const completion = new MessageChannel()
-            const model = await getEditorModel()
-            const content = model.getValue()
-            const msg = { topic: '/resourceWorker/cacheResource', pathname, mimeType, content }
-            completion.port1.onmessage = () => {
-                console.log('[ContentWorkerService updateResource] got completion message from worker')
-                resolve()
-            }
-            resourceWorker.postMessage(msg, [completion.port2])
-        })
-    }
-}
-
 class Workspace {
     constructor(workspaceData) {
         this._name = workspaceData.name
@@ -186,7 +139,6 @@ class Workspace {
         this._workspaceData = workspaceData
         this._currentFileId = workspaceData.index
         this._content = null
-
         this._previewRendered = false
     }
 
@@ -196,16 +148,10 @@ class Workspace {
     get currentFileId() { return this._currentFileId }
     get currentFile() { return this._workspaceData.files.filter(f => f.id === this._currentFileId)[0] }
 
-    async loadInitial() {
-    }
-
-    async load() {
-    }
-
     async switchFile(fileId) {
         if (this._currentFileId === fileId) { return }
         this._currentFileId = fileId
-        return useModel()
+        return (await getService(EditorService)).useModel()
     }
 
     async setupPreview() {
@@ -218,7 +164,7 @@ class Workspace {
         if (!this._previewRendered || !this._content) {
             return this.setupPreview()
         }
-        
+
         const previewFrameService = await getService(PreviewFrameService)
         await previewFrameService.updatePreview(this.id, _frameId, this._content)
     }
@@ -226,7 +172,6 @@ class Workspace {
     async compile() {
         const editorService = await getService(EditorService)
         const previewFrameService = await getService(PreviewFrameService)
-        const contentWorkerService = await getService(ContentWorkerService)
         const model = await editorService.getEditorModel()
 
         const source = model.getValue()
@@ -248,11 +193,6 @@ class Workspace {
 
                         this._content = content
                         await this.updatePreview()
-                        // if (_shouldUpdate) {
-                        //     await previewFrameService.updatePreview(content)
-                        // } else {
-                        //     await this.updatePreview()
-                        // }
             })
             .catch(err => {
                 console.warn(`[compiler] Remote compiler error: ${err}`)
@@ -282,7 +222,7 @@ class EditorService {
 
         return new Promise(resolve => {
             const editorDiv = this._editorDiv
-            require(["vs/editor/editor.main"], function () {
+            require(["vs/editor/editor.main"], () => {
                 const editor = monaco.editor.create(editorDiv, {
                     value: '',
                     theme: 'vs-dark'
@@ -290,7 +230,7 @@ class EditorService {
 
                 editor.onDidChangeModelContent(async e => {
                     console.log('Changed editor content', e)
-                    if (!_setContentCalled) {
+                    if (!this._settingContent) {
                         return _triggerCompileCurrent()
                     }
                 })
@@ -306,6 +246,33 @@ class EditorService {
         const key = `${workspace.id}_${workspace.currentFileId}`
         return getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
     }
+
+    async getCachedContent() {
+        const model = await this.getEditorModel()
+        const workspace = await app.getCurrentWorkspace()
+        const file = workspace.currentFile
+        const key = cacheKey(workspace.id, file.id)
+        return getOrCache(_contentCache, key, async () => fetchContent(workspace.id, file))
+    }
+
+    async setContent(content) {
+        const model = await this.getEditorModel()
+        this._settingContent = true
+        model.setValue(content)
+        this._settingContent = false
+    }
+
+    async useModel() {
+        const workspace = await app.getCurrentWorkspace()
+        const file = workspace.currentFile
+        const model = await this.getEditorModel()
+        const content = await this.getCachedContent()
+
+        await this.setContent(content)
+        monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
+        window._editor.setModel(model)
+    }
+
 }
 
 class App {
@@ -316,42 +283,37 @@ class App {
 
     get currentWorkspaceId() { return this._currentWorkspaceId }
 
-    async initialize(workspaces, startingWorkspaceId = null) {
-        if (this._initialized || this._currentWorkspaceId) {
-            throw new Error('Invalid state')
-        }
-        _workspaces = workspaces
-        this._currentWorkspaceId = startingWorkspaceId
-
-        const previewFrameService = await getService(PreviewFrameService)
-        await previewFrameService.setupInitialPreview()
-
-        await useModel()
-        this._initialized = true
-    }
-
     async getCurrentWorkspace() {
         return getWorkspace(this._currentWorkspaceId)
     }
 
+    async initialize(workspaces, startingWorkspaceId = null) {
+        if (this._initialized || this._currentWorkspaceId) {
+            throw new Error('Invalid state: already initialized')
+        }
+        _workspaces = workspaces
+        this._currentWorkspaceId = startingWorkspaceId
+
+        await (await getService(EditorService)).useModel()
+        await (await getService(PreviewFrameService)).setupInitialPreview()
+
+        this._initialized = true
+    }
+
     async switchWorkspace(workspaceId) {
         if (_currentWorkspaceId === workspaceId) {  return }
-
         this._currentWorkspaceId = workspaceId
-        await useModel()
-        const workspace = await app.getCurrentWorkspace()
-        return workspace.updatePreview()
+
+        await (await getService(EditorService)).useModel()
+        await (await app.getCurrentWorkspace()).updatePreview()
     }
 
     async switchFile(fileId) {
-        const workspace = await this.getCurrentWorkspace()
-        return workspace.switchFile(fileId)
+        return (await this.getCurrentWorkspace()).switchFile(fileId)
     }
 
     async compileCurrent() {
-        const workspace = await this.getCurrentWorkspace()
-
-        return workspace.compile()
+        return (await this.getCurrentWorkspace()).compile()
     }
 
     setCompiling(v) {
@@ -372,31 +334,13 @@ const _workspaceObjects = new Map
 const getWorkspace = async (workspaceId) => getOrCache(_workspaceObjects, workspaceId, async () => new Workspace(_workspaces.get(workspaceId)))
 
 const _compilerServices = new Map
-const getCompilerService = () => getOrCache(_compilerServices, 'remote', (getOrRegisterCompilerWorker) => new RemoteCompilerService())
+const getCompilerService = () => getOrCache(_compilerServices, 'remote', () => new RemoteCompilerService())
 
 const _contentCache = new Map
 const _editorModels = new Map
 
 const cacheKey = (workspaceId, fileId) => `[workspaceId=${workspaceId} fileId=${fileId}]`
 const fetchContent = async (workspaceId, fileData) => fetch(`${window.origin}/resources/app/${workspaceId}/${fileData.path}`).then(resp => resp.text())
-
-async function useModel() {
-    const editorService = await getService(EditorService)
-
-    const workspace = await app.getCurrentWorkspace()
-    const fileId = workspace.currentFileId
-    const file = workspace.currentFile
-
-    const key = cacheKey(workspace.id, fileId)
-    const model = await editorService.getEditorModel()
-    const content = await getOrCache(_contentCache, key, async () => fetchContent(workspace.id, file))
-
-    _setContentCalled = true
-    model.setValue(content)
-    _setContentCalled = false
-    monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
-    window._editor.setModel(model)
-}
 
 const _triggerCompileCurrent = debounce(() => app.compileCurrent(), 2000)
 
@@ -418,43 +362,6 @@ function externAppReducer(state, action) {
     return true
 }
 
-let compiler
-async function getOrRegisterCompilerWorker() {
-    if (!compiler) {
-        compiler = new Worker('/app/playground/worker.js')
-    }
-    return compiler
-}
-
-async function getOrRegisterResourceWorker() {
-    if (navigator.serviceWorker.controller) {
-        return navigator.serviceWorker.controller
-    }
-
-    let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/_worker' })
-    return reg.active
-}
-
-
-let _shouldUpdate = false
-
-function setPreviewContent(content) {
-    return new Promise(resolve => {
-        const completion = new MessageChannel()
-        const wrapper = document.querySelector('#previewWrap')
-        const iframe = document.querySelector('iframe#preview')
-
-        const msg = { _mergeDoc: content, [`_previewIframe${_frameId}`]: true }
-        iframe.contentWindow.postMessage(msg, window.origin, [completion.port2])
-
-        completion.port1.onmessage = () => {
-            console.log('[setPreviewContent] got completion message from iframe')
-            wrapper.classList.remove('isPrerender')
-            resolve()
-        }
-    })
-}
-
 const navigate = Isymtope.navigate
 
 Isymtope.app()
@@ -464,7 +371,6 @@ Isymtope.app()
         store.dispatch(async (dispatch, getState) =>
             getCompilerService()
                 .then(compilerService => compilerService.prepareService())
-                .then(() => getOrRegisterResourceWorker())
                 .then(() => getService(EditorService))
                 .then(editorService => editorService.getEditor())
                 .then(() => dispatch(navigate('/'))))
