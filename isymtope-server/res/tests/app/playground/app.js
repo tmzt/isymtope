@@ -24,7 +24,6 @@ let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/
 // Globals
 let _workspaces
 let _currentWorkspaceId
-let _settingContent = false
 
 let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
 
@@ -140,7 +139,6 @@ class Workspace {
         this._workspaceData = workspaceData
         this._currentFileId = workspaceData.index
         this._content = null
-
         this._previewRendered = false
     }
 
@@ -150,16 +148,10 @@ class Workspace {
     get currentFileId() { return this._currentFileId }
     get currentFile() { return this._workspaceData.files.filter(f => f.id === this._currentFileId)[0] }
 
-    async loadInitial() {
-    }
-
-    async load() {
-    }
-
     async switchFile(fileId) {
         if (this._currentFileId === fileId) { return }
         this._currentFileId = fileId
-        return useModel()
+        return (await getService(EditorService)).useModel()
     }
 
     async setupPreview() {
@@ -297,16 +289,13 @@ class App {
 
     async initialize(workspaces, startingWorkspaceId = null) {
         if (this._initialized || this._currentWorkspaceId) {
-            throw new Error('Invalid state')
+            throw new Error('Invalid state: already initialized')
         }
         _workspaces = workspaces
         this._currentWorkspaceId = startingWorkspaceId
 
-        const editorService = await getService(EditorService)
-        await editorService.useModel()
-
-        const previewFrameService = await getService(PreviewFrameService)
-        await previewFrameService.setupInitialPreview()
+        await (await getService(EditorService)).useModel()
+        await (await getService(PreviewFrameService)).setupInitialPreview()
 
         this._initialized = true
     }
@@ -320,8 +309,7 @@ class App {
     }
 
     async switchFile(fileId) {
-        const workspace = await this.getCurrentWorkspace()
-        return workspace.switchFile(fileId)
+        return (await this.getCurrentWorkspace()).switchFile(fileId)
     }
 
     async compileCurrent() {
@@ -346,28 +334,13 @@ const _workspaceObjects = new Map
 const getWorkspace = async (workspaceId) => getOrCache(_workspaceObjects, workspaceId, async () => new Workspace(_workspaces.get(workspaceId)))
 
 const _compilerServices = new Map
-const getCompilerService = () => getOrCache(_compilerServices, 'remote', (getOrRegisterCompilerWorker) => new RemoteCompilerService())
+const getCompilerService = () => getOrCache(_compilerServices, 'remote', () => new RemoteCompilerService())
 
 const _contentCache = new Map
 const _editorModels = new Map
 
 const cacheKey = (workspaceId, fileId) => `[workspaceId=${workspaceId} fileId=${fileId}]`
 const fetchContent = async (workspaceId, fileData) => fetch(`${window.origin}/resources/app/${workspaceId}/${fileData.path}`).then(resp => resp.text())
-
-async function useModel() {
-    const workspace = await app.getCurrentWorkspace()
-    const file = workspace.currentFile
-
-    const key = cacheKey(workspace.id, file.id)
-    const model = await editorService.getEditorModel()
-    const content = await getOrCache(_contentCache, key, async () => fetchContent(workspace.id, file))
-
-    _settingContent = true
-    model.setValue(content)
-    _settingContent = false
-    monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
-    window._editor.setModel(model)
-}
 
 const _triggerCompileCurrent = debounce(() => app.compileCurrent(), 2000)
 
@@ -389,16 +362,6 @@ function externAppReducer(state, action) {
     return true
 }
 
-async function getOrRegisterResourceWorker() {
-    if (navigator.serviceWorker.controller) {
-        return navigator.serviceWorker.controller
-    }
-
-    // let reg = await navigator.serviceWorker.register('/app/playground/serviceWorker.js', { scope: '/app/playground/_worker' })
-    let reg = await navigator.serviceWorker.register('http://s1234.materializecss.app.isymtope.ws.localhost:3000/serviceWorker.js')
-    return reg.active
-}
-
 const navigate = Isymtope.navigate
 
 Isymtope.app()
@@ -408,7 +371,6 @@ Isymtope.app()
         store.dispatch(async (dispatch, getState) =>
             getCompilerService()
                 .then(compilerService => compilerService.prepareService())
-                // .then(() => getOrRegisterResourceWorker())
                 .then(() => getService(EditorService))
                 .then(editorService => editorService.getEditor())
                 .then(() => dispatch(navigate('/'))))
