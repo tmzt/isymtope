@@ -1,0 +1,17 @@
+name: isymtope-sessions
+
+deployments:
+  - containers:
+      - image: redis
+        volumeMounts:
+          - name: redis-rdb
+            mountPath: /srv/data
+        resources:
+          requests:
+            cpu: "30m"
+          limits:
+            cpu: "30m"
+
+volumeClaims:
+  - name: redis-rdb
+    size: 30Mi

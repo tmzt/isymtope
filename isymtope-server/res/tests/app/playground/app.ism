@@ -168,6 +168,7 @@ div {
 
     header(class="app-header") {
         nav(class="right-nav") {
+            a(href="#", class="choose-demo") || { dispatch save to externApp; } { ("Save to Gist") }
             demoMenu(get selectDemoOpen, get workspaces, get activeWorkspaceId) {}
         }
     }

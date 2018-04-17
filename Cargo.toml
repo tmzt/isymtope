@@ -47,6 +47,8 @@ path = "./wasm-log"
 
 [features]
 playground_api = ["isymtope-server/playground_api"]
+redis_session = ["isymtope-server/redis_session"]
+github_auth = ["isymtope-server/github_auth"]
 site_app = ["isymtope-server/site_app"]
 
 [profile.dev]

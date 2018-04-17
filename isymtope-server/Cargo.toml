@@ -37,14 +37,31 @@ path = "../isymtope-build/"
 [dependencies.isymtope-generate]
 path = "../isymtope-generate/"
 
+[dependencies.oauth2]
+optional = true
+version = "1.3.0"
+
+[dependencies.redis-async]
+optional = true
+version = "0.2.0"
+
 [dependencies.time]
 optional = true
 version = "0.1.39"
 
+[dependencies.url]
+optional = true
+version = "1.7.0"
+
 [features]
+cookies = []
+copy_wasm = []
 default = []
-cookies=[]
-copy_wasm=[]
-session_time = ["time"]
+github_auth = [
+    "url",
+    "oauth2",
+]
 playground_api = ["compiler-service"]
+redis_session = ["redis-async"]
+session_time = ["time"]
 site_app = []

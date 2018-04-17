@@ -36,6 +36,11 @@ lazy_static! {
     pub static ref PLAYGROUND_RESOURCE_ROUTE: Regex = Regex::new(r"app/playground/_worker/app/(?P<app>[a-zA-Z0-9_]+)(?P<path>/*(.*))").unwrap();
 }
 
+// #[cfg(feature = "github_auth")]
+// lazy_static! {
+//     pub static ref AUTH_ROUTE: Regex = Regex::new(r"auth/github").unwrap();
+// }
+
 #[derive(Debug)]
 pub struct DefaultServiceFactory {
     render_service_factory: TemplateRenderServiceFactory,
@@ -98,6 +103,8 @@ impl NewService for DefaultServiceFactory {
             static_resource_service: static_resource_service,
             #[cfg(feature = "playground_api")]
             playground_service: playground_service,
+            #[cfg(feature = "github_auth")]
+            auth_service: Default::default(),
             handle: self.handle.clone(),
         })
     }
@@ -109,6 +116,7 @@ pub struct DefaultService {
     resource_service: TemplateResourceService,
     static_resource_service: StaticResourceService,
     #[cfg(feature = "playground_api")] playground_service: PlaygroundApiService,
+    #[cfg(feature = "github_auth")] auth_service: AuthService,
     handle: Handle,
 }
 
@@ -180,36 +188,23 @@ impl Service for DefaultService {
     type Future = Box<Future<Item = Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        let trimmed_path = req.path().trim_left_matches('/').to_owned();
-
         eprintln!("Request uri: {:?}", req.uri());
 
-        let forwarded_proto = req.headers()
-            .get_raw("x-forwarded-proto")
-            .and_then(|s| s.one())
-            .and_then(|s| String::from_utf8(s.to_vec()).ok());
-        eprintln!("Forwarded proto: {:?}", forwarded_proto);
+        let trimmed_path = req.path().trim_left_matches('/').to_owned();
 
-        let mut proto = "http";
-        if let Some(forwarded_proto) = forwarded_proto {
-            if forwarded_proto.to_lowercase() == "https" {
-                proto = "https";
-            };
-        };
+        #[cfg(feature = "github_auth")]
+        {
+            if trimmed_path == "auth/github" {
+                let req_uri = req.uri().to_string();
+                let mut auth_req = Request::new(Method::Get, FromStr::from_str(&req_uri).unwrap());
+                let host = req.headers().get::<Host>().map(|s| s.clone()).unwrap();
+                auth_req.headers_mut().set(host);
+                return self.auth_service.call(auth_req);
+            }
+        }
 
-        // let default_port = if proto == "http" { 80 } else { 443 };
-
-        let hostname = req.headers()
-            .get::<Host>()
-            .map(|h| h.hostname().to_owned())
-            .unwrap();
-        let host_port = req.headers()
-            .get::<Host>()
-            .and_then(|h| h.port())
-            .map(|port| format!("{}:{}", hostname, port))
-            .unwrap_or_else(|| format!("{}", hostname));
-
-        let base_url = format!("{}://{}/", proto, host_port);
+        let (hostname, _) = self.get_host_port(&req).unwrap();
+        let base_url = self.get_base_url(&req).unwrap();
 
         #[cfg(feature = "site_app")]
         {
@@ -276,6 +271,14 @@ impl Service for DefaultService {
                     let app_name = "/app.ism";
                     let response = self.playground_service.call(&base_url, &app_name, req);
                     return Box::new(response);
+                }
+
+                #[cfg(feature = "github_auth")]
+                {
+                    if path == "auth" {
+                        let response = self.auth_service.redirect(&req);
+                        return Box::new(response);
+                    }
                 }
             };
 

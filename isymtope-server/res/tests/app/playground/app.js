@@ -132,6 +132,25 @@ const determineMimeType = (pathname) => {
     return mimeType
 }
 
+class GistService
+{
+    save(opts) {
+        return new Promise((resolve, reject) =>
+            fetch(apiUrl +'auth', { method: 'POST', body: {} })
+                .then(async resp => {
+                    if (!resp.ok) {
+                        return reject(await resp.text())
+                        // return reject(new CompilationError(await resp.text()))
+                    }
+
+                    let data = await resp.json()
+                    location.href = data.redirect
+
+                    // return resolve(resp.text())
+                }))
+    }
+}
+
 class Workspace {
     constructor(workspaceData) {
         this._name = workspaceData.name
@@ -358,6 +377,9 @@ function externAppReducer(state, action) {
             _triggerCompileCurrent(); break
         case 'EXTERNAPP.UPDATERESOURCE':
             updatePreviewResource(action.pathname, action.fileId); break
+
+        case 'EXTERNAPP.SAVE':
+            getService(GistService).then(s => s.save()); break
     }
     return true
 }

@@ -3,11 +3,24 @@ name: isymtope-demo
 deployments:
   - containers:
     - image: gcr.io/isymtope-demo/isymtope-playground
+      env:
+        - name: PLAYGROUND_HOST
+          value: playground.isymtope.org
+        - name: SITE_APP_DNS_SUFFIX
+          value: app.isymtope.ws
+        - name: PORT
+          value: 3000
       resources:
         requests:
-          cpu: "100m"
+          cpu: "70m"
         limits:
-          cpu: "100m"
+          cpu: "70m"
+    - image: redis
+      resources:
+        requests:
+          cpu: "30m"
+        limits:
+          cpu: "30m"
 
 services:
   - name: isymtope-demo
