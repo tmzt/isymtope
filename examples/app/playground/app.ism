@@ -18,12 +18,22 @@ store {
             {id: "app.ism", path: "app.ism", name: "app.ism", caption: "ISM", language: "isymtope", main: true}
         ]}
     ];
+    let activeSlug = "";
     let activeWorkspaceId = "todomvc";
     let activeFileId = "app.ism";
 
     let selectDemoOpen = false;
 
+    let loaded_app = { created: false };
+    loaded_app {
+        action was_created => { created: true };
+    }
+
     workspaces {}
+
+    activeSlug {
+        action setSlug(slug) => slug;
+    }
 
     activeWorkspaceId {
         action setWorkspaceId(workspaceId) => workspaceId;
@@ -106,10 +116,14 @@ query file_data(files, activeFileId) {
     (files.filter(item.id == activeFileId).first()) where (true);
 }
 
+route "/r/:slug" || {
+    dispatch init(workspaces: get workspaces) to externApp;
+    dispatch loadApp(slug: slug) to externApp;
+}
+
 route "/" || {
-    dispatch init(workspaces: get workspaces, workspaceId: "todomvc", fileId: "app.ism") to externApp;
-    dispatch setWorkspaceId(workspaceId: "todomvc") to activeWorkspaceId;
-    dispatch setFileId(fileId: "app.ism") to activeFileId;
+    dispatch init(workspaces: get workspaces) to externApp;
+    dispatch loadExample(exampleName: "todomvc") to externApp;
 }
 
 extern {
@@ -122,7 +136,7 @@ component demoMenuBodyItem(workspaceData, activeWorkspaceId) {
     p()
         click || {
             dispatch setWorkspaceId(workspaceId: workspaceData.id) to activeWorkspaceId;
-            dispatch switchWorkspace(workspaceId: workspaceData.id) to externApp;
+            dispatch loadExample(exampleName: workspaceData.id) to externApp;
             dispatch hide to selectDemoOpen;
         }
     {

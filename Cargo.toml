@@ -7,6 +7,10 @@ version = "0.3.0"
 optional = true
 path = "./compiler-service"
 
+[dependencies.isymtope-actix]
+optional = true
+path = "./isymtope-actix"
+
 [dependencies.isymtope-ast-common]
 default-features = false
 optional = true
@@ -46,11 +50,10 @@ optional = true
 path = "./wasm-log"
 
 [features]
+github_auth = ["isymtope-server/github_auth"]
 playground_api = ["isymtope-server/playground_api"]
 redis_session = ["isymtope-server/redis_session"]
-github_auth = ["isymtope-server/github_auth"]
 site_app = ["isymtope-server/site_app"]
-
 [profile.dev]
 debug-assertions = true
 

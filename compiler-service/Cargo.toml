@@ -4,8 +4,8 @@ name = "compiler-service"
 version = "0.1.0"
 
 [dependencies]
-futures = "0.1.18"
-tokio-core = "0.1.12"
+futures = "0.1"
+tokio-core = "0.1"
 
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common"

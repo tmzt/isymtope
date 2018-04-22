@@ -44,7 +44,7 @@ window._events = Object.create(null);
     function createRoutes() @{
       let routes = @{@};
       @for (pattern, body) in &data.route_bodies {
-        routes["@pattern"] = @{ handler: function(path, store) @{
+        routes["@pattern"] = @{ handler: function(path, store, action) @{
           window._root = document.body
           @body
         @}@};

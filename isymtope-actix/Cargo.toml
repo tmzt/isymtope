@@ -1,0 +1,54 @@
+[package]
+authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
+name = "isymtope-actix"
+version = "0.1.0"
+
+[dependencies]
+actix = "0.5.6"
+actix-web = "0.5.1"
+bytes = "0.4.6"
+dotenv = "0.11.0"
+env_logger = "0.5.8"
+futures = "0.1"
+lazy_static = "1.0.0"
+log = "0.4.1"
+regex = "0.2.10"
+
+[dependencies.chrono]
+features = ["serde"]
+optional = true
+version = "0.4.2"
+
+[dependencies.isymtope-ast-common]
+path = "../isymtope-ast-common"
+
+[dependencies.isymtope-build]
+path = "../isymtope-build"
+
+[dependencies.isymtope-generate]
+path = "../isymtope-generate"
+
+[dependencies.redis-async]
+optional = true
+version = "0.2.0"
+
+[dependencies.serde]
+optional = true
+version = "1.0.40"
+
+[dependencies.serde_derive]
+optional = true
+version = "1.0.40"
+
+[dependencies.uuid]
+optional = true
+version = "0.6.3"
+
+[features]
+playground_api = [
+    "chrono",
+    "serde_derive",
+    "serde",
+    "redis-async",
+    "uuid",
+]

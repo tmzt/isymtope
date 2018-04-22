@@ -17,14 +17,81 @@ function debounce(fn, delay) {
 
 const getService = async (cls) => getOrCache(_services, cls.name, () => new cls())
 
-let apiUrl = window.origin + '/app/playground/api/'
+let apiUrl = window.origin + '/api/'
 let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
 let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
 
+const cachedLoadedAppState = slug => getOrCache(_slugCache, slug, async () => {
+    let data = await (await getService(PlaygroundApiService)).getApp(slug)
+    const loadedApp = new LoadedApp(data)
+    return new LoadedAppState(loadedApp)
+})
+
+class LoadedApp {
+    constructor(data) {
+        this._data = data
+        this._fileCache = new Map
+    }
+
+    get data() { return this._data }
+    get previewBaseUrl() { return this._data.iframe_base }
+
+    async loadFile(fileId) {
+        let cache = this._fileCache.get(fileId)
+        if (cache) { return cache }
+
+        const slug = this._data.static_template || this._data.slug
+        return fetch(`${window.origin}/resources/app/${slug}/${fileId}`).then(async resp => {
+            const content = await resp.text()
+            this._fileCache.set(fileId, content)
+            return content
+        })
+    }
+}
+
+class LoadedAppState {
+    constructor(loadedApp) {
+        this._loadedApp = loadedApp
+        this._currentFileId = null
+    }
+
+    get loadedApp() { return this._loadedApp }
+    get currentFileId() { return this._currentFileId }
+    get slug() { return this._loadedApp.data.slug }
+    get currentFileKey() { return `${this._loadedApp.data.slug}/${this._currentFileId}` }
+
+    async switchFile(fileId) {
+        if (this._currentFileId == fileId) { return }
+        this._currentFileId = fileId
+        const content = await this._loadedApp.loadFile(fileId)
+        const editorService = await getService(EditorService)
+        await editorService.setContent(content)
+        await editorService.useModel()
+        await (await getService(EditorService)).setContent(content)
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Globals
 let _workspaces
+let _slugCache = new Map()
+
+let _activeSlug
 let _currentWorkspaceId
 
+let _iframe_base
 let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
 
 class CompilerService
@@ -43,14 +110,44 @@ class CompilationError extends Error {
     }
 }
 
-class RemoteCompilerService extends CompilerService
-{
+class PlaygroundApiService {
+    async createExample(exampleName) {
+        const req = { template_name: exampleName }
+        return fetch('/api/create_example', { method: 'POST', headers: { 'content-type': 'application/json'}, body: JSON.stringify(req) })
+            .then(async resp => {
+                if (!resp.ok) {
+                    return reject(new Error(await resp.text()))
+                }
+                return resp.json()
+
+                // let data = await resp.json()
+                // if (location.href !== data.redirect) {
+                //     history.pushState({ slug: data.slug, template_name: data.template_name, pathname: data.path }, null, data.redirect)
+                // }
+
+                // _iframe_base =data.iframe_base
+                // return data
+            })
+    }
+
+    async getApp(slug) {
+        return fetch(`/api/apps/${slug}`)
+            .then(async resp => {
+                if (!resp.ok) {
+                    return reject(new Error(await resp.text()))
+                }
+                return resp.json()
+            })
+        }
+}
+
+class RemoteCompilerService extends CompilerService {
     startCompilation(opts) {
         return new Promise((resolve, reject) =>
-            fetch(apiUrl +'compile', { method: 'POST', body: opts.source })
+            fetch(`/api/apps/${opts.slug}/compile`, { method: 'POST', body: opts.source })
                 .then(async resp => {
                     if (!resp.ok) {
-                        return reject(await resp.text())
+                        return reject(new Error(await resp.text()))
                         // return reject(new CompilationError(await resp.text()))
                     }
 
@@ -59,11 +156,10 @@ class RemoteCompilerService extends CompilerService
     }
 }
 
-class PreviewFrameService {
+class PreviewFrame {
     constructor() {
         this._wrapper = document.querySelector('#previewWrap')
         this._iframe = this._wrapper.querySelector('#preview')
-        this._frameOrigin = null
     }
 
     loadOrigin(origin) {
@@ -78,127 +174,46 @@ class PreviewFrameService {
         })
     }
 
-    async sendMessage(msg, origin, load = false) {
-        if (load) { await this.loadOrigin(origin) }
+    sendMessage(msg, origin) {
         return new Promise(resolve => {
             const completion = new MessageChannel()
             const iframe = this._iframe
             completion.port1.onmessage = () => {
-                console.log(`[PreviewFrameService] [${msg.type}] got completion message from iframe`)
+                console.log(`[PreviewFrame] [${msg.type}] got completion message from iframe`)
                 resolve()
             }
-            console.log(`[PreviewFrameService] [${msg.type}] sending message to iframe`)
+            console.log(`[PreviewFrame] [${msg.type}] sending message to iframe`)
             iframe.contentWindow.postMessage({  __isymtopePlaygroundFrameMsg: msg }, origin, [completion.port2])
         })
     }
+}
 
-    async setupInitialPreview() {
-        const workspace = await app.getCurrentWorkspace()
-        const isPrerender = workspace.data.prerender !== false
-
-        const opts = { frameId: _frameId, appName: workspace.id, isPrerender }
-        return this.initializePreviewFrame(opts)
+class PreviewService {
+    constructor() {
     }
 
-    async initializePreviewFrame(opts) {
-        this._frameOrigin = `http://s1234.${opts.appName}.app.isymtope.ws.localhost:3000/`
-
-        const wrapper = document.querySelector('#previewWrap')
-        return this.sendMessage({ type: 'registerWorker' }, this._frameOrigin, true)
-        .then(() => {
-            console.log('[initializePreviewFrame] got completion message from iframe')
-            wrapper.classList.toggle('isBlank', false)
-            wrapper.classList.toggle('isPrerender', true)
-        })
+    async showPreview() {
+        const frame = await getService(PreviewFrame)
+        const origin = app.loadedAppState.loadedApp.previewBaseUrl
+        await frame.loadOrigin(origin)
+        return frame.sendMessage({ type: 'registerWorker' }, origin)
     }
 
-    async forwardWorkerMessage(workerMsg) {
-        return this.sendMessage({ type: 'forwardMessage', msg: workerMsg }, this._frameOrigin)
-    }
-
-    async updatePreview(workspaceId, frameId, content) {
-        return this.sendMessage({ type: 'mergeDoc', content }, this._frameOrigin)
+    async mergeContent(content) {
+        const frame = await getService(PreviewFrame)
+        const origin = app.loadedAppState.loadedApp.previewBaseUrl
+        return frame.sendMessage({ type: 'mergeDoc', content }, origin)
     }
 }
 
-const determineMimeType = (pathname) => {
-    let mimeType = 'text/plain'
-    if (pathname.match(/\.html$/)) { mimeType = 'text/html' }
-    if (pathname.match(/\.css$/)) { mimeType = 'text/css' }
-    if (pathname.match(/\.js$/)) { mimeType = 'text/javascript' }
-    if (pathname.match(/\.png$/)) { mimeType = 'image/png' }
-    if (pathname.match(/\.jpg$/)) { mimeType = 'image/jpeg' }
-    if (pathname.match(/\.gif$/)) { mimeType = 'image/gif' }
-    return mimeType
-}
-
-class GistService
-{
-    save(opts) {
-        return new Promise((resolve, reject) =>
-            fetch(apiUrl +'auth', { method: 'POST', body: {} })
-                .then(async resp => {
-                    if (!resp.ok) {
-                        return reject(await resp.text())
-                        // return reject(new CompilationError(await resp.text()))
-                    }
-
-                    let data = await resp.json()
-                    location.href = data.redirect
-
-                    // return resolve(resp.text())
-                }))
-    }
-}
-
-class Workspace {
-    constructor(workspaceData) {
-        this._name = workspaceData.name
-        this._id = workspaceData.id
-        this._workspaceData = workspaceData
-        this._currentFileId = workspaceData.index
-        this._content = null
-        this._previewRendered = false
-    }
-
-    get id() { return this._id }
-    get data() { return this._workspaceData }
-
-    get currentFileId() { return this._currentFileId }
-    get currentFile() { return this._workspaceData.files.filter(f => f.id === this._currentFileId)[0] }
-
-    async switchFile(fileId) {
-        if (this._currentFileId === fileId) { return }
-        this._currentFileId = fileId
-        return (await getService(EditorService)).useModel()
-    }
-
-    async setupPreview() {
-        const previewFrameService = await getService(PreviewFrameService)
-        await previewFrameService.setupInitialPreview()
-        this._previewRendered = true
-    }
-
-    async updatePreview() {
-        if (!this._previewRendered || !this._content) {
-            return this.setupPreview()
-        }
-
-        const previewFrameService = await getService(PreviewFrameService)
-        await previewFrameService.updatePreview(this.id, _frameId, this._content)
-    }
-
+class RealtimeCompiler {
     async compile() {
         const editorService = await getService(EditorService)
-        const previewFrameService = await getService(PreviewFrameService)
-        const model = await editorService.getEditorModel()
-
-        const source = model.getValue()
-        const appName = this.id
-        const baseUrl = window.origin + `/app/playground/_worker/app/${appName}/`
-        const templatePath = '/app.ism'
-        const path = '/'
-        const opts = { source, appName, baseUrl, templatePath, path }
+        const previewService = await getService(PreviewService)
+        const source = await editorService.getContent()
+        const slug = app.loadedAppState.slug
+        const loadedApp = app.loadedAppState.loadedApp
+        const opts = { source, slug: slug, appName: loadedApp.data.static_template, baseUrl: loadedApp.previewBaseUrl, templatePath: '/app.ism', path: '/' }
 
         app.setCompiling(true)
         app.setCompilationStatus(true, "")
@@ -209,9 +224,7 @@ class Workspace {
             .then(async content => {
                         app.setCompiling(false)
                         app.setCompilationStatus(true, "")
-
-                        this._content = content
-                        await this.updatePreview()
+                        return previewService.mergeContent(content)
             })
             .catch(err => {
                 console.warn(`[compiler] Remote compiler error: ${err}`)
@@ -253,6 +266,7 @@ class EditorService {
                         return _triggerCompileCurrent()
                     }
                 })
+                this._editor = editor
                 window._editor = editor
 
                 resolve(editor)
@@ -261,17 +275,16 @@ class EditorService {
     }
 
     async getEditorModel() {
-        const workspace = app.getCurrentWorkspace()
-        const key = `${workspace.id}_${workspace.currentFileId}`
-        return getOrCache(_editorModels, key, async () => monaco.editor.createModel(""))
+        return getOrCache(_editorModels, app.loadedAppState.currentFileKey, async () => monaco.editor.createModel(""))
     }
 
     async getCachedContent() {
+        return getOrCache(_contentCache, app.loadedAppState.currentFileKey, async () => fetchContent(workspace.id, file))
+    }
+
+    async getContent() {
         const model = await this.getEditorModel()
-        const workspace = await app.getCurrentWorkspace()
-        const file = workspace.currentFile
-        const key = cacheKey(workspace.id, file.id)
-        return getOrCache(_contentCache, key, async () => fetchContent(workspace.id, file))
+        return model.getValue()
     }
 
     async setContent(content) {
@@ -282,14 +295,8 @@ class EditorService {
     }
 
     async useModel() {
-        const workspace = await app.getCurrentWorkspace()
-        const file = workspace.currentFile
         const model = await this.getEditorModel()
-        const content = await this.getCachedContent()
-
-        await this.setContent(content)
-        monaco.editor.setModelLanguage(model, file.language === 'isymtope'  ?  'rust' : file.language)
-        window._editor.setModel(model)
+        this._editor.setModel(model)
     }
 
 }
@@ -297,42 +304,52 @@ class EditorService {
 class App {
     constructor() {
         this._initialized = false
-        this._currentWorkspaceId = null
+        this._slug = null
+        this._loadedAppState = null
     }
 
-    get currentWorkspaceId() { return this._currentWorkspaceId }
+    get loadedAppState() { return this._loadedAppState }
 
-    async getCurrentWorkspace() {
-        return getWorkspace(this._currentWorkspaceId)
+    /** Load an example workspace, generating a new slug (id) and pushing the new pathname onto the router */
+    async loadExample(exampleName) {
+        const apiService = await getService(PlaygroundApiService)
+
+        // if (!this._initialized) {
+        //     await this.initialize()
+        // }
+
+        let data = await apiService.createExample(exampleName)
+        history.pushState({ slug: data.slug, pathname: data.path, href: data.href }, null, data.path)
+        return this.loadApp(data.slug)
     }
 
-    async initialize(workspaces, startingWorkspaceId = null) {
-        if (this._initialized || this._currentWorkspaceId) {
-            throw new Error('Invalid state: already initialized')
-        }
-        _workspaces = workspaces
-        this._currentWorkspaceId = startingWorkspaceId
+    /** Load a workspace given a slug, such as in response to a navigation event. */
+    async loadApp(slug) {
+        this._slug = slug
+        this._loadedAppState = await cachedLoadedAppState(slug)
+        await this._loadedAppState.switchFile('app.ism')
 
-        await (await getService(EditorService)).useModel()
-        await (await getService(PreviewFrameService)).setupInitialPreview()
+        return (await getService(PreviewService)).showPreview()
 
+        // const content = await this._loadedAppState.loadedApp.loadFile(this._loadedAppState.currentFileId)
+        // await (await getService(EditorService)).setContent(content)
+
+        // const slugObj = getSlug(slug)
+        // await (await getService(EditorService)).useModel()
+        // await (await app.getLoadedApp()).updatePreview()
+    }
+
+    async initialize(workspaces = undefined) {
+        if (workspaces) { _workspaces = workspaces }
         this._initialized = true
     }
 
-    async switchWorkspace(workspaceId) {
-        if (_currentWorkspaceId === workspaceId) {  return }
-        this._currentWorkspaceId = workspaceId
-
-        await (await getService(EditorService)).useModel()
-        await (await app.getCurrentWorkspace()).updatePreview()
-    }
-
     async switchFile(fileId) {
-        return (await this.getCurrentWorkspace()).switchFile(fileId)
+        return (await this.getLoadedApp()).switchFile(fileId)
     }
 
     async compileCurrent() {
-        return (await this.getCurrentWorkspace()).compile()
+        return (await this.getLoadedApp()).compile()
     }
 
     setCompiling(v) {
@@ -349,9 +366,6 @@ class App {
     }
 }
 
-const _workspaceObjects = new Map
-const getWorkspace = async (workspaceId) => getOrCache(_workspaceObjects, workspaceId, async () => new Workspace(_workspaces.get(workspaceId)))
-
 const _compilerServices = new Map
 const getCompilerService = () => getOrCache(_compilerServices, 'remote', () => new RemoteCompilerService())
 
@@ -361,14 +375,19 @@ const _editorModels = new Map
 const cacheKey = (workspaceId, fileId) => `[workspaceId=${workspaceId} fileId=${fileId}]`
 const fetchContent = async (workspaceId, fileData) => fetch(`${window.origin}/resources/app/${workspaceId}/${fileData.path}`).then(resp => resp.text())
 
-const _triggerCompileCurrent = debounce(() => app.compileCurrent(), 2000)
+const _triggerCompileCurrent = debounce(async () => (await getService(RealtimeCompiler)).compile(), 2000)
 
 const app = new App()
 
 function externAppReducer(state, action) {
     switch(action.type) {
         case 'EXTERNAPP.INIT':
-            app.initialize(action.workspaces, action.workspaceId); break
+            app.initialize(action.workspaces, action.activeWorkspaceId, action.activeFileId); break
+        case 'EXTERNAPP.LOADEXAMPLE':
+            app.loadExample(action.exampleName); break
+        case 'EXTERNAPP.LOADAPP':
+            app.loadApp(action.slug); break
+
         case 'EXTERNAPP.SWITCHWORKSPACE':
             app.switchWorkspace(action.workspaceId); break
         case 'EXTERNAPP.SWITCHFILE':

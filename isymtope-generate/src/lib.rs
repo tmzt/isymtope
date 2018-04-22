@@ -8,6 +8,9 @@ extern crate wasm_log;
 extern crate failure;
 extern crate isymtope_ast_common;
 extern crate isymtope_build;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate regex;
 
 // mod actions;

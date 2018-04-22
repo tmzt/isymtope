@@ -9,6 +9,12 @@ pub trait CompilerContext {
 pub struct DefaultCompilerContext {
 }
 
+impl Default for DefaultCompilerContext {
+    fn default() -> Self {
+        DefaultCompilerContext {}
+    }
+}
+
 impl DefaultCompilerContext {
     pub fn new() -> Self {
         DefaultCompilerContext {}
