@@ -34,11 +34,6 @@ path = "./isymtope-data"
 optional = true
 path = "./isymtope-generate"
 
-[dependencies.isymtope-server]
-default-features = false
-optional = true
-path = "./isymtope-server"
-
 [dependencies.isymtope-wasm]
 default-features = false
 optional = true
@@ -50,10 +45,8 @@ optional = true
 path = "./wasm-log"
 
 [features]
-github_auth = ["isymtope-server/github_auth"]
-playground_api = ["isymtope-server/playground_api", "isymtope-actix/playground_api"]
-redis_session = ["isymtope-server/redis_session"]
-site_app = ["isymtope-server/site_app"]
+playground_api = ["isymtope-actix/playground_api"]
+
 [profile.dev]
 debug-assertions = true
 
