@@ -7,6 +7,7 @@ use util::*;
 use traits::*;
 use expressions::*;
 use ast::*;
+use objects::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

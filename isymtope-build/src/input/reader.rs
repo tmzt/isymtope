@@ -46,7 +46,7 @@ impl From<Document> for TemplateSource<'static> {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentProvider(Rc<Document>);
 
 impl Default for DocumentProvider {

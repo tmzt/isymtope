@@ -1,17 +1,7 @@
 use std::collections::HashMap;
-use regex::{Regex, RegexSet};
 
 use isymtope_ast_common::*;
 use super::*;
-
-lazy_static! {
-    pub static ref URL_TOKEN: Regex = Regex::new(r"/:(?P<tok>[^/]+)").unwrap();
-}
-
-enum RouteMatch<T> {
-    Route(Route<T>),
-    RouteWithParams(Route<T>, HashMap<String, ExpressionValue<OutputExpression>>)
-}
 
 #[derive(Debug, Default)]
 pub struct ActionExecutor {}
@@ -188,90 +178,41 @@ impl ActionExecutor {
         Ok(())
     }
 
-    fn path_to_params(&self, regex: &Regex, path: &str) -> Option<HashMap<String, ExpressionValue<OutputExpression>>> {
-        if let Some(captures) = regex.captures(path) {
-            let mut params = HashMap::new();
-            for name in regex.capture_names() {
-                if let Some(name) = name {
-                    if let Some(value) = captures.name(name) {
-                        let value = ExpressionValue::Primitive(Primitive::StringVal(value.as_str().to_owned()));
-                        params.insert(name.to_owned(), value);
-                    }
-                }
-            }
-            return Some(params);
-        }
-
-        None
-    }
-
-    fn get_matching_route(&self, doc: &Document, path: &str) -> Option<RouteMatch<ProcessedExpression>> {
-        let routes: Vec<_> = doc.routes().map(|r| r.to_owned()).collect();
-        let regexes: Vec<_> = routes.iter().map(|r| URL_TOKEN.replace_all(r.pattern(), r"/(?P<$tok>[a-zA-Z0-9]+)")).collect();
-        let matcher = RegexSet::new(&regexes).unwrap();
-        let regexes: Vec<_> = regexes.into_iter().map(|s| Regex::new(&s).unwrap()).collect();
-        let idx = matcher.matches(path).into_iter().nth(0);
-        if let Some(idx) = idx {
-            let route = routes[idx].to_owned();
-            let regex = &regexes[idx];
-            if let Some(params) = self.path_to_params(regex, &path) {
-                return Some(RouteMatch::RouteWithParams(route, params));
-            }
-            return Some(RouteMatch::Route(route));
-        }
-        None
-    }
-
-    pub fn execute_document_route(
+    pub fn execute_route(
         &self,
         state: &mut Session,
         doc: &Document,
         ctx: &mut OutputContext,
-        path: &str,
+        route: &RouteMatch,
     ) -> IsymtopeGenerateResult<()> {
-        let route = self.get_matching_route(doc, path);
+        let route = route.route();
+        // let action = route.action();
 
-        if route.is_none() {
-            return Err(try_eval_from_err!("Invalid route"))?;
-        }
-        let route = route.unwrap();
-
-        let route = match route {
-            RouteMatch::Route(route) => route,
-            RouteMatch::RouteWithParams(route, params) => {
-                for (key, value) in params {
-                    // TODO: replace with new binding type
-                    let binding =
-                        CommonBindings::NamedReducerActionParam(key.to_owned(), Default::default());
-                    eprintln!(
-                        "[server/executor] adding binding [{:?}] for key {} with value [{:?}]",
-                        binding, key, value
-                    );
-                    ctx.bind_value(binding, value.to_owned())?;
-                }
-
-                route
+        if let Some(actions) = route.actions() {
+            for action_op in actions {
+                eprintln!("[server/executor] Executing action_op: {:?}", action_op);
+                self.execute_action_op(state, doc, ctx, action_op)?;
             }
         };
 
-        let action = route.action();
-        match *action {
-            RouteActionValue::Actions(ref v, _) => {
-                if let Some(ref v) = *v {
-                    for action_op in v {
-                        eprintln!("[server/executor] Executing action_op: {:?}", action_op);
-                        self.execute_action_op(state, doc, ctx, action_op)?;
-                    }
-                };
-            }
+    //     match *action {
+    //         RouteActionValue::Actions(ref v, _) => {
+    //             if let Some(ref v) = *v {
+    //                 for action_op in v {
+    //                     eprintln!("[server/executor] Executing action_op: {:?}", action_op);
+    //                     self.execute_action_op(state, doc, ctx, action_op)?;
+    //                 }
+    //             };
+    //         }
 
-            _ => {
-                return Err(try_eval_from_err!(format!(
-                    "Unsupported action for server execution: {:?}",
-                    action
-                )))?;
-            }
-        };
+    //         _ => {
+    //             // Ignore non-actions in this context
+    //             // return Err(try_eval_from_err!(format!(
+    //             //     "Unsupported action for server execution: {:?}",
+    //             //     action
+    //             // )))?;
+    //         }
+    //     };
 
         Ok(())
     }

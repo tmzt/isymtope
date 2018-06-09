@@ -11,7 +11,10 @@ function log() {
 
 function build_openssl() {
     # Download and build OpenSSL against musl
-    export CC=musl-gcc
+    # Requires -U_FORTIFY_SOURCE to build against dev (??)
+    # see https://github.com/briansmith/ring/issues/409
+    # and https://stackoverflow.com/questions/7827622/how-can-one-provide-custom-compiler-linker-flags-for-openssl?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+    export CC="musl-gcc -U_FORTIFY_SOURCE"
     export MUSL_PREFIX=/usr/local/musl
     export C_INCLUDE_PATH="/usr/include/x86_64-linux-musl:$MUSL_PREFIX/include/"
 
@@ -42,8 +45,8 @@ pushd ${ROOT} 2>&1 >/dev/null
     echo "Building isymtope binaries..."
     echo "Build configuration ${CONFIGURATION}"
     if [[ "x$CONFIGURATION" == "xrelease" ]]; then
-        cargo build --verbose --release --target x86_64-unknown-linux-musl --features ${FEATURES} -p isymtope-server -p isymtope-cli
+        cargo build --verbose --release --target x86_64-unknown-linux-musl --features ${FEATURES} -p isymtope-actix -p isymtope-cli
     else
-        cargo build --verbose --target x86_64-unknown-linux-musl --features ${FEATURES} -p isymtope-server -p isymtope-cli
+        cargo build --verbose --target x86_64-unknown-linux-musl --features ${FEATURES} -p isymtope-actix -p isymtope-cli
     fi
 popd

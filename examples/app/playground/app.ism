@@ -24,6 +24,10 @@ store {
 
     let selectDemoOpen = false;
 
+    let externApp = {
+        appCache: map []
+    };
+
     let loaded_app = { created: false };
     loaded_app {
         action was_created => { created: true };
@@ -52,6 +56,10 @@ store {
         action hide => false;
     }
 
+    externApp {
+
+    }
+
     extern externApp;
 }
 
@@ -62,7 +70,7 @@ component fileLink(fileData,  activeFileId) {
             dispatch switchFile(fileId: fileData.id) to externApp;
         }
         {
-            ( fileData.caption )
+            ( fileData.id )
         }
     }
 }
@@ -76,10 +84,14 @@ component listWorkspaceFiles(workspaceData, activeFileId) {
     }
 }
 
+component editorButton(workspaceResult, activeFileId) {
+    listWorkspaceFiles(for workspaceData in workspaceResult, activeFileId) {}
+}
+
 component editor() {
     div(class="editorWrap") {
         div(class="editorButtons") {
-            listWorkspaceFiles(query workspace_data(get workspaces, get activeWorkspaceId) as workspaceData, get activeFileId) {}
+            editorButton(query workspace_data(get externApp, get activeWorkspaceId) as workspaceResult, get activeFileId) {}
         }
         div(class="editorMain") {
             div(id="editorComponent") {
@@ -108,20 +120,26 @@ component preview() {
     }
 }
 
-query workspace_data(workspaces, activeWorkspaceId) {
-    (workspaces.filter(item.id == activeWorkspaceId).first()) where (true);
+query workspace_data(externApp, activeWorkspaceId) {
+    (externApp.appCache.filter(item.id == activeWorkspaceId).first()) where (true);
 }
 
 query file_data(files, activeFileId) {
     (files.filter(item.id == activeFileId).first()) where (true);
 }
 
-route "/r/:slug" || {
+client route "/r/:slug" (slug) {
     dispatch init(workspaces: get workspaces) to externApp;
+}
+
+client route "/r/:slug/show" (slug) {
     dispatch loadApp(slug: slug) to externApp;
 }
 
-route "/" || {
+route "/" () {
+}
+
+client route "/" () {
     dispatch init(workspaces: get workspaces) to externApp;
     dispatch loadExample(exampleName: "todomvc") to externApp;
 }
@@ -152,9 +170,11 @@ component demoMenuBodyItems(workspaces, activeWorkspaceId) {
 }
 
 component demoMenuBody(selectDemoOpen, workspaces, activeWorkspaceId) {
-            nav(class="choose-demo-nav", class={hidden: (!selectDemoOpen)}) {
-                demoMenuBodyItems(workspaces, activeWorkspaceId) {}
-            }
+    div(class={hidden: (!selectDemoOpen)}) {
+        nav(class="choose-demo-nav") {
+            demoMenuBodyItems(workspaces, activeWorkspaceId) {}
+        }
+    }
 }
 
 component demoMenu(selectDemoOpen, workspaces, activeWorkspaceId) {
@@ -164,7 +184,7 @@ component demoMenu(selectDemoOpen, workspaces, activeWorkspaceId) {
     }
 }
 
-div {
+component siteHeader() {
     header(class="site-header") {
         h1(class="site-title") { ("Isymtope ") span(class="site-section-title") { ("Playground") } }
         nav(class="right-nav") {
@@ -179,16 +199,23 @@ div {
             }
         }
     }
+}
 
+component appHeader(selectDemoOpen, workspaces, activeWorkspaceId) {
     header(class="app-header") {
         nav(class="right-nav") {
             a(href="#", class="choose-demo") || { dispatch save to externApp; } { ("Save to Gist") }
             demoMenu(get selectDemoOpen, get workspaces, get activeWorkspaceId) {}
         }
     }
+}
 
+component appPage() {
     div(class="topLayout") {
         div(class="main") {
+            div(id="pageErrorOverlay") {
+                span(class="err_text") {}
+            }
             div(class="splitScreen") {
                 div(class="splitEditor") {
                         editor() {}
@@ -200,4 +227,10 @@ div {
             }
         }
     }
+}
+
+div {
+    siteHeader() {}
+    appHeader(get selectDemoOpen, get workspaces, get activeWorkspaceId) {}
+    appPage() {}
 }

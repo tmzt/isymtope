@@ -3,6 +3,7 @@ use time::{Duration, Timespec};
 
 use error::*;
 use ast::*;
+use objects::*;
 use expressions::*;
 
 pub trait Sessions {

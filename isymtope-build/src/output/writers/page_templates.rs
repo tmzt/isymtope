@@ -21,10 +21,12 @@ impl InternalTemplateRendererFactory {
         &self,
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
+        route_state: Rc<Route>,
         base_url: &str,
+        path: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
         let renderer =
-            InternalTemplateRenderer::build(document_provider, state_provider, base_url)?;
+            InternalTemplateRenderer::build(document_provider, state_provider, route_state, base_url, path)?;
 
         eprintln!("[page_template_factory] created renderer");
         Ok(renderer)
@@ -35,12 +37,16 @@ impl InternalTemplateRenderer {
     pub fn build(
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
+        route_state: Rc<Route>,
         base_url: &str,
+        path: &str,
     ) -> DocumentProcessingResult<InternalTemplateRenderer> {
         let page_data_builder = InternalTemplateDataBuilder::new(
             document_provider.clone(),
             state_provider.map(|s| s.clone()),
+            route_state.clone(),
             base_url,
+            path,
         );
         let page_data = page_data_builder.build()?;
 

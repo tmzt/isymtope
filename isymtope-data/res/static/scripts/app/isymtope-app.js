@@ -47,7 +47,12 @@ class IsymtopeAppPrivate {
         return this
     }
 
-    configure(render, routes, createRootReducer, createEvents, extraMiddleware = []) {
+    addRoute(pattern, handler) {
+        this._router.addRoute(pattern, handler)
+        return this
+    }
+
+    configure(createRenderer, routes, createRootReducer, createEvents, extraMiddleware = []) {
         const rootDiv = document.querySelector('body')
         const generationId = rootDiv.getAttribute('key')
 
@@ -56,6 +61,7 @@ class IsymtopeAppPrivate {
         }
 
         this._router.routes = routes
+        this._createRenderer = createRenderer
         this._createRootReducer = createRootReducer
         this._createEvents = createEvents
         this._extraMiddleware = extraMiddleware
@@ -65,6 +71,7 @@ class IsymtopeAppPrivate {
     get store() {
         if (this._store == null) {
             this._store = createStoreRuntime.apply(this)
+            const render = this._createRenderer(this._store)
             this._store.subscribe(() => this._driver.update(() => render(this._store), this._store))
         }
         return this._store
@@ -96,7 +103,7 @@ class IsymtopeAppPrivate {
         const hooks = this._opts.beforeRoutingHooks || []
         await Promise.all(hooks.map(fn => fn(this.store)))
 
-        const navigate = this._router.navigate
+        const navigate = IsymtopeAppRouter.navigate
         const optDispatch = this._opts.alwaysNavigateToDefaultRoute && this._opts.defaultRoute
         if (dispatchDefault || optDispatch) {
             store.dispatch(navigate(this._opts.defaultRoute))

@@ -12,17 +12,18 @@ use expressions::*;
 use objects::*;
 use ast::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
     root_block: Block<ProcessedExpression>,
     reducers: LinkedHashMap<String, Reducer<ProcessedExpression>>,
     extern_reducer_modules: Vec<ExternReducerModuleNode>,
     extern_reducers: Vec<ExternReducerNode>,
+    extern_reducer_keys: HashSet<String>,
     default_reducer_key: Option<String>,
 
     components: LinkedHashMap<String, Component<ProcessedExpression>>,
     queries: LinkedHashMap<String, Query<ProcessedExpression>>,
-    routes: LinkedHashMap<String, Route<ProcessedExpression>>,
+    routes: LinkedHashMap<String, Route>,
     libraries: LinkedHashMap<String, LibraryObject>,
 
     event_bindings: Vec<ElementEventBindingName<ProcessedExpression>>,
@@ -37,15 +38,18 @@ impl Document {
         default_reducer_key: Option<String>,
         components: LinkedHashMap<String, Component<ProcessedExpression>>,
         queries: LinkedHashMap<String, Query<ProcessedExpression>>,
-        routes: LinkedHashMap<String, Route<ProcessedExpression>>,
+        routes: LinkedHashMap<String, Route>,
         libraries: LinkedHashMap<String, LibraryObject>,
         event_bindings: Vec<ElementEventBindingName<ProcessedExpression>>,
     ) -> Self {
+        let extern_reducer_keys: HashSet<String> = extern_reducers.iter().map(|r| r.name().to_owned()).collect();
+
         Document {
             root_block: root_block,
             reducers: reducers,
             extern_reducer_modules: extern_reducer_modules,
             extern_reducers: extern_reducers,
+            extern_reducer_keys: extern_reducer_keys,
             default_reducer_key: default_reducer_key,
             components: components,
             queries: queries,
@@ -66,7 +70,9 @@ impl Document {
     }
 
     pub fn reducer<'doc>(&'doc self, key: &str) -> Option<&'doc Reducer<ProcessedExpression>> {
-        self.reducers.get(key)
+        let reducer = self.reducers.get(key);
+        eprintln!("[document] reducer: {}: {:?}", key, reducer);
+        reducer
     }
 
     pub fn extern_reducer_modules<'doc>(&'doc self) -> impl Iterator<Item = &'doc ExternReducerModuleNode> {
@@ -75,6 +81,10 @@ impl Document {
 
     pub fn extern_reducers<'doc>(&'doc self) -> impl Iterator<Item = &'doc ExternReducerNode> {
         self.extern_reducers.iter()
+    }
+
+    pub fn is_extern_reducer<'doc>(&'doc self, key: &str) -> bool {
+        self.extern_reducer_keys.contains(key)
     }
 
     pub fn query<'a>(&'a self, name: &str) -> Option<&'a Query<ProcessedExpression>> {
@@ -97,7 +107,7 @@ impl Document {
         self.components.iter().map(|(_, comp)| comp)
     }
 
-    pub fn routes<'a>(&'a self) -> impl Iterator<Item = &'a Route<ProcessedExpression>> {
+    pub fn routes<'a>(&'a self) -> impl Iterator<Item = &'a Route> {
         self.routes.values()
     }
 
@@ -627,6 +637,10 @@ impl TryProcessFrom<Template> for Document {
             ctx.add_reducer_key(key.to_owned(), value.shape().to_owned())?;
         }
 
+        for r in extern_reducers.iter() {
+            ctx.add_reducer_key(r.name().to_owned(), Some(OuterShape::Map))?;
+        }
+
         // Queries
         let queries: Vec<_> = ast.children()
             .filter_map(|n| match *n {
@@ -746,7 +760,7 @@ impl TryProcessFrom<Template> for Document {
             .collect();
         eprintln!("Document: content_nodes: {:?}", content_nodes);
 
-        let mut content_processor: ContentProcessor = ContentProcessor::new(component_names);
+        let mut content_processor: ContentProcessor = ContentProcessor::new(component_names.clone());
         for ref n in content_nodes {
             eprintln!("Document: process content node: {:?}", n);
             content_processor.process_content_node(ctx, &mut content_ctx, n)?;
@@ -770,12 +784,50 @@ impl TryProcessFrom<Template> for Document {
 
         eprintln!("Document: routing_nodes: {:?}", routing_nodes);
 
-        let mut routes: LinkedHashMap<String, Route<ProcessedExpression>> = Default::default();
+        let mut routes: LinkedHashMap<String, Route> = Default::default();
 
         for routing_node in routing_nodes {
             let pattern = routing_node.pattern().to_owned();
-            let route: Route<ProcessedExpression> =
-                TryProcessFrom::try_process_from(routing_node, ctx)?;
+            // let route: RouteDefinition<ProcessedExpression> =
+            //     TryProcessFrom::try_process_from(routing_node, ctx)?;
+
+            let actions: Vec<_> = routing_node.children().into_iter()
+                .filter_map(|n| match *n {
+                    RouteDefinitionChild::Action(ref a) => Some(a.to_owned()),
+                    _ => None,
+                })
+                .collect();
+            let actions = if !actions.is_empty() { Some(actions) } else { None };
+
+            let content: Vec<_> = routing_node.children().into_iter()
+                .filter_map(|n| match *n {
+                    RouteDefinitionChild::RenderContent(ref n) => Some(n),
+                    _ => None,
+                })
+                .collect();
+
+            // let content: Option<Vec<_>> = route.children().map(|s|
+            //     s.filter_map(|n| match *n {
+            //         RouteDefinitionChild::RenderContent(ref a) => Some(n),
+            //         _ => None,
+            //     })
+            //     .collect());
+
+            let mut content_processor: ContentProcessor = ContentProcessor::new(component_names.clone());
+            let block;
+            if !content.is_empty() {
+                for node in content {
+                    content_processor.process_content_node(ctx, &mut content_ctx, node);
+                }
+                block = Some(content_processor.into_block());
+            } else {
+                block = None;
+            }
+            let params: FormalParams<ProcessedExpression> =
+                TryProcessFrom::try_process_from(routing_node.params(), ctx)?;
+            let actions: Option<Vec<_>> =
+                TryProcessFrom::try_process_from(&actions, ctx)?;
+            let route = Route::new(pattern.clone(), params, actions, block, routing_node.client_only());
 
             eprintln!("Document: inserting route for {}: {:?}", pattern, route);
             routes.insert(pattern, route);

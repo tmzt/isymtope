@@ -21,7 +21,7 @@ let apiUrl = window.origin + '/api/'
 let baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
 let mapRoute = href => (baseUrl.length ? baseUrl + '/' : '') + href.replace(/^\/+/, '').replace(/\/+$/, '')
 
-const cachedLoadedAppState = slug => getOrCache(_slugCache, slug, async () => {
+const cachedLoadedAppState = (slug, cache) => getOrCache(cache, slug, async () => {
     let data = await (await getService(PlaygroundApiService)).getApp(slug)
     const loadedApp = new LoadedApp(data)
     return new LoadedAppState(loadedApp)
@@ -35,6 +35,10 @@ class LoadedApp {
 
     get data() { return this._data }
     get previewBaseUrl() { return this._data.iframe_base }
+
+    get files() {
+        return this._data.files
+    }
 
     async loadFile(fileId) {
         let cache = this._fileCache.get(fileId)
@@ -92,8 +96,8 @@ let _activeSlug
 let _currentWorkspaceId
 
 let _iframe_base
-let _frameId = 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
-
+const random_id = () => 'xxxx_xxxx_xxxx_xxxx'.replace(/x/g, () => Math.floor(Math.random() * 10))
+let _frameId = random_id()
 class CompilerService
 {
     async prepareService() {
@@ -113,32 +117,47 @@ class CompilationError extends Error {
 class PlaygroundApiService {
     async createExample(exampleName) {
         const req = { template_name: exampleName }
-        return fetch('/api/create_example', { method: 'POST', headers: { 'content-type': 'application/json'}, body: JSON.stringify(req) })
+        return new Promise((resolve, reject) => fetch('/api/create_example', { method: 'POST', headers: { 'content-type': 'application/json'}, body: JSON.stringify(req) })
             .then(async resp => {
                 if (!resp.ok) {
                     return reject(new Error(await resp.text()))
                 }
-                return resp.json()
+                return resolve(resp.json())
+            }))
+    }
 
-                // let data = await resp.json()
-                // if (location.href !== data.redirect) {
-                //     history.pushState({ slug: data.slug, template_name: data.template_name, pathname: data.path }, null, data.redirect)
-                // }
-
-                // _iframe_base =data.iframe_base
-                // return data
-            })
+    async exampleIndex() {
+        return new Promise((resolve, reject) => fetch('/api/examples', { method: 'GET', headers: { 'accept': 'application/json'} })
+            .then(async resp => {
+                if (!resp.ok) {
+                    return reject(new Error('Unable to retrieve list of examples'))
+                }
+                return resolve(resp.json())
+            }))
     }
 
     async getApp(slug) {
-        return fetch(`/api/apps/${slug}`)
+        return new Promise((resolve, reject) => fetch(`/api/apps/${slug}`)
             .then(async resp => {
                 if (!resp.ok) {
-                    return reject(new Error(await resp.text()))
+                    return reject(new Error(`${resp.status} ${resp.statusText}`))
                 }
-                return resp.json()
+                return resolve(resp.json())
             })
-        }
+        )
+    }
+
+    async githubAuth(slug) {
+        const opts = { method: 'POST', headers: { 'content-type': 'application/json'}, credentials: "same-origin" }
+        return new Promise((resolve, reject) => fetch(`/api/apps/${slug}/github_auth`, opts)
+            .then(async resp => {
+                if (!resp.ok) {
+                    return reject(new Error(`${resp.status} ${resp.statusText}`))
+                }
+                return resolve(resp.json())
+            })
+        )
+    }
 }
 
 class RemoteCompilerService extends CompilerService {
@@ -234,8 +253,23 @@ class RealtimeCompiler {
     }
 }
 
+async function initializeEditor() {
+    const proxy = URL.createObjectURL(new Blob([`
+        self.MonacoEnvironment = { baseUrl: 'https://unpkg.com/monaco-editor@0.8.3/min/' };
+        importScripts('https://unpkg.com/monaco-editor@0.8.3/min/vs/base/worker/workerMain.js');
+    `], { type: 'text/javascript' }));
+
+    require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.8.3/min/vs' }});
+    window.MonacoEnvironment = { getWorkerUrl: () => proxy };
+
+    return new Promise(resolve => {
+        require(["vs/editor/editor.main"], () => resolve())
+    })
+}
+
 class EditorService {
     constructor() {
+        this._initialized = false
         this._editor = null
         this._editorComponentDiv = document.querySelector('#editorComponent')
         this._editorDiv = this._editorComponentDiv.querySelector('#editorDiv')
@@ -243,38 +277,29 @@ class EditorService {
 
     async getEditor() {
         if (this._editor) { return this._editor }
+        if (!this._initialized) { await initializeEditor() }
 
-        const proxy = URL.createObjectURL(new Blob([`
-            self.MonacoEnvironment = { baseUrl: 'https://unpkg.com/monaco-editor@0.8.3/min/' };
-            importScripts('https://unpkg.com/monaco-editor@0.8.3/min/vs/base/worker/workerMain.js');
-        `], { type: 'text/javascript' }));
-
-        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.8.3/min/vs' }});
-        window.MonacoEnvironment = { getWorkerUrl: () => proxy };
-
-        return new Promise(resolve => {
-            const editorDiv = this._editorDiv
-            require(["vs/editor/editor.main"], () => {
-                const editor = monaco.editor.create(editorDiv, {
-                    value: '',
-                    theme: 'vs-dark'
-                });
-
-                editor.onDidChangeModelContent(async e => {
-                    console.log('Changed editor content', e)
-                    if (!this._settingContent) {
-                        return _triggerCompileCurrent()
-                    }
-                })
-                this._editor = editor
-                window._editor = editor
-
-                resolve(editor)
+        return new Promise(resolve => {        
+            const editor = monaco.editor.create(editorDiv, {
+                value: '',
+                theme: 'vs-dark'
             });
+
+            editor.onDidChangeModelContent(async e => {
+                console.log('Changed editor content', e)
+                if (!this._settingContent) {
+                    return _triggerCompileCurrent()
+                }
+            })
+            this._editor = editor
+            window._editor = editor
+
+            resolve(editor)
         })
     }
 
     async getEditorModel() {
+        if (!this._initialized) { await initializeEditor() }
         return getOrCache(_editorModels, app.loadedAppState.currentFileKey, async () => monaco.editor.createModel(""))
     }
 
@@ -295,8 +320,9 @@ class EditorService {
     }
 
     async useModel() {
+        const editor = await this.getEditor()
         const model = await this.getEditorModel()
-        this._editor.setModel(model)
+        editor.setModel(model)
     }
 
 }
@@ -306,12 +332,23 @@ class App {
         this._initialized = false
         this._slug = null
         this._loadedAppState = null
+        this._exampleIndex = null
     }
 
     get loadedAppState() { return this._loadedAppState }
 
+    /** Load a list of examples from the api */
+    async loadExampleIndex() {
+        if (this._exampleIndex == null) {
+            const apiService = await getService(PlaygroundApiService)
+            this._exampleIndex = await apiService.exampleIndex()
+        }
+
+        return this._exampleIndex
+    }
+
     /** Load an example workspace, generating a new slug (id) and pushing the new pathname onto the router */
-    async loadExample(exampleName) {
+    async loadExample(exampleName, cache) {
         const apiService = await getService(PlaygroundApiService)
 
         // if (!this._initialized) {
@@ -320,23 +357,23 @@ class App {
 
         let data = await apiService.createExample(exampleName)
         history.pushState({ slug: data.slug, pathname: data.path, href: data.href }, null, data.path)
-        return this.loadApp(data.slug)
+        return this.loadApp(data.slug, cache)
     }
 
     /** Load a workspace given a slug, such as in response to a navigation event. */
-    async loadApp(slug) {
+    async loadApp(slug, cache) {
         this._slug = slug
-        this._loadedAppState = await cachedLoadedAppState(slug)
-        await this._loadedAppState.switchFile('app.ism')
-
-        return (await getService(PreviewService)).showPreview()
-
-        // const content = await this._loadedAppState.loadedApp.loadFile(this._loadedAppState.currentFileId)
-        // await (await getService(EditorService)).setContent(content)
-
-        // const slugObj = getSlug(slug)
-        // await (await getService(EditorService)).useModel()
-        // await (await app.getLoadedApp()).updatePreview()
+        return cachedLoadedAppState(slug, cache)
+            .catch(err => {
+                app.setPageError(`Error loading selected application (${slug}).`)
+            })
+            .then(async state => {
+                if (state) {
+                    this._loadedAppState = state
+                    await state.switchFile('app.ism')
+                    return (await getService(PreviewService)).showPreview()
+                }
+            })
     }
 
     async initialize(workspaces = undefined) {
@@ -352,6 +389,12 @@ class App {
         return (await this.getLoadedApp()).compile()
     }
 
+    setPageError(err_text = '') {
+        const pageError = document.querySelector('#pageErrorOverlay')
+        pageError.classList.toggle('show', err_text.length)
+        pageError.querySelector('.err_text').innerText = err_text
+    }
+
     setCompiling(v) {
         const component = document.querySelector('#previewComponent')
         component.classList.toggle('showLoading', v)
@@ -363,6 +406,47 @@ class App {
         if (!successful) {
             compilation.querySelector('.err_text').innerText = err_text
         }
+    }
+
+    async authWindow() {
+        const slug = app.loadedAppState.slug
+        const [ width, height ] = [500, 500]
+        const windowOptions = { width, height,
+            left: Math.floor(screen.width / 2 - width / 2) + screen.availLeft || 0,
+            top: Math.floor(screen.height / 2 - height / 2)
+        }
+        const authData = await (await getService(PlaygroundApiService)).githubAuth(slug)
+        const authUrl = authData.auth_url
+        const requestId = authData.request_id
+        const windowOpts = Object.entries(windowOptions).map(([key, value]) => `${key}=${value}`).join(', ')
+        const loginWindow = window.open(authUrl, requestId, windowOpts)
+
+        return new Promise((resolve, reject) => {
+            const check = () => {
+                if (!loginWindow.closed) {
+                    setTimeout(() => check(), 100)
+                    return
+                }
+
+                const query = localStorage.getItem(requestId)
+                localStorage.removeItem(requestId)
+
+                if (typeof query !== 'string' || !query.length) {
+                    return reject(new Error('User failed to authenticate with Github'))
+                }
+
+                const obj = JSON.parse(query)
+                if (!obj || !obj.success || typeof obj.query !== 'string' || !obj.query.length) {
+                    return reject(new Error('User failed to authenticate with Github'))
+                }
+
+                const params = new URLSearchParams(obj.query)
+                const state = params.get('state')
+                resolve(state)
+            }
+
+            check()
+        })
     }
 }
 
@@ -383,10 +467,12 @@ function externAppReducer(state, action) {
     switch(action.type) {
         case 'EXTERNAPP.INIT':
             app.initialize(action.workspaces, action.activeWorkspaceId, action.activeFileId); break
+        case 'EXTERNAPP.LOAD_EXAMPLE_INDEX':
+            return { ...state, exampleIndex: action.exampleIndex };
         case 'EXTERNAPP.LOADEXAMPLE':
-            app.loadExample(action.exampleName); break
+            app.loadExample(action.exampleName, state.appCache); break
         case 'EXTERNAPP.LOADAPP':
-            app.loadApp(action.slug); break
+            app.loadApp(action.slug, state.appCache); break
 
         case 'EXTERNAPP.SWITCHWORKSPACE':
             app.switchWorkspace(action.workspaceId); break
@@ -398,21 +484,33 @@ function externAppReducer(state, action) {
             updatePreviewResource(action.pathname, action.fileId); break
 
         case 'EXTERNAPP.SAVE':
-            getService(GistService).then(s => s.save()); break
+            // getService(GistService).then(s => s.save()); break
+            app.authWindow()
     }
-    return true
+    return state || { appCache: new Map(), exampleIndex: { index: {}, defaultSlug: '' } }
 }
 
 const navigate = Isymtope.navigate
 
+// Isymtope.app()
+//     .setDefaultRoute('/')
+//     .alwaysNavigateToDefaultRoute(false)
+//     .registerBeforeRoutingHook(async store => {
+//         store.dispatch(async (dispatch, getState) =>
+//             getCompilerService()
+//                 .then(compilerService => compilerService.prepareService())
+//                 .then(() => getService(EditorService))
+//                 .then(editorService => editorService.getEditor())
+//                 .then(() => dispatch(navigate(location.pathname))))
+//     })
+
 Isymtope.app()
     .setDefaultRoute('/')
-    .alwaysNavigateToDefaultRoute(false)
+    .alwaysNavigateToDefaultRoute(true)
     .registerBeforeRoutingHook(async store => {
-        store.dispatch(async (dispatch, getState) =>
-            getCompilerService()
-                .then(compilerService => compilerService.prepareService())
-                .then(() => getService(EditorService))
-                .then(editorService => editorService.getEditor())
-                .then(() => dispatch(navigate('/'))))
+        const exampleIndex = await app.loadExampleIndex()
+        const defaultSlug = exampleIndex.defaultSlug
+
+        // store.dispatch({ type: 'EXTERNAPP.LOAD_EXAMPLE_INDEX', exampleIndex })
+        store.dispatch(navigate(`/r/${defaultSlug}`))
     })

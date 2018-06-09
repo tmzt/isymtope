@@ -11,15 +11,15 @@ fn function_key(name: &str) -> Cow<str> {
     lazy_static! {
         static ref REGEX: Regex = Regex::new("[^a-zA-Z0-9]").unwrap();
     }
-    REGEX.replace_all(name, "")
+    REGEX.replace_all(name, "_")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Route<T>(String, FormalParams<T>, RouteActionValue<T>, PhantomData<T>);
+pub struct Route(String, FormalParams<ProcessedExpression>, Option<Vec<ActionOp<ProcessedExpression>>>, Option<Block<ProcessedExpression>>, bool);
 
-impl<T> Route<T> {
-    pub fn new(pattern: String, params: FormalParams<T>, action: RouteActionValue<T>) -> Self {
-        Route(pattern, params, action, Default::default())
+impl Route {
+    pub fn new(pattern: String, params: FormalParams<ProcessedExpression>, actions: Option<Vec<ActionOp<ProcessedExpression>>>, content: Option<Block<ProcessedExpression>>, client_only: bool) -> Self {
+        Route(pattern, params, actions, content, client_only)
     }
 
     pub fn pattern(&self) -> &str {
@@ -30,8 +30,16 @@ impl<T> Route<T> {
         function_key(&self.0)
     }
 
-    pub fn action(&self) -> &RouteActionValue<T> {
-        &self.2
+    pub fn actions<'r>(&'r self) -> Option<impl IntoIterator<Item = &'r ActionOp<ProcessedExpression>>> {
+        self.2.as_ref().map(|s| s.iter())
+    }
+
+    pub fn content(&self) -> Option<&Block<ProcessedExpression>> {
+        self.3.as_ref()
+    }
+
+    pub fn client_only(&self) -> bool {
+        self.4
     }
 }
 

@@ -6,12 +6,15 @@ extern crate env_logger;
 extern crate lazy_static;
 extern crate regex;
 
+extern crate openssl_probe;
+
 #[cfg(feature="playground_api")]
 #[macro_use]
 extern crate serde_derive;
 #[cfg(feature="playground_api")]
 #[macro_use]
 extern crate serde;
+extern crate serde_json;
 #[cfg(feature="playground_api")]
 #[macro_use]
 extern crate chrono;
@@ -45,7 +48,7 @@ use regex::Regex;
 use actix::prelude::*;
 use actix_web::*;
 use actix_web::http::Method;
-use actix_web::middleware::{Logger, SessionStorage, RequestSession};
+use actix_web::middleware::{Logger, SessionStorage, RequestSession, CookieSessionBackend, ErrorHandlers, Response};
 use actix_web::server::HttpServer;
 use futures::Future;
 use futures::future::{FutureResult, ok};
@@ -87,7 +90,10 @@ fn render_example_app_route(state: &AppState, static_template: &str, base_url: &
         .responder()
 }
 
-fn render_route(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+fn render_route(mut req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+    let playground_session_id = ::uuid::Uuid::new_v4().to_string();
+    req.session().set("playground_session_id", playground_session_id).unwrap();
+
     let state = req.state();
     let path = req.uri().path().to_owned();
 
@@ -125,10 +131,16 @@ pub struct AppState {
     api: Addr<Syn, PlaygroundApi>,
 }
 
+fn render_500<S>(_: &mut HttpRequest<S>, resp: HttpResponse) -> Result<Response> {
+    Ok(Response::Done(resp.into_builder()
+        .body("Error occurred parsing page template")))
+}
+
 fn main() {
+    openssl_probe::init_ssl_cert_env_vars();
     // dotenv().ok();
-    env::set_var("RUST_LOG", "actix_web=debug");
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_LOG", "actix_web=debug");
+    // env::set_var("RUST_BACKTRACE", "1");host:3000/api/auth/github/complete?code=e78f8f0ecebf16b21c65&state=7ee77eb9-974c-448f-af6b-
     env_logger::init();
     let sys = actix::System::new("server");
 
@@ -139,46 +151,43 @@ fn main() {
         move || {
             let state = AppState { compiler: compiler.clone(), api: api.clone() };
 
-            let mut app = App::with_state(state);
+            let mut app = App::with_state(state)
+                .middleware(ErrorHandlers::new()
+                    .handler(http::StatusCode::INTERNAL_SERVER_ERROR, render_500)
+                )
+                .middleware(SessionStorage::new(
+                    CookieSessionBackend::signed(&[0; 32])
+                        .secure(false)
+                ));
 
             #[cfg(feature="playground_api")]
             {
                 app = app
                     .resource("/r/{slug:[0-9a-zA-Z]+}", |r| r.method(Method::GET).a(render_route))
                     .resource("/api/create_example", |r| r.method(Method::POST).with2(create_example))
+                    .resource("/api/examples", |r| r.method(Method::GET).a(get_example_index))
                     .resource("/api/apps/{slug:[0-9a-zA-Z]+}", |r| r.method(Method::GET).with2(get_app))
-                    .resource("/api/apps/{slug:[0-9a-zA-Z]+}/compile", |r| r.method(Method::POST).with2(compile_app_source));
+                    .resource("/api/apps/{slug:[0-9a-zA-Z]+}/compile", |r| r.method(Method::POST).with2(compile_app_source))
+                    .resource("/api/apps/{slug:[0-9a-zA-Z]+}/github_auth", |r| r.method(Method::POST).with2(github_auth))
+                    .resource("/api/auth/github/complete", |r| r.method(Method::GET).with2(github_auth_complete));
             }
 
             app = app
                 .resource("/favicon.ico", |r| r.f(|_| HttpResponse::NotFound()))
 
-                .handler("/resources/app", fs::StaticFiles::new("../examples/app/"))
+                .handler("/resources/app", fs::StaticFiles::new("../examples/app/")
+                    .default_handler(|_| HttpResponse::NotFound()))
 
-                .handler("/", fs::StaticFiles::new("../examples/app/playground/"))
-                // .handler("/", fs::StaticFiles::new("../examples/app/playground/")
-                //                     .index_file("index.html")))
+                .resource("/", |r| r.method(Method::GET).a(render_route))
 
-                .resource("/", |r| r.method(Method::GET).a(render_route));
+                .handler("/", fs::StaticFiles::new("../examples/app/playground/")
+                    .default_handler(|_| HttpResponse::NotFound()));
 
             app
         })
         .bind("0.0.0.0:3000").expect("cannot bind to 0.0.0.0:3000")
         .shutdown_timeout(0)
         .start();
-
-    // let addr = server::new(
-    //     || App::new()
-    //         // enable logger
-    //         .middleware(middleware::Logger::default())
-    //         // cookie session middleware
-    //         .middleware(middleware::SessionStorage::new(
-    //             middleware::CookieSessionBackend::signed(&[0; 32]).secure(false)
-    //         ))
-    //         .resource("/welcome", |r| r.method(Method::GET).a(index)))
-    //     .bind("0.0.0.0:3000").expect("cannot bind to 0.0.0.0:3000")
-    //     .shutdown_timeout(0)
-    //     .start();
 
     println!("Starting http server: 0.0.0.0:3000");
     let _ = sys.run();

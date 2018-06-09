@@ -846,7 +846,7 @@ impl TryEvalFrom<Expression<ProcessedExpression>> for ExpressionValue<OutputExpr
             )),
             Expression::Path(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
 
-            Expression::ReducedPipeline(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
+            // Expression::ReducedPipeline(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
 
             _ => {
                 if let Some(expr) = eval_expression(src, ctx)? {
@@ -1349,6 +1349,12 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>>
                 Ok(Some(arr))
             }
 
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
+                ArrayValue(None),
+            ))) => {
+                Ok(None)
+            }
+
             ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(
                 MapValue(_, Some(box ref arr)),
             ))) => {
@@ -1356,6 +1362,12 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>>
                     .map(|item| ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(item.to_owned()))))
                     .collect();
                 Ok(Some(arr))
+            }
+
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(
+                MapValue(None, None),
+            ))) => {
+                Ok(None)
             }
 
             _ => Err(try_process_from_err!(

@@ -128,6 +128,7 @@ impl<'input> Lexer<'input> {
                 Token::ComponentKeyword
             }
 
+            "client" => Token::ClientKeyword,
             "route" => Token::RouteKeyword,
 
             "use" => Token::UseKeyword,

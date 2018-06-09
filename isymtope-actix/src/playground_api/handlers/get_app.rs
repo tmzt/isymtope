@@ -20,7 +20,7 @@ pub struct GetAppResponse {
 }
 
 impl Message for GetApp {
-    type Result = Result<GetAppResponse, PlaygroundApiError>;
+    type Result = Result<Option<GetAppResponse>, PlaygroundApiError>;
 }
 
 impl Handler<GetApp> for PlaygroundApi {
@@ -30,14 +30,14 @@ impl Handler<GetApp> for PlaygroundApi {
         let slug = &msg.slug;
 
         // TODO: Make this lookup and cache
-        let entry = self.slug_cache.get(slug).unwrap();
-
-        let result = GetAppResponse {
-            uuid: entry.uuid.to_owned(),
-            base_app_uuid: entry.base_app_uuid.as_ref().map(|s| s.to_owned()),
-            base_app_slug: entry.base_app_slug.as_ref().map(|s| s.to_owned()),
-            static_template: entry.static_template.as_ref().map(|s| s.to_owned()),
-        };
+        let result = self.slug_cache.get(slug).map(|entry|
+            GetAppResponse {
+                uuid: entry.uuid.to_owned(),
+                base_app_uuid: entry.base_app_uuid.as_ref().map(|s| s.to_owned()),
+                base_app_slug: entry.base_app_slug.as_ref().map(|s| s.to_owned()),
+                static_template: entry.static_template.as_ref().map(|s| s.to_owned()),
+            }
+        );
 
         MessageResult(Ok(result))
     }

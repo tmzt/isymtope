@@ -42,12 +42,25 @@ window._events = Object.create(null);
     "use strict";
 
     function createRoutes() @{
+      @for (key, body) in &data.route_content_bodies {
+            function @format!("{}Route(store, props)", key) @{
+              @Html(body)
+            @}
+      }
+
       let routes = @{@};
       @for (pattern, body) in &data.route_bodies {
-        routes["@pattern"] = @{ handler: function(path, store, action) @{
-          window._root = document.body
-          @body
-        @}@};
+        routes["@pattern"] = @{
+          handler: function(path, store, action) @{
+            window._root = document.body
+            @body
+          @},
+          content: function(path, store, action) @{
+            @if let Some(key) = data.route_content_keys.get(pattern) {
+              @Html(format!("{}Route(store, action);", key))
+            }
+          @}
+        @};
       }
       return routes
     @}
@@ -102,7 +115,7 @@ window._events = Object.create(null);
           @}
         }
 
-        function render(store) @{
+        function createRenderer(store) @{
           @for (query_key, query_params) in &data.query_params {
             function @format!("query_{}(store", query_key)
               @for query_param in query_params {
@@ -119,7 +132,9 @@ window._events = Object.create(null);
             @}
           }
 
-          @Html(&data.page_render_func_body)
+          return function renderRoot(_routeBody) @{
+            @Html(&data.page_render_func_body)
+          @}
         @}
 
         function createRootReducer() @{
@@ -133,7 +148,7 @@ window._events = Object.create(null);
           @});
         @};
         exports.middleware = middleware
-        exports.render = render
+        exports.createRenderer = createRenderer
         exports.createRootReducer = createRootReducer
         exports.createEvents = createEvents
         return exports
@@ -146,7 +161,7 @@ window._events = Object.create(null);
       _global._exportedKeys = Object.keys(_exports)
 
       Isymtope.app()
-        .configure(render, createRoutes(), createRootReducer, createEvents, middleware)
+        .configure(createRenderer, createRoutes(), createRootReducer, createEvents, middleware)
 
       window.addEventListener('DOMContentLoaded', () => Isymtope.app().run())
 

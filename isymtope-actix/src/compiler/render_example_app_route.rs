@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::hash_map::{HashMap, Entry};
 use std::env;
 use std::path::PathBuf;
 
@@ -28,41 +28,47 @@ impl Message for RenderExampleAppRoute {
     type Result = IsymtopeGenerateResult<String>;
 }
 
+fn render(template_file_cache: &mut HashMap<String, DefaultTemplateContext>, base_url: &str, app_name: &str, ism_path: &str, route: &str) -> IsymtopeGenerateResult<String> {
+    let template_key = format!("[appName={:?}, ismPath={}, baseUrl={}]", app_name, ism_path, base_url);
+    debug!(
+        "[compiler] get or creating context for app with key ({})",
+        template_key);
+
+    let app_dir = &*STATIC_APP_ROOT.join(app_name);
+
+    let template_context = match template_file_cache.entry(template_key) {
+        Entry::Occupied(v) => v.into_mut(),
+        Entry::Vacant(v) => v.insert(DefaultTemplateContext::create(&app_dir, ism_path)?)
+    };
+
+    let req = TemplateRequestMsg::RenderAppRoute(
+        base_url.to_owned(),
+        app_name.to_owned(),
+        ism_path.to_owned(),
+        route.to_owned(),
+    );
+
+    let result = template_context.handle_msg(req)
+        .map(|response| {
+                let TemplateResponseMsg::RenderComplete(result) = response;
+                let body = result.into_inner();
+
+                body
+            });
+
+    result
+}
+
 impl Handler<RenderExampleAppRoute> for Compiler {
     type Result = MessageResult<RenderExampleAppRoute>;
 
     fn handle(&mut self, msg: RenderExampleAppRoute, _: &mut Context<Self>) -> Self::Result {
+        let base_url = &msg.base_url;
         let app_name = &msg.app_name;
         let ism_path = "/app.ism";
         let route = &msg.route;
-        let base_url = &msg.base_url;
 
-        let template_key = format!("[appName={:?}, ismPath={}, baseUrl={}]", app_name, ism_path, base_url);
-        debug!(
-            "[compiler] get or creating context for app with key ({})",
-            template_key);
-
-        let app_dir = &*STATIC_APP_ROOT.join(app_name);
-
-        let template_context = self.template_file_cache
-            .entry(template_key)
-            .or_insert_with(|| DefaultTemplateContext::create(&app_dir, &ism_path).unwrap());
-
-        let req = TemplateRequestMsg::RenderAppRoute(
-            base_url.to_owned(),
-            app_name.to_owned(),
-            ism_path.to_owned(),
-            route.to_owned(),
-        );
-
-        let result = template_context.handle_msg(req)
-            .map(|response| {
-                    let TemplateResponseMsg::RenderComplete(result) = response;
-                    let body = result.into_inner();
-
-                    body
-                });
-
+        let result = render(&mut self.template_file_cache, base_url, app_name, ism_path, route);
         MessageResult(result)
     }
 }

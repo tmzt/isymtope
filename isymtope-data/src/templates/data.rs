@@ -7,6 +7,8 @@ pub struct InternalTemplateData {
     pub route_keys: Vec<String>,
     pub route_func_keys: HashMap<String, String>,
     pub route_bodies: HashMap<String, String>,
+    pub route_content_bodies: HashMap<String, String>,
+    pub route_content_keys: HashMap<String, String>,
     pub event_keys: Vec<String>,
     pub event_enterkeyflags: HashMap<String, bool>,
     pub event_action_keys: HashMap<String, Vec<String>>,

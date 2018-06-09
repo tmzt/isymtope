@@ -1,3 +1,4 @@
+use super::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateExampleRequest {
@@ -16,6 +17,18 @@ pub struct CreateExampleResponse {
     pub iframe_base: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct GetExampleIndexItem {
+    pub slug: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetExampleIndexResponse {
+    pub index: Vec<GetExampleIndexItem>,
+    pub defaultSlug: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetAppRequest {
     pub template_name: String,
@@ -30,4 +43,25 @@ pub struct GetAppRestResponse {
     pub static_template: Option<String>,
     pub pathname: String,
     pub iframe_base: String,
+    pub files: Vec<AppMetadataFile>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GithubAuthRestResponse {
+    pub state: String,
+    pub auth_url: String,
+    pub request_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GithubOAuthResponse {
+    pub access_token: String,
+    pub scope: String,
+    pub token_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GithubAuthComplete {
+    pub code: String,
+    pub state: String,
 }

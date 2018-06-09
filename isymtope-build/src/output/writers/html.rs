@@ -38,12 +38,13 @@ impl ObjectWriter<Expression<OutputExpression>, HtmlOutput> for DefaultHtmlWrite
                 Ok(())
             }
 
-            // Expression::ReducedPipeline(ref p, _) => {
-            //     let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
-            //     self.write_object(w, ctx, &expr)?;
+            Expression::ReducedPipeline(ref p, _) => {
+                eprintln!("ObjectWriter ReducedPipeline<OutputExpression> (HTML): Evaluating pipeline: {:?}", obj);
+                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
+                self.write_object(w, ctx, &expr)?;
 
-            //     Ok(())
-            // }
+                Ok(())
+            }
 
             Expression::Group(..) | Expression::BinaryOp(..) | Expression::UnaryOp(..) => {
                 let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(obj, ctx)?;

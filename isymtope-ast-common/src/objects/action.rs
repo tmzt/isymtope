@@ -4,9 +4,9 @@ use std::fmt::Debug;
 use error::*;
 use traits::*;
 use expressions::*;
-// use output::*;
+use ast::*;
+use objects::*;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ActionOp<T> {
     DispatchAction(String, Option<Box<Vec<PropValue<T>>>>, PhantomData<T>),

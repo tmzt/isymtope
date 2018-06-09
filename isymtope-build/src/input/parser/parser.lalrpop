@@ -132,7 +132,8 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
 ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
 {
    // Pipeline (method and member chain)
-    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
+    <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())),
+    // <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(v), Default::default())),
 
     ExpressionTerm
 };
@@ -356,20 +357,32 @@ ParsedQueryParamValue : ParsedQueryParamValue<SourceExpression> = {
 /// Route
 ///
 
+// #[inline]
+// RouteDefinition: RouteDefinition<SourceExpression> =
+// {
+//     RouteKeyword <pattern:LitStr> "|" <params:FormalParams> "|" "{" <actions:ActionOp*> "}" =>
+//     {
+//         RouteDefinition::new(pattern, params, RouteAction::Actions(Some(actions), Default::default()))
+//     },
+
+//     RouteKeyword <pattern:LitStr> "(" <params:FormalParams> ")" "{" <children:ContentNode*> "}" =>
+//     {
+//         RouteDefinition::new(pattern, params, RouteAction::Content(Some(children), Default::default()))
+//     }
+// };
+
 #[inline]
-RouteDefinition: RouteDefinition<SourceExpression> =
-{
-    RouteKeyword <pattern:LitStr> "|" <params:FormalParams> "|" "{" <actions:ActionOp*> "}" =>
+RouteDefinition: RouteDefinition<SourceExpression> = {
+    ClientKeyword RouteKeyword <pattern:LitStr> "(" <params:FormalParams> ")" "{" <children:RouteDefinitionChild*> "}" =>
     {
-        RouteDefinition::new(pattern, params, RouteAction::Actions(Some(actions), Default::default()))
+        RouteDefinition::new(pattern, params, children, true)
     },
 
-    RouteKeyword <pattern:LitStr> "(" <params:FormalParams> ")" "{" <children:ContentNode*> "}" =>
+    RouteKeyword <pattern:LitStr> "(" <params:FormalParams> ")" "{" <children:RouteDefinitionChild*> "}" =>
     {
-        RouteDefinition::new(pattern, params, RouteAction::Content(Some(children), Default::default()))
+        RouteDefinition::new(pattern, params, children, false)
     }
 };
-
 
 ///
 /// Content
@@ -458,6 +471,12 @@ ActionOp: ActionOp<SourceExpression> = {
     DispatchKeyword <key:Id> "(" <attrs:AtLeastOneOf<",", PropValue>?> ")" ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, attrs.map(Box::new), path, Default::default()),
     DispatchKeyword <key:Id> ToKeyword <path:Id> ";" => ActionOp::DispatchActionTo(key, None, path, Default::default()),
     NavigateKeyword <path:ExpressionFactor> ";" => ActionOp::Navigate(path, Default::default()),
+};
+
+#[inline]
+RouteDefinitionChild: RouteDefinitionChild<SourceExpression> = {
+    <a:ActionOp> => RouteDefinitionChild::Action(a),
+    <n:ContentNode> => RouteDefinitionChild::RenderContent(n),
 };
 
 ///
@@ -602,6 +621,7 @@ extern {
         AndKeyword => Token::AndKeyword,
 
         ComponentKeyword => Token::ComponentKeyword,
+        ClientKeyword => Token::ClientKeyword,
         RouteKeyword => Token::RouteKeyword,
         StoreKeyword => Token::StoreKeyword,
         ActionKeyword => Token::ActionKeyword,

@@ -2,21 +2,27 @@
 const baseUrl = !!document.baseURI ? new URL(document.baseURI).pathname.replace(/\/+$/, '') : ''
 const rootPath = baseUrl.length ? baseUrl + '/' : ''
 const mapRoute = href => rootPath + href.replace(/^\/+/, '').replace(/\/+$/, '')
-const navigate = href => ({ type: '@@redux-routing/navigate', href: mapRoute(href) })
+const navigate = pathname => ({ type: '@@redux-routing/navigate', state: { href: mapRoute(pathname) }, href: mapRoute(pathname), pathname: pathname })
 
 const SEGMENTS = /\/([^/]+)/g
 
 function buildRoutes(routes) {
     return  Object.keys(routes).map(pattern =>{
         let names = []
-        const regex = mapRoute(pattern).replace(SEGMENTS, (m, p) => { 
-            if (/^:/.test(m)) {
-                names.push(name.slice(1))
-                return '(/[^/]+)'
+        const regex = mapRoute(pattern).replace(SEGMENTS, (m, p) => {
+            if (/^:/.test(p)) {
+                names.push(p.slice(1))
+                return '\/([^/]+)'
             }
-            return '\/' + m
+            return '\/' + p
         })
-        return { regex: new RegExp('^\/' + regex + '$'), names: names, handler: routes[pattern].handler }
+        const route = routes[pattern]
+        return {
+            regex: new RegExp('^\/' + regex + '$'),
+            names: names,
+            handler: route.handler,
+            content: route.content
+        }
     })
 }
 
@@ -50,10 +56,18 @@ function createMiddleware(router) {
                 if (!action.hasOwnProperty('href')) { action.href = location.href }
                 if (!action.hasOwnProperty('pathname')) { action.pathname = location.pathname }
 
-                router.handle(action, store)
+                const route = router.matchRoute(action)
+                // Render content first
+                if (route && route.content) {
+                    route.content(store)
+                }
+
+                if (route && route.handle) {
+                    route.handle(store)
+                }
                 history.update(action)
 
-                return { state: action.state || {}, href: action.href || location.href }
+                return { state: action.state || {}, href: action.href || location.pathname }
             }
         }
     }
@@ -68,7 +82,7 @@ class RouterRuntime {
         this._routes = buildRoutes(routes)
     }
 
-    handle(action, store) {
+    matchRoute(action) {
         const pathname = action.pathname || action.href
         for (let route of this._routes) {
             let m = route.regex.exec(pathname)
@@ -76,7 +90,11 @@ class RouterRuntime {
                 let matches = m.slice(1)
                 let params = {}
                 matches.forEach((v, i) => { let name = route.names[i]; params[name] = v })
-                return route.handler(pathname, store, params)
+                return {
+                    handle: (store) => route.handler(pathname, store, params),
+                    content: (store) => route.content(pathname, store, params)
+                }
+                // return route.handler(pathname, store, params)
             }
         }
     }
@@ -107,8 +125,16 @@ class IsymtopeAppRouter {
         this.router.routes = routes
     }
 
+    addRoute(pattern, handler) {
+        this.router.routes[pattern] = { handler: handler }
+    }
+
     static get navigate() {
         return navigate
+    }
+
+    renderContent(store) {
+        this.router.renderContent(store)
     }
 }
 

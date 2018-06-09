@@ -2,7 +2,6 @@ use std::io;
 use std::fmt::Debug;
 
 use error::*;
-use ast::*;
 use objects::*;
 use output::*;
 
@@ -207,7 +206,7 @@ where
     match *head {
         ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _)
         | ExpressionValue::Binding(CommonBindings::NamedQueryParam(..), _) => {
-            write!(w, "wrap(")?;
+            write!(w, "toGen(")?;
             _self.write_object(w, ctx, head)?;
             write!(w, ")")?;
         }
@@ -1004,7 +1003,8 @@ impl ObjectWriter<PathValue<ProcessedExpression>, JsOutput> for DefaultJsWriter 
             obj
         );
 
-        write_pipeline_head(self, w, ctx, obj.head())?;
+        // write_pipeline_head(self, w, ctx, obj.head())?;
+        self.write_object(w, ctx, obj.head())?;
 
         if let Some(components) = obj.components() {
             for component in components {
@@ -1613,27 +1613,44 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
 
 /// Routes
 
-impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+
+impl ObjectWriter<ActionOp<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &RouteActionValue<ProcessedExpression>,
+        obj: &ActionOp<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
-        match *obj {
-            RouteActionValue::Block(ref block, _) => {
-                self.write_object(w, ctx, block)?;
-            }
-
-            RouteActionValue::Actions(Some(ref actions), _) => for action in actions {
-                ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
-                let  action_output = ActionOpOutput(None, action.to_owned());
-                self.write_object(w, ctx, &action_output)?;
-                ctx.pop_scope();
-            },
-            RouteActionValue::Actions(..) => {}
-        }
+        ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
+        let  action_output = ActionOpOutput(None, obj.to_owned());
+        self.write_object(w, ctx, &action_output)?;
+        ctx.pop_scope();
 
         Ok(())
     }
 }
+
+// impl ObjectWriter<RouteActionValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &RouteActionValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         match *obj {
+//             RouteActionValue::Block(ref block, _) => {
+//                 self.write_object(w, ctx, block)?;
+//             }
+
+//             RouteActionValue::Actions(Some(ref actions), _) => for action in actions {
+//                 ctx.push_child_scope_with_environment(OutputScopeEnvironment::RouteDispatchAction);
+//                 let  action_output = ActionOpOutput(None, action.to_owned());
+//                 self.write_object(w, ctx, &action_output)?;
+//                 ctx.pop_scope();
+//             },
+//             RouteActionValue::Actions(..) => {}
+//         }
+
+//         Ok(())
+//     }
+// }

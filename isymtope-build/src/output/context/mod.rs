@@ -33,6 +33,12 @@ impl OutputContext for DefaultOutputContext {
     ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>> {
         eprintln!("[Expression eval] Getting state for reducer key [{}]", key);
 
+        // if self.doc().is_extern_reducer(key) {
+        //     let ident = ExpressionValue::Binding(CommonBindings::NamedReducerKey(key.to_owned(), Default::default()), Default::default());
+        //     eprintln!("[Expression eval] Found extern reducer key: [{:?}]", ident);
+        //     return Ok(ident);
+        // };
+
         if let Some(state_provider) = self.state_provider.as_ref() {
             let state_provider = state_provider.as_ref();
             let value = state_provider.get(key)?;

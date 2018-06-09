@@ -182,6 +182,22 @@ body a {
 #preview {  z-index: 100; }
 #previewComponent.showLoading #previewOverlay { display: block; }
 
+#pageErrorOverlay {
+    z-index: 300;
+    position: absolute;
+    top: 140px;
+    width: calc(100% - 40px);
+    background: rgba(130, 130, 130, 0.9);
+    color: black;
+    border-radius: 6px 6px;
+    margin: 0 20px;
+    padding: 20px;
+    display: none;
+}
+#pageErrorOverlay.show {
+    display: block;
+}
+
 #compilationErrorOverlay {
     z-index: 300;
     position: absolute;

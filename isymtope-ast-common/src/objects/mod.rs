@@ -1,3 +1,4 @@
+pub mod action;
 pub mod document;
 pub mod library;
 pub mod ops;
@@ -6,6 +7,7 @@ pub mod route;
 pub mod block;
 pub mod component;
 pub mod query;
+pub use self::action::*;
 pub use self::document::*;
 pub use self::library::*;
 pub use self::ops::*;

@@ -16,6 +16,7 @@ pub enum Token {
     UniqueKeyword,
     AndKeyword,
 
+    ClientKeyword,
     ComponentKeyword,
     RouteKeyword,
     StoreKeyword,

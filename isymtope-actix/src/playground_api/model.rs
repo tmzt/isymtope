@@ -32,3 +32,15 @@ pub struct NewStoredApp<'a> {
     pub base_app_uuid: &'a str,
     pub created_at: NaiveDateTime,
 }
+
+#[derive(Debug,Serialize,Deserialize,Clone)]
+pub struct AppMetadataFile {
+    pub id: String,
+    pub path: String,
+    pub filetype: String,
+}
+
+#[derive(Debug,Serialize,Deserialize,Clone)]
+pub struct AppMetadata {
+    pub files: Vec<AppMetadataFile>
+}

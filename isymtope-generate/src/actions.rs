@@ -5,6 +5,10 @@ pub struct ActionHandler {}
 impl ActionHandler {
     pub fn handle_server_action_route(doc: &Document, state: &mut Session, path: &str) -> IsymtopeGenerateResult<()> {
         if let Some(route) = doc.get_route(path) {
+            if route.client_only() {
+                return Ok(());
+            }
+
             if let Some(action_ops) = route.action_ops_iter() {
                 for action_op in action_ops {
                     match *action_op {

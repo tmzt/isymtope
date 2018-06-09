@@ -7,28 +7,65 @@ use isymtope_ast_common::*;
 use output::*;
 use input::*;
 
+// #[derive(Debug)]
+// pub struct RouteState {
+//     document_provider: Rc<DocumentProvider>,
+//     state_provider: Option<Rc<ReducerStateProvider>>,
+//     path: String,
+//     route: Option<Route>,
+// }
+
+// impl Route for RouteState {
+//     fn route(&self) -> SessionResult<Option<&Route>> {
+//         if self.route.is_some() {
+//             return Ok(self.route.as_ref());
+//         }
+
+//         let doc = self.document_provider.doc();
+//         let path = &self.path;
+
+//         let matcher = RouteMatcher::default();
+
+//         // Create temporary session for this route
+//         let route = matcher.with_route(
+//             doc,
+//             &mut ctx,
+//             path,
+//         )?;
+
+//         Ok(Some(route))
+//     }
+// }
+
 #[derive(Debug)]
 pub struct InternalTemplateDataBuilder {
     document_provider: Rc<DocumentProvider>,
     state_provider: Option<Rc<ReducerStateProvider>>,
+    route_state: Rc<Route>,
     base_url: String,
+    path: String,
 }
 
 impl InternalTemplateDataBuilder {
     pub fn new(
         document_provider: Rc<DocumentProvider>,
         state_provider: Option<Rc<ReducerStateProvider>>,
+        route_state: Rc<Route>,
         base_url: &str,
+        path: &str,
     ) -> Self {
         InternalTemplateDataBuilder {
             document_provider: document_provider,
             state_provider: state_provider,
+            route_state: route_state,
             base_url: base_url.to_owned(),
+            path: path.to_owned(),
         }
     }
 
     pub fn build(&self) -> DocumentProcessingResult<InternalTemplateData> {
         let ref document_provider = self.document_provider;
+        let ref route_state = self.route_state;
         let base_url = self.base_url.clone();
 
         // Initialize output context
@@ -43,7 +80,6 @@ impl InternalTemplateDataBuilder {
         eprintln!("[page_templates] bytes.len(): {}", bytes.len());
 
         // Writers
-
         let mut js_writer = DefaultJsWriter::default();
         let mut html_writer = DefaultHtmlWriter::default();
         eprintln!("[page_templates] writers created");
@@ -172,7 +208,11 @@ impl InternalTemplateDataBuilder {
             eprintln!("[page_templates] route: {:?}", route);
 
             bytes.truncate(0);
-            js_writer.write_object(&mut bytes, &mut ctx, route.action())?;
+            if let Some(actions) = route.actions() {
+                for action in actions {
+                    js_writer.write_object(&mut bytes, &mut ctx, action)?;
+                }
+            };
 
             let pattern = route.pattern().to_owned();
             let body = str::from_utf8(bytes.as_slice())?.to_owned();
@@ -308,12 +348,32 @@ impl InternalTemplateDataBuilder {
         js_writer.write_object(&mut bytes, &mut ctx, doc.root_block())?;
         let page_render_func_body = str::from_utf8(bytes.as_slice())?.to_owned();
 
+        // Render route content bodies
+        let mut route_content_bodies: HashMap<String, String> = HashMap::with_capacity(32);
+        let mut route_content_keys: HashMap<String, String> = HashMap::with_capacity(32);
+        for route in doc.routes() {
+            if let Some(block) = route.content() {
+                let key = route.function_key().to_string();
+
+                bytes.truncate(0);
+                js_writer.write_object(&mut bytes, &mut ctx, block)?;
+                let body = str::from_utf8(bytes.as_slice())?.to_owned();
+
+                route_content_bodies.insert(key.clone(), body);
+                route_content_keys.insert(route.pattern().to_owned(), key);
+            };
+        }
+
         // Render HTML body
         bytes.truncate(0);
 
-        // Write root_block
-        let root_block = doc.root_block();
-        html_writer.write_object(&mut bytes, &mut ctx, root_block)?;
+        let route = route_state.as_ref();
+        let block = match route.content() {
+            Some(block) if !route.client_only() => block,
+            _ => doc.root_block()
+        };
+
+        html_writer.write_object(&mut bytes, &mut ctx, block)?;
 
         // TODO: Add this to Template as generationId
         let page_body_key = allocate_element_key();
@@ -331,6 +391,8 @@ impl InternalTemplateDataBuilder {
             route_keys: route_keys,
             route_func_keys: route_func_keys,
             route_bodies: route_bodies,
+            route_content_bodies: route_content_bodies,
+            route_content_keys: route_content_keys,
             reducer_keys: reducer_keys,
             reducer_action_keys: reducer_action_keys,
             reducer_bodies: reducer_bodies,

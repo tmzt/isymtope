@@ -49,6 +49,15 @@ impl DefaultTemplateContext {
     }
 }
 
+// #[derive(Debug)]
+// pub struct RouteState(Rc<Route>);
+
+// impl RouteStateProvider for RouteState {
+//     fn route(&self) -> SessionResult<Option<Rc<Route>>> {
+//         Ok(self.0)
+//     }    
+// }
+
 impl TemplateContext for DefaultTemplateContext {
     fn handle_msg(
         &mut self,
@@ -79,23 +88,34 @@ impl TemplateContext for DefaultTemplateContext {
 
                 eprintln!("Processing route: {} in document", path);
 
+                let doc = document_provider.doc();
+
                 // Create temporary session for this route
                 let mut state = MemorySession::default();
                 self.executor.initialize_session_data(
                     &mut state,
-                    document_provider.doc(),
+                    doc,
                     &mut ctx,
                 )?;
-                self.executor.execute_document_route(
-                    &mut state,
-                    document_provider.doc(),
+
+                let matcher = RouteMatcher::default();
+                let route = matcher.with_route(
+                    doc,
                     &mut ctx,
                     path,
                 )?;
+                self.executor.execute_route(
+                    &mut state,
+                    doc,
+                    &mut ctx,
+                    &route,
+                )?;
+                let route = route.route();
 
                 let factory = InternalTemplateRendererFactory::default();
+                let route_state = Rc::new(route.to_owned());
                 let renderer =
-                    factory.build(document_provider.clone(), Some(Rc::new(state)), base_url)?;
+                    factory.build(document_provider.clone(), Some(Rc::new(state)), route_state.clone(), base_url, path)?;
                 let body = renderer.render()?;
 
                 let response = RenderResponse::new(body);

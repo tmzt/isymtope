@@ -79,9 +79,9 @@ component remaining_todos (todos) {
 
 link(rel="stylesheet", href="https://unpkg.com/todomvc-app-css@2.1.0/index.css", type="text/css") {}
 
-route "/" || { dispatch filter(mode: "all") to showing; }
-route "/completed" || { dispatch filter(mode: "completed") to showing; }
-route "/active" || { dispatch filter(mode: "active") to showing; }
+route "/" () { dispatch filter(mode: "all") to showing; }
+route "/completed" () { dispatch filter(mode: "completed") to showing; }
+route "/active" () { dispatch filter(mode: "active") to showing; }
 
 query visible_todos(todos, showing) {
     (todos) where (showing == "all");
