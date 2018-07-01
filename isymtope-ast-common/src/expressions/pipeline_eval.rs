@@ -9,6 +9,7 @@ use error::*;
 use traits::*;
 use expressions::*;
 
+#[derive(Debug)]
 pub enum PipelineState {
     Indexed(Vec<ExpressionValue<OutputExpression>>),
     Single(ExpressionValue<OutputExpression>),
@@ -253,4 +254,28 @@ mod test {
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_1)]))));
     }
 
+    #[test]
+    fn test_indexed_state_method_with_value() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let v = vec![expr_0, expr_1];
+        let state = PipelineState::Indexed(v);
+
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
+            )
+        );
+        let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
+
+        let state = apply_method(state, &method, &mut ctx).unwrap();
+        let array_value = state.into_array_value().unwrap();
+
+        let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0)]))));
+    }
 }
