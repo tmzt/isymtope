@@ -40,6 +40,8 @@ pub enum Token {
     StateKeyword,
     ValueKeyword,
     ItemKeyword,
+    IndexKeyword,
+    KeyKeyword,
 
     MapKeyword,
     AutoKeyword,

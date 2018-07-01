@@ -5,31 +5,36 @@ use expressions::*;
 ///
 /// Apply condition to item
 ///
-pub fn apply_cond_indexed(
+pub fn apply_cond(
     item: &ExpressionValue<OutputExpression>,
-    idx: usize,
+    idx: Option<usize>,
+    key: Option<&str>,
     cond: &ExpressionValue<OutputExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<bool> {
     ctx.push_child_scope();
 
-    // // TODO: Change to CurrentItemKey
-    // let binding = CommonBindings::CurrentItemIndex;
-    // eprintln!("[pipeline] apply_filter: item_key: {:?}", key);
+    // Bind `index` if provided
+    if let Some(idx) = idx {
+        let index_value = ExpressionValue::Primitive(Primitive::Int32Val(idx as i32));
+        let index_binding = CommonBindings::CurrentItemIndex;
+        eprintln!("[pipeline] apply_filter: index: {:?}", index_value);
+        ctx.bind_loop_value(index_binding, index_value)?;
+    }
 
-    // let key = ExpressionValue::Primitive(Primitive::StringVal(key.to_owned()));
-    // ctx.bind_loop_value(binding, key)?;
+    // Bind `key` if provided
+    if let Some(key) = key {
+        let key_value = ExpressionValue::Primitive(Primitive::StringVal(key.to_owned()));
+        let key_binding = CommonBindings::CurrentItemKey;
+        eprintln!("[pipeline] apply_filter: key: {:?}", key_value);
+        ctx.bind_loop_value(key_binding, key_value)?;
+    }
 
-    let index_value = ExpressionValue::Primitive(Primitive::Int32Val(idx as i32));
-    let index_binding = CommonBindings::CurrentItemIndex;
-    ctx.bind_loop_value(index_binding, index_value)?;
-
+    // Always bind `item`
     let binding = CommonBindings::CurrentItem(Default::default());
-    // let item_value: ExpressionValue<OutputExpression> =
-    //     TryEvalFrom::try_eval_from(cur_item, ctx)?;
     eprintln!("[pipeline] apply_filter: item: {:?}", item);
 
-    ctx.bind_loop_value(binding, item.clone())?;
+    ctx.bind_loop_value(binding, item.to_owned())?;
 
     eprintln!("[pipeline] apply_filter: cond (a): {:?}", cond);
 

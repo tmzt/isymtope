@@ -12,6 +12,7 @@ use expressions::*;
 #[derive(Debug)]
 pub enum PipelineState {
     Indexed(Vec<ExpressionValue<OutputExpression>>),
+    Keyed(Vec<(String, ExpressionValue<OutputExpression>)>),
     Single(ExpressionValue<OutputExpression>),
     Empty
 }
@@ -55,7 +56,7 @@ fn do_filter(
 
     match state {
         PipelineState::Single(item) => {
-            let res = apply_cond_indexed(&item, 0, cond, ctx)?;
+            let res = apply_cond(&item, None, None, cond, ctx)?;
             if !res {
                 return Ok(PipelineState::Empty)
             }
@@ -65,15 +66,27 @@ fn do_filter(
         PipelineState::Indexed(v) => {
             let iter = v.into_iter().enumerate();
             let mut next = Vec::with_capacity(16);
-            let mut ctr = 0;
             for (idx, expr) in iter {
-                let res = apply_cond_indexed(&expr, idx, cond, ctx)?;
+                let res = apply_cond(&expr, Some(idx), None, cond, ctx)?;
                 if res {
                     next.push(expr);
                 }
             }
 
             Ok(PipelineState::Indexed(next))
+        }
+
+        PipelineState::Keyed(v) => {
+            let iter = v.into_iter().enumerate();
+            let mut next = Vec::with_capacity(16);
+            for (idx, item) in iter {
+                let res = apply_cond(&item.1, Some(idx), Some(&item.0), cond, ctx)?;
+                if res {
+                    next.push(item);
+                }
+            }
+
+            Ok(PipelineState::Keyed(next))
         }
 
         PipelineState::Empty => {
@@ -236,6 +249,59 @@ mod test {
         let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         let res_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0), ParamValue::new(res_1)]))));
+    }
+
+    #[test]
+    fn test_apply_cond_with_single_item() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
+            )
+        );
+
+        let res = apply_cond(&expr, None, None, &cond, &mut ctx).unwrap();
+        assert!(res);
+    }
+
+    #[test]
+    fn test_apply_cond_with_index() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::Int32Val(1)))
+            )
+        );
+
+        let res = apply_cond(&expr, Some(1), None, &cond, &mut ctx).unwrap();
+        assert!(res);
+    }
+
+    #[test]
+    fn test_apply_cond_with_key() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let key = "b".to_owned();
+
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemKey, Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::StringVal("b".into())))
+            )
+        );
+
+        let res = apply_cond(&expr, Some(1), Some(&key), &cond, &mut ctx).unwrap();
+        assert!(res);
     }
 
     #[test]

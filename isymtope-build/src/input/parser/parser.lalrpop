@@ -185,6 +185,10 @@ ExpressionTerm : ExpressionValue<SourceExpression> =
     ValueKeyword => ExpressionValue::Binding(CommonBindings::CurrentReducerState(Default::default()), Default::default()),
     /// Binding to item in current where clause, map, or loop
     ItemKeyword => ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default()),
+    /// Index of current item in map or loop
+    IndexKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemIndex(Default::default()), Default::default()),
+    /// Key of current item in map or loop
+    KeyKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemKey(Default::default()), Default::default()),
 
     ///
     /// Single identifier
@@ -648,6 +652,8 @@ extern {
         StateKeyword => Token::StateKeyword,
         ValueKeyword => Token::ValueKeyword,
         ItemKeyword => Token::ItemKeyword,
+        IndexKeyword => Token::IndexKeyword,
+        KeyKeyword => Token::KeyKeyword,
 
         MapKeyword => Token::MapKeyword,
         AutoKeyword => Token::AutoKeyword,

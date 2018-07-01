@@ -169,6 +169,8 @@ impl<'input> Lexer<'input> {
             "state" => Token::StateKeyword,
             "value" => Token::ValueKeyword,
             "item" => Token::ItemKeyword,
+            "index" => Token::IndexKeyword,
+            "key" => Token::KeyKeyword,
 
             "map" => Token::MapKeyword,
             "auto" => Token::AutoKeyword,

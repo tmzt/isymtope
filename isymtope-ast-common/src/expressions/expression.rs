@@ -15,6 +15,7 @@ pub enum CommonBindings<T> {
     CurrentReducerState(PhantomData<T>),
     CurrentItem(PhantomData<T>),
     CurrentItemIndex,
+    CurrentItemKey,
     NamedReducerKey(String, PhantomData<T>),
     NamedReducerActionParam(String, PhantomData<T>),
     NamedQueryParam(String, PhantomData<T>),
@@ -55,6 +56,7 @@ where
             }
             CommonBindings::CurrentItem(_) => Ok(CommonBindings::CurrentItem(Default::default())),
             CommonBindings::CurrentItemIndex => Ok(CommonBindings::CurrentItemIndex),
+            CommonBindings::CurrentItemKey => Ok(CommonBindings::CurrentItemKey),
             CommonBindings::NamedReducerKey(ref s, _) => Ok(CommonBindings::NamedReducerKey(
                 s.to_owned(),
                 Default::default(),
