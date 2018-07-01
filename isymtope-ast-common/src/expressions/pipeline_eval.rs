@@ -161,7 +161,17 @@ fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<OutputExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
-    Ok(PipelineState::Empty)
+    let head = src.head().to_owned();
+    let iter = src.components().into_iter().cloned();
+    let eval = PipelineEval::create(iter, head, ctx)?;
+
+    for step in eval {
+        if let PipelineStep::Finished(res) = step {
+            return res;
+        }
+    }
+
+    Err(try_eval_from_err!("Reached end of pipeline evalutation without PipelineStep::Finished, this should not happen."))
 }
 
 impl TryEvalFrom<ReducedPipelineValue<OutputExpression>> for ExpressionValue<OutputExpression> {
@@ -172,11 +182,10 @@ impl TryEvalFrom<ReducedPipelineValue<OutputExpression>> for ExpressionValue<Out
         let final_state = eval_reduced_pipeline(src, ctx)?;
 
         match final_state {
-            PipelineState::Indexed(iter) => {
-                // let iter = *iter;
-                let v: Vec<_> = iter.into_iter().map(move |e| ParamValue::new(e)).collect();
-                Ok(ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v)))))))
-            },
+            PipelineState::Indexed(..) => {
+                final_state.into_array_value()
+                    .map(|arr| ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr))))
+            }
 
             _ => Err(try_eval_from_err!("Invalid final pipeline state"))
         }
@@ -273,6 +282,33 @@ mod test {
         let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
 
         let state = apply_method(state, &method, &mut ctx).unwrap();
+        let array_value = state.into_array_value().unwrap();
+
+        let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0)]))));
+    }
+
+    #[test]
+    fn test_eval_pipeline_condition_with_value() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let arr = ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)])));
+        let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)));
+
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
+            )
+        );
+        let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
+        let components = vec![ReducedPipelineComponent::PipelineOp(method)];
+        let src = ReducedPipelineValue::new(head, components);
+
+        let state = eval_reduced_pipeline(&src, &mut ctx).unwrap();
         let array_value = state.into_array_value().unwrap();
 
         let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
