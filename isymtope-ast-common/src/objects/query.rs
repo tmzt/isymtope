@@ -164,7 +164,7 @@ impl TryEvalFrom<QueryCall<ProcessedExpression>> for ExpressionValue<OutputExpre
             params
         );
 
-        let query = ctx.doc()
+        let query = ctx.defaults().doc()
             .query(name)
             .map(|v| Ok(v.to_owned()))
             .unwrap_or_else(|| Err(try_process_from_err!("Could not locate query by name.")))?;

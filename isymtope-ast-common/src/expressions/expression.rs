@@ -1134,7 +1134,8 @@ impl TryEvalFrom<CommonBindings<ProcessedExpression>> for ExpressionValue<Output
     ) -> DocumentProcessingResult<Self> {
         // Evaluate reducer key from provider or defaults
         if let CommonBindings::NamedReducerKey(ref key, _) = *src {
-            return ctx.reducer_value(key);
+            let reducer_value =  ctx.defaults().reducer_value(key)?;
+            return TryEvalFrom::try_eval_from(&reducer_value, ctx);
         };
 
         // Pass through certain values to be evaluated at runtime
@@ -1224,7 +1225,8 @@ impl TryEvalFrom<ExpressionValue<OutputExpression>> for ExpressionValue<OutputEx
             ExpressionValue::Binding(ref b, _) => {
                 // Evaluate reducer key from provider or defaults
                 if let CommonBindings::NamedReducerKey(ref key, _) = *b {
-                    return ctx.reducer_value(key);
+                    let reducer_value =  ctx.defaults().reducer_value(key)?;
+                    return TryEvalFrom::try_eval_from(&reducer_value, ctx);
                 };
 
                 let expr = ctx.must_find_loop_value(b)?;

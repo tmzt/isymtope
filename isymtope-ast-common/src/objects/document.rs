@@ -817,7 +817,7 @@ impl TryProcessFrom<Template> for Document {
             let block;
             if !content.is_empty() {
                 for node in content {
-                    content_processor.process_content_node(ctx, &mut content_ctx, node);
+                    content_processor.process_content_node(ctx, &mut content_ctx, node)?;
                 }
                 block = Some(content_processor.into_block());
             } else {

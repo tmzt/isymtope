@@ -24,12 +24,16 @@ extern crate regex;
 pub mod error;
 
 pub mod ast;
+pub mod common;
+pub mod contexts;
 pub mod expressions;
 pub mod objects;
 pub mod traits;
 pub mod util;
 
 pub use self::ast::*;
+pub use self::common::*;
+pub use self::contexts::*;
 pub use self::error::*;
 pub use self::expressions::*;
 pub use self::objects::*;

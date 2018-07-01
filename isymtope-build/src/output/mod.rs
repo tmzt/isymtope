@@ -5,9 +5,6 @@ use super::*;
 pub mod writers;
 pub use self::writers::*;
 
-pub mod context;
-pub use self::context::*;
-
 #[derive(Debug)]
 pub struct HtmlOutput {}
 #[derive(Debug)]

@@ -16,13 +16,44 @@ pub enum OutputScopeEnvironment {
     RouteDispatchAction,
 }
 
-pub trait OutputContext: Debug {
+pub trait DocumentProvider: Debug {
+    fn doc(&self) -> &Document;
+}
+
+pub enum ReducerValue {
+    ProcessedExpression(ExpressionValue<ProcessedExpression>),
+    OutputExpression(ExpressionValue<OutputExpression>),
+}
+
+impl TryEvalFrom<ReducerValue> for ExpressionValue<OutputExpression> {
+    fn try_eval_from(
+        src: &ReducerValue,
+        ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<Self> {
+        match src {
+            ReducerValue::ProcessedExpression(ref expr) => {
+                TryEvalFrom::try_eval_from(expr, ctx)
+            }
+
+            ReducerValue::OutputExpression(ref expr) => {
+                Ok(expr.to_owned())
+            }
+        }
+    }
+}
+
+pub trait ContextDefaultsProvider: Debug {
     fn doc(&self) -> &Document;
 
     fn reducer_value(
         &mut self,
         key: &str,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>;
+    ) -> DocumentProcessingResult<ReducerValue>;
+}
+
+pub trait OutputContext: Debug {
+    fn defaults(&mut self) -> &mut ContextDefaultsProvider;
+    // fn doc(&self) -> &Document;
 
     fn push_child_scope_with_environment(&mut self, environment: OutputScopeEnvironment);
     fn push_child_scope(&mut self);

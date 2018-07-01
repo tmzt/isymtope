@@ -29,7 +29,6 @@ extern crate isymtope_ast_common;
 
 use isymtope_ast_common::*;
 
-pub mod common;
 pub mod input;
 pub mod output;
 

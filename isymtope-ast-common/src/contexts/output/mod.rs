@@ -4,10 +4,11 @@ use linked_hash_map::LinkedHashMap;
 
 use error::*;
 use common::*;
+use contexts::*;
 use traits::*;
 use expressions::*;
 use objects::*;
-use input::*;
+// use input::*;
 
 pub mod scope;
 pub use self::scope::*;
@@ -18,19 +19,35 @@ pub struct DefaultOutputContext {
     cur_scope_id: String,
     scopes: LinkedHashMap<String, OutputScope<ProcessedExpression>>,
     scope_id_vec: Vec<String>,
+    // state_provider: Option<Rc<ReducerStateProvider>>,
+    // document_provider: Rc<DocumentProvider>,
+    defaults: Rc<ContextDefaultsProvider>,
+}
+
+#[derive(Debug, Clone)]
+
+pub struct DefaultDefaultsProvider {
     state_provider: Option<Rc<ReducerStateProvider>>,
     document_provider: Rc<DocumentProvider>,
 }
 
-impl OutputContext for DefaultOutputContext {
-    fn doc(&self) -> &Document {
-        self.document_provider.doc()
+impl DefaultDefaultsProvider {
+    pub fn new(
+        document_provider: Rc<DocumentProvider>,
+        state_provider: Option<Rc<ReducerStateProvider>>,
+    ) -> Self {
+        Self {
+            document_provider: document_provider,
+            state_provider,
+        }
     }
+}
 
+impl ContextDefaultsProvider for DefaultDefaultsProvider {
     fn reducer_value(
         &mut self,
         key: &str,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>> {
+    ) -> DocumentProcessingResult<ReducerValue> {
         eprintln!("[Expression eval] Getting state for reducer key [{}]", key);
 
         // if self.doc().is_extern_reducer(key) {
@@ -44,7 +61,7 @@ impl OutputContext for DefaultOutputContext {
             let value = state_provider.get(key)?;
 
             if let Some(value) = value {
-                return Ok(value.to_owned());
+                return Ok(ReducerValue::OutputExpression(value.to_owned()));
             }
         };
 
@@ -56,14 +73,23 @@ impl OutputContext for DefaultOutputContext {
         };
 
         if let Some(ref default_value) = default_value {
-            let default_value = TryEvalFrom::try_eval_from(default_value, self)?;
-            return Ok(default_value);
+                return Ok(ReducerValue::ProcessedExpression(default_value.to_owned()));
         };
 
         Err(try_eval_from_err!(format!(
             "Cannot get value for reducer key [{}]",
             key
         )))
+    }
+
+    fn doc(&self) -> &Document {
+        self.document_provider.doc()
+    }
+}
+
+impl OutputContext for DefaultOutputContext {
+    fn defaults(&mut self) -> &mut ContextDefaultsProvider {
+        Rc::get_mut(&mut self.defaults).unwrap()
     }
 
     fn push_child_scope_with_environment(&mut self, environment: OutputScopeEnvironment) {
@@ -226,16 +252,20 @@ impl OutputContext for DefaultOutputContext {
 
 impl DefaultOutputContext {
     pub fn create(
-        document_provider: Rc<DocumentProvider>,
-        state_provider: Option<Rc<ReducerStateProvider>>,
+        // document_provider: Rc<DocumentProvider>,
+        // state_provider: Option<Rc<ReducerStateProvider>>,
+        defaults: Rc<ContextDefaultsProvider>,
     ) -> Self {
-        Self::new(document_provider, None, state_provider)
+        // Self::new(document_provider, None, state_provider)
+        Self::new(None, defaults)
     }
 
     fn new(
-        document_provider: Rc<DocumentProvider>,
         base_scope: Option<OutputScope<ProcessedExpression>>,
-        state_provider: Option<Rc<ReducerStateProvider>>,
+        // document_provider: Rc<DocumentProvider>,
+        // base_scope: Option<OutputScope<ProcessedExpression>>,
+        // state_provider: Option<Rc<ReducerStateProvider>>,
+        defaults: Rc<ContextDefaultsProvider>,
     ) -> Self {
         let base_scope = base_scope.unwrap_or_default();
         let base_scope_id = base_scope.id().to_owned();
@@ -245,8 +275,7 @@ impl DefaultOutputContext {
             cur_scope_id: base_scope_id.clone(),
             scopes: Default::default(),
             scope_id_vec: Default::default(),
-            state_provider: state_provider,
-            document_provider: document_provider,
+            defaults: defaults,
         };
 
         ctx.scopes.insert(base_scope_id.clone(), base_scope);

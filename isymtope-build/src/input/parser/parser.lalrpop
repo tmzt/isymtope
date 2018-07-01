@@ -232,6 +232,10 @@ ParamValue : ParamValue<SourceExpression> = {
 #[inline]
 UseStmtNode : TemplateNode<SourceExpression> = { UseKeyword <s:Id> ";" => TemplateNode::UseStmt(s) };
 
+pub SingleExpression: ExpressionValue<SourceExpression> = {
+    ExpressionValue
+};
+
 pub Template: Template = {
     <uses:(Loc<UseStmtNode>*)> <other:(Loc<MainTemplateNode>*)> => {
         // let uses = uses.into_iter();

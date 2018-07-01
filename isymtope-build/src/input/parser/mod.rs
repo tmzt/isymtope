@@ -13,6 +13,21 @@ pub fn lex(input: &'static str) -> TokenIter {
     Box::new(lexer::lex(input))
 }
 
+pub fn parse_single_expression(input: &str) -> TemplateParseResult<ExpressionValue<SourceExpression>> {
+    let lexer = lexer::lex(&input);
+
+    match parser::parse_SingleExpression(lexer) {
+        Ok(expr) => Ok(expr),
+        Err(parse_err) => {
+            match parse_err {
+                ParseError::UnrecognizedToken { ref token, .. } => Err(TemplateParseError::UnrecognizedToken(token.as_ref().map_or(0, |t| t.0))),
+                ParseError::ExtraToken { ref token } => Err(TemplateParseError::UnexpectedToken(token.0)),
+                _ => Err(TemplateParseError::Other)
+            }
+        }
+    }
+}
+
 pub fn parse_str<'input>(input: &str) -> TemplateParseResult<Template> {
     let lexer = lexer::lex(&input);
 

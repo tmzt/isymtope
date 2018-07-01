@@ -47,15 +47,15 @@ impl From<Document> for TemplateSource<'static> {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DocumentProvider(Rc<Document>);
+pub struct DefaultDocumentProvider(Rc<Document>);
 
-impl Default for DocumentProvider {
+impl Default for DefaultDocumentProvider {
     fn default() -> Self {
         let source_path =
             env::var_os("DEFAULT_PAGE").unwrap_or_else(|| "./res/tests/app/todomvc/app.ism".into());
         let source_path = Path::new(&source_path);
 
-        let res = DocumentProvider::create(&source_path);
+        let res = DefaultDocumentProvider::create(&source_path);
 
         if let Err(ref e) = res {
             eprintln!("Error when processing document: {:?}\n", e);
@@ -69,17 +69,19 @@ impl Default for DocumentProvider {
     }
 }
 
-impl DocumentProvider {
+impl DefaultDocumentProvider {
     pub fn create<'a, S: Into<TemplateSource<'a>>>(
         source: S,
-    ) -> DocumentProcessingResult<DocumentProvider> {
+    ) -> DocumentProcessingResult<DefaultDocumentProvider> {
         let doc = from_source(source)?;
         eprintln!("[provider] document: {:?}", doc);
 
-        Ok(DocumentProvider(Rc::new(doc)))
+        Ok(DefaultDocumentProvider(Rc::new(doc)))
     }
+}
 
-    pub fn doc<'a>(&'a self) -> &'a Document {
+impl DocumentProvider for DefaultDocumentProvider {
+    fn doc(&self) -> &Document {
         self.0.as_ref()
     }
 }
