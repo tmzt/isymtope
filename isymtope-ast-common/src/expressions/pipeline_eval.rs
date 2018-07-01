@@ -10,7 +10,6 @@ use traits::*;
 use expressions::*;
 
 pub enum PipelineState {
-    // Indexed(Box<Iterator<Item = PipelineItem<OutputExpression>>>),
     Indexed(Vec<ExpressionValue<OutputExpression>>),
     Single(ExpressionValue<OutputExpression>),
     Empty
@@ -48,13 +47,15 @@ fn do_filter(
     cond: &ExpressionValue<OutputExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
-    // let state = self.state.replace(PipelineState::Empty);
+    eprintln!(
+        "[pipeline] eval_reduced_pipeline: (do_filter) pipeline state: {:?}",
+        state
+    );
 
     match state {
         PipelineState::Single(item) => {
             let res = apply_cond_indexed(&item, 0, cond, ctx)?;
             if !res {
-                // self.state.replace(PipelineState::Empty);
                 return Ok(PipelineState::Empty)
             }
             Ok(PipelineState::Single(item))
@@ -71,7 +72,6 @@ fn do_filter(
                 }
             }
 
-            // self.state.replace(PipelineState::Indexed(next));
             Ok(PipelineState::Indexed(next))
         }
 
@@ -79,24 +79,6 @@ fn do_filter(
             Ok(state)
         }
     }
-
-    // eprintln!(
-    //     "[pipeline] eval_reduced_pipeline: (filter) pipeline state: {:?}",
-    //     value
-    // );
-    // // let params = pipeline_state_items(&value);
-
-    // eprintln!(
-    //     "[pipeline] eval_reduced_pipeline: (filter) cond: {:?}",
-    //     cond
-    // );
-    // // let cond: ExpressionValue<OutputExpression> = match TryEvalFrom::try_eval_from(cond, ctx) {
-    // //     Ok(v) => v, Err(e) => { return Done(Err(e)); }
-    // // };
-    // // let res = params.and_then(|params| apply_filter(&cond, params.as_ref(), ctx));
-    // // let res = filter_state(&value, cond, ctx);
-
-    // Ok(PipelineState::Empty)
 }
 
 pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<OutputExpression>, ctx: &mut OutputContext) -> DocumentProcessingResult<PipelineState> {
@@ -108,8 +90,6 @@ pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<OutputExpre
 }
 
 impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<OutputExpression>> {
-    // type Item = PipelineItem<OutputExpression>;
-    // type Item = I::Item;
     type Item = PipelineStep;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -144,21 +124,6 @@ impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = Reduce
     }
 }
 
-// impl<T> From<ParamValue<T>> for PipelineItem<T> {
-//     fn from(src: ParamValue<T>) -> Self {
-//         let expr = src.value().clone();
-//         PipelineItem::Bare(expr, 0, Default::default())
-//     }
-// }
-
-// impl<T> From<ParamValue<T>> for PipelineState<T> {
-//     fn from(src: ParamValue<T>) -> Self {
-//         let item = src.clone().into();
-//         let expr = src.expr().clone();
-//         PipelineState::Single(PipelineItem::Bare(src, ))
-//     }
-// }
-
 impl PipelineState {
     pub fn try_from_expression(expr: ExpressionValue<OutputExpression>) -> DocumentProcessingResult<Self> {
         match expr {
@@ -190,81 +155,6 @@ impl PipelineState {
         }
     }
 }
-
-// #[derive(Debug)]
-// pub enum PipelineItem<T> {
-//     Bare(ExpressionValue<T>, usize, PhantomData<T>),
-//     Named(String, ExpressionValue<T>, PhantomData<T>),
-// }
-
-// impl<T> PipelineItem<T> {
-//     pub fn inner(&self) -> &ExpressionValue<T> {
-//         match self {
-//             PipelineItem::Bare(ref v, _, _) => v,
-//             PipelineItem::Named(_, ref v, _) => v,
-//         }
-//     }
-
-//     pub fn into_inner(self) -> ExpressionValue<T> {
-//         match self {
-//             PipelineItem::Bare(v, _, _) => v,
-//             PipelineItem::Named(_, v, _) => v,
-//         }
-//     }
-// }
-
-// ///
-// /// Apply condition to item
-// ///
-// fn filter_item(
-//     cond: &ExpressionValue<OutputExpression>,
-//     item: &PipelineItem<OutputExpression>,
-//     ctx: &mut OutputContext,
-// ) -> DocumentProcessingResult<bool> {
-//     ctx.push_child_scope();
-
-//     let cur_item;
-//     match item {
-//         PipelineItem::Bare(ref v, _, _) => {
-//             cur_item = v;
-//         }
-
-//         PipelineItem::Named(ref key, ref v, _) => {
-//             // TODO: Change to CurrentItemKey
-//             let binding = CommonBindings::CurrentItemIndex;
-//             eprintln!("[pipeline] apply_filter: item_key: {:?}", key);
-//             cur_item = v;
-
-//             let key = ExpressionValue::Primitive(Primitive::StringVal(key.to_owned()));
-//             ctx.bind_loop_value(binding, key)?;
-//         }
-//     };
-
-//     let binding = CommonBindings::CurrentItem(Default::default());
-//     let item_value: ExpressionValue<OutputExpression> =
-//         TryEvalFrom::try_eval_from(cur_item, ctx)?;
-//     eprintln!("[pipeline] apply_filter: item_value: {:?}", item_value);
-
-//     ctx.bind_loop_value(binding, item_value)?;
-
-//     eprintln!("[pipeline] apply_filter: cond (a): {:?}", cond);
-
-//     // Evaluate processed expression
-//     let cond: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(cond, ctx)?;
-//     eprintln!("[pipeline] apply_filter: cond (b): {:?}", cond);
-
-//     // Evaluate bindings
-//     let cond: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&cond, ctx)?;
-//     eprintln!("[pipeline] apply_filter: cond (c): {:?}", cond);
-
-//     // Evaluate condition as boolean
-//     let cond: bool = TryEvalFrom::try_eval_from(&cond, ctx)?;
-//     eprintln!("[pipeline] apply_filter: cond (d): {:?}", cond);
-
-//     ctx.pop_scope();
-
-//     Ok(cond)
-// }
 
 fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<OutputExpression>,
@@ -337,42 +227,6 @@ mod test {
         let res_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0), ParamValue::new(res_1)]))));
     }
-
-    // #[test]
-    // fn test_indexed_state_method() {
-    //     let mut ctx = TestOutputContext::default();
-
-    //     let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-    //     let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
-    //     let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)]))))));
-
-    //     // let cond = parse_single_expression("idx == 1");
-    //     let cond = ExpressionValue::Expression(
-    //         Expression::BinaryOp(BinaryOpType::EqualTo,
-    //             Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default())),
-    //             Box::new(ExpressionValue::Primitive(Primitive::Int32Val(1)))
-    //         )
-    //     );
-    //     let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
-    //     let components = vec![ReducedPipelineComponent::PipelineOp(method)];
-
-    //     let mut eval = PipelineEval::create(components.into_iter(), head, &mut ctx).unwrap();
-
-    //     let next = eval.next().unwrap();
-    //     match next {
-    //         PipelineStep::Finished(Ok(state)) => {
-    //             let array_value = state.into_array_value().unwrap();
-
-    //             // let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-    //             let res_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
-    //             assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_1)]))));
-    //         }
-
-    //         _ => {
-    //             assert!(false, "Invalid final state for pipeline in test.")
-    //         }
-    //     }
-    // }
 
     #[test]
     fn test_indexed_state_method() {
