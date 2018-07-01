@@ -12,6 +12,10 @@ regex = "0.2.10"
 default-features = false
 path = "../isymtope-ast-common/"
 
+[dependencies.isymtope-parser]
+default-features = false
+path = "../isymtope-parser/"
+
 [dependencies.isymtope-build]
 default-features = false
 path = "../isymtope-build/"

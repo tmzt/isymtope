@@ -30,6 +30,7 @@ extern crate futures;
 extern crate bytes;
 
 extern crate isymtope_ast_common;
+extern crate isymtope_parser;
 extern crate isymtope_build;
 extern crate isymtope_generate;
 

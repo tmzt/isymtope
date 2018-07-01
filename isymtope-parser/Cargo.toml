@@ -1,7 +1,8 @@
 [package]
+name = "isymtope-parser"
+version = "0.1.0"
 authors = ["Timothy Meade <zt.tmzt@gmail.com>"]
-name = "isymtope-build"
-version = "0.3.0"
+build = "build.rs"
 
 [build-dependencies]
 lalrpop = "0.14.0"
@@ -18,17 +19,10 @@ serde_json = "1.0.6"
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common/"
 
-[dependencies.isymtope-parser]
-path = "../isymtope-parser/"
-
-[dependencies.isymtope-data]
-path = "../isymtope-data"
-
 [dependencies.wasm-log]
 optional = true
 path = "../wasm-log"
 
 [features]
-include_templates = []
 uuid_v4 = ["isymtope-ast-common/uuid_v4"]
 wasm = ["wasm-log"]

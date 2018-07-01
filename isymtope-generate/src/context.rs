@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::rc::Rc;
 
+use isymtope_ast_common::*;
+use isymtope_parser::*;
 use isymtope_build::*;
 use super::*;
 
@@ -42,7 +44,7 @@ impl DefaultTemplateContext {
         let template_file = app_root.join(trimmed_path);
         let source = TemplateSource::TemplatePathSource(&template_file);
 
-        let document_provider = DocumentProvider::create(source)?;
+        let document_provider = DefaultDocumentProvider::create(source)?;
         let template_context = DefaultTemplateContext::new(Rc::new(document_provider));
 
         Ok(template_context)
@@ -73,18 +75,24 @@ impl TemplateContext for DefaultTemplateContext {
                 let ref document_provider = self.document_provider;
 
                 // Create temporary session with default state
-                let mut default_state = MemorySession::default();
-                let mut default_ctx = DefaultOutputContext::create(document_provider.clone(), None);
+                let mut state = MemorySession::default();
+                let initial_defaults = Rc::new(DefaultDefaultsProvider::new(
+                    document_provider.clone(),
+                    None
+                ));
+                let mut initial_ctx = DefaultOutputContext::create(initial_defaults);
                 self.executor.initialize_session_data(
-                    &mut default_state,
+                    &mut state,
                     document_provider.doc(),
-                    &mut default_ctx,
+                    &mut initial_ctx,
                 )?;
 
-                let mut ctx = DefaultOutputContext::create(
+                // Now create actual context
+                let defaults = Rc::new(DefaultDefaultsProvider::new(
                     document_provider.clone(),
-                    Some(Rc::new(default_state)),
-                );
+                    Some(Rc::new(state)),
+                ));
+                let mut ctx = DefaultOutputContext::create(defaults);
 
                 eprintln!("Processing route: {} in document", path);
 

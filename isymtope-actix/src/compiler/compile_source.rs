@@ -6,10 +6,11 @@ use actix::prelude::*;
 use super::*;
 
 use isymtope_ast_common::*;
+use isymtope_parser::*;
 use isymtope_build::*;
 use isymtope_generate::*;
 
-fn parse_template(src: &str) -> IsymtopeGenerateResult<DocumentProvider> {
+fn parse_template(src: &str) -> IsymtopeGenerateResult<impl DocumentProvider> {
     let template = Rc::new(parser::parse_str(&src)?);
 
     // Create document provider
@@ -17,7 +18,7 @@ fn parse_template(src: &str) -> IsymtopeGenerateResult<DocumentProvider> {
         DefaultProcessingContext::for_template(template.clone());
 
     let document: Document = TryProcessFrom::try_process_from(template.as_ref(), &mut ctx)?;
-    let document_provider = DocumentProvider::create(document)?;
+    let document_provider = DefaultDocumentProvider::create(document)?;
 
     Ok(document_provider)
 }

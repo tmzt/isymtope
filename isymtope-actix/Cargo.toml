@@ -27,6 +27,9 @@ version = "0.4.2"
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common"
 
+[dependencies.isymtope-parser]
+path = "../isymtope-parser"
+
 [dependencies.isymtope-build]
 path = "../isymtope-build"
 

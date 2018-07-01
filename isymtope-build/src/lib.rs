@@ -26,10 +26,10 @@ extern crate failure;
 extern crate isymtope_data;
 #[macro_use]
 extern crate isymtope_ast_common;
+extern crate isymtope_parser;
 
 use isymtope_ast_common::*;
 
-pub mod input;
 pub mod output;
 
 pub use error::*;
@@ -37,7 +37,4 @@ pub use traits::*;
 pub use expressions::*;
 pub use objects::*;
 
-pub use self::common::*;
-pub use self::input::*;
-pub use self::input::processing::*;
 pub use self::output::*;

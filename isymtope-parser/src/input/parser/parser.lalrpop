@@ -186,9 +186,9 @@ ExpressionTerm : ExpressionValue<SourceExpression> =
     /// Binding to item in current where clause, map, or loop
     ItemKeyword => ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default()),
     /// Index of current item in map or loop
-    IndexKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemIndex(Default::default()), Default::default()),
+    IndexKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default()),
     /// Key of current item in map or loop
-    KeyKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemKey(Default::default()), Default::default()),
+    KeyKeyword => ExpressionValue::Binding(CommonBindings::CurrentItemKey, Default::default()),
 
     ///
     /// Single identifier

@@ -115,6 +115,7 @@ impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWr
             CommonBindings::CurrentReducerState(_) => write!(w, "state"),
             CommonBindings::CurrentItem(_) => write!(w, "_item"),
             CommonBindings::CurrentItemIndex => write!(w, "_idx"),
+            CommonBindings::CurrentItemKey => write!(w, "_key"),
             CommonBindings::NamedReducerKey(ref key, _) => write!(w, "store.getState().{}", key),
             CommonBindings::NamedReducerActionParam(ref ident, _) => write!(w, "action.{}", ident),
             CommonBindings::NamedQueryParam(ref ident, _) => write!(w, "{}", ident),

@@ -307,7 +307,7 @@ impl ObjectWriter<ComponentInstanceDescriptor<ProcessedExpression>, HtmlOutput>
         };
 
         let component_tag = comp_desc.tag();
-        let component = ctx.doc()
+        let component = ctx.defaults().doc()
             .component(component_tag)
             .map(|c| c.to_owned())
             .expect("component expected to exist in write_comp_desc");

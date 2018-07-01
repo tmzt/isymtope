@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use error::*;
 use traits::*;
-use input::*;
 use output::*;
 
+use isymtope_parser::*;
 use isymtope_data::*;
 
 #[derive(Debug, Default)]

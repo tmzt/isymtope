@@ -5,11 +5,12 @@ use std::collections::{HashSet, HashMap};
 
 use linked_hash_map::LinkedHashMap;
 
-use error::*;
-use common::entries::*;
-use traits::*;
-use expressions::*;
-use ast::*;
+// use error::*;
+// use common::entries::*;
+// use traits::*;
+// use expressions::*;
+// use ast::*;
+use isymtope_ast_common::*;
 
 pub mod scope;
 pub use self::scope::*;

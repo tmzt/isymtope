@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use isymtope_data::*;
 use isymtope_ast_common::*;
+use isymtope_parser::*;
 use output::*;
-use input::*;
 
 // #[derive(Debug)]
 // pub struct RouteState {
@@ -68,11 +68,14 @@ impl InternalTemplateDataBuilder {
         let ref route_state = self.route_state;
         let base_url = self.base_url.clone();
 
-        // Initialize output context
-        let mut ctx: DefaultOutputContext = DefaultOutputContext::create(
+        // Initialize defaults
+        let defaults = Rc::new(DefaultDefaultsProvider::new(
             document_provider.clone(),
             self.state_provider.as_ref().map(|s| s.clone()),
-        );
+        ));
+
+        // Initialize output context
+        let mut ctx: DefaultOutputContext = DefaultOutputContext::create(defaults);
         let doc = document_provider.doc();
 
         // Buffers

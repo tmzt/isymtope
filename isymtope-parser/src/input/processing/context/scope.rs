@@ -4,11 +4,7 @@ use std::hash::Hash;
 
 use std::collections::HashMap;
 
-use util::*;
-use error::*;
-use traits::*;
-
-use super::*;
+use isymtope_ast_common::*;
 
 #[derive(Clone)]
 pub struct ProcessingScope<T: Hash + Eq> {
