@@ -31,11 +31,11 @@ pub fn apply_cond(
     }
 
     // Always bind `item`
-    let item: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(item, ctx)?;
+    // let item: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(item, ctx)?;
     let binding = CommonBindings::CurrentItem(Default::default());
     eprintln!("[pipeline] apply_filter: item: {:?}", item);
 
-    ctx.bind_loop_value(binding, item)?;
+    ctx.bind_loop_value(binding, item.to_owned())?;
 
     eprintln!("[pipeline] apply_filter: cond (a): {:?}", cond);
 

@@ -219,50 +219,51 @@ impl TryProcessFrom<ComponentInstanceDescriptor<SourceExpression>>
     }
 }
 
-impl TryEvalFrom<ComponentInstanceDescriptor<ProcessedExpression>>
-    for ComponentInstanceDescriptor<OutputExpression>
-{
-    fn try_eval_from(
-        src: &ComponentInstanceDescriptor<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        eprintln!(
-            "TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor src: {:?}",
-            src
-        );
+// impl TryEvalFrom<ComponentInstanceDescriptor<ProcessedExpression>>
+//     for ComponentInstanceDescriptor<OutputExpression>
+// {
+//     fn try_eval_from(
+//         src: &ComponentInstanceDescriptor<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         eprintln!(
+//             "TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor src: {:?}",
+//             src
+//         );
 
-        let component_props: Option<Vec<ElementPropValue<OutputExpression>>> =
-            TryEvalFrom::try_eval_from(&src.2, ctx)?;
-        eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor component_props: {:?}", component_props);
+//         // let component_props: Option<Vec<ElementPropValue<OutputExpression>>> =
+//         //     TryEvalFrom::try_eval_from(&src.2, ctx)?;
+//         // eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor component_props: {:?}", component_props);
 
-        ctx.push_child_scope();
+//         ctx.push_child_scope();
 
-        if let Some(ref component_props) = component_props {
-            for prop in component_props {
-                let name = prop.name().to_owned();
-                let expr = prop.expr();
-                let binding = CommonBindings::NamedComponentProp(name.clone(), Default::default());
+//         let component_props = &src.2;
+//         if let Some(ref component_props) = component_props {
+//             for prop in component_props {
+//                 let name = prop.name().to_owned();
+//                 let expr = prop.expr();
+//                 let binding = CommonBindings::NamedComponentProp(name.clone(), Default::default());
 
-                eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor binding ident [{}] to [{:?}]", name, binding);
-                let expr: ExpressionValue<OutputExpression> =
-                    TryEvalFrom::try_eval_from(expr, ctx)?;
+//                 eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor binding ident [{}] to [{:?}]", name, binding);
+//                 // let expr: ExpressionValue<OutputExpression> =
+//                 //     TryEvalFrom::try_eval_from(expr, ctx)?;
 
-                eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor adding binding [{}] with value [{:?}]", name, binding);
-                ctx.bind_value(binding, expr)?;
-            }
-        }
+//                 eprintln!("TryEval ComponentInstanceDescriptor -> ComponentInstanceDescriptor adding binding [{}] with value [{:?}]", name, binding);
+//                 ctx.bind_value(binding, expr.to_owned())?;
+//             }
+//         }
 
-        let desc: ElementDescriptor<OutputExpression> = TryEvalFrom::try_eval_from(&src.0, ctx)?;
+//         let desc: ElementDescriptor<OutputExpression> = TryEvalFrom::try_eval_from(&src.0, ctx)?;
 
-        ctx.pop_scope();
+//         ctx.pop_scope();
 
-        Ok(ComponentInstanceDescriptor(
-            desc,
-            src.1.to_owned(),
-            component_props,
-        ))
-    }
-}
+//         Ok(ComponentInstanceDescriptor(
+//             desc,
+//             src.1.to_owned(),
+//             component_props,
+//         ))
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SkipElementOp<T> {
@@ -415,63 +416,63 @@ impl TryEvalFrom<SkipElementOp<ProcessedExpression>> for SkipElementOp<OutputExp
     }
 }
 
-impl TryEvalFrom<ElementOp<ProcessedExpression>> for ElementOp<OutputExpression> {
-    fn try_eval_from(
-        src: &ElementOp<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match *src {
-            ElementOp::ElementOpen(ref desc, _) => Ok(ElementOp::ElementOpen(
-                TryEvalFrom::try_eval_from(desc, ctx)?,
-                Default::default(),
-            )),
-            ElementOp::ElementVoid(ref desc, _) => Ok(ElementOp::ElementOpen(
-                TryEvalFrom::try_eval_from(desc, ctx)?,
-                Default::default(),
-            )),
-            ElementOp::ElementClose(ref s) => Ok(ElementOp::ElementClose(s.to_owned())),
+// impl TryEvalFrom<ElementOp<ProcessedExpression>> for ElementOp<OutputExpression> {
+//     fn try_eval_from(
+//         src: &ElementOp<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match *src {
+//             ElementOp::ElementOpen(ref desc, _) => Ok(ElementOp::ElementOpen(
+//                 TryEvalFrom::try_eval_from(desc, ctx)?,
+//                 Default::default(),
+//             )),
+//             ElementOp::ElementVoid(ref desc, _) => Ok(ElementOp::ElementOpen(
+//                 TryEvalFrom::try_eval_from(desc, ctx)?,
+//                 Default::default(),
+//             )),
+//             ElementOp::ElementClose(ref s) => Ok(ElementOp::ElementClose(s.to_owned())),
 
-            ElementOp::WriteValue(ref e, ref s) => {
-                eprintln!("TryEval ElementOp -> ElementOp WriteValue: e: {:?}", e);
-                Ok(ElementOp::WriteValue(
-                    TryEvalFrom::try_eval_from(e, ctx)?,
-                    s.to_owned(),
-                ))
-            }
+//             ElementOp::WriteValue(ref e, ref s) => {
+//                 eprintln!("TryEval ElementOp -> ElementOp WriteValue: e: {:?}", e);
+//                 Ok(ElementOp::WriteValue(
+//                     TryEvalFrom::try_eval_from(e, ctx)?,
+//                     s.to_owned(),
+//                 ))
+//             }
 
-            ElementOp::StartBlock(ref s) => Ok(ElementOp::StartBlock(s.to_owned())),
-            ElementOp::EndBlock(ref s) => Ok(ElementOp::EndBlock(s.to_owned())),
+//             ElementOp::StartBlock(ref s) => Ok(ElementOp::StartBlock(s.to_owned())),
+//             ElementOp::EndBlock(ref s) => Ok(ElementOp::EndBlock(s.to_owned())),
 
-            ElementOp::SkipNode => Ok(ElementOp::SkipNode),
-            ElementOp::SkipOuterElement(ref e) => Ok(ElementOp::SkipOuterElement(TryEvalFrom::try_eval_from(e, ctx)?)),
-            ElementOp::SkipElement(ref e) => Ok(ElementOp::SkipElement(TryEvalFrom::try_eval_from(e, ctx)?)),
+//             ElementOp::SkipNode => Ok(ElementOp::SkipNode),
+//             ElementOp::SkipOuterElement(ref e) => Ok(ElementOp::SkipOuterElement(TryEvalFrom::try_eval_from(e, ctx)?)),
+//             ElementOp::SkipElement(ref e) => Ok(ElementOp::SkipElement(TryEvalFrom::try_eval_from(e, ctx)?)),
 
-            ElementOp::MapCollection(ref s, ref k, ref e, _) => Ok(ElementOp::MapCollection(
-                s.to_owned(),
-                k.as_ref().map(|s| s.to_owned()),
-                TryEvalFrom::try_eval_from(e, ctx)?,
-                Default::default(),
-            )),
+//             ElementOp::MapCollection(ref s, ref k, ref e, _) => Ok(ElementOp::MapCollection(
+//                 s.to_owned(),
+//                 k.as_ref().map(|s| s.to_owned()),
+//                 TryEvalFrom::try_eval_from(e, ctx)?,
+//                 Default::default(),
+//             )),
 
-            ElementOp::InstanceComponent(ref comp_desc, _) => Ok(ElementOp::InstanceComponent(
-                TryEvalFrom::try_eval_from(comp_desc, ctx)?,
-                Default::default(),
-            )),
+//             ElementOp::InstanceComponent(ref comp_desc, _) => Ok(ElementOp::InstanceComponent(
+//                 TryEvalFrom::try_eval_from(comp_desc, ctx)?,
+//                 Default::default(),
+//             )),
 
-            ElementOp::MapInstanceComponent(ref comp_desc, ref item_key, ref coll, _) => {
-                let comp_desc: ComponentInstanceDescriptor<OutputExpression> =
-                    TryEvalFrom::try_eval_from(comp_desc, ctx)?;
-                let coll: ExpressionValue<OutputExpression> =
-                    TryEvalFrom::try_eval_from(coll, ctx)?;
+//             ElementOp::MapInstanceComponent(ref comp_desc, ref item_key, ref coll, _) => {
+//                 let comp_desc: ComponentInstanceDescriptor<OutputExpression> =
+//                     TryEvalFrom::try_eval_from(comp_desc, ctx)?;
+//                 let coll: ExpressionValue<OutputExpression> =
+//                     TryEvalFrom::try_eval_from(coll, ctx)?;
 
-                Ok(ElementOp::MapInstanceComponent(
-                    comp_desc,
-                    item_key.to_owned(),
-                    coll,
-                    Default::default(),
-                ))
-            } // _ => Ok(*src.to_owned())
-              // _ => Err(reduction_err_bt!())
-        }
-    }
-}
+//                 Ok(ElementOp::MapInstanceComponent(
+//                     comp_desc,
+//                     item_key.to_owned(),
+//                     coll,
+//                     Default::default(),
+//                 ))
+//             } // _ => Ok(*src.to_owned())
+//               // _ => Err(reduction_err_bt!())
+//         }
+//     }
+// }

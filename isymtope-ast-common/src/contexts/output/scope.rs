@@ -15,8 +15,8 @@ pub struct OutputScope<T: Hash + Eq + Debug> {
     parent_id: Option<String>,
 
     environment: Option<OutputScopeEnvironment>,
-    scoped_values: HashMap<CommonBindings<T>, ExpressionValue<OutputExpression>>,
-    loop_values: HashMap<CommonBindings<OutputExpression>, ExpressionValue<OutputExpression>>,
+    scoped_values: HashMap<CommonBindings<T>, ExpressionValue<ProcessedExpression>>,
+    loop_values: HashMap<CommonBindings<ProcessedExpression>, ExpressionValue<ProcessedExpression>>,
 }
 
 impl<T: Hash + Eq + Debug> Default for OutputScope<T> {
@@ -58,7 +58,7 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
     pub fn add_value(
         &mut self,
         common_binding: CommonBindings<T>,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         self.scoped_values.insert(common_binding, value);
         Ok(())
@@ -67,7 +67,7 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
     pub fn get_value(
         &mut self,
         common_binding: &CommonBindings<T>,
-    ) -> Option<ExpressionValue<OutputExpression>>
+    ) -> Option<ExpressionValue<ProcessedExpression>>
     where
         T: Clone,
     {
@@ -87,8 +87,8 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
 
     pub fn add_loop_value(
         &mut self,
-        common_binding: CommonBindings<OutputExpression>,
-        value: ExpressionValue<OutputExpression>,
+        common_binding: CommonBindings<ProcessedExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         self.loop_values.insert(common_binding, value);
         Ok(())
@@ -96,8 +96,8 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
 
     pub fn get_loop_value(
         &mut self,
-        common_binding: &CommonBindings<OutputExpression>,
-    ) -> Option<ExpressionValue<OutputExpression>> {
+        common_binding: &CommonBindings<ProcessedExpression>,
+    ) -> Option<ExpressionValue<ProcessedExpression>> {
         eprintln!(
             "[OutputContext scope {}] Getting value for binding (loop value) [{:?}]",
             self.scope_id, common_binding

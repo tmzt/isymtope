@@ -24,11 +24,11 @@ pub trait Session {
     fn set_value(
         &mut self,
         key: &str,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
         update: bool,
     ) -> SessionResult<()>;
     fn remove_value(&mut self, key: &str) -> SessionResult<()>;
-    fn get_value(&self, key: &str) -> SessionResult<Option<&ExpressionValue<OutputExpression>>>;
+    fn get_value(&self, key: &str) -> SessionResult<Option<&ExpressionValue<ProcessedExpression>>>;
 
     #[cfg(feature = "session_time")]
     fn created(&self) -> &Timespec;
@@ -45,6 +45,6 @@ pub trait Session {
     fn set_value_with_type(
         &mut self,
         key: &str,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> SessionResult<()>;
 }

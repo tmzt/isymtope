@@ -17,10 +17,10 @@ impl ActionExecutor {
         if let Some(reducers) = doc.reducers() {
             for (key, reducer) in reducers {
                 if let Some(default_expr) = reducer.default_value() {
-                    let default_expr: ExpressionValue<OutputExpression> =
-                        TryEvalFrom::try_eval_from(default_expr, ctx)?;
+                    // let default_expr: ExpressionValue<ProcessedExpression> =
+                    //     TryEvalFrom::try_eval_from(default_expr, ctx)?;
 
-                    state.set_value(key, default_expr, true)?;
+                    state.set_value(key, default_expr.to_owned(), true)?;
                 }
             }
         }
@@ -30,7 +30,7 @@ impl ActionExecutor {
 
     pub fn execute_store_action<
         'p,
-        P: IntoIterator<Item = (&'p str, &'p ExpressionValue<OutputExpression>)>,
+        P: IntoIterator<Item = (&'p str, &'p ExpressionValue<ProcessedExpression>)>,
     >(
         &self,
         state: &mut Session,
@@ -98,18 +98,18 @@ impl ActionExecutor {
                 }
             };
 
-            // Evalute processed expression
-            let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(expr, ctx)?;
-            eprintln!("[server/executor] expr(a): {:?}", expr);
-            // Evalute output expression
-            let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
-            eprintln!("[server/executor] expr(b): {:?}", expr);
+            // // Evalute processed expression
+            // let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(expr, ctx)?;
+            // eprintln!("[server/executor] expr(a): {:?}", expr);
+            // // Evalute output expression
+            // let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
+            // eprintln!("[server/executor] expr(b): {:?}", expr);
 
             eprintln!(
                 "[server/executor] setting reducer key [{}] to value [{:?}]",
                 reducer_key, expr
             );
-            state.set_value(&reducer_key, expr, true)?;
+            state.set_value(&reducer_key, expr.to_owned(), true)?;
             ctx.pop_scope();
         };
 
@@ -124,7 +124,12 @@ impl ActionExecutor {
         action_op: &ActionOp<ProcessedExpression>,
     ) -> IsymtopeGenerateResult<()> {
         match *action_op {
-            ActionOp::DispatchAction(ref action_ty, ref params, _) => {
+            ActionOp::DispatchAction(ref action_ty, ref params, _) | ActionOp::DispatchActionTo(ref action_ty, ref params, _, _) => {
+                let action_ty = match *action_op {
+                    ActionOp::DispatchActionTo(_, _, ref target, _) => format!("{}.{}", target, action_ty).to_owned(),
+                    _ => action_ty.to_owned()
+                };
+
                 let params: Vec<_> = params
                     .as_ref()
                     .map(|&box ref v| {
@@ -133,30 +138,8 @@ impl ActionExecutor {
                             .collect()
                     })
                     .unwrap_or_default();
-                let params: Vec<(String, ExpressionValue<OutputExpression>)> =
-                    TryEvalFrom::try_eval_from(&params, ctx)?;
-
-                self.execute_store_action(
-                    state,
-                    doc,
-                    ctx,
-                    action_ty,
-                    Some(params.iter().map(|p| (p.0.as_str(), &p.1))),
-                )?;
-            }
-
-            ActionOp::DispatchActionTo(ref action_ty, ref params, ref target, _) => {
-                let action_ty = format!("{}.{}", target, action_ty);
-                let params: Vec<_> = params
-                    .as_ref()
-                    .map(|&box ref v| {
-                        v.iter()
-                            .map(|param| (param.key().to_owned(), param.value().to_owned()))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let params: Vec<(String, ExpressionValue<OutputExpression>)> =
-                    TryEvalFrom::try_eval_from(&params, ctx)?;
+                // let params: Vec<(String, ExpressionValue<ProcessedExpression>)> =
+                //     TryEvalFrom::try_eval_from(&params, ctx)?;
 
                 self.execute_store_action(
                     state,
@@ -166,6 +149,28 @@ impl ActionExecutor {
                     Some(params.iter().map(|p| (p.0.as_str(), &p.1))),
                 )?;
             }
+
+            // ActionOp::DispatchActionTo(ref action_ty, ref params, ref target, _) => {
+            //     let action_ty = format!("{}.{}", target, action_ty);
+            //     let params: Vec<_> = params
+            //         .as_ref()
+            //         .map(|&box ref v| {
+            //             v.iter()
+            //                 .map(|param| (param.key().to_owned(), param.value().to_owned()))
+            //                 .collect()
+            //         })
+            //         .unwrap_or_default();
+            //     let params: Vec<(String, ExpressionValue<ProcessedExpression>)> =
+            //         TryEvalFrom::try_eval_from(&params, ctx)?;
+
+            //     self.execute_store_action(
+            //         state,
+            //         doc,
+            //         ctx,
+            //         &action_ty,
+            //         Some(params.iter().map(|p| (p.0.as_str(), &p.1))),
+            //     )?;
+            // }
 
             _ => {
                 return Err(try_eval_from_err!(format!(

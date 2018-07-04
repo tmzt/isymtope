@@ -57,21 +57,21 @@ impl<T> Block<T> {
     // }
 }
 
-impl TryProcessFrom<Block<SourceExpression>> for Block<ProcessedExpression> {
-    fn try_process_from(
-        src: &Block<SourceExpression>,
-        ctx: &mut ProcessingContext,
-    ) -> DocumentProcessingResult<Self> {
-        let children: Option<Vec<Block<ProcessedExpression>>> =
-            TryProcessFrom::try_process_from(&src.children, ctx)?;
-        let ops: Option<Vec<ElementOp<ProcessedExpression>>> =
-            TryProcessFrom::try_process_from(&src.ops, ctx)?;
+// impl TryProcessFrom<Block<SourceExpression>> for Block<ProcessedExpression> {
+//     fn try_process_from(
+//         src: &Block<SourceExpression>,
+//         ctx: &mut ProcessingContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         let children: Option<Vec<Block<ProcessedExpression>>> =
+//             TryProcessFrom::try_process_from(&src.children, ctx)?;
+//         let ops: Option<Vec<ElementOp<ProcessedExpression>>> =
+//             TryProcessFrom::try_process_from(&src.ops, ctx)?;
 
-        debug!("TryProcessFrom Block -> Block: ops: {:?}", ops);
+//         debug!("TryProcessFrom Block -> Block: ops: {:?}", ops);
 
-        Ok(Block::new(src.block_id.clone(), children, ops))
-    }
-}
+//         Ok(Block::new(src.block_id.clone(), children, ops))
+//     }
+// }
 
 // fn eval_block<T>(src: &Block<T>, ctx: &mut OutputContext) -> DocumentProcessingResult<Block<OutputExpression>> where ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>, T: Debug + Hash + Eq {
 //     let children: Option<Vec<Block<OutputExpression>>> = TryEvalFrom::try_eval_from(&src.children, ctx)?;
@@ -91,21 +91,21 @@ impl TryProcessFrom<Block<SourceExpression>> for Block<ProcessedExpression> {
 //     }
 // }
 
-impl TryEvalFrom<Block<ProcessedExpression>> for Block<OutputExpression> {
-    fn try_eval_from(
-        src: &Block<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        let children: Option<Vec<Block<OutputExpression>>> =
-            TryEvalFrom::try_eval_from(&src.children, ctx)?;
-        let ops: Option<Vec<ElementOp<OutputExpression>>> =
-            TryEvalFrom::try_eval_from(&src.ops, ctx)?;
+// impl TryEvalFrom<Block<ProcessedExpression>> for Block<OutputExpression> {
+//     fn try_eval_from(
+//         src: &Block<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         let children: Option<Vec<Block<OutputExpression>>> =
+//             TryEvalFrom::try_eval_from(&src.children, ctx)?;
+//         let ops: Option<Vec<ElementOp<OutputExpression>>> =
+//             TryEvalFrom::try_eval_from(&src.ops, ctx)?;
 
-        debug!("TryEvalFrom Block -> Block: ops: {:?}", ops);
-        eprintln!("Done evaluating block {}", src.block_id);
-        eprintln!("Children: {:?}", children);
-        eprintln!("Ops: {:?}", ops);
+//         debug!("TryEvalFrom Block -> Block: ops: {:?}", ops);
+//         eprintln!("Done evaluating block {}", src.block_id);
+//         eprintln!("Children: {:?}", children);
+//         eprintln!("Ops: {:?}", ops);
 
-        Ok(Block::new(src.block_id.clone(), children, ops))
-    }
-}
+//         Ok(Block::new(src.block_id.clone(), children, ops))
+//     }
+// }

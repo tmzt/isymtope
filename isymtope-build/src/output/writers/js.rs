@@ -80,24 +80,24 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsW
     }
 }
 
-impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ExpressionValue<OutputExpression>,
-    ) -> DocumentProcessingResult<()> {
-        match *obj {
-            ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
-            ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
-            // ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
-            _ => Err(try_process_from_err!(format!(
-                "Unsupported output expression: {:?}",
-                obj
-            ))),
-        }
-    }
-}
+// impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &ExpressionValue<OutputExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         match *obj {
+//             ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
+//             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
+//             // ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
+//             _ => Err(try_process_from_err!(format!(
+//                 "Unsupported output expression: {:?}",
+//                 obj
+//             ))),
+//         }
+//     }
+// }
 
 // impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWriter {
 impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWriter {
@@ -797,45 +797,45 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
     }
 }
 
-impl ObjectWriter<Expression<OutputExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &Expression<OutputExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter Expression<OutputExpression> (JS): obj: {:?}",
-            obj
-        );
+// impl ObjectWriter<Expression<OutputExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &Expression<OutputExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         eprintln!(
+//             "ObjectWriter Expression<OutputExpression> (JS): obj: {:?}",
+//             obj
+//         );
 
-        match *obj {
-            Expression::Composite(ref c) => self.write_object(w, ctx, c),
+//         match *obj {
+//             Expression::Composite(ref c) => self.write_object(w, ctx, c),
 
-            Expression::Path(ref p, _) => self.write_object(w, ctx, p),
+//             Expression::Path(ref p, _) => self.write_object(w, ctx, p),
 
-            Expression::Ident(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
+//             Expression::Ident(ref s, _) => {
+//                 write!(w, "{}", s)?;
+//                 Ok(())
+//             }
 
-            Expression::RawPath(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
+//             Expression::RawPath(ref s, _) => {
+//                 write!(w, "{}", s)?;
+//                 Ok(())
+//             }
 
-            _ => {
-                eprintln!(
-                    "ObjectWriter Expression<OutputExpression> (JS): Unsupported Expression: {:?}",
-                    obj
-                );
-                Err(try_process_from_err!(
-                    "Unsupported expression in JS writer."
-                ))
-            }
-        }
-    }
-}
+//             _ => {
+//                 eprintln!(
+//                     "ObjectWriter Expression<OutputExpression> (JS): Unsupported Expression: {:?}",
+//                     obj
+//                 );
+//                 Err(try_process_from_err!(
+//                     "Unsupported expression in JS writer."
+//                 ))
+//             }
+//         }
+//     }
+// }
 
 impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
@@ -897,14 +897,14 @@ impl<T> ObjectWriter<ObjectValue<T>, JsOutput> for DefaultJsWriter
     }
 }
 
-impl<T> ObjectWriter<ArrayValue<T>, JsOutput> for DefaultJsWriter
-    where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
+impl ObjectWriter<ArrayValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
+    // where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
 {
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &ArrayValue<T>,
+        obj: &ArrayValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         let mut first = true;
         write!(w, "[")?;
@@ -1055,64 +1055,64 @@ impl ObjectWriter<PathComponentValue<ProcessedExpression>, JsOutput> for Default
     }
 }
 
-impl ObjectWriter<PathValue<OutputExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &PathValue<OutputExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PathValue<OutputExpression> (JS): obj: {:?}",
-            obj
-        );
+// impl ObjectWriter<PathValue<OutputExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &PathValue<OutputExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         debug!(
+//             "ObjectWriter PathValue<OutputExpression> (JS): obj: {:?}",
+//             obj
+//         );
 
-        write_pipeline_head(self, w, ctx, obj.head())?;
+//         write_pipeline_head(self, w, ctx, obj.head())?;
 
-        if let Some(components) = obj.components() {
-            for component in components {
-                write!(w, ".{}", component)?;
-            }
-        }
+//         if let Some(components) = obj.components() {
+//             for component in components {
+//                 write!(w, ".{}", component)?;
+//             }
+//         }
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
 
-impl ObjectWriter<PathComponentValue<OutputExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        _ctx: &mut OutputContext,
-        obj: &PathComponentValue<OutputExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PathComponentValue<OutputExpression> (JS): obj: {:?}",
-            obj
-        );
+// impl ObjectWriter<PathComponentValue<OutputExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         _ctx: &mut OutputContext,
+//         obj: &PathComponentValue<OutputExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         debug!(
+//             "ObjectWriter PathComponentValue<OutputExpression> (JS): obj: {:?}",
+//             obj
+//         );
 
-        match *obj {
-            PathComponentValue::Member(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
+//         match *obj {
+//             PathComponentValue::Member(ref s, _) => {
+//                 write!(w, "{}", s)?;
+//                 Ok(())
+//             }
 
-            PathComponentValue::MethodCall(ref s, ref _params, _) => {
-                write!(w, "{}(...)", s)?;
-                // if let &Some(ref params) = params {
-                //     let mut first = true;
-                //     for param in params {
-                //         if !first { write!(w, ",")?; }
-                //         self.write_object(w, ctx, param)?;
-                //         first = false;
-                //     }
-                // }
-                // write!(w, ")")?;
-                Ok(())
-            }
-        }
-    }
-}
+//             PathComponentValue::MethodCall(ref s, ref _params, _) => {
+//                 write!(w, "{}(...)", s)?;
+//                 // if let &Some(ref params) = params {
+//                 //     let mut first = true;
+//                 //     for param in params {
+//                 //         if !first { write!(w, ",")?; }
+//                 //         self.write_object(w, ctx, param)?;
+//                 //         first = false;
+//                 //     }
+//                 // }
+//                 // write!(w, ")")?;
+//                 Ok(())
+//             }
+//         }
+//     }
+// }
 
 ///
 /// Components

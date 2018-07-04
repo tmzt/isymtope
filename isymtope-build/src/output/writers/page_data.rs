@@ -265,7 +265,7 @@ impl InternalTemplateDataBuilder {
                                 let shape = shape.clone();
 
                                 let binding = CommonBindings::CurrentReducerState(Default::default());
-                                let shaped: ExpressionValue<OutputExpression> = ExpressionValue::BindingShape(BindingShape(binding, shape), Default::default());
+                                let shaped: ExpressionValue<ProcessedExpression> = ExpressionValue::BindingShape(BindingShape(binding, shape), Default::default());
                                 ctx.bind_value(CommonBindings::CurrentReducerState(Default::default()), shaped)?;
                             };
 

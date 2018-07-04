@@ -62,29 +62,29 @@ pub trait OutputContext: Debug {
     fn bind_value(
         &mut self,
         binding: CommonBindings<ProcessedExpression>,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()>;
 
     fn find_value(
         &mut self,
         binding: &CommonBindings<ProcessedExpression>,
-    ) -> DocumentProcessingResult<Option<ExpressionValue<OutputExpression>>>;
+    ) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>>;
 
     fn must_find_value(
         &mut self,
         binding: &CommonBindings<ProcessedExpression>,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>;
+    ) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>>;
 
     fn bind_loop_value(
         &mut self,
-        binding: CommonBindings<OutputExpression>,
-        value: ExpressionValue<OutputExpression>,
+        binding: CommonBindings<ProcessedExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()>;
 
     fn must_find_loop_value(
         &mut self,
-        binding: &CommonBindings<OutputExpression>,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>;
+        binding: &CommonBindings<ProcessedExpression>,
+    ) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>>;
 
     fn bind_element_key(&mut self, key: &str, idx: Option<i32>) -> DocumentProcessingResult<()>;
 

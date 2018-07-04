@@ -5,7 +5,7 @@ use expressions::*;
 use objects::*;
 
 pub trait ReducerStateProvider: Debug {
-    fn get(&self, reducer_key: &str) -> SessionResult<Option<&ExpressionValue<OutputExpression>>>;
+    fn get(&self, reducer_key: &str) -> SessionResult<Option<&ExpressionValue<ProcessedExpression>>>;
 }
 
 pub trait RouteStateProvider: Debug {

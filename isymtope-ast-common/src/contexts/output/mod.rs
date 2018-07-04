@@ -56,12 +56,13 @@ impl ContextDefaultsProvider for DefaultDefaultsProvider {
         //     return Ok(ident);
         // };
 
+        // Special case
         if let Some(state_provider) = self.state_provider.as_ref() {
             let state_provider = state_provider.as_ref();
             let value = state_provider.get(key)?;
 
             if let Some(value) = value {
-                return Ok(ReducerValue::OutputExpression(value.to_owned()));
+                return Ok(ReducerValue::ProcessedExpression(value.to_owned()));
             }
         };
 
@@ -130,7 +131,7 @@ impl OutputContext for DefaultOutputContext {
     fn bind_value(
         &mut self,
         binding: CommonBindings<ProcessedExpression>,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         let scope = self.scopes.get_mut(&self.cur_scope_id).unwrap();
         eprintln!(
@@ -143,7 +144,7 @@ impl OutputContext for DefaultOutputContext {
     fn find_value(
         &mut self,
         binding: &CommonBindings<ProcessedExpression>,
-    ) -> DocumentProcessingResult<Option<ExpressionValue<OutputExpression>>> {
+    ) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
         eprintln!(
             "[OutputContext]  Looking for value for binding [{:?}]",
             binding
@@ -157,7 +158,7 @@ impl OutputContext for DefaultOutputContext {
     fn must_find_value(
         &mut self,
         binding: &CommonBindings<ProcessedExpression>,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>> {
+    ) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
         eprintln!(
             "[OutputContext]  Looking for value for binding [{:?}]",
             binding
@@ -170,8 +171,8 @@ impl OutputContext for DefaultOutputContext {
 
     fn bind_loop_value(
         &mut self,
-        binding: CommonBindings<OutputExpression>,
-        value: ExpressionValue<OutputExpression>,
+        binding: CommonBindings<ProcessedExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         let scope = self.scopes.get_mut(&self.cur_scope_id).unwrap();
         eprintln!(
@@ -183,8 +184,8 @@ impl OutputContext for DefaultOutputContext {
 
     fn must_find_loop_value(
         &mut self,
-        binding: &CommonBindings<OutputExpression>,
-    ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>> {
+        binding: &CommonBindings<ProcessedExpression>,
+    ) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
         eprintln!(
             "[OutputContext]  Looking for value for binding [{:?}]",
             binding

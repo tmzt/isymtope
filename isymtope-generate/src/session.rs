@@ -11,7 +11,7 @@ pub struct MemorySession {
     created: Timespec,
     #[cfg(feature = "session_time")]
     expires: Option<Timespec>,
-    data: HashMap<String, ExpressionValue<OutputExpression>>,
+    data: HashMap<String, ExpressionValue<ProcessedExpression>>,
 }
 
 #[cfg(feature = "session_time")]
@@ -52,7 +52,7 @@ impl Session for MemorySession {
     fn set_value(
         &mut self,
         key: &str,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
         _update: bool,
     ) -> SessionResult<()> {
         self.data.insert(key.to_owned(), value);
@@ -89,7 +89,7 @@ impl Session for MemorySession {
         Ok(())
     }
 
-    fn get_value(&self, key: &str) -> SessionResult<Option<&ExpressionValue<OutputExpression>>> {
+    fn get_value(&self, key: &str) -> SessionResult<Option<&ExpressionValue<ProcessedExpression>>> {
         Ok(self.data.get(key))
     }
 
@@ -114,7 +114,7 @@ impl Session for MemorySession {
     fn set_with_type(
         &mut self,
         key: &str,
-        value: ExpressionValue<OutputExpression>,
+        value: ExpressionValue<ProcessedExpression>,
     ) -> SessionResult<()> {
         let ty = value.peek_ty();
 
@@ -131,7 +131,7 @@ impl Session for MemorySession {
 }
 
 impl ReducerStateProvider for MemorySession {
-    fn get(&self, key: &str) -> SessionResult<Option<&ExpressionValue<OutputExpression>>> {
+    fn get(&self, key: &str) -> SessionResult<Option<&ExpressionValue<ProcessedExpression>>> {
         eprintln!("Requested reducer state key {}", key);
         let expr = self.get_value(key)?;
         eprintln!("Got value for reducer state key {}: {:?}", key, expr);

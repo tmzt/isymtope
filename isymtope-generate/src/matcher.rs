@@ -10,7 +10,7 @@ lazy_static! {
 
 pub enum RouteMatch {
     Route(Route),
-    RouteWithParams(Route, HashMap<String, ExpressionValue<OutputExpression>>)
+    RouteWithParams(Route, HashMap<String, ExpressionValue<ProcessedExpression>>)
 }
 
 impl RouteMatch {
@@ -43,7 +43,7 @@ impl RouteMatcher {
         None
     }
 
-    fn path_to_params(&self, regex: &Regex, path: &str) -> Option<HashMap<String, ExpressionValue<OutputExpression>>> {
+    fn path_to_params(&self, regex: &Regex, path: &str) -> Option<HashMap<String, ExpressionValue<ProcessedExpression>>> {
         if let Some(captures) = regex.captures(path) {
             let mut params = HashMap::new();
             for name in regex.capture_names() {

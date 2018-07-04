@@ -179,8 +179,9 @@ impl TryEvalFrom<QueryCall<ProcessedExpression>> for ExpressionValue<OutputExpre
         for prop in params {
             let binding =
                 CommonBindings::NamedQueryParam(prop.key().to_owned(), Default::default());
-            let value: ExpressionValue<OutputExpression> =
-                TryEvalFrom::try_eval_from(prop.value(), ctx)?;
+            // let value: ExpressionValue<OutputExpression> =
+            //     TryEvalFrom::try_eval_from(prop.value(), ctx)?;
+            let value = prop.value().to_owned();
 
             eprintln!(
                 "[Query] Adding binding {:?} with value [{:?}]",
