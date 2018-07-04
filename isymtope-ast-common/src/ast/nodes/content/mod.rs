@@ -72,43 +72,43 @@ impl TryProcessFrom<ContentNode<SourceExpression>> for ContentNode<ProcessedExpr
     }
 }
 
-impl TryEvalFrom<ContentNode<ProcessedExpression>> for ContentNode<OutputExpression> {
-    fn try_eval_from(
-        src: &ContentNode<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match *src {
-            ContentNode::Element(ref n, _) => Ok(ContentNode::Element(
-                TryEvalFrom::try_eval_from(n, ctx)?,
-                Default::default(),
-            )),
-            ContentNode::Extern(ref e, _) => Ok(ContentNode::Extern(
-                TryEvalFrom::try_eval_from(e, ctx)?,
-                Default::default(),
-            )),
+// impl TryEvalFrom<ContentNode<ProcessedExpression>> for ContentNode<OutputExpression> {
+//     fn try_eval_from(
+//         src: &ContentNode<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match *src {
+//             ContentNode::Element(ref n, _) => Ok(ContentNode::Element(
+//                 TryEvalFrom::try_eval_from(n, ctx)?,
+//                 Default::default(),
+//             )),
+//             ContentNode::Extern(ref e, _) => Ok(ContentNode::Extern(
+//                 TryEvalFrom::try_eval_from(e, ctx)?,
+//                 Default::default(),
+//             )),
 
-            ContentNode::ForNode(ref s, ref e, Some(ref n), _) => Ok(ContentNode::ForNode(
-                s.to_owned(),
-                Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
-                Some(Box::new(TryEvalFrom::try_eval_from(n, ctx)?)),
-                Default::default(),
-            )),
-            ContentNode::ForNode(ref s, ref e, _, _) => Ok(ContentNode::ForNode(
-                s.to_owned(),
-                Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
-                None,
-                Default::default(),
-            )),
+//             ContentNode::ForNode(ref s, ref e, Some(ref n), _) => Ok(ContentNode::ForNode(
+//                 s.to_owned(),
+//                 Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
+//                 Some(Box::new(TryEvalFrom::try_eval_from(n, ctx)?)),
+//                 Default::default(),
+//             )),
+//             ContentNode::ForNode(ref s, ref e, _, _) => Ok(ContentNode::ForNode(
+//                 s.to_owned(),
+//                 Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
+//                 None,
+//                 Default::default(),
+//             )),
 
-            ContentNode::ExpressionValue(ref e, ref s, _) => Ok(ContentNode::ExpressionValue(
-                Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
-                s.to_owned(),
-                Default::default(),
-            )),
+//             ContentNode::ExpressionValue(ref e, ref s, _) => Ok(ContentNode::ExpressionValue(
+//                 Box::new(TryEvalFrom::try_eval_from(e, ctx)?),
+//                 s.to_owned(),
+//                 Default::default(),
+//             )),
 
-            ContentNode::Primitive(ref p, _) => {
-                Ok(ContentNode::Primitive(p.to_owned(), Default::default()))
-            }
-        }
-    }
-}
+//             ContentNode::Primitive(ref p, _) => {
+//                 Ok(ContentNode::Primitive(p.to_owned(), Default::default()))
+//             }
+//         }
+//     }
+// }

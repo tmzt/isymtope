@@ -121,10 +121,10 @@ where
 // where
 //     ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
 //     T: ::std::fmt::Debug,
-fn eval_path(
+pub fn eval_path(
     src: &PathValue<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>>
 {
     let head = src.head();
     let components: Vec<_> = src.components().map(|v| v.collect()).unwrap_or_default();
@@ -138,8 +138,9 @@ fn eval_path(
     // eprintln!("[path] eval_path: head (after first eval): {:?}", head);
 
     // Evaluate binding if any
-    let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
-    // let head = eval_binding_value(head, ctx)?;
+    // let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
+    let head = eval_binding(head, ctx)?
+        .unwrap_or_else(|| head.to_owned());
 
     eprintln!("[path] eval_path: head (b): {:?}", head);
     eprintln!("[path] eval_path: components (b): {:?}", components);
@@ -179,14 +180,14 @@ fn eval_path(
     res.map(|r| r.to_owned())
 }
 
-impl TryEvalFrom<PathValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &PathValue<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        eval_path(src, ctx)
-    }
-}
+// impl TryEvalFrom<PathValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &PathValue<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         eval_path(src, ctx)
+//     }
+// }
 
 // impl TryEvalFrom<PathValue<OutputExpression>> for ExpressionValue<OutputExpression> {
 //     fn try_eval_from(

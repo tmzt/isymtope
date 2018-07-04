@@ -95,9 +95,71 @@ fn do_filter(
     }
 }
 
+fn do_count(
+    state: PipelineState,
+    cond: Option<&ExpressionValue<ProcessedExpression>>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<PipelineState> {
+    eprintln!(
+        "[pipeline] eval_reduced_pipeline: (do_count) pipeline state: {:?}",
+        state
+    );
+
+    match state {
+        PipelineState::Empty => {
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(0))))
+        }
+
+        PipelineState::Single(item) => {
+            if let Some(cond) = cond {
+                let res = apply_cond(&item, None, None, cond, ctx)?;
+                let count = if res { 1 } else { 0 };
+                return Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(count))))
+            }
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(1))))
+        }
+
+        PipelineState::Indexed(v) => {
+            let iter = v.into_iter().enumerate();
+            let mut count = 0;
+            for (idx, expr) in iter {
+                if let Some(cond) = cond {
+                    let res = apply_cond(&expr, Some(idx), None, cond, ctx)?;
+                    if res {
+                        count += 1;
+                    }
+                } else { count += 1; }
+            }
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(count))))
+        }
+
+        PipelineState::Keyed(v) => {
+            let iter = v.into_iter().enumerate();
+            let mut count = 0;
+            for (idx, item) in iter {
+                if let Some(cond) = cond {
+                    let res = apply_cond(&item.1, Some(idx), Some(&item.0), cond, ctx)?;
+                    if res {
+                        count += 1;
+                    }
+                } else { count += 1; }
+            }
+
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(count))))
+        }
+
+        PipelineState::Empty => {
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(0))))
+        }
+    }
+}
+
 pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<ProcessedExpression>, ctx: &mut OutputContext) -> DocumentProcessingResult<PipelineState> {
     match *method {
         ReducedMethodCall::Filter(ref cond) => do_filter(state, cond, ctx),
+
+        ReducedMethodCall::CountIf(ref cond) => do_count(state, Some(cond), ctx),
+        ReducedMethodCall::Count => do_count(state, None, ctx),
 
         _ => Err(try_eval_from_err!("Unimplemented reduced pipeline method"))
     }
@@ -140,6 +202,11 @@ impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = Reduce
 
 impl PipelineState {
     pub fn try_from_expression(expr: ExpressionValue<ProcessedExpression>) -> DocumentProcessingResult<Self> {
+        eprintln!(
+            "[pipeline] try_from_expression: expr: {:?}",
+            expr
+        );
+
         match expr {
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(v))))) => {
                 let v: Vec<_> = v.into_iter()
@@ -149,7 +216,25 @@ impl PipelineState {
                 Ok(PipelineState::Indexed(v))
             }
 
+            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(v))))) => {
+                let v: Vec<_> = v.into_iter()
+                    .map(move |e| (e.key().to_owned(), e.value().to_owned()))
+                    // .map(move |e| e.value().clone())
+                    .collect();
+
+                Ok(PipelineState::Keyed(v))
+            }
+
             _ => Err(try_eval_from_err!("Invalid expression to initialize pipeline"))
+        }
+    }
+
+    pub fn into_single_value(self) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
+        match self {
+            PipelineState::Single(e) => {
+                Ok(e)
+            }
+            _ => Err(try_eval_from_err!("Invalid state to convert to single value"))
         }
     }
 
@@ -174,7 +259,8 @@ fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
-    let head = src.head().to_owned();
+    let head = eval_binding(src.head(), ctx)?
+        .unwrap_or_else(|| src.head().to_owned());
     let iter = src.components().into_iter().cloned();
     let eval = PipelineEval::create(iter, head, ctx)?;
 
@@ -198,6 +284,10 @@ impl TryEvalFrom<ReducedPipelineValue<ProcessedExpression>> for ExpressionValue<
             PipelineState::Indexed(..) => {
                 final_state.into_array_value()
                     .map(|arr| ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr))))
+            }
+
+            PipelineState::Single(e) => {
+                Ok(e)
             }
 
             _ => Err(try_eval_from_err!("Invalid final pipeline state"))
@@ -379,5 +469,32 @@ mod test {
 
         let res_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0)]))));
+    }
+
+    #[test]
+    fn test_eval_pipeline_countif_with_value() {
+        let defaults: Rc<TestDefaults> = Default::default();
+        let mut ctx = DefaultOutputContext::create(defaults);
+
+        let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let arr = ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)])));
+        let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)));
+
+        let cond = ExpressionValue::Expression(
+            Expression::BinaryOp(BinaryOpType::EqualTo,
+                Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
+                Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
+            )
+        );
+        let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::CountIf(cond);
+        let components = vec![ReducedPipelineComponent::PipelineOp(method)];
+        let src = ReducedPipelineValue::new(head, components);
+
+        let state = eval_reduced_pipeline(&src, &mut ctx).unwrap();
+        let single = state.into_single_value().unwrap();
+
+        let res_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::Int32Val(1));
+        assert_eq!(single, res_0);
     }
 }

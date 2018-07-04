@@ -71,13 +71,20 @@ fn map_method(ctx: &mut ProcessingContext, mth: &str, params: &Vec<ParamValue<Pr
         }
 
         "count" => {
-            ctx.bind_ident(
-                "item".to_owned(),
-                CommonBindings::CurrentItem(Default::default()),
-            )?;
+            if let Some(ref cond) = params.get(0) {
+                let cond = cond.value().to_owned();
+                Ok(ReducedMethodCall::CountIf(cond))
+            } else {
+                Ok(ReducedMethodCall::Count)
+            }
 
-            let expr = params[0].value().to_owned();
-            Ok(ReducedMethodCall::Count(expr))
+            // ctx.bind_ident(
+            //     "item".to_owned(),
+            //     CommonBindings::CurrentItem(Default::default()),
+            // )?;
+
+            // let expr = params[0].value().to_owned();
+            // Ok(ReducedMethodCall::Count(expr))
         }
 
         "first" => {

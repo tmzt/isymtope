@@ -387,34 +387,34 @@ impl TryProcessFrom<ElementOp<SourceExpression>> for ElementOp<ProcessedExpressi
     }
 }
 
-/// Evaluate against `OutputContext`.
+//  / Evaluate against `OutputContext`.
 
-impl TryEvalFrom<SkipElementOp<ProcessedExpression>> for SkipElementOp<OutputExpression> {
-    fn try_eval_from(
-        src: &SkipElementOp<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match *src {
-            SkipElementOp::ElementOpen(ref desc, _) => Ok(SkipElementOp::ElementOpen(
-                TryEvalFrom::try_eval_from(desc, ctx)?,
-                Default::default(),
-            )),
-            SkipElementOp::ElementVoid(ref desc, _) => Ok(SkipElementOp::ElementOpen(
-                TryEvalFrom::try_eval_from(desc, ctx)?,
-                Default::default(),
-            )),
-            SkipElementOp::ElementClose(ref s) => Ok(SkipElementOp::ElementClose(s.to_owned())),
+// impl TryEvalFrom<SkipElementOp<ProcessedExpression>> for SkipElementOp<OutputExpression> {
+//     fn try_eval_from(
+//         src: &SkipElementOp<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match *src {
+//             SkipElementOp::ElementOpen(ref desc, _) => Ok(SkipElementOp::ElementOpen(
+//                 TryEvalFrom::try_eval_from(desc, ctx)?,
+//                 Default::default(),
+//             )),
+//             SkipElementOp::ElementVoid(ref desc, _) => Ok(SkipElementOp::ElementOpen(
+//                 TryEvalFrom::try_eval_from(desc, ctx)?,
+//                 Default::default(),
+//             )),
+//             SkipElementOp::ElementClose(ref s) => Ok(SkipElementOp::ElementClose(s.to_owned())),
 
-            SkipElementOp::WriteValue(ref e, ref s) => {
-                eprintln!("TryEval ElementOp -> ElementOp WriteValue: e: {:?}", e);
-                Ok(SkipElementOp::WriteValue(
-                    TryEvalFrom::try_eval_from(e, ctx)?,
-                    s.to_owned(),
-                ))
-            }
-        }
-    }
-}
+//             SkipElementOp::WriteValue(ref e, ref s) => {
+//                 eprintln!("TryEval ElementOp -> ElementOp WriteValue: e: {:?}", e);
+//                 Ok(SkipElementOp::WriteValue(
+//                     TryEvalFrom::try_eval_from(e, ctx)?,
+//                     s.to_owned(),
+//                 ))
+//             }
+//         }
+//     }
+// }
 
 // impl TryEvalFrom<ElementOp<ProcessedExpression>> for ElementOp<OutputExpression> {
 //     fn try_eval_from(

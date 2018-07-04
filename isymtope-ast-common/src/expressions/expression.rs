@@ -678,29 +678,29 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
     }
 }
 
-fn eval_expression<T>(
-    src: &Expression<T>,
+fn eval_inner_expression(
+    src: &Expression<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<OutputExpression>>>
-where
-    T: ::std::fmt::Debug,
-    T: Clone,
-    ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
+) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>>
+// where
+//     T: ::std::fmt::Debug,
+//     T: Clone,
+//     ExpressionValue<ProcessedExpression>: TryEvalFrom<ExpressionValue<T>>,
 {
     eprintln!("[eval expression] expr: {:?}", src);
 
     Ok(match *src {
-        Expression::Pipeline(ref e, _) => Some(ExpressionValue::Expression(Expression::Pipeline(
-            TryEvalFrom::try_eval_from(e, ctx)?,
-            Default::default(),
-        ))),
-        Expression::Filter(ref e, _) => Some(ExpressionValue::Expression(Expression::Filter(
-            TryEvalFrom::try_eval_from(e, ctx)?,
-            Default::default(),
-        ))),
+        // Expression::Pipeline(ref e, _) => Some(ExpressionValue::Expression(Expression::Pipeline(
+        //     TryEvalFrom::try_eval_from(e, ctx)?,
+        //     Default::default(),
+        // ))),
+        // Expression::Filter(ref e, _) => Some(ExpressionValue::Expression(Expression::Filter(
+        //     TryEvalFrom::try_eval_from(e, ctx)?,
+        //     Default::default(),
+        // ))),
 
-        Expression::Group(Some(box ref e)) => Some(TryEvalFrom::try_eval_from(e, ctx)?),
-        Expression::Group(_) => Some(ExpressionValue::Expression(Expression::Group(None))),
+        // Expression::Group(Some(box ref e)) => Some(TryEvalFrom::try_eval_from(e, ctx)?),
+        // Expression::Group(_) => Some(ExpressionValue::Expression(Expression::Group(None))),
 
         // Expression::Composite(..) => Some(ExpressionValue::Expression(src.to_owned())),
 
@@ -711,7 +711,7 @@ where
         // }
 
         Expression::UnaryOp(ref op, box ref e) => {
-            let e: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(e, ctx)?;
+            // let e: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(e, ctx)?;
 
             let res = match (op, &e) {
                 (&UnaryOpType::Negate, &ExpressionValue::Primitive(Primitive::BoolVal(b))) => {
@@ -726,15 +726,49 @@ where
             }
             Some(ExpressionValue::Expression(Expression::UnaryOp(
                 op.to_owned(),
-                Box::new(e),
+                Box::new(e.to_owned()),
             )))
         }
 
         Expression::BinaryOp(ref op, box ref a, box ref b) => {
-            let a = TryEvalFrom::try_eval_from(a, ctx)?;
-            let b = TryEvalFrom::try_eval_from(b, ctx)?;
+            // let a = TryEvalFrom::try_eval_from(a, ctx)?;
+            // let b = TryEvalFrom::try_eval_from(b, ctx)?;
 
-            let res = match (op, &a, &b) {
+            let res = match (op, a, b) {
+                (
+                    _,
+                    &ExpressionValue::Binding(..),
+                    _
+                ) => {
+                    eprintln!("[expression eval] Found binding: {:?}", a);
+                    let a = eval_binding(a, ctx)?;
+                    eprintln!("[expression eval] Evaluated binding: {:?}", a);
+
+                    if let Some(a) = a {
+                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned()));
+                        return eval_inner_expression(&expr, ctx);
+                    };
+
+                    None
+                }
+
+                (
+                    _,
+                    _,
+                    &ExpressionValue::Binding(..)
+                ) => {
+                    eprintln!("[expression eval] Found binding: {:?}", b);
+                    let b = eval_binding(b, ctx)?;
+                    eprintln!("[expression eval] Evaluated binding: {:?}", b);
+
+                    if let Some(b) = b {
+                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned()));
+                        return eval_inner_expression(&expr, ctx);
+                    };
+
+                    None
+                }
+
                 (
                     _,
                     &ExpressionValue::Primitive(Primitive::Int32Val(a)),
@@ -823,6 +857,24 @@ where
                     Some(ExpressionValue::Primitive(Primitive::BoolVal(true)))
                 }
 
+                (
+                    _,
+                    _,
+                    _
+                ) => {
+                    let a = eval_expression(a, ctx)?;
+                    let b = eval_expression(b, ctx)?;
+                    eprintln!("[expression eval] Evaluated operand a: {:?}", a);
+                    eprintln!("[expression eval] Evaluated operand b: {:?}", b);
+
+                    if let (Some(a), Some(b)) = (a, b) {
+                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a), Box::new(b));
+                        return eval_inner_expression(&expr, ctx);
+                    };
+
+                    None
+                }
+
                 _ => None,
             };
 
@@ -832,70 +884,85 @@ where
 
             Some(ExpressionValue::Expression(Expression::BinaryOp(
                 op.to_owned(),
-                Box::new(a),
-                Box::new(b),
+                Box::new(a.to_owned()),
+                Box::new(b.to_owned()),
             )))
         }
 
-        Expression::ApplyOp(ref op, box ref e) => Some(ExpressionValue::Expression(
-            Expression::ApplyOp(op.to_owned(), Box::new(TryEvalFrom::try_eval_from(e, ctx)?)),
-        )),
+        // TODO: See what this is used for now
+        // Expression::ApplyOp(ref op, box ref e) => Some(ExpressionValue::Expression(
+        //     Expression::ApplyOp(op.to_owned(), Box::new(TryEvalFrom::try_eval_from(e, ctx)?)),
+        // )),
 
         _ => None,
     })
 }
 
-impl TryEvalFrom<Expression<ProcessedExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &Expression<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        Ok(match *src {
-            Expression::QueryCall(ref query, _) => TryEvalFrom::try_eval_from(query, ctx)?,
-            // Expression::Composite(ref e) => ExpressionValue::Expression(Expression::Composite(
-            //     TryEvalFrom::try_eval_from(e, ctx)?,
-            // )),
+pub fn eval_expression(
+    src: &ExpressionValue<ProcessedExpression>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+    match *src {
+        ExpressionValue::Binding(ref binding, _) => {
+            eval_inner_binding(binding, ctx)
+        }
 
-            Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref v)))) => {
-                let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v))))))
-            }
-            Expression::Composite(CompositeValue::ArrayValue(ArrayValue(..))) => {
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(None))))
-            }
-            Expression::Composite(CompositeValue::MapValue(MapValue(ref s, Some(box ref v)))) => {
-                let s = s.as_ref().map(|s| s.to_owned());
-                let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, Some(Box::new(v))))))
-            }
-            Expression::Composite(CompositeValue::MapValue(MapValue(ref s, ..))) => {
-                let s = s.as_ref().map(|s| s.to_owned());
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, None))))
-            }
-            Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref v)))) => {
-                let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(v))))))
-            }
-            Expression::Composite(CompositeValue::ObjectValue(ObjectValue(..))) => {
-                ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(None))))
-            }
-
-            Expression::Path(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
-
-            // Expression::ReducedPipeline(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
-
-            _ => {
-                if let Some(expr) = eval_expression(src, ctx)? {
-                    return Ok(expr);
-                };
-                // Return the same object to stop the recursion
-                // ExpressionValue::Expression(src.to_owned())
-                // TryEvalFrom::try_eval_from(src, ctx)?
-                return Err(try_eval_from_err!("Unable to evaluate expression."));
-            }
-        })
+        ExpressionValue::Expression(ref e) => eval_inner_expression(e, ctx),
+        _ => Ok(None)
     }
 }
+
+// impl TryEvalFrom<Expression<ProcessedExpression>> for ExpressionValue<ProcessedExpression> {
+//     fn try_eval_from(
+//         src: &Expression<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         Ok(match *src {
+//             Expression::QueryCall(ref query, _) => TryEvalFrom::try_eval_from(query, ctx)?,
+//             // Expression::Composite(ref e) => ExpressionValue::Expression(Expression::Composite(
+//             //     TryEvalFrom::try_eval_from(e, ctx)?,
+//             // )),
+
+//             Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref v)))) => {
+//                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v))))))
+//             }
+//             Expression::Composite(CompositeValue::ArrayValue(ArrayValue(..))) => {
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(None))))
+//             }
+//             Expression::Composite(CompositeValue::MapValue(MapValue(ref s, Some(box ref v)))) => {
+//                 let s = s.as_ref().map(|s| s.to_owned());
+//                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, Some(Box::new(v))))))
+//             }
+//             Expression::Composite(CompositeValue::MapValue(MapValue(ref s, ..))) => {
+//                 let s = s.as_ref().map(|s| s.to_owned());
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, None))))
+//             }
+//             Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref v)))) => {
+//                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(v))))))
+//             }
+//             Expression::Composite(CompositeValue::ObjectValue(ObjectValue(..))) => {
+//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(None))))
+//             }
+
+//             Expression::Path(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
+
+//             // Expression::ReducedPipeline(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
+
+//             _ => {
+//                 if let Some(expr) = eval_expression(src, ctx)? {
+//                     return Ok(expr);
+//                 };
+//                 // Return the same object to stop the recursion
+//                 // ExpressionValue::Expression(src.to_owned())
+//                 // TryEvalFrom::try_eval_from(src, ctx)?
+//                 return Err(try_eval_from_err!("Unable to evaluate expression."));
+//             }
+//         })
+//     }
+// }
 
 // impl TryEvalFrom<Expression<OutputExpression>> for ExpressionValue<OutputExpression> {
 //     fn try_eval_from(
@@ -1170,95 +1237,95 @@ where
     }
 }
 
-impl TryEvalFrom<CommonBindings<ProcessedExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &CommonBindings<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        // Evaluate reducer key from provider or defaults
-        if let CommonBindings::NamedReducerKey(ref key, _) = *src {
-            let reducer_value =  ctx.defaults().reducer_value(key)?;
-            return TryEvalFrom::try_eval_from(&reducer_value, ctx);
-        };
+// impl TryEvalFrom<CommonBindings<ProcessedExpression>> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &CommonBindings<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         // Evaluate reducer key from provider or defaults
+//         if let CommonBindings::NamedReducerKey(ref key, _) = *src {
+//             let reducer_value =  ctx.defaults().reducer_value(key)?;
+//             return TryEvalFrom::try_eval_from(&reducer_value, ctx);
+//         };
 
-        // Pass through certain values to be evaluated at runtime
-        match *src {
-            CommonBindings::CurrentElementValue(_) => {
-                return Ok(ExpressionValue::Binding(
-                    CommonBindings::CurrentElementValue(Default::default()),
-                    Default::default(),
-                ));
-            }
+//         // Pass through certain values to be evaluated at runtime
+//         match *src {
+//             CommonBindings::CurrentElementValue(_) => {
+//                 return Ok(ExpressionValue::Binding(
+//                     CommonBindings::CurrentElementValue(Default::default()),
+//                     Default::default(),
+//                 ));
+//             }
 
-            CommonBindings::CurrentReducerState(_) => {
-                return Ok(ExpressionValue::Binding(
-                    CommonBindings::CurrentReducerState(Default::default()),
-                    Default::default(),
-                ));
-            }
+//             CommonBindings::CurrentReducerState(_) => {
+//                 return Ok(ExpressionValue::Binding(
+//                     CommonBindings::CurrentReducerState(Default::default()),
+//                     Default::default(),
+//                 ));
+//             }
 
-            // CommonBindings::CurrentItem(_) => {
-            //     return Ok(ExpressionValue::Binding(
-            //         CommonBindings::CurrentItem(Default::default()),
-            //         Default::default(),
-            //     ));
-            // }
+//             // CommonBindings::CurrentItem(_) => {
+//             //     return Ok(ExpressionValue::Binding(
+//             //         CommonBindings::CurrentItem(Default::default()),
+//             //         Default::default(),
+//             //     ));
+//             // }
 
-            // // Skip evaluation on first pass
-            // CommonBindings::NamedComponentProp(ref name, _) => {
-            //     return Ok(ExpressionValue::Binding(
-            //         CommonBindings::NamedComponentProp(name.clone(), Default::default()),
-            //         Default::default(),
-            //     ));
-            // }
+//             // // Skip evaluation on first pass
+//             // CommonBindings::NamedComponentProp(ref name, _) => {
+//             //     return Ok(ExpressionValue::Binding(
+//             //         CommonBindings::NamedComponentProp(name.clone(), Default::default()),
+//             //         Default::default(),
+//             //     ));
+//             // }
 
-            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
-                return Ok(ExpressionValue::Binding(
-                    CommonBindings::NamedElementBoundValue(element_key.clone(), Default::default()),
-                    Default::default(),
-                ));
-            }
+//             CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+//                 return Ok(ExpressionValue::Binding(
+//                     CommonBindings::NamedElementBoundValue(element_key.clone(), Default::default()),
+//                     Default::default(),
+//                 ));
+//             }
 
-            _ => {}
-        };
+//             _ => {}
+//         };
 
-        // Otherwise, try to find the value for the binding or return an error
-        eprintln!(
-            "[Expression eval] Looking for value for binding [{:?}]",
-            src
-        );
-        let expr = ctx.must_find_value(src)?;
-        TryEvalFrom::try_eval_from(&expr, ctx)
-    }
-}
+//         // Otherwise, try to find the value for the binding or return an error
+//         eprintln!(
+//             "[Expression eval] Looking for value for binding [{:?}]",
+//             src
+//         );
+//         let expr = ctx.must_find_value(src)?;
+//         TryEvalFrom::try_eval_from(&expr, ctx)
+//     }
+// }
 
-impl TryEvalFrom<ExpressionValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &ExpressionValue<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match *src {
-            ExpressionValue::Expression(ref e) => Ok(TryEvalFrom::try_eval_from(e, ctx)?),
+// impl TryEvalFrom<ExpressionValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &ExpressionValue<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match *src {
+//             ExpressionValue::Expression(ref e) => Ok(TryEvalFrom::try_eval_from(e, ctx)?),
 
-            ExpressionValue::Primitive(ref p) => Ok(ExpressionValue::Primitive(p.to_owned())),
+//             ExpressionValue::Primitive(ref p) => Ok(ExpressionValue::Primitive(p.to_owned())),
 
-            ExpressionValue::Binding(ref b, _) => TryEvalFrom::try_eval_from(b, ctx),
-            ExpressionValue::BindingShape(ref s, _) => TryEvalFrom::try_eval_from(s.binding(), ctx),
+//             ExpressionValue::Binding(ref b, _) => TryEvalFrom::try_eval_from(b, ctx),
+//             ExpressionValue::BindingShape(ref s, _) => TryEvalFrom::try_eval_from(s.binding(), ctx),
 
-            ExpressionValue::Lens(ref l, _) => {
-                // Since we are evaluating, we can drop the lens in the result.
-                Ok(TryEvalFrom::try_eval_from(l, ctx)?)
-            }
+//             ExpressionValue::Lens(ref l, _) => {
+//                 // Since we are evaluating, we can drop the lens in the result.
+//                 Ok(TryEvalFrom::try_eval_from(l, ctx)?)
+//             }
 
-            ExpressionValue::Content(ref c, _) => Ok(ExpressionValue::Content(
-                TryEvalFrom::try_eval_from(c, ctx)?,
-                Default::default(),
-            )),
+//             ExpressionValue::Content(ref c, _) => Ok(ExpressionValue::Content(
+//                 TryEvalFrom::try_eval_from(c, ctx)?,
+//                 Default::default(),
+//             )),
 
-            _ => Err(reduction_err_bt!()),
-        }
-    }
-}
+//             _ => Err(reduction_err_bt!()),
+//         }
+//     }
+// }
 
 // impl TryEvalFrom<ExpressionValue<OutputExpression>> for ExpressionValue<OutputExpression> {
 //     fn try_eval_from(
@@ -1429,6 +1496,41 @@ impl<T: Clone + Debug> TryEvalFrom<ExpressionValue<T>>
     }
 }
 
+pub fn eval_inner_binding(
+    binding: &CommonBindings<ProcessedExpression>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+    eprintln!(
+        "[expression] eval_inner_binding: binding: {:?}",
+        binding
+    );
+
+    // Evaluate reducer key from provider or defaults
+    if let CommonBindings::NamedReducerKey(ref key, _) = *binding {
+        let reducer_value = ctx.defaults().reducer_value(key)?;
+        match reducer_value {
+            ReducerValue::ProcessedExpression(e) => {
+                return Ok(Some(eval_binding(&e, ctx)?
+                    .unwrap_or(e)));
+            }
+
+            ReducerValue::OutputExpression(..) => {
+                // // TODO: Remove ReducerValue
+                // return Err(try_eval_from_err!("OutputExpression reducer expression not supported in `eval_binding`"));
+            }
+        };
+    };
+
+    if let Some(expr) = ctx.find_value(binding)? {
+        return Ok(Some(eval_expression(&expr, ctx)?
+            .unwrap_or(expr)));
+    };
+
+    let expr = ctx.must_find_loop_value(binding)?;
+    return Ok(Some(eval_expression(&expr, ctx)?
+        .unwrap_or(expr)));
+}
+
 pub fn eval_binding(
     src: &ExpressionValue<ProcessedExpression>,
     ctx: &mut OutputContext,
@@ -1439,23 +1541,7 @@ pub fn eval_binding(
     );
 
     if let ExpressionValue::Binding(ref binding, _) = *src {
-        // Evaluate reducer key from provider or defaults
-        if let CommonBindings::NamedReducerKey(ref key, _) = *binding {
-            let reducer_value = ctx.defaults().reducer_value(key)?;
-            match reducer_value {
-                ReducerValue::ProcessedExpression(e) => {
-                    return eval_binding(&e, ctx);
-                }
-
-                ReducerValue::OutputExpression(e) => {
-                    // // TODO: Remove ReducerValue
-                    // return Err(try_eval_from_err!("OutputExpression reducer expression not supported in `eval_binding`"));
-                }
-            };
-        };
-
-        let expr = ctx.must_find_value(binding)?;
-        return eval_binding(&expr, ctx);
+        return eval_inner_binding(binding, ctx);
     };
 
     Ok(None)

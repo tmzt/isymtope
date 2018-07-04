@@ -140,31 +140,31 @@ impl TryProcessFrom<SourceLensValue<SourceExpression>> for LensValue<ProcessedEx
     }
 }
 
-impl TryEvalFrom<LensValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &LensValue<ProcessedExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match *src {
-            LensValue::ForLens(..) => Err(try_eval_from_err!(
-                "For lens cannot be evaluated as a value"
-            )),
+// impl TryEvalFrom<LensValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &LensValue<ProcessedExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match *src {
+//             LensValue::ForLens(..) => Err(try_eval_from_err!(
+//                 "For lens cannot be evaluated as a value"
+//             )),
 
-            LensValue::GetLens(_, box ref a, _) => {
-                eprintln!("[GetLens] a: {:?}", a);
+//             LensValue::GetLens(_, box ref a, _) => {
+//                 eprintln!("[GetLens] a: {:?}", a);
 
-                // TODO: Only resolve to reducer keys at top level
-                if let ExpressionValue::Binding(CommonBindings::NamedReducerKey(..), _) = *a {
-                    // Resolve reducer value from state or default
-                    return TryEvalFrom::try_eval_from(a, ctx);
-                };
+//                 // TODO: Only resolve to reducer keys at top level
+//                 if let ExpressionValue::Binding(CommonBindings::NamedReducerKey(..), _) = *a {
+//                     // Resolve reducer value from state or default
+//                     return TryEvalFrom::try_eval_from(a, ctx);
+//                 };
 
-                Err(try_process_from_err!("Error processing GetLens"))
-            }
+//                 Err(try_process_from_err!("Error processing GetLens"))
+//             }
 
-            LensValue::QueryLens(_, ref query_call, _) => {
-                TryEvalFrom::try_eval_from(query_call, ctx)
-            }
-        }
-    }
-}
+//             LensValue::QueryLens(_, ref query_call, _) => {
+//                 TryEvalFrom::try_eval_from(query_call, ctx)
+//             }
+//         }
+//     }
+// }

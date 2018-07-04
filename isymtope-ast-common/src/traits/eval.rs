@@ -25,22 +25,22 @@ pub enum ReducerValue {
     OutputExpression(ExpressionValue<OutputExpression>),
 }
 
-impl TryEvalFrom<ReducerValue> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &ReducerValue,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        match src {
-            ReducerValue::ProcessedExpression(ref expr) => {
-                TryEvalFrom::try_eval_from(expr, ctx)
-            }
+// impl TryEvalFrom<ReducerValue> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &ReducerValue,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         match src {
+//             ReducerValue::ProcessedExpression(ref expr) => {
+//                 TryEvalFrom::try_eval_from(expr, ctx)
+//             }
 
-            ReducerValue::OutputExpression(ref expr) => {
-                Ok(expr.to_owned())
-            }
-        }
-    }
-}
+//             ReducerValue::OutputExpression(ref expr) => {
+//                 Ok(expr.to_owned())
+//             }
+//         }
+//     }
+// }
 
 pub trait ContextDefaultsProvider: Debug {
     fn doc(&self) -> &Document;

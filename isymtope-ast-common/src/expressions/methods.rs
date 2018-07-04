@@ -40,7 +40,8 @@ pub enum ReducedMethodCall<T> {
     UniqByKey(String),
     MaxBy(ExpressionValue<T>),
     MinBy(ExpressionValue<T>),
-    Count(ExpressionValue<T>),
+    Count,
+    CountIf(ExpressionValue<T>),
     FirstWhere(ExpressionValue<T>),
     First,
 }
