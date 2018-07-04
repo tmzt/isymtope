@@ -139,7 +139,7 @@ fn render_500<S>(_: &mut HttpRequest<S>, resp: HttpResponse) -> Result<Response>
 
 fn main() {
     openssl_probe::init_ssl_cert_env_vars();
-    // dotenv().ok();
+    dotenv().ok();
     // env::set_var("RUST_LOG", "actix_web=debug");
     // env::set_var("RUST_BACKTRACE", "1");host:3000/api/auth/github/complete?code=e78f8f0ecebf16b21c65&state=7ee77eb9-974c-448f-af6b-
     env_logger::init();

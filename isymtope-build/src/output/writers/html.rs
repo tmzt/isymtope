@@ -28,31 +28,62 @@ impl ObjectWriter<Expression<OutputExpression>, HtmlOutput> for DefaultHtmlWrite
         );
 
         match *obj {
-            Expression::Path(ref p, _) => {
-                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
-                self.write_object(w, ctx, &expr)
-            }
+            // Expression::Path(ref p, _) => {
+            //     let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
+            //     self.write_object(w, ctx, &expr)
+            // }
 
-            Expression::QueryCall(ref query_call, _) => {
-                write!(w, "[query_call {}]", query_call.name())?;
-                Ok(())
-            }
+            // Expression::QueryCall(ref query_call, _) => {
+            //     write!(w, "[query_call {}]", query_call.name())?;
+            //     Ok(())
+            // }
 
-            Expression::ReducedPipeline(ref p, _) => {
-                eprintln!("ObjectWriter ReducedPipeline<OutputExpression> (HTML): Evaluating pipeline: {:?}", obj);
-                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
-                self.write_object(w, ctx, &expr)?;
+            // Expression::ReducedPipeline(ref p, _) => {
+            //     eprintln!("ObjectWriter ReducedPipeline<OutputExpression> (HTML): Evaluating pipeline: {:?}", obj);
+            //     let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
+            //     self.write_object(w, ctx, &expr)?;
 
-                Ok(())
-            }
+            //     Ok(())
+            // }
 
-            Expression::Group(..) | Expression::BinaryOp(..) | Expression::UnaryOp(..) => {
-                let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(obj, ctx)?;
-                self.write_object(w, ctx, &expr)
-            }
+            // Expression::Group(..) | Expression::BinaryOp(..) | Expression::UnaryOp(..) => {
+            //     let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(obj, ctx)?;
+            //     self.write_object(w, ctx, &expr)
+            // }
 
             _ => {
                 eprintln!("ObjectWriter Expression<OutputExpression> (HTML): Unsupported Expression: {:?}", obj);
+                Err(try_eval_from_err!(format!(
+                    "Unsupported expression in HTML writer: {:?}",
+                    obj
+                )))
+            }
+        }
+    }
+}
+
+impl ObjectWriter<Expression<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &Expression<ProcessedExpression>,
+    ) -> DocumentProcessingResult<()> {
+        debug!(
+            "ObjectWriter Expression<ProcessedExpression> (HTML): obj: {:?}",
+            obj
+        );
+
+        match *obj {
+            Expression::ReducedPipeline(ref p, _) => {
+                eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Evaluating pipeline: {:?}", obj);
+                let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
+                eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Pipeline result: {:?}", expr);
+                self.write_object(w, ctx, &expr)
+           }
+
+            _ => {
+                eprintln!("ObjectWriter Expression<ProcessedExpression> (HTML): Unsupported Expression: {:?}", obj);
                 Err(try_eval_from_err!(format!(
                     "Unsupported expression in HTML writer: {:?}",
                     obj
@@ -96,6 +127,26 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, HtmlOutput> for DefaultHtml
         w: &mut io::Write,
         ctx: &mut OutputContext,
         obj: &ExpressionValue<OutputExpression>,
+    ) -> DocumentProcessingResult<()> {
+        match *obj {
+            ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
+            ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
+            ExpressionValue::Lens(..) => Ok(()),
+            // ExpressionValue::Binding(ref b, _) => self.write_object(w, b),
+            _ => Err(try_eval_from_err!(format!(
+                "Unsupported expression value when writing: {:?}",
+                obj
+            ))),
+        }
+    }
+}
+
+impl ObjectWriter<ExpressionValue<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter {
+    fn write_object(
+        &mut self,
+        w: &mut io::Write,
+        ctx: &mut OutputContext,
+        obj: &ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
@@ -157,6 +208,7 @@ impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, HtmlOutput> fo
 
         let mut bytes: Vec<u8> = Vec::with_capacity(1024);
         let mut js = DefaultJsWriter::default();
+        // TODO: Stop writing OutputExpressions to JS
         js.write_object(&mut bytes, ctx, &props)?;
 
         let props_str = str::from_utf8(bytes.as_slice())?
@@ -397,11 +449,15 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
             ElementOp::MapCollection(_, _, _, _) => Ok(()),
 
             ElementOp::WriteValue(ref expr, _) => {
+                eprintln!(
+                    "ObjectWriter ElementOp<ProcessedExpression> (HTML) WriteValue expr: {:?}",
+                    expr
+                );
                 let expr: ExpressionValue<OutputExpression> =
                     TryEvalFrom::try_eval_from(expr, ctx)?;
 
                 eprintln!(
-                    "ObjectWriter ElementOp<ProcessedExpression> (HTML) WriteValue expr: {:?}",
+                    "ObjectWriter ElementOp<ProcessedExpression> (HTML) WriteValue expr (output): {:?}",
                     expr
                 );
                 self.write_object(w, ctx, &expr)

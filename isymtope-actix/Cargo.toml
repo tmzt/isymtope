@@ -6,7 +6,7 @@ version = "0.1.0"
 [dependencies]
 actix = "0.5.6"
 bytes = "0.4.6"
-dotenv = "0.11.0"
+dotenv = "0.13.0"
 env_logger = "0.5.8"
 futures = "0.1"
 lazy_static = "1.0.0"
@@ -27,14 +27,14 @@ version = "0.4.2"
 [dependencies.isymtope-ast-common]
 path = "../isymtope-ast-common"
 
-[dependencies.isymtope-parser]
-path = "../isymtope-parser"
-
 [dependencies.isymtope-build]
 path = "../isymtope-build"
 
 [dependencies.isymtope-generate]
 path = "../isymtope-generate"
+
+[dependencies.isymtope-parser]
+path = "../isymtope-parser"
 
 [dependencies.redis-async]
 optional = true

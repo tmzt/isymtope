@@ -11,13 +11,13 @@ use expressions::*;
 
 #[derive(Debug)]
 pub enum PipelineState {
-    Indexed(Vec<ExpressionValue<OutputExpression>>),
-    Keyed(Vec<(String, ExpressionValue<OutputExpression>)>),
-    Single(ExpressionValue<OutputExpression>),
+    Indexed(Vec<ExpressionValue<ProcessedExpression>>),
+    Keyed(Vec<(String, ExpressionValue<ProcessedExpression>)>),
+    Single(ExpressionValue<ProcessedExpression>),
     Empty
 }
 
-pub struct PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<OutputExpression>> {
+pub struct PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<ProcessedExpression>> {
     components: I,
     state: Cell<PipelineState>,
     ctx: &'ctx mut OutputContext
@@ -28,10 +28,10 @@ pub enum PipelineStep {
     Continue
 }
 
-impl<'ctx, I> PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<OutputExpression>> {
+impl<'ctx, I> PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<ProcessedExpression>> {
     pub fn create(
         components: I,
-        head: ExpressionValue<OutputExpression>,
+        head: ExpressionValue<ProcessedExpression>,
         ctx: &'ctx mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         let state = Cell::new(PipelineState::try_from_expression(head)?);
@@ -46,7 +46,7 @@ impl<'ctx, I> PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComp
 
 fn do_filter(
     state: PipelineState,
-    cond: &ExpressionValue<OutputExpression>,
+    cond: &ExpressionValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
     eprintln!(
@@ -95,7 +95,7 @@ fn do_filter(
     }
 }
 
-pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<OutputExpression>, ctx: &mut OutputContext) -> DocumentProcessingResult<PipelineState> {
+pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<ProcessedExpression>, ctx: &mut OutputContext) -> DocumentProcessingResult<PipelineState> {
     match *method {
         ReducedMethodCall::Filter(ref cond) => do_filter(state, cond, ctx),
 
@@ -103,7 +103,7 @@ pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<OutputExpre
     }
 }
 
-impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<OutputExpression>> {
+impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = ReducedPipelineComponent<ProcessedExpression>> {
     type Item = PipelineStep;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -139,7 +139,7 @@ impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = Reduce
 }
 
 impl PipelineState {
-    pub fn try_from_expression(expr: ExpressionValue<OutputExpression>) -> DocumentProcessingResult<Self> {
+    pub fn try_from_expression(expr: ExpressionValue<ProcessedExpression>) -> DocumentProcessingResult<Self> {
         match expr {
             ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(v))))) => {
                 let v: Vec<_> = v.into_iter()
@@ -153,7 +153,7 @@ impl PipelineState {
         }
     }
 
-    pub fn into_array_value(self) -> DocumentProcessingResult<ArrayValue<OutputExpression>> {
+    pub fn into_array_value(self) -> DocumentProcessingResult<ArrayValue<ProcessedExpression>> {
         match self {
             PipelineState::Single(e) => {
                 let v = vec![ParamValue::new(e)];
@@ -171,7 +171,7 @@ impl PipelineState {
 }
 
 fn eval_reduced_pipeline(
-    src: &ReducedPipelineValue<OutputExpression>,
+    src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
     let head = src.head().to_owned();
@@ -187,9 +187,9 @@ fn eval_reduced_pipeline(
     Err(try_eval_from_err!("Reached end of pipeline evalutation without PipelineStep::Finished, this should not happen."))
 }
 
-impl TryEvalFrom<ReducedPipelineValue<OutputExpression>> for ExpressionValue<OutputExpression> {
+impl TryEvalFrom<ReducedPipelineValue<ProcessedExpression>> for ExpressionValue<ProcessedExpression> {
     fn try_eval_from(
-        src: &ReducedPipelineValue<OutputExpression>,
+        src: &ReducedPipelineValue<ProcessedExpression>,
         ctx: &mut OutputContext,
     ) -> DocumentProcessingResult<Self> {
         let final_state = eval_reduced_pipeline(src, ctx)?;
@@ -228,7 +228,7 @@ mod test {
 
     #[test]
     fn test_single_value_as_array() {
-        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("test".to_owned()));
+        let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("test".to_owned()));
         let state = PipelineState::Single(expr);
 
         let array_value = state.into_array_value().unwrap();
@@ -239,15 +239,15 @@ mod test {
 
     #[test]
     fn test_indexed_state_as_array() {
-        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let v = vec![expr_0, expr_1];
         let state = PipelineState::Indexed(v);
 
         let array_value = state.into_array_value().unwrap();
 
-        let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-        let res_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let res_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let res_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0), ParamValue::new(res_1)]))));
     }
 
@@ -256,7 +256,7 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         let cond = ExpressionValue::Expression(
             Expression::BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
@@ -273,7 +273,7 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let cond = ExpressionValue::Expression(
             Expression::BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default())),
@@ -290,7 +290,7 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let key = "b".to_owned();
 
         let cond = ExpressionValue::Expression(
@@ -309,8 +309,8 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let v = vec![expr_0, expr_1];
         let state = PipelineState::Indexed(v);
 
@@ -320,12 +320,12 @@ mod test {
                 Box::new(ExpressionValue::Primitive(Primitive::Int32Val(1)))
             )
         );
-        let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
+        let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
 
         let state = apply_method(state, &method, &mut ctx).unwrap();
         let array_value = state.into_array_value().unwrap();
 
-        let res_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let res_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_1)]))));
     }
 
@@ -334,8 +334,8 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let v = vec![expr_0, expr_1];
         let state = PipelineState::Indexed(v);
 
@@ -345,12 +345,12 @@ mod test {
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
             )
         );
-        let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
+        let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
 
         let state = apply_method(state, &method, &mut ctx).unwrap();
         let array_value = state.into_array_value().unwrap();
 
-        let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let res_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0)]))));
     }
 
@@ -359,8 +359,8 @@ mod test {
         let defaults: Rc<TestDefaults> = Default::default();
         let mut ctx = DefaultOutputContext::create(defaults);
 
-        let expr_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
-        let expr_1: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
+        let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let arr = ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)])));
         let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)));
 
@@ -370,14 +370,14 @@ mod test {
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
             )
         );
-        let method: ReducedMethodCall<OutputExpression> = ReducedMethodCall::Filter(cond);
+        let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
         let components = vec![ReducedPipelineComponent::PipelineOp(method)];
         let src = ReducedPipelineValue::new(head, components);
 
         let state = eval_reduced_pipeline(&src, &mut ctx).unwrap();
         let array_value = state.into_array_value().unwrap();
 
-        let res_0: ExpressionValue<OutputExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
+        let res_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         assert_eq!(array_value, ArrayValue(Some(Box::new(vec![ParamValue::new(res_0)]))));
     }
 }

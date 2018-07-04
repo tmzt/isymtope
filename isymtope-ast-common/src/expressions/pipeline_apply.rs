@@ -6,10 +6,10 @@ use expressions::*;
 /// Apply condition to item
 ///
 pub fn apply_cond(
-    item: &ExpressionValue<OutputExpression>,
+    item: &ExpressionValue<ProcessedExpression>,
     idx: Option<usize>,
     key: Option<&str>,
-    cond: &ExpressionValue<OutputExpression>,
+    cond: &ExpressionValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<bool> {
     ctx.push_child_scope();
@@ -31,23 +31,24 @@ pub fn apply_cond(
     }
 
     // Always bind `item`
+    let item: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(item, ctx)?;
     let binding = CommonBindings::CurrentItem(Default::default());
     eprintln!("[pipeline] apply_filter: item: {:?}", item);
 
-    ctx.bind_loop_value(binding, item.to_owned())?;
+    ctx.bind_loop_value(binding, item)?;
 
     eprintln!("[pipeline] apply_filter: cond (a): {:?}", cond);
 
-    // Evaluate processed expression
-    let cond: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(cond, ctx)?;
-    eprintln!("[pipeline] apply_filter: cond (b): {:?}", cond);
+    // // Evaluate processed expression
+    // let cond: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(cond, ctx)?;
+    // eprintln!("[pipeline] apply_filter: cond (b): {:?}", cond);
 
-    // Evaluate bindings
-    let cond: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&cond, ctx)?;
-    eprintln!("[pipeline] apply_filter: cond (c): {:?}", cond);
+    // // Evaluate bindings
+    // let cond: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(&cond, ctx)?;
+    // eprintln!("[pipeline] apply_filter: cond (c): {:?}", cond);
 
     // Evaluate condition as boolean
-    let cond: bool = TryEvalFrom::try_eval_from(&cond, ctx)?;
+    let cond: bool = TryEvalFrom::try_eval_from(cond, ctx)?;
     eprintln!("[pipeline] apply_filter: cond (d): {:?}", cond);
 
     ctx.pop_scope();

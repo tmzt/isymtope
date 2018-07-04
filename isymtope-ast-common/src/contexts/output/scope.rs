@@ -104,7 +104,7 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
         );
         for binding in self.loop_values.iter() {
             eprintln!(
-                "[OutputContext scope {}] Binding: {:?}",
+                "[OutputContext scope {}] has binding: {:?}",
                 self.scope_id, binding
             );
         }

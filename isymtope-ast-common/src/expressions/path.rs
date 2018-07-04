@@ -114,13 +114,17 @@ where
     }
 }
 
-fn eval_path<T>(
-    src: &PathValue<T>,
+// fn eval_path<T>(
+//     src: &PathValue<T>,
+//     ctx: &mut OutputContext,
+// ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>
+// where
+//     ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
+//     T: ::std::fmt::Debug,
+fn eval_path(
+    src: &PathValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<ExpressionValue<OutputExpression>>
-where
-    ExpressionValue<OutputExpression>: TryEvalFrom<ExpressionValue<T>>,
-    T: ::std::fmt::Debug,
 {
     let head = src.head();
     let components: Vec<_> = src.components().map(|v| v.collect()).unwrap_or_default();
@@ -129,10 +133,13 @@ where
     eprintln!("[path] eval_path: components (a): {:?}", components);
 
     // Evaluate processed expression into output expression
-    let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
+    // let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
+
+    // eprintln!("[path] eval_path: head (after first eval): {:?}", head);
 
     // Evaluate binding if any
-    let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&head, ctx)?;
+    let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
+    // let head = eval_binding_value(head, ctx)?;
 
     eprintln!("[path] eval_path: head (b): {:?}", head);
     eprintln!("[path] eval_path: components (b): {:?}", components);
@@ -181,11 +188,11 @@ impl TryEvalFrom<PathValue<ProcessedExpression>> for ExpressionValue<OutputExpre
     }
 }
 
-impl TryEvalFrom<PathValue<OutputExpression>> for ExpressionValue<OutputExpression> {
-    fn try_eval_from(
-        src: &PathValue<OutputExpression>,
-        ctx: &mut OutputContext,
-    ) -> DocumentProcessingResult<Self> {
-        eval_path(src, ctx)
-    }
-}
+// impl TryEvalFrom<PathValue<OutputExpression>> for ExpressionValue<OutputExpression> {
+//     fn try_eval_from(
+//         src: &PathValue<OutputExpression>,
+//         ctx: &mut OutputContext,
+//     ) -> DocumentProcessingResult<Self> {
+//         eval_path(src, ctx)
+//     }
+// }

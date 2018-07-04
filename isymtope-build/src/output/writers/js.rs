@@ -90,7 +90,7 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWrit
         match *obj {
             ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
-            ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
+            // ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
             _ => Err(try_process_from_err!(format!(
                 "Unsupported output expression: {:?}",
                 obj
@@ -99,12 +99,13 @@ impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWrit
     }
 }
 
-impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWriter {
+// impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWriter {
+impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &CommonBindings<T>,
+        obj: &CommonBindings<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         eprintln!(
             "ObjectWriter CommonBindings (JS): obj: {:?}",

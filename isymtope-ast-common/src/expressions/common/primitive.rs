@@ -49,6 +49,23 @@ impl TryProcessFrom<ExpressionValue<OutputExpression>> for bool {
     }
 }
 
+impl TryEvalFrom<ExpressionValue<ProcessedExpression>> for bool {
+    fn try_eval_from(
+        src: &ExpressionValue<ProcessedExpression>,
+        _ctx: &mut OutputContext,
+    ) -> DocumentProcessingResult<Self> {
+        eprintln!(
+            "[TryEvalFrom -> bool] Evaluating ProcessedExpression as bool: {:?}",
+            src
+        );
+        match *src {
+            ExpressionValue::Primitive(Primitive::BoolVal(b)) if b => Ok(true),
+            ExpressionValue::Primitive(Primitive::BoolVal(_)) => Ok(false),
+            _ => Err(try_process_from_err!("Cannot evaluate as bool.")),
+        }
+    }
+}
+
 impl TryEvalFrom<ExpressionValue<OutputExpression>> for bool {
     fn try_eval_from(
         src: &ExpressionValue<OutputExpression>,
