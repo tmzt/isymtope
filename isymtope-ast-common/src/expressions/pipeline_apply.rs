@@ -32,8 +32,7 @@ pub fn apply_cond(
 
     // Always bind `item`
     // let item: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(item, ctx)?;
-    let item = eval_expression(item, ctx)?
-        .unwrap_or_else(|| item.to_owned());
+    let item = eval_expression(item, ctx)?;
     let binding = CommonBindings::CurrentItem(Default::default());
     eprintln!("[pipeline] apply_cond: item: {:?}", item);
 
@@ -51,8 +50,7 @@ pub fn apply_cond(
     // eprintln!("[pipeline] apply_cond: cond (c): {:?}", cond);
 
     // Evaluate condition as boolean
-    let cond = eval_expression(cond, ctx)?
-        .unwrap_or_else(|| cond.to_owned());
+    let cond = eval_expression(cond, ctx)?;
     let cond: bool = TryEvalFrom::try_eval_from(&cond, ctx)?;
     eprintln!("[pipeline] apply_cond: cond (d): {:?}", cond);
 

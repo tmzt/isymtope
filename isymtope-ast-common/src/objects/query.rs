@@ -118,13 +118,9 @@ fn case_where(
     cond: &ExpressionValue<ProcessedExpression>,
     expr: &ExpressionValue<ProcessedExpression>,
 ) -> DocumentProcessingResult<(bool, ExpressionValue<ProcessedExpression>)> {
-    let cond = eval_expression(cond, ctx)?.unwrap_or_else(|| cond.to_owned());
-    let expr = eval_expression(expr, ctx)?.unwrap_or_else(|| expr.to_owned());
-    // let cond: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(cond, ctx)?;
-    // let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(expr, ctx)?;
+    let cond = eval_expression(cond, ctx)?;
+    let expr = eval_expression(expr, ctx)?;
 
-    // let cond: Primitive = TryProcessFrom::try_process_from(cond)?;
-    // let cond: bool = TryProcessFrom::try_process_from(&cond, ctx)?;
     eprintln!(
         "[query call eval] case_where: expr: {:?}",
         expr
@@ -248,7 +244,7 @@ fn case_where(
 pub fn eval_inner_query_call(
     query_call: &QueryCall<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
     eprintln!(
         "[query call eval] QueryCall -> ExpressionValue: query_call: {:?}",
         query_call
@@ -324,14 +320,18 @@ pub fn eval_inner_query_call(
         res
     );
 
-    if res.is_none() {
-        eprintln!("[query call eval] Unable to evaluate query, result is None.");
-        // return Err(try_eval_from_err!(
-        //     "Unable to evaluate query, result is None."
-        // ));
-    };
-    // let res = res.unwrap();
-
     ctx.pop_scope();
-    Ok(res)
+
+    match res {
+        Some(res) => {
+            Ok(res)
+        }
+
+        _ => {
+            eprintln!("[query call eval] Unable to evaluate query, result is None.");
+            Err(try_eval_from_err!(
+                "Unable to evaluate query, result is None."
+            ))
+        }
+    }
 }

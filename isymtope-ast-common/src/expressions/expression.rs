@@ -232,17 +232,17 @@ impl<T: Debug> MapIdents<T> for ExpressionValue<T> {
                     Expression::Group(Some(Box::new(e.map_idents(ctx)?)))
                 }
 
-                Expression::BinaryOp(op, box a, box b) => {
+                Expression::BinaryOp(BinaryOp(op, box a, box b)) => {
                     let a = a.map_idents(ctx)?;
                     let b = b.map_idents(ctx)?;
 
-                    Expression::BinaryOp(op, Box::new(a), Box::new(b))
+                    Expression::BinaryOp(BinaryOp(op, Box::new(a), Box::new(b)))
                 }
 
-                Expression::UnaryOp(op, box a) => {
+                Expression::UnaryOp(UnaryOp(op, box a)) => {
                     let a = a.map_idents(ctx)?;
 
-                    Expression::UnaryOp(op, Box::new(a))
+                    Expression::UnaryOp(UnaryOp(op, Box::new(a)))
                 }
 
                 _ => e,
@@ -516,6 +516,13 @@ pub struct ProcessedExpression {}
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct OutputExpression {}
 
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UnaryOp<T>(pub UnaryOpType, pub Box<ExpressionValue<T>>);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BinaryOp<T>(pub BinaryOpType, pub Box<ExpressionValue<T>>, pub Box<ExpressionValue<T>>);
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expression<T> {
@@ -532,12 +539,8 @@ pub enum Expression<T> {
     ReducedPipeline(ReducedPipelineValue<T>, PhantomData<T>),
 
     Group(Option<Box<ExpressionValue<T>>>),
-    UnaryOp(UnaryOpType, Box<ExpressionValue<T>>),
-    BinaryOp(
-        BinaryOpType,
-        Box<ExpressionValue<T>>,
-        Box<ExpressionValue<T>>,
-    ),
+    UnaryOp(UnaryOp<T>),
+    BinaryOp(BinaryOp<T>),
     ApplyOp(ApplyOpType, Box<ExpressionValue<T>>),
 }
 
@@ -652,15 +655,15 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
             }
             Expression::Group(_) => Expression::Group(None),
 
-            Expression::UnaryOp(ref op, box ref e) => Expression::UnaryOp(
+            Expression::UnaryOp(UnaryOp(ref op, box ref e)) => Expression::UnaryOp(UnaryOp(
                 op.to_owned(),
                 Box::new(TryProcessFrom::try_process_from(e, ctx)?),
-            ),
-            Expression::BinaryOp(ref op, box ref a, box ref b) => Expression::BinaryOp(
+            )),
+            Expression::BinaryOp(BinaryOp(ref op, box ref a, box ref b)) => Expression::BinaryOp(BinaryOp(
                 op.to_owned(),
                 Box::new(TryProcessFrom::try_process_from(a, ctx)?),
                 Box::new(TryProcessFrom::try_process_from(b, ctx)?),
-            ),
+            )),
 
             Expression::ApplyOp(ref op, box ref e) => Expression::ApplyOp(
                 op.to_owned(),
@@ -680,7 +683,7 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
 fn eval_inner_expression(
     src: &Expression<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>>
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>>
 // where
 //     T: ::std::fmt::Debug,
 //     T: Clone,
@@ -691,16 +694,7 @@ fn eval_inner_expression(
     Ok(match *src {
         Expression::ReducedPipeline(ref p, _) => eval_reduced_pipeline_to_value(p, ctx)?,
 
-        Expression::Path(ref path, _) => Some(eval_path(path, ctx)?),
-
-        // Expression::Pipeline(ref e, _) => Some(ExpressionValue::Expression(Expression::Pipeline(
-        //     TryEvalFrom::try_eval_from(e, ctx)?,
-        //     Default::default(),
-        // ))),
-        // Expression::Filter(ref e, _) => Some(ExpressionValue::Expression(Expression::Filter(
-        //     TryEvalFrom::try_eval_from(e, ctx)?,
-        //     Default::default(),
-        // ))),
+        Expression::Path(ref path, _) => eval_path(path, ctx)?,
 
         Expression::QueryCall(ref query, _) => eval_inner_query_call(query, ctx)?,
 
@@ -715,199 +709,190 @@ fn eval_inner_expression(
         //     Some(ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v)))))))
         // }
 
-        Expression::UnaryOp(ref op, box ref e) => {
-            // let e: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(e, ctx)?;
+        Expression::UnaryOp(ref op) => eval_unary_expression(op, ctx)?,
 
-            let res = match (op, &e) {
-                (&UnaryOpType::Negate, &ExpressionValue::Primitive(Primitive::BoolVal(b))) => {
-                    Some(ExpressionValue::Primitive(Primitive::BoolVal(!b)))
-                }
+        Expression::BinaryOp(ref op) => eval_binary_expression(op, ctx)?,
 
-                _ => None,
-            };
+        _ => {
+            eprintln!("[eval_inner_expression] Unable to evaluate expression: {:?}",
+                src
+            );
+            return Err(try_eval_from_err!("Unable to evaluate expression."));
+        }
+    })
+}
 
-            if res.is_some() {
-                return Ok(res);
-            }
-            Some(ExpressionValue::Expression(Expression::UnaryOp(
-                op.to_owned(),
-                Box::new(e.to_owned()),
-            )))
+fn eval_unary_expression(
+    src: &UnaryOp<ProcessedExpression>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
+    let UnaryOp(ref op, box ref e) = *src;
+
+    Ok(match (op, &e) {
+        (&UnaryOpType::Negate, &ExpressionValue::Primitive(Primitive::BoolVal(b))) => {
+            ExpressionValue::Primitive(Primitive::BoolVal(!b))
         }
 
-        Expression::BinaryOp(ref op, box ref a, box ref b) => {
-            // let a = TryEvalFrom::try_eval_from(a, ctx)?;
-            // let b = TryEvalFrom::try_eval_from(b, ctx)?;
+        (&UnaryOpType::Negate, ..) => {
+            let b: bool = TryEvalFrom::try_eval_from(e, ctx)?;
+            ExpressionValue::Primitive(Primitive::BoolVal(!b))
+        }
+    })
+}
 
-            let res = match (op, a, b) {
-                (
-                    _,
-                    &ExpressionValue::Binding(..),
-                    _
-                ) => {
-                    eprintln!("[expression eval] Found binding: {:?}", a);
-                    let a = eval_binding(a, ctx)?;
-                    eprintln!("[expression eval] Evaluated binding: {:?}", a);
+fn eval_binary_expression(
+    src: &BinaryOp<ProcessedExpression>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
+    let BinaryOp(ref op, box ref a, box ref b) = *src;
 
-                    if let Some(a) = a {
-                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned()));
-                        return eval_inner_expression(&expr, ctx);
-                    };
+    Ok(match (op, a, b) {
+        (
+            _,
+            &ExpressionValue::Expression(..),
+            _
+        ) |
+        (
+            _,
+            &ExpressionValue::Binding(..),
+            _
+        ) => {
+            eprintln!("[eval_binary_expression] Found expression (operand 1): {:?}", a);
+            let a = eval_expression(a, ctx)?;
+            eprintln!("[eval_binary_expression] Evaluated expression: result: {:?}", a);
 
-                    None
-                }
-
-                (
-                    _,
-                    _,
-                    &ExpressionValue::Binding(..)
-                ) => {
-                    eprintln!("[expression eval] Found binding: {:?}", b);
-                    let b = eval_binding(b, ctx)?;
-                    eprintln!("[expression eval] Evaluated binding: {:?}", b);
-
-                    if let Some(b) = b {
-                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned()));
-                        return eval_inner_expression(&expr, ctx);
-                    };
-
-                    None
-                }
-
-                (
-                    _,
-                    &ExpressionValue::Primitive(Primitive::Int32Val(a)),
-                    &ExpressionValue::Primitive(Primitive::Int32Val(b)),
-                ) => {
-                    match op {
-                        &BinaryOpType::Add => Some(ExpressionValue::Primitive(Primitive::Int32Val(a + b))),
-                        &BinaryOpType::Sub => Some(ExpressionValue::Primitive(Primitive::Int32Val(a - b))),
-                        &BinaryOpType::Mul => Some(ExpressionValue::Primitive(Primitive::Int32Val(a * b))),
-                        &BinaryOpType::Div => Some(ExpressionValue::Primitive(Primitive::Int32Val(a / b))),
-                        &BinaryOpType::EqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
-                        &BinaryOpType::NotEqualTo => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
-                        _ => None
-                    }
-                }
-
-                (
-                    &BinaryOpType::Add,
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::StringVal(format!("{}{}", a, b)))),
-
-                (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
-
-                (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
-
-                (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
-
-                (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
-
-                (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a == b))),
-
-                (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
-                    &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(a != b))),
-
-                (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::NullVal),
-                    &ExpressionValue::Primitive(Primitive::NullVal),
-                )
-                | (
-                    &BinaryOpType::EqualTo,
-                    &ExpressionValue::Primitive(Primitive::Undefined),
-                    &ExpressionValue::Primitive(Primitive::Undefined),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(true))),
-
-                (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::NullVal),
-                    &ExpressionValue::Primitive(Primitive::NullVal),
-                )
-                | (
-                    &BinaryOpType::NotEqualTo,
-                    &ExpressionValue::Primitive(Primitive::Undefined),
-                    &ExpressionValue::Primitive(Primitive::Undefined),
-                ) => Some(ExpressionValue::Primitive(Primitive::BoolVal(false))),
-
-                (&BinaryOpType::EqualTo, _, _) => {
-                    Some(ExpressionValue::Primitive(Primitive::BoolVal(false)))
-                }
-
-                (&BinaryOpType::NotEqualTo, _, _) => {
-                    Some(ExpressionValue::Primitive(Primitive::BoolVal(true)))
-                }
-
-                (
-                    _,
-                    _,
-                    _
-                ) => {
-                    let a = eval_expression(a, ctx)?;
-                    let b = eval_expression(b, ctx)?;
-                    eprintln!("[expression eval] Evaluated operand a: {:?}", a);
-                    eprintln!("[expression eval] Evaluated operand b: {:?}", b);
-
-                    if let (Some(a), Some(b)) = (a, b) {
-                        let expr = Expression::BinaryOp(op.to_owned(), Box::new(a), Box::new(b));
-                        return eval_inner_expression(&expr, ctx);
-                    };
-
-                    None
-                }
-
-                _ => None,
-            };
-
-            if res.is_some() {
-                return Ok(res);
-            }
-
-            Some(ExpressionValue::Expression(Expression::BinaryOp(
-                op.to_owned(),
-                Box::new(a.to_owned()),
-                Box::new(b.to_owned()),
-            )))
+            let expr = Expression::BinaryOp(BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned())));
+            eval_inner_expression(&expr, ctx)?
         }
 
-        // TODO: See what this is used for now
-        // Expression::ApplyOp(ref op, box ref e) => Some(ExpressionValue::Expression(
-        //     Expression::ApplyOp(op.to_owned(), Box::new(TryEvalFrom::try_eval_from(e, ctx)?)),
-        // )),
+        (
+            _,
+            _,
+            &ExpressionValue::Expression(..),
+        ) |
+        (
+            _,
+            _,
+            &ExpressionValue::Binding(..),
+        ) => {
+            eprintln!("[eval_binary_expression] Found expression (operand 2): {:?}", b);
+            let b = eval_expression(b, ctx)?;
+            eprintln!("[eval_binary_expression] Evaluated expression: result: {:?}", b);
 
-        _ => None,
+            let expr = Expression::BinaryOp(BinaryOp(op.to_owned(), Box::new(a.to_owned()), Box::new(b.to_owned())));
+            eval_inner_expression(&expr, ctx)?
+        }
+
+        (
+            _,
+            &ExpressionValue::Primitive(Primitive::Int32Val(a)),
+            &ExpressionValue::Primitive(Primitive::Int32Val(b)),
+        ) => {
+            match op {
+                &BinaryOpType::Add => ExpressionValue::Primitive(Primitive::Int32Val(a + b)),
+                &BinaryOpType::Sub => ExpressionValue::Primitive(Primitive::Int32Val(a - b)),
+                &BinaryOpType::Mul => ExpressionValue::Primitive(Primitive::Int32Val(a * b)),
+                &BinaryOpType::Div => ExpressionValue::Primitive(Primitive::Int32Val(a / b)),
+                &BinaryOpType::EqualTo => ExpressionValue::Primitive(Primitive::BoolVal(a == b)),
+                &BinaryOpType::NotEqualTo => ExpressionValue::Primitive(Primitive::BoolVal(a != b)),
+
+                _ => {
+                    eprintln!("[eval_binary_expression] Unable to evaluate BinaryOp: {:?}",
+                        src
+                    );
+                    return Err(try_eval_from_err!("Unable to evaluate expression."));
+                }
+            }
+        }
+
+        (
+            &BinaryOpType::Add,
+            &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::StringVal(format!("{}{}", a, b))),
+
+        (
+            &BinaryOpType::EqualTo,
+            &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a == b)),
+
+        (
+            &BinaryOpType::NotEqualTo,
+            &ExpressionValue::Primitive(Primitive::CharVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::CharVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a != b)),
+
+        (
+            &BinaryOpType::EqualTo,
+            &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a == b)),
+
+        (
+            &BinaryOpType::NotEqualTo,
+            &ExpressionValue::Primitive(Primitive::StringVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::StringVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a != b)),
+
+        (
+            &BinaryOpType::EqualTo,
+            &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a == b)),
+
+        (
+            &BinaryOpType::NotEqualTo,
+            &ExpressionValue::Primitive(Primitive::BoolVal(ref a)),
+            &ExpressionValue::Primitive(Primitive::BoolVal(ref b)),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(a != b)),
+
+        (
+            &BinaryOpType::EqualTo,
+            &ExpressionValue::Primitive(Primitive::NullVal),
+            &ExpressionValue::Primitive(Primitive::NullVal),
+        )
+        | (
+            &BinaryOpType::EqualTo,
+            &ExpressionValue::Primitive(Primitive::Undefined),
+            &ExpressionValue::Primitive(Primitive::Undefined),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(true)),
+
+        (
+            &BinaryOpType::NotEqualTo,
+            &ExpressionValue::Primitive(Primitive::NullVal),
+            &ExpressionValue::Primitive(Primitive::NullVal),
+        )
+        | (
+            &BinaryOpType::NotEqualTo,
+            &ExpressionValue::Primitive(Primitive::Undefined),
+            &ExpressionValue::Primitive(Primitive::Undefined),
+        ) => ExpressionValue::Primitive(Primitive::BoolVal(false)),
+
+        (&BinaryOpType::EqualTo, _, _) => {
+            ExpressionValue::Primitive(Primitive::BoolVal(false))
+        }
+
+        (&BinaryOpType::NotEqualTo, _, _) => {
+            ExpressionValue::Primitive(Primitive::BoolVal(true))
+        }
+
+        _ => {
+            eprintln!("[evaluate_binary_expression] Unable to evaluate BinaryOp: {:?}",
+                src
+            );
+            return Err(try_eval_from_err!("Unable to evaluate expression."));
+        }
     })
 }
 
 pub fn eval_expression(
     src: &ExpressionValue<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
     match *src {
+        ExpressionValue::Primitive(..) | ExpressionValue::Composite(..) => Ok(src.to_owned()),
+
         ExpressionValue::Binding(ref binding, _) => {
             eval_inner_binding(binding, ctx)
         }
@@ -918,7 +903,13 @@ pub fn eval_expression(
         }
 
         ExpressionValue::Expression(ref e) => eval_inner_expression(e, ctx),
-        _ => Ok(None)
+
+        _ => {
+            eprintln!("[eval_expression] Unable to evaluate expression: {:?}",
+                src
+            );
+            return Err(try_eval_from_err!("Unable to evaluate expression."));
+        }
     }
 }
 
@@ -1510,7 +1501,7 @@ impl<T: Clone + Debug> TryEvalFrom<ExpressionValue<T>>
 pub fn eval_inner_binding(
     binding: &CommonBindings<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
     eprintln!(
         "[expression] eval_inner_binding: binding: {:?}",
         binding
@@ -1521,39 +1512,19 @@ pub fn eval_inner_binding(
         let reducer_value = ctx.defaults().reducer_value(key)?;
         match reducer_value {
             ReducerValue::ProcessedExpression(e) => {
-                return Ok(Some(eval_binding(&e, ctx)?
-                    .unwrap_or(e)));
+                return eval_expression(&e, ctx);
             }
 
             ReducerValue::OutputExpression(..) => {
-                // // TODO: Remove ReducerValue
-                // return Err(try_eval_from_err!("OutputExpression reducer expression not supported in `eval_binding`"));
+                return Err(try_eval_from_err!("OutputExpression reducer expression not supported in `eval_inner_binding`"));
             }
         };
     };
 
     if let Some(expr) = ctx.find_value(binding)? {
-        return Ok(Some(eval_expression(&expr, ctx)?
-            .unwrap_or(expr)));
+        return eval_expression(&expr, ctx);
     };
 
     let expr = ctx.must_find_loop_value(binding)?;
-    return Ok(Some(eval_expression(&expr, ctx)?
-        .unwrap_or(expr)));
-}
-
-pub fn eval_binding(
-    src: &ExpressionValue<ProcessedExpression>,
-    ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
-    eprintln!(
-        "[expression] eval_binding: src: {:?}",
-        src
-    );
-
-    if let ExpressionValue::Binding(ref binding, _) = *src {
-        return eval_inner_binding(binding, ctx);
-    };
-
-    Ok(None)
+    eval_expression(&expr, ctx)
 }

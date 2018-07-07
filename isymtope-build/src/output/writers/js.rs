@@ -710,7 +710,7 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                 Ok(())
             }
 
-            Expression::UnaryOp(ref op, box ref a) => {
+            Expression::UnaryOp(UnaryOp(ref op, box ref a)) => {
                 match *op {
                     UnaryOpType::Negate => write!(w, "!"),
                 }?;
@@ -718,7 +718,7 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                 self.write_object(w, ctx, a)
             }
 
-            Expression::BinaryOp(ref op, box ref a, box ref b) => {
+            Expression::BinaryOp(BinaryOp(ref op, box ref a, box ref b)) => {
                 if let BinaryOpType::Add = *op {
                     match (a, b) {
                         (

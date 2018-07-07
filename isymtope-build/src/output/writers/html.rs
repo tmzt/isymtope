@@ -157,18 +157,23 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, HtmlOutput> for DefaultH
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
 
             ExpressionValue::Expression(..) => {
-                let expr = eval_expression(obj, ctx)?
-                    .unwrap_or_else(|| obj.to_owned());
-                
+                let expr = eval_expression(obj, ctx)?;
                 self.write_object(w, ctx, &expr)
             }
 
             ExpressionValue::Lens(..) => Ok(()),
             // ExpressionValue::Binding(ref b, _) => self.write_object(w, b),
-            _ => Err(try_eval_from_err!(format!(
-                "Unsupported expression value when writing: {:?}",
-                obj
-            ))),
+            _ => {
+                eprintln!(
+                    "ObjectWriter ExpressionValue<OutputExpression> (HTML): Unsupported expression value when writing: {:?}",
+                    obj
+                );
+
+                Err(try_eval_from_err!(format!(
+                    "Unsupported expression value when writing: {:?}",
+                    obj
+                )))
+            },
         }
     }
 }
@@ -312,8 +317,7 @@ fn write_open<'s>(
                 //     TryEvalFrom::try_eval_from(read_expr, ctx)?;
                 // let expr: ExpressionValue<OutputExpression> =
                 //     TryEvalFrom::try_eval_from(&expr, ctx)?;
-                let expr = eval_expression(read_expr, ctx)?
-                    .unwrap_or_else(|| read_expr.to_owned());
+                let expr = eval_expression(read_expr, ctx)?;
                 let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
                 if checked {
@@ -497,39 +501,36 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, HtmlOutput> for DefaultHtmlWri
 
                 // write!(w, "<!-- map_component: {} () {{ -->", comp_desc.tag())?;
 
-                let coll = eval_binding(&coll, ctx)?;
-                if let Some(ref coll) = coll {
+                let coll = eval_expression(&coll, ctx)?;
 
-                    // let coll: ExpressionValue<OutputExpression> =
-                    //     TryEvalFrom::try_eval_from(coll, ctx)?;
-                    let coll: Option<Vec<ExpressionValue<ProcessedExpression>>> =
-                        TryEvalFrom::try_eval_from(coll, ctx)?;
-                    if let Some(coll) = coll {
-                        for (idx, item) in (0i32..).zip(coll.iter()) {
-                            ctx.push_child_scope_with_environment(
-                                OutputScopeEnvironment::MappedComponentInstance,
-                            );
+                // Evaluate as an array
+                let coll: Option<Vec<ExpressionValue<ProcessedExpression>>> =
+                    TryEvalFrom::try_eval_from(&coll, ctx)?;
+                if let Some(coll) = coll {
+                    for (idx, item) in (0i32..).zip(coll.iter()) {
+                        ctx.push_child_scope_with_environment(
+                            OutputScopeEnvironment::MappedComponentInstance,
+                        );
 
-                            ctx.bind_element_key(comp_desc.key(), Some(idx))?;
+                        ctx.bind_element_key(comp_desc.key(), Some(idx))?;
 
-                            // CurrentItem
-                            let binding = CommonBindings::CurrentItem(Default::default());
-                            ctx.bind_loop_value(binding, item.to_owned())?;
+                        // CurrentItem
+                        let binding = CommonBindings::CurrentItem(Default::default());
+                        ctx.bind_loop_value(binding, item.to_owned())?;
 
-                            // CurrentItemIndex
-                            let binding = CommonBindings::CurrentItemIndex;
-                            ctx.bind_loop_value(
-                                binding,
-                                ExpressionValue::Primitive(Primitive::Int32Val(idx)),
-                            )?;
+                        // CurrentItemIndex
+                        let binding = CommonBindings::CurrentItemIndex;
+                        ctx.bind_loop_value(
+                            binding,
+                            ExpressionValue::Primitive(Primitive::Int32Val(idx)),
+                        )?;
 
-                            // write_component(self, w, ctx, comp_desc, item_key.as_ref().map(|s| s.as_str()), Some(idx))?;
-                            // write_comp_desc(self, w, ctx, comp_desc, None)?;
-                            self.write_object(w, ctx, comp_desc)?;
+                        // write_component(self, w, ctx, comp_desc, item_key.as_ref().map(|s| s.as_str()), Some(idx))?;
+                        // write_comp_desc(self, w, ctx, comp_desc, None)?;
+                        self.write_object(w, ctx, comp_desc)?;
 
-                            ctx.pop_scope();
-                        }
-                    };
+                        ctx.pop_scope();
+                    }
                 };
 
                 // write!(w, "<!-- }} -->")?;

@@ -86,7 +86,7 @@ ExpressionValue : ExpressionValue<SourceExpression> =
 ExpressionComponent : ExpressionValue<SourceExpression> =
 {
     /// Top-level binary expression (a +/- b)
-    <a:ExpressionValue> <op:TopLevelBinaryOpType> <b:ExpressionFactor> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    <a:ExpressionValue> <op:TopLevelBinaryOpType> <b:ExpressionFactor> => ExpressionValue::Expression(Expression::BinaryOp(BinaryOp(op, Box::new(a), Box::new(b)))),
 
     /// Source lens expression (keyword and expression term)
     <e:SourceLensValue> => ExpressionValue::SourceLens(e, Default::default()),
@@ -117,7 +117,7 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
     // <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
 
     /// Factor binary operation
-    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTermOrPipeline> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
+    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTermOrPipeline> => ExpressionValue::Expression(Expression::BinaryOp(BinaryOp(op, Box::new(a), Box::new(b)))),
 
     /// Single term
     ExpressionTermOrPipeline
@@ -162,7 +162,7 @@ MapValue: MapValue<SourceExpression> =
 ExpressionTerm : ExpressionValue<SourceExpression> =
 {
     /// Unary operation
-    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
+    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
 
     /// Grouping operation
     "(" <e:ExpressionValue?> ")" => ExpressionValue::Expression(Expression::Group(e.map(Box::new))),

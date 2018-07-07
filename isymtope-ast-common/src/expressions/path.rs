@@ -139,8 +139,7 @@ pub fn eval_path(
 
     // Evaluate binding if any
     // let head: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(head, ctx)?;
-    let head = eval_binding(head, ctx)?
-        .unwrap_or_else(|| head.to_owned());
+    let head = eval_expression(head, ctx)?;
 
     eprintln!("[path] eval_path: head (b): {:?}", head);
     eprintln!("[path] eval_path: components (b): {:?}", components);

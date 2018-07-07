@@ -255,8 +255,7 @@ pub fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
-    let head = eval_binding(src.head(), ctx)?
-        .unwrap_or_else(|| src.head().to_owned());
+    let head = eval_expression(src.head(), ctx)?;
     let iter = src.components().into_iter().cloned();
     let eval = PipelineEval::create(iter, head, ctx)?;
 
@@ -272,21 +271,20 @@ pub fn eval_reduced_pipeline(
 pub fn eval_reduced_pipeline_to_value(
     src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
-) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
     let final_state = eval_reduced_pipeline(src, ctx)?;
 
     match final_state {
         PipelineState::Indexed(..) => {
-            let arr = final_state.into_array_value()?;
-
-            Ok(Some(ExpressionValue::Composite(CompositeValue::ArrayValue(arr))))
+            final_state.into_array_value()
+                .map(|arr| ExpressionValue::Composite(CompositeValue::ArrayValue(arr)))
         }
 
         PipelineState::Single(e) => {
-            Ok(Some(e))
+            Ok(e)
         }
 
-        _ => Ok(None)
+        _ => Err(try_eval_from_err!("Invalid final pipeline state"))
     }
 }
 
@@ -365,10 +363,10 @@ mod test {
 
         let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
-            )
+            ))
         );
 
         let res = apply_cond(&expr, None, None, &cond, &mut ctx).unwrap();
@@ -382,10 +380,10 @@ mod test {
 
         let expr: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::Int32Val(1)))
-            )
+            ))
         );
 
         let res = apply_cond(&expr, Some(1), None, &cond, &mut ctx).unwrap();
@@ -401,10 +399,10 @@ mod test {
         let key = "b".to_owned();
 
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemKey, Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("b".into())))
-            )
+            ))
         );
 
         let res = apply_cond(&expr, Some(1), Some(&key), &cond, &mut ctx).unwrap();
@@ -422,10 +420,10 @@ mod test {
         let state = PipelineState::Indexed(v);
 
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItemIndex, Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::Int32Val(1)))
-            )
+            ))
         );
         let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
 
@@ -447,10 +445,10 @@ mod test {
         let state = PipelineState::Indexed(v);
 
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
-            )
+            ))
         );
         let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
 
@@ -472,10 +470,10 @@ mod test {
         let head = ExpressionValue::Composite(CompositeValue::ArrayValue(arr));
 
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
-            )
+            ))
         );
         let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::Filter(cond);
         let components = vec![ReducedPipelineComponent::PipelineOp(method)];
@@ -499,10 +497,10 @@ mod test {
         let head = ExpressionValue::Composite(CompositeValue::ArrayValue(arr));
 
         let cond = ExpressionValue::Expression(
-            Expression::BinaryOp(BinaryOpType::EqualTo,
+            Expression::BinaryOp(BinaryOp(BinaryOpType::EqualTo,
                 Box::new(ExpressionValue::Binding(CommonBindings::CurrentItem(Default::default()), Default::default())),
                 Box::new(ExpressionValue::Primitive(Primitive::StringVal("zero".into())))
-            )
+            ))
         );
         let method: ReducedMethodCall<ProcessedExpression> = ReducedMethodCall::CountIf(cond);
         let components = vec![ReducedPipelineComponent::PipelineOp(method)];
