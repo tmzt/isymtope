@@ -106,10 +106,6 @@ fn do_count(
     );
 
     match state {
-        PipelineState::Empty => {
-            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(0))))
-        }
-
         PipelineState::Single(item) => {
             if let Some(cond) = cond {
                 let res = apply_cond(&item, None, None, cond, ctx)?;
@@ -255,7 +251,7 @@ impl PipelineState {
     }
 }
 
-fn eval_reduced_pipeline(
+pub fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
@@ -271,6 +267,27 @@ fn eval_reduced_pipeline(
     }
 
     Err(try_eval_from_err!("Reached end of pipeline evalutation without PipelineStep::Finished, this should not happen."))
+}
+
+pub fn eval_reduced_pipeline_to_value(
+    src: &ReducedPipelineValue<ProcessedExpression>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<Option<ExpressionValue<ProcessedExpression>>> {
+    let final_state = eval_reduced_pipeline(src, ctx)?;
+
+    match final_state {
+        PipelineState::Indexed(..) => {
+            let arr = final_state.into_array_value()?;
+
+            Ok(Some(ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)))))
+        }
+
+        PipelineState::Single(e) => {
+            Ok(Some(e))
+        }
+
+        _ => Ok(None)
+    }
 }
 
 impl TryEvalFrom<ReducedPipelineValue<ProcessedExpression>> for ExpressionValue<ProcessedExpression> {

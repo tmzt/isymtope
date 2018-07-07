@@ -62,36 +62,36 @@ pub struct DefaultHtmlWriter {}
 //     }
 // }
 
-impl ObjectWriter<Expression<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &Expression<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter Expression<ProcessedExpression> (HTML): obj: {:?}",
-            obj
-        );
+// impl ObjectWriter<Expression<ProcessedExpression>, HtmlOutput> for DefaultHtmlWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &Expression<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         debug!(
+//             "ObjectWriter Expression<ProcessedExpression> (HTML): obj: {:?}",
+//             obj
+//         );
 
-        match *obj {
-            Expression::ReducedPipeline(ref p, _) => {
-                eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Evaluating pipeline: {:?}", obj);
-                let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
-                eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Pipeline result: {:?}", expr);
-                self.write_object(w, ctx, &expr)
-           }
+//         match *obj {
+//             Expression::ReducedPipeline(ref p, _) => {
+//                 eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Evaluating pipeline: {:?}", obj);
+//                 let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(p, ctx)?;
+//                 eprintln!("ObjectWriter ReducedPipeline<ProcessedExpression> (HTML): Pipeline result: {:?}", expr);
+//                 self.write_object(w, ctx, &expr)
+//            }
 
-            _ => {
-                eprintln!("ObjectWriter Expression<ProcessedExpression> (HTML): Unsupported Expression: {:?}", obj);
-                Err(try_eval_from_err!(format!(
-                    "Unsupported expression in HTML writer: {:?}",
-                    obj
-                )))
-            }
-        }
-    }
-}
+//             _ => {
+//                 eprintln!("ObjectWriter Expression<ProcessedExpression> (HTML): Unsupported Expression: {:?}", obj);
+//                 Err(try_eval_from_err!(format!(
+//                     "Unsupported expression in HTML writer: {:?}",
+//                     obj
+//                 )))
+//             }
+//         }
+//     }
+// }
 
 impl ObjectWriter<Primitive, HtmlOutput> for DefaultHtmlWriter {
     fn write_object(
@@ -148,9 +148,21 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, HtmlOutput> for DefaultH
         ctx: &mut OutputContext,
         obj: &ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
+        debug!(
+            "ObjectWriter ExpressionValue<OutputExpression> (HTML): obj: {:?}",
+            obj
+        );
+
         match *obj {
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
-            ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
+
+            ExpressionValue::Expression(..) => {
+                let expr = eval_expression(obj, ctx)?
+                    .unwrap_or_else(|| obj.to_owned());
+                
+                self.write_object(w, ctx, &expr)
+            }
+
             ExpressionValue::Lens(..) => Ok(()),
             // ExpressionValue::Binding(ref b, _) => self.write_object(w, b),
             _ => Err(try_eval_from_err!(format!(
@@ -300,7 +312,9 @@ fn write_open<'s>(
                 //     TryEvalFrom::try_eval_from(read_expr, ctx)?;
                 // let expr: ExpressionValue<OutputExpression> =
                 //     TryEvalFrom::try_eval_from(&expr, ctx)?;
-                let checked: bool = TryEvalFrom::try_eval_from(read_expr, ctx)?;
+                let expr = eval_expression(read_expr, ctx)?
+                    .unwrap_or_else(|| read_expr.to_owned());
+                let checked: bool = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
                 if checked {
                     write!(w, " checked=\"checked\"")?;

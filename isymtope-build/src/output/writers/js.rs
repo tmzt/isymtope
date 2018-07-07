@@ -501,7 +501,9 @@ impl ObjectWriter<ReducedPipelineValue<ProcessedExpression>, JsOutput> for Defau
         // Special case, this pipeline returns a scalar value
         let is_scalar = match components.last() {
             Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::First)) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::Count(..))) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::FirstWhere(..))) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::Count)) => true,
+            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::CountIf(..))) => true,
             Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MinBy(..))) => true,
             Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MaxBy(..))) => true,
             _ => false
@@ -610,7 +612,11 @@ impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for D
                         write!(w, ")")?;
                     }
 
-                    ReducedMethodCall::Count(ref expr) => {
+                    ReducedMethodCall::Count => {
+                        write!(w, "_utils.count()")?;
+                    }
+
+                    ReducedMethodCall::CountIf(ref expr) => {
                         // write!(w, ".count(_item => ")?;
                         // self.write_object(w, ctx, expr)?;
                         // write!(w, ")")?;

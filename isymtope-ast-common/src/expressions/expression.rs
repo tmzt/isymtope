@@ -7,6 +7,7 @@ use itertools::FoldWhile::{Continue, Done};
 use error::*;
 use traits::*;
 use expressions::*;
+use objects::*;
 use ast::*;
 
 #[allow(dead_code)]
@@ -690,6 +691,10 @@ fn eval_inner_expression(
     eprintln!("[eval expression] expr: {:?}", src);
 
     Ok(match *src {
+        Expression::ReducedPipeline(ref p, _) => eval_reduced_pipeline_to_value(p, ctx)?,
+
+        Expression::Path(ref path, _) => Some(eval_path(path, ctx)?),
+
         // Expression::Pipeline(ref e, _) => Some(ExpressionValue::Expression(Expression::Pipeline(
         //     TryEvalFrom::try_eval_from(e, ctx)?,
         //     Default::default(),
@@ -698,6 +703,8 @@ fn eval_inner_expression(
         //     TryEvalFrom::try_eval_from(e, ctx)?,
         //     Default::default(),
         // ))),
+
+        Expression::QueryCall(ref query, _) => eval_inner_query_call(query, ctx)?,
 
         // Expression::Group(Some(box ref e)) => Some(TryEvalFrom::try_eval_from(e, ctx)?),
         // Expression::Group(_) => Some(ExpressionValue::Expression(Expression::Group(None))),
@@ -905,6 +912,11 @@ pub fn eval_expression(
     match *src {
         ExpressionValue::Binding(ref binding, _) => {
             eval_inner_binding(binding, ctx)
+        }
+
+        ExpressionValue::Lens(LensValue::GetLens(_, box ref expr, _), _) => {
+            // Since we are evaluating, we can drop the lens in the result.
+            eval_expression(expr, ctx)
         }
 
         ExpressionValue::Expression(ref e) => eval_inner_expression(e, ctx),

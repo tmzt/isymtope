@@ -17,10 +17,12 @@ impl ActionExecutor {
         if let Some(reducers) = doc.reducers() {
             for (key, reducer) in reducers {
                 if let Some(default_expr) = reducer.default_value() {
+                    let expr = eval_expression(default_expr, ctx)?
+                        .unwrap_or_else(|| default_expr.to_owned());
                     // let default_expr: ExpressionValue<ProcessedExpression> =
                     //     TryEvalFrom::try_eval_from(default_expr, ctx)?;
 
-                    state.set_value(key, default_expr.to_owned(), true)?;
+                    state.set_value(key, expr, true)?;
                 }
             }
         }
@@ -104,6 +106,9 @@ impl ActionExecutor {
             // // Evalute output expression
             // let expr: ExpressionValue<ProcessedExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
             // eprintln!("[server/executor] expr(b): {:?}", expr);
+
+            let expr = eval_expression(expr, ctx)?
+                .unwrap_or_else(|| expr.to_owned());
 
             eprintln!(
                 "[server/executor] setting reducer key [{}] to value [{:?}]",
