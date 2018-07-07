@@ -169,9 +169,9 @@ ExpressionTerm : ExpressionValue<SourceExpression> =
 
     /// Composite (object/array/map)
 
-    <v:ObjectValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(v))),
-    <v:ArrayValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(v))),
-    <v:MapValue> => ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(v))),
+    <v:ObjectValue> => ExpressionValue::Composite(CompositeValue::ObjectValue(v)),
+    <v:ArrayValue> => ExpressionValue::Composite(CompositeValue::ArrayValue(v)),
+    <v:MapValue> => ExpressionValue::Composite(CompositeValue::MapValue(v)),
 
     /// Primitive value
     <e:Primitive> => ExpressionValue::Primitive(e),

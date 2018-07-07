@@ -145,8 +145,8 @@ pub fn eval_path(
     eprintln!("[path] eval_path: head (b): {:?}", head);
     eprintln!("[path] eval_path: components (b): {:?}", components);
     let acc = match head {
-        ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(..
-        ))) => Ok(&head),
+        ExpressionValue::Composite(CompositeValue::ObjectValue(..
+        )) => Ok(&head),
         _ => Err(try_eval_from_err!(
             "Path head must evaluate to composite ObjectValue"
         )),
@@ -160,9 +160,9 @@ pub fn eval_path(
             if let Ok(value) = acc {
                 eprintln!("TryEval PathValue -> OutputExpression: value: {:?}", value);
 
-                if let ExpressionValue::Expression(Expression::Composite(
+                if let ExpressionValue::Composite(
                     CompositeValue::ObjectValue(ObjectValue(Some(box ref fields))),
-                )) = *value
+                ) = *value
                 {
                     let next = fields.into_iter().filter(|e| e.key() == key).nth(0);
                     if let Some(ref value) = next.map(|e| e.value()) {

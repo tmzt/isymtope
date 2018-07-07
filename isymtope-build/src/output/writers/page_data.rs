@@ -292,9 +292,9 @@ impl InternalTemplateDataBuilder {
                     let value = str::from_utf8(bytes.as_slice())?.to_owned();
                     let body = match *expr {
                         // FIXME: Special case
-                        ExpressionValue::Expression(Expression::Composite(
+                        ExpressionValue::Composite(
                             CompositeValue::ArrayValue(..),
-                        )) => format!("new Map({}.map(_item => [_item.id, _item]))", value),
+                        ) => format!("new Map({}.map(_item => [_item.id, _item]))", value),
 
                         _ => value,
                     };

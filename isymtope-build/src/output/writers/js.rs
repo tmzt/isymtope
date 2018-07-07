@@ -69,6 +69,7 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsW
         obj: &ExpressionValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
         match *obj {
+            ExpressionValue::Composite(ref c) => self.write_object(w, ctx, c),
             ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
             ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
@@ -676,8 +677,6 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
         );
 
         match *obj {
-            Expression::Composite(ref c) => self.write_object(w, ctx, c),
-
             Expression::Path(ref p, _) => self.write_object(w, ctx, p),
 
             Expression::Ident(ref s, _) => {
@@ -747,16 +746,16 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
                         }
 
                         (
-                            &ExpressionValue::Expression(Expression::Composite(
+                            &ExpressionValue::Composite(
                                 CompositeValue::ObjectValue(_),
-                            )),
+                            ),
                             _,
                         )
                         | (
                             _,
-                            &ExpressionValue::Expression(Expression::Composite(
+                            &ExpressionValue::Composite(
                                 CompositeValue::ObjectValue(_),
-                            )),
+                            ),
                         ) => {
                             write!(w, "Object.assign({{}}, ")?;
                             self.write_object(w, ctx, a)?;

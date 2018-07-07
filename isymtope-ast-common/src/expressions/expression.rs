@@ -145,6 +145,7 @@ pub struct ShapedExpressionValue<T>(pub OuterShape, pub ExpressionValue<T>);
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExpressionValue<T> {
+    Composite(CompositeValue<T>),
     Expression(Expression<T>),
     Primitive(Primitive),
     Binding(CommonBindings<T>, PhantomData<T>),
@@ -163,7 +164,7 @@ impl<T> ExpressionValue<T> {
     }
     pub fn is_object(&self) -> bool {
         match *self {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(..)) => {
                 true
             }
             _ => false,
@@ -171,7 +172,7 @@ impl<T> ExpressionValue<T> {
     }
     pub fn is_array(&self) -> bool {
         match *self {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::ArrayValue(..)) => {
                 true
             }
             _ => false,
@@ -179,9 +180,9 @@ impl<T> ExpressionValue<T> {
     }
 
     pub fn is_array_of_objects(&self) -> bool {
-        if let ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
+        if let ExpressionValue::Composite(CompositeValue::ArrayValue(
             ArrayValue(Some(box ref v)),
-        ))) = *self
+        )) = *self
         {
             return v.iter().all(|e| e.value().is_object());
         };
@@ -191,13 +192,13 @@ impl<T> ExpressionValue<T> {
 
     pub fn shape(&self) -> OuterShape {
         match *self {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(..)) => {
                 OuterShape::Object
             }
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::ArrayValue(..)) => {
                 OuterShape::Array
             }
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::MapValue(..)) => {
                 OuterShape::Map
             }
             _ => OuterShape::Singleton,
@@ -518,7 +519,7 @@ pub struct OutputExpression {}
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expression<T> {
-    Composite(CompositeValue<T>),
+    // Composite(CompositeValue<T>),
     Path(PathValue<T>, PhantomData<T>),
     Ident(String, PhantomData<T>),
     RawPath(String, PhantomData<T>),
@@ -564,9 +565,6 @@ impl TryProcessFrom<Expression<SourceExpression>> for ExpressionValue<ProcessedE
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         let expr = match *src {
-            Expression::Composite(ref e) => {
-                Expression::Composite(TryProcessFrom::try_process_from(e, ctx)?)
-            }
             Expression::Path(ref p, _) => Expression::Path(
                 TryProcessFrom::try_process_from(p, ctx)?,
                 Default::default(),
@@ -714,7 +712,7 @@ fn eval_inner_expression(
         // Expression::Composite(..) => Some(ExpressionValue::Expression(src.to_owned())),
         // Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref v)))) => {
         //     let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-        //     Some(ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v)))))))
+        //     Some(ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v)))))))
         // }
 
         Expression::UnaryOp(ref op, box ref e) => {
@@ -937,26 +935,26 @@ pub fn eval_expression(
 
 //             Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref v)))) => {
 //                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v))))))
+//                 ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(Box::new(v))))))
 //             }
 //             Expression::Composite(CompositeValue::ArrayValue(ArrayValue(..))) => {
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(None))))
+//                 ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(None))))
 //             }
 //             Expression::Composite(CompositeValue::MapValue(MapValue(ref s, Some(box ref v)))) => {
 //                 let s = s.as_ref().map(|s| s.to_owned());
 //                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, Some(Box::new(v))))))
+//                 ExpressionValue::Composite(CompositeValue::MapValue(MapValue(s, Some(Box::new(v))))))
 //             }
 //             Expression::Composite(CompositeValue::MapValue(MapValue(ref s, ..))) => {
 //                 let s = s.as_ref().map(|s| s.to_owned());
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(MapValue(s, None))))
+//                 ExpressionValue::Composite(CompositeValue::MapValue(MapValue(s, None))))
 //             }
 //             Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref v)))) => {
 //                 let v: Vec<_> = ok_or_error(v.into_iter().map(|e| TryEvalFrom::try_eval_from(e, ctx)))?.collect();
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(v))))))
+//                 ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(v))))))
 //             }
 //             Expression::Composite(CompositeValue::ObjectValue(ObjectValue(..))) => {
-//                 ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(None))))
+//                 ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(None))))
 //             }
 
 //             Expression::Path(ref p, _) => TryEvalFrom::try_eval_from(p, ctx)?,
@@ -1004,6 +1002,7 @@ impl TryProcessFrom<ExpressionValue<SourceExpression>> for ExpressionValue<Proce
         ctx: &mut ProcessingContext,
     ) -> DocumentProcessingResult<Self> {
         match *src {
+            ExpressionValue::Composite(ref e) => Ok(ExpressionValue::Composite(TryProcessFrom::try_process_from(e, ctx)?)),
             ExpressionValue::Expression(ref e) => Ok(TryProcessFrom::try_process_from(e, ctx)?),
             ExpressionValue::Primitive(ref e) => Ok(ExpressionValue::Primitive(e.to_owned())),
             ExpressionValue::Binding(ref b, _) => Ok(ExpressionValue::Binding(
@@ -1465,38 +1464,38 @@ impl<T: Clone + Debug> TryEvalFrom<ExpressionValue<T>>
     ) -> DocumentProcessingResult<Self> {
         eprintln!("TryEval ExpressionValue -> Option<Vec<_>>: src: {:?}", src);
         match *src {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
+            ExpressionValue::Composite(CompositeValue::ArrayValue(
                 ArrayValue(Some(box ref arr)),
-            ))) => {
+            )) => {
                 let arr: Vec<_> = arr.into_iter()
                     .map(|item| item.value().to_owned())
                     .collect();
                 Ok(Some(arr))
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(
+            ExpressionValue::Composite(CompositeValue::ArrayValue(
                 ArrayValue(None),
-            ))) => {
+            )) => {
                 Ok(None)
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(
+            ExpressionValue::Composite(CompositeValue::MapValue(
                 MapValue(_, Some(box ref arr)),
-            ))) => {
+            )) => {
                 let arr: Vec<_> = arr.into_iter()
-                    .map(|item| ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(item.to_owned()))))
+                    .map(|item| ExpressionValue::Composite(CompositeValue::ObjectValue(item.to_owned())))
                     .collect();
                 Ok(Some(arr))
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::MapValue(
+            ExpressionValue::Composite(CompositeValue::MapValue(
                 MapValue(None, None),
-            ))) => {
+            )) => {
                 Ok(None)
             }
 
             // Cannot evaluate object value as an array
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(..))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(..)) => {
                 eprintln!("TryEval ExpressionValue -> Option<Vec<_>>: cannot evaluate as array: {:?}", src);
                 Ok(None)
             }

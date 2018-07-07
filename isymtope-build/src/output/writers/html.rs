@@ -267,7 +267,7 @@ fn write_open<'s>(
         // let expr: ExpressionValue<OutputExpression> = TryEvalFrom::try_eval_from(&expr, ctx)?;
 
         let class_props = match expr {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref props))))) if name =="class" => Some(props),
+            ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref props)))) if name =="class" => Some(props),
             _ => None
         };
 

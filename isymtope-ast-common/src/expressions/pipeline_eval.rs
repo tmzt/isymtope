@@ -204,7 +204,7 @@ impl PipelineState {
         );
 
         match expr {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(v))))) => {
+            ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(v)))) => {
                 let v: Vec<_> = v.into_iter()
                     .map(move |e| e.value().clone())
                     .collect();
@@ -212,7 +212,7 @@ impl PipelineState {
                 Ok(PipelineState::Indexed(v))
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(v))))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(v)))) => {
                 let v: Vec<_> = v.into_iter()
                     .map(move |e| (e.key().to_owned(), e.value().to_owned()))
                     // .map(move |e| e.value().clone())
@@ -279,7 +279,7 @@ pub fn eval_reduced_pipeline_to_value(
         PipelineState::Indexed(..) => {
             let arr = final_state.into_array_value()?;
 
-            Ok(Some(ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)))))
+            Ok(Some(ExpressionValue::Composite(CompositeValue::ArrayValue(arr))))
         }
 
         PipelineState::Single(e) => {
@@ -300,7 +300,7 @@ impl TryEvalFrom<ReducedPipelineValue<ProcessedExpression>> for ExpressionValue<
         match final_state {
             PipelineState::Indexed(..) => {
                 final_state.into_array_value()
-                    .map(|arr| ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr))))
+                    .map(|arr| ExpressionValue::Composite(CompositeValue::ArrayValue(arr)))
             }
 
             PipelineState::Single(e) => {
@@ -469,7 +469,7 @@ mod test {
         let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let arr = ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)])));
-        let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)));
+        let head = ExpressionValue::Composite(CompositeValue::ArrayValue(arr));
 
         let cond = ExpressionValue::Expression(
             Expression::BinaryOp(BinaryOpType::EqualTo,
@@ -496,7 +496,7 @@ mod test {
         let expr_0: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("zero".to_owned()));
         let expr_1: ExpressionValue<ProcessedExpression> = ExpressionValue::Primitive(Primitive::StringVal("one".to_owned()));
         let arr = ArrayValue(Some(Box::new(vec![ParamValue::new(expr_0), ParamValue::new(expr_1)])));
-        let head = ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(arr)));
+        let head = ExpressionValue::Composite(CompositeValue::ArrayValue(arr));
 
         let cond = ExpressionValue::Expression(
             Expression::BinaryOp(BinaryOpType::EqualTo,

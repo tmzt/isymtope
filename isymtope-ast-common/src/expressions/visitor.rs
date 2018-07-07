@@ -20,13 +20,13 @@ impl<T> ExpressionVisitor<T> for DefaultExpressionVisitor {
 
         // Visit children
         match *n {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref children))))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref children)))) => {
                 for child in children {
                     self.visit_all(child.value(), f)?;
                 }
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref children))))) => {
+            ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref children)))) => {
                 for child in children {
                     self.visit_all(child.value(), f)?;
                 }
@@ -40,7 +40,7 @@ impl<T> ExpressionVisitor<T> for DefaultExpressionVisitor {
     fn visit_all_value_bindings<F: FnMut(Option<&str>, &CommonBindings<T>) -> DocumentProcessingResult<()>>(&mut self, n: &ExpressionValue<T>, f: &mut F) -> DocumentProcessingResult<()> {
         // Visit children
         match *n {
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref children))))) => {
+            ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(box ref children)))) => {
                 for child in children {
                     if let ExpressionValue::Binding(ref binding, _) = child.value() {
                         f(Some(child.key()), binding)?;
@@ -51,7 +51,7 @@ impl<T> ExpressionVisitor<T> for DefaultExpressionVisitor {
                 }
             }
 
-            ExpressionValue::Expression(Expression::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref children))))) => {
+            ExpressionValue::Composite(CompositeValue::ArrayValue(ArrayValue(Some(box ref children)))) => {
                 for child in children {
                     if let ExpressionValue::Binding(ref binding, _) = child.value() {
                         f(None, binding)?;
@@ -111,7 +111,7 @@ impl<T> FromIterator<PropValue<T>> for ObjectValue<T> {
 
 impl<T> Into<ExpressionValue<T>> for ObjectValue<T> {
     fn into(self) -> ExpressionValue<T> {
-        ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(self)))
+        ExpressionValue::Composite(CompositeValue::ObjectValue(self))
     }
 }
 
@@ -123,16 +123,16 @@ mod tests {
     use super::*;
 
     fn do_test_visit_all_value_bindings() -> DocumentProcessingResult<()> {
-        let obj: ExpressionValue<ProcessedExpression> = ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
-            PropValue::new("entry".to_owned(), ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+        let obj: ExpressionValue<ProcessedExpression> = ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+            PropValue::new("entry".to_owned(), ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
                 PropValue::new("name".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("abc".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("years".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("def".to_owned(), Default::default()), Default::default()), None)
-            ])))))), None),
-            PropValue::new("task".to_owned(), ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+            ]))))), None),
+            PropValue::new("task".to_owned(), ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
                 PropValue::new("name".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("ghi".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("hours_worked".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("jkl".to_owned(), Default::default()), Default::default()), None)
-            ])))))), None)
-        ]))))));
+            ]))))), None)
+        ])))));
 
         let mut results: Vec<(Option<String>, CommonBindings<ProcessedExpression>)> = Default::default();
         let mut visitor = DefaultExpressionVisitor;
@@ -199,19 +199,19 @@ mod tests {
     fn do_test_merge_all_value_bindings() -> DocumentProcessingResult<()> {
         use super::*;
 
-        let action1: ExpressionValue<ProcessedExpression> = ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
-            PropValue::new("entry".to_owned(), ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+        let action1: ExpressionValue<ProcessedExpression> = ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+            PropValue::new("entry".to_owned(), ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
                 PropValue::new("name".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("abc".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("years".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("def".to_owned(), Default::default()), Default::default()), None)
-            ])))))), None),
-        ]))))));
+            ]))))), None),
+        ])))));
 
-        let action2: ExpressionValue<ProcessedExpression> = ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
-            PropValue::new("task".to_owned(), ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+        let action2: ExpressionValue<ProcessedExpression> = ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+            PropValue::new("task".to_owned(), ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
                 PropValue::new("name".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("ghi".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("hours_worked".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("jkl".to_owned(), Default::default()), Default::default()), None)
-            ])))))), None)
-        ]))))));
+            ]))))), None)
+        ])))));
 
         let mut merged: HashMap<String, PropValue<ProcessedExpression>> = Default::default();
         action1.merge_all_value_bindings_into(&mut merged)?;
@@ -221,14 +221,14 @@ mod tests {
         merged_props.sort_by(|a, b| a.key().cmp(b.key()));
 
         let merged: ObjectValue<ProcessedExpression> = merged_props.into_iter().collect();
-        let merged = ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(merged)));
+        let merged = ExpressionValue::Composite(CompositeValue::ObjectValue(merged));
 
-        let expected = ExpressionValue::Expression(Expression::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
+        let expected = ExpressionValue::Composite(CompositeValue::ObjectValue(ObjectValue(Some(Box::new(vec![
                 PropValue::new("hours_worked".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("jkl".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("name".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("abc".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("name1".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("ghi".to_owned(), Default::default()), Default::default()), None),
                 PropValue::new("years".to_owned(), ExpressionValue::Binding(CommonBindings::NamedElementBoundValue("def".to_owned(), Default::default()), Default::default()), None)
-        ]))))));
+        ])))));
 
         assert_eq!(expected, merged);
         Ok(())
