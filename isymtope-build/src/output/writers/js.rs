@@ -1540,7 +1540,7 @@ impl ObjectWriter<Query<ProcessedExpression>, JsOutput> for DefaultJsWriter {
                 QueryComponent::CaseWhere(box ref expr, box ref cond, _) => {
                     write!(w, "        if (")?;
                     // self.write_object(w, ctx, cond)?;
-                    write_value(w, ctx, expr, false)?;
+                    write_value(w, ctx, cond, false)?;
                     write!(w, ") {{ return ")?;
                     // write_value(w, ctx, expr, eval)?;
                     write_value(w, ctx, expr, false)?;
