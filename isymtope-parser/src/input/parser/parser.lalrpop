@@ -117,11 +117,12 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
     // <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::new(e, v), Default::default())),
 
     /// Factor binary operation
-    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:ExpressionTermOrPipeline> => ExpressionValue::Expression(Expression::BinaryOp(BinaryOp(op, Box::new(a), Box::new(b)))),
+    <a:ExpressionFactor> <op:FactorBinaryOpType> <b:UnaryOpExpression> => ExpressionValue::Expression(Expression::BinaryOp(BinaryOp(op, Box::new(a), Box::new(b)))),
 
     /// Single term
-    ExpressionTermOrPipeline
+    // ExpressionTermOrPipeline
     // ExpressionTerm
+    UnaryOpExpression
 
     // // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(op, Box::new(a))),
     // // <a:ExpressionTerm> <op:TermBinaryOpType> <b:ExpressionTerm> => ExpressionValue::Expression(Expression::BinaryOp(op, Box::new(a), Box::new(b))),
@@ -132,17 +133,28 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
 ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
 {
    // Unary operation followed by pipeline (method and member chain)
-    <u:UnaryOpType> <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(u,
-        Box::new(ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())))))),
+    // <u:UnaryOpType> <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(u,
+    //     Box::new(ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())))))),
 
    // Pipeline (method and member chain)
     <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())),
     // <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(v), Default::default())),
 
     // Unary operation
-    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
+    // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
 
     ExpressionTerm
+};
+
+UnaryOpExpression : ExpressionValue<SourceExpression> =
+{
+    // Unary operation
+    <op:UnaryOpType> <a:UnaryOpExpression> => {
+        eprintln!("[parser] Got unary expression: ([{:?}]): {:?}", op, a);
+        ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a))))
+    },
+
+    ExpressionTermOrPipeline
 };
 
 // MapEntry : MapEntry<SourceExpression> =

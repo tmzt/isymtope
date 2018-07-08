@@ -156,12 +156,12 @@ impl ObjectWriter<ExpressionValue<ProcessedExpression>, HtmlOutput> for DefaultH
         match *obj {
             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
 
-            ExpressionValue::Expression(..) => {
+            ExpressionValue::Expression(..) | ExpressionValue::Binding(..) => {
                 let expr = eval_expression(obj, ctx)?;
                 self.write_object(w, ctx, &expr)
             }
 
-            ExpressionValue::Lens(..) => Ok(()),
+            // ExpressionValue::Lens(..) => Ok(()),
             // ExpressionValue::Binding(ref b, _) => self.write_object(w, b),
             _ => {
                 eprintln!(

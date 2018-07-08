@@ -146,7 +146,7 @@ impl TryProcessFrom<PipelineValue<SourceExpression>> for ReducedPipelineValue<Pr
 
         let n = member_path.len();
         if n > 0 {
-            if let ExpressionValue::Expression(Expression::Ident(..)) = head {
+            if let ExpressionValue::Expression(Expression::Ident(..)) | ExpressionValue::Binding(..) = head {
                 let head = ExpressionValue::Expression(Expression::Path(PathValue::new(head.to_owned(), Some(member_path)), Default::default()));
 
                 let head: ExpressionValue<ProcessedExpression> =

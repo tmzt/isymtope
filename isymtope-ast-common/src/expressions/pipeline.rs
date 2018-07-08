@@ -17,29 +17,67 @@ impl<T: Debug + Clone> PipelineValue<T> {
         PipelineValue(Box::new(e), Box::new(v))
     }
 
-    pub fn from_components(e: ExpressionValue<T>, v: Vec<PipelineComponentValue<T>>) -> Self {
-        eprintln!("[constructuing pipeline] from_components: e: {:?}", e);
-        eprintln!("[constructuing pipeline] from_components: v: {:?}", v);
+    pub fn from_components(head: ExpressionValue<T>, components: Vec<PipelineComponentValue<T>>) -> Self {
+        eprintln!("[constructing pipeline] from_components: head: {:?}", head);
+        eprintln!("[constructing pipeline] from_components: components: {:?}", components);
 
-        let mut iter = v.into_iter().peekable();
-        // Collect member components at start
-        let path_components: Vec<_> = iter.peeking_take_while(|e| match e { PipelineComponentValue::Member(..) => true, _ => false })
-            .map(|e| match e { PipelineComponentValue::Member(ref s) => Some(s.to_owned()), _ => None })
-            .map(|e| e.unwrap())
-            .collect();
+        let mut rest: Vec<PipelineComponentValue<T>> = Vec::with_capacity(16);
+        let mut member_path: Vec<String> = Vec::with_capacity(16);
+        let mut is_member_path = true;
 
-        // Collect method calls and remaining member components
-        let rest: Vec<_> = iter.collect();
-        let len = path_components.len();
-        let head = match e {
-            ExpressionValue::Expression(Expression::Ident(..)) |
-            ExpressionValue::Binding(CommonBindings::NamedQueryParam(..), _)
-                if len > 0 => {
-                ExpressionValue::Expression(Expression::Path(PathValue::new(e, Some(path_components)), Default::default()))
-            },
-            _ => e
+        for pcv in components {
+            match pcv {
+                PipelineComponentValue::Member(ref s) => {
+                    if !is_member_path {
+                        panic!("Member path component must not follow non-member component");
+                    };
+                    member_path.push(s.to_owned());
+                }
+
+                PipelineComponentValue::MethodCall(ref op, ref params, _) => {
+                    is_member_path = false;
+
+                    let op = op.to_owned();
+                    let params = params.as_ref().map(|v| v.to_owned());
+                    // let op = map_method(ctx, mth, &params)?;
+
+                    // rest.push(ReducedPipelineComponent::PipelineOp(op));
+                    rest.push(PipelineComponentValue::MethodCall(op, params, Default::default()));
+                }
+            }
+        }
+
+        let n = member_path.len();
+        if n > 0 {
+            if let ExpressionValue::Expression(Expression::Ident(..)) | ExpressionValue::Binding(..) = head {
+                let head = ExpressionValue::Expression(Expression::Path(PathValue::new(head.to_owned(), Some(member_path)), Default::default()));
+                
+                return PipelineValue(Box::new(head), Box::new(rest));
+            };
         };
+
         PipelineValue(Box::new(head), Box::new(rest))
+
+        // Ok(PipelineValue::new(head, rest))
+
+        // let mut iter = v.into_iter().peekable();
+        // // Collect member components at start
+        // let path_components: Vec<_> = iter.peeking_take_while(|e| match e { PipelineComponentValue::Member(..) => true, _ => false })
+        //     .map(|e| match e { PipelineComponentValue::Member(ref s) => Some(s.to_owned()), _ => None })
+        //     .map(|e| e.unwrap())
+        //     .collect();
+
+        // // Collect method calls and remaining member components
+        // let rest: Vec<_> = iter.collect();
+        // let len = path_components.len();
+        // let head = match e {
+        //     ExpressionValue::Expression(Expression::Ident(..)) |
+        //     ExpressionValue::Binding(CommonBindings::NamedQueryParam(..), _)
+        //         if len > 0 => {
+        //         ExpressionValue::Expression(Expression::Path(PathValue::new(e, Some(path_components)), Default::default()))
+        //     },
+        //     _ => e
+        // };
     }
 
     pub fn head(&self) -> &ExpressionValue<T> {

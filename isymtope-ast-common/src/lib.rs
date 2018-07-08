@@ -1,4 +1,4 @@
-#![feature(box_patterns, specialization)]
+#![feature(box_patterns, specialization, if_while_or_patterns)]
 
 #[macro_use]
 extern crate log;
