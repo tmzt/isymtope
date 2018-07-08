@@ -28,7 +28,8 @@ pub struct RouteMatcher {}
 impl RouteMatcher {
     pub fn get_matching_route(&self, doc: &Document, path: &str) -> Option<RouteMatch> {
         let routes: Vec<_> = doc.routes().map(|r| r.to_owned()).collect();
-        let regexes: Vec<_> = routes.iter().map(|r| URL_TOKEN.replace_all(r.pattern(), r"/(?P<$tok>[a-zA-Z0-9]+)")).collect();
+        let regexes: Vec<_> = routes.iter()
+            .map(|r| format!(r"^{}$", URL_TOKEN.replace_all(r.pattern(), r"\/(?P<$tok>[a-zA-Z0-9]+)"))).collect();
         let matcher = RegexSet::new(&regexes).unwrap();
         let regexes: Vec<_> = regexes.into_iter().map(|s| Regex::new(&s).unwrap()).collect();
         let idx = matcher.matches(path).into_iter().nth(0);

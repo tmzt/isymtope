@@ -92,6 +92,8 @@ fn render_example_app_route(state: &AppState, static_template: &str, base_url: &
 }
 
 fn render_route(mut req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
+    eprintln!("[isymtope-actix] render_route: {:?}", req);
+
     let playground_session_id = ::uuid::Uuid::new_v4().to_string();
     req.session().set("playground_session_id", playground_session_id).unwrap();
 
@@ -179,10 +181,10 @@ fn main() {
                 .handler("/resources/app", fs::StaticFiles::new("../examples/app/")
                     .default_handler(|_| HttpResponse::NotFound()))
 
-                .resource("/", |r| r.method(Method::GET).a(render_route))
+                .resource("/{route:.*}", |r| r.method(Method::GET).a(render_route));
 
-                .handler("/", fs::StaticFiles::new("../examples/app/playground/")
-                    .default_handler(|_| HttpResponse::NotFound()));
+                // .handler("/", fs::StaticFiles::new("../examples/app/playground/")
+                //     .default_handler(|_| HttpResponse::NotFound()));
 
             app
         })
