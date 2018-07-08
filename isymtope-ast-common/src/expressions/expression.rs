@@ -689,7 +689,7 @@ fn eval_inner_expression(
 //     T: Clone,
 //     ExpressionValue<ProcessedExpression>: TryEvalFrom<ExpressionValue<T>>,
 {
-    eprintln!("[eval expression] expr: {:?}", src);
+    eprintln!("[eval_inner_expression] expr: {:?}", src);
 
     Ok(match *src {
         Expression::ReducedPipeline(ref p, _) => eval_reduced_pipeline_to_value(p, ctx)?,
@@ -698,8 +698,8 @@ fn eval_inner_expression(
 
         Expression::QueryCall(ref query, _) => eval_inner_query_call(query, ctx)?,
 
-        // Expression::Group(Some(box ref e)) => Some(TryEvalFrom::try_eval_from(e, ctx)?),
-        // Expression::Group(_) => Some(ExpressionValue::Expression(Expression::Group(None))),
+        Expression::Group(Some(box ref e)) => eval_expression(e, ctx)?,
+        Expression::Group(_) => ExpressionValue::Expression(Expression::Group(None)),
 
         // Expression::Composite(..) => Some(ExpressionValue::Expression(src.to_owned())),
 
@@ -733,9 +733,10 @@ fn eval_unary_expression(
             ExpressionValue::Primitive(Primitive::BoolVal(!b))
         }
 
-        (&UnaryOpType::Negate, ..) => {
-            let b: bool = TryEvalFrom::try_eval_from(e, ctx)?;
-            ExpressionValue::Primitive(Primitive::BoolVal(!b))
+        (&UnaryOpType::Negate, ref a) => {
+            let a = eval_expression(a, ctx)?;
+            let a: bool = TryEvalFrom::try_eval_from(&a, ctx)?;
+            ExpressionValue::Primitive(Primitive::BoolVal(!a))
         }
     })
 }
@@ -890,6 +891,8 @@ pub fn eval_expression(
     src: &ExpressionValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<ExpressionValue<ProcessedExpression>> {
+    eprintln!("[eval expression] expr: {:?}", src);
+
     match *src {
         ExpressionValue::Primitive(..) | ExpressionValue::Composite(..) => Ok(src.to_owned()),
 

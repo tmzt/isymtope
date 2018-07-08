@@ -131,9 +131,16 @@ ExpressionFactor : ExpressionValue<SourceExpression> =
 
 ExpressionTermOrPipeline : ExpressionValue<SourceExpression> =
 {
+   // Unary operation followed by pipeline (method and member chain)
+    <u:UnaryOpType> <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(u,
+        Box::new(ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())))))),
+
    // Pipeline (method and member chain)
     <e:ExpressionTerm> "." <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(e, v), Default::default())),
     // <v:AtLeastOneOf<".", PipelineComponentValue>> => ExpressionValue::Expression(Expression::Pipeline(PipelineValue::from_components(v), Default::default())),
+
+    // Unary operation
+    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
 
     ExpressionTerm
 };
@@ -161,9 +168,6 @@ MapValue: MapValue<SourceExpression> =
 
 ExpressionTerm : ExpressionValue<SourceExpression> =
 {
-    /// Unary operation
-    <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
-
     /// Grouping operation
     "(" <e:ExpressionValue?> ")" => ExpressionValue::Expression(Expression::Group(e.map(Box::new))),
 
@@ -195,6 +199,11 @@ ExpressionTerm : ExpressionValue<SourceExpression> =
     ///
 
     <s:Id> => ExpressionValue::Expression(Expression::Ident(s, Default::default())),
+
+    /// Lowest Precedence
+
+    /// Unary operation
+    // <op:UnaryOpType> <a:ExpressionTerm> => ExpressionValue::Expression(Expression::UnaryOp(UnaryOp(op, Box::new(a)))),
 };
 
 #[inline]

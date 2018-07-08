@@ -145,38 +145,49 @@ pub fn eval_path(
     eprintln!("[path] eval_path: components (b): {:?}", components);
     let acc = match head {
         ExpressionValue::Composite(CompositeValue::ObjectValue(..
-        )) => Ok(&head),
-        _ => Err(try_eval_from_err!(
-            "Path head must evaluate to composite ObjectValue"
-        )),
-    }?;
+        )) => &head,
+        _ => {
+            eprintln!(
+                "Path head must evaluate to composite ObjectValue: {:?}",
+                head
+            );
+
+            return Err(try_eval_from_err!(
+                "Path head must evaluate to composite ObjectValue"
+            ));
+        },
+    };
 
     let res = components
         .into_iter()
-        .fold_while(Ok(acc), |acc, key| {
+        .fold_while(Ok(acc), |value, key| {
             eprintln!("TryEval PathValue -> OutputExpression: member: {}", key);
+            eprintln!("TryEval PathValue -> OutputExpression: value: {:?}", value);
+            let value = value.unwrap();
 
-            if let Ok(value) = acc {
-                eprintln!("TryEval PathValue -> OutputExpression: value: {:?}", value);
-
-                if let ExpressionValue::Composite(
-                    CompositeValue::ObjectValue(ObjectValue(Some(box ref fields))),
-                ) = *value
-                {
-                    let next = fields.into_iter().filter(|e| e.key() == key).nth(0);
-                    if let Some(ref value) = next.map(|e| e.value()) {
-                        return Done(Ok(value));
-                    };
+            if let ExpressionValue::Composite(
+                CompositeValue::ObjectValue(ObjectValue(Some(box ref fields))),
+            ) = *value
+            {
+                let next = fields.into_iter().filter(|e| e.key() == key).nth(0);
+                if let Some(ref value) = next.map(|e| e.value()) {
+                    return Done(Ok(value));
                 };
+            } else {
+                eprintln!(
+                    "[eval_path] Invalid state of eval_path fold: {:?}",
+                    value
+                );
 
-                return Done(Ok(value));
-            };
+                return Done(Err(try_eval_from_err!(format!("Invalid state of eval_path fold: {:?}", value))));
+            }
 
-            Done(Err(try_process_from_err!("Missing next object.")))
+            Done(Ok(value))
         })
-        .into_inner();
+        .into_inner()?;
 
-    res.map(|r| r.to_owned())
+    // res.map(|r| r.to_owned())
+    Ok(res.to_owned())
 }
 
 // impl TryEvalFrom<PathValue<ProcessedExpression>> for ExpressionValue<OutputExpression> {

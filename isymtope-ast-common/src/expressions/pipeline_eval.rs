@@ -199,7 +199,7 @@ impl<'ctx, I> Iterator for PipelineEval<'ctx, I> where I: Iterator<Item = Reduce
 impl PipelineState {
     pub fn try_from_expression(expr: ExpressionValue<ProcessedExpression>) -> DocumentProcessingResult<Self> {
         eprintln!(
-            "[pipeline] try_from_expression: expr: {:?}",
+            "[pipeline state] create pipeline state: try_from_expression: expr: {:?}",
             expr
         );
 
@@ -255,6 +255,11 @@ pub fn eval_reduced_pipeline(
     src: &ReducedPipelineValue<ProcessedExpression>,
     ctx: &mut OutputContext,
 ) -> DocumentProcessingResult<PipelineState> {
+    eprintln!(
+        "[pipeline] eval_reduced_pipeline: src: {:?}",
+        src
+    );
+
     let head = eval_expression(src.head(), ctx)?;
     let iter = src.components().into_iter().cloned();
     let eval = PipelineEval::create(iter, head, ctx)?;

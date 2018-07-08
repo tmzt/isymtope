@@ -12,12 +12,15 @@ use expressions::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PipelineValue<T>(Box<ExpressionValue<T>>, Box<Vec<PipelineComponentValue<T>>>);
 
-impl<T> PipelineValue<T> {
+impl<T: Debug + Clone> PipelineValue<T> {
     pub fn new(e: ExpressionValue<T>, v: Vec<PipelineComponentValue<T>>) -> Self {
         PipelineValue(Box::new(e), Box::new(v))
     }
 
     pub fn from_components(e: ExpressionValue<T>, v: Vec<PipelineComponentValue<T>>) -> Self {
+        eprintln!("[constructuing pipeline] from_components: e: {:?}", e);
+        eprintln!("[constructuing pipeline] from_components: v: {:?}", v);
+
         let mut iter = v.into_iter().peekable();
         // Collect member components at start
         let path_components: Vec<_> = iter.peeking_take_while(|e| match e { PipelineComponentValue::Member(..) => true, _ => false })

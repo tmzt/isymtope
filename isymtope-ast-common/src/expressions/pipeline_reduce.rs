@@ -118,48 +118,47 @@ impl TryProcessFrom<PipelineValue<SourceExpression>> for ReducedPipelineValue<Pr
         let components: Vec<PipelineComponentValue<ProcessedExpression>> =
             TryProcessFrom::try_process_from(&components, ctx)?;
 
-        let mut iter = components.into_iter();
+        // let mut iter = components.into_iter();
         let mut member_path: Vec<String> = Vec::with_capacity(16);
-        let mut components: Vec<ReducedPipelineComponent<ProcessedExpression>> = Vec::with_capacity(16);
+        let mut reduced_components: Vec<ReducedPipelineComponent<ProcessedExpression>> = Vec::with_capacity(16);
 
-        loop {
-            if let Some(PipelineComponentValue::Member(ref s)) = iter.next() {
-                member_path.push(s.to_owned());
-            } else {
-                break;
-            };
-        };
+        let mut is_member_path = true;
 
-        loop {
-            if let Some(PipelineComponentValue::MethodCall(ref mth, ref params, _)) = iter.next() {
-                let params = params.as_ref().map_or(vec![], |v| v.to_owned());
-                let op = map_method(ctx, mth, &params)?;
+        for pcv in components {
+            match pcv {
+                PipelineComponentValue::Member(ref s) => {
+                    if !is_member_path {
+                        return Err(try_process_from_err!("Member path component must not follow non-member component"));
+                    };
+                    member_path.push(s.to_owned());
+                }
 
-                components.push(ReducedPipelineComponent::PipelineOp(op));
-            } else {
-                break;
-            };
-        };
+                PipelineComponentValue::MethodCall(ref mth, ref params, _) => {
+                    is_member_path = false;
+
+                    let params = params.as_ref().map_or(vec![], |v| v.to_owned());
+                    let op = map_method(ctx, mth, &params)?;
+
+                    reduced_components.push(ReducedPipelineComponent::PipelineOp(op));
+                }
+            }
+        }
 
         let n = member_path.len();
         if n > 0 {
-            // if let ExpressionValue::Expression(Expression::Ident(ref s, _)) = head {
             if let ExpressionValue::Expression(Expression::Ident(..)) = head {
                 let head = ExpressionValue::Expression(Expression::Path(PathValue::new(head.to_owned(), Some(member_path)), Default::default()));
-                // let path_components: Vec<_> = vec![s.to_owned()].into_iter()
-                //     .chain(member_path.into_iter()).map(|s| PathComponentValue::Member(s, Default::default())).collect();
-                // let head = ExpressionValue::Expression(Expression::Path(PathValue::new(path_components, Default::default()), Default::default()));
 
                 let head: ExpressionValue<ProcessedExpression> =
                     TryProcessFrom::try_process_from(&head, ctx)?;
                 
-                return Ok(ReducedPipelineValue::new(head, components));
+                return Ok(ReducedPipelineValue::new(head, reduced_components));
             };
         };
 
         let head: ExpressionValue<ProcessedExpression> =
             TryProcessFrom::try_process_from(head, ctx)?;
 
-        Ok(ReducedPipelineValue::new(head, components))
+        Ok(ReducedPipelineValue::new(head, reduced_components))
     }
 }

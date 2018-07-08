@@ -28,32 +28,32 @@ where
                 .get_mut(scope_id)
                 .expect("scope_id from previous iteration expected to exist.");
 
-            eprintln!(
+            debug!(
                 "[find_match]  Looking for match in scope [{:?}] ",
                 scope
             );
             let result = f(scope);
 
             if let Some(result) = result {
-                eprintln!("[find_match] Found match in scope [{:?}]: {:?}", scope, result);
+                debug!("[find_match] Found match in scope [{:?}]: {:?}", scope, result);
 
                 Done((scope_id.to_owned(), Some(result)))
             } else {
-                eprintln!(
+                debug!(
                     "[find_match] Did not find match in scope {:?}.",
                     scope
                 );
 
                 let parent_id = scope.parent_id();
-                // eprintln!("[find_match] parent_id: {:?}", parent_id);
+                // debug!("[find_match] parent_id: {:?}", parent_id);
 
                 if parent_id.is_none() {
-                    eprintln!("[find_match] no parent_id, returning Done(None) to end fold_while.");
+                    debug!("[find_match] no parent_id, returning Done(None) to end fold_while.");
                     return Done((scope_id.to_owned(), None));
                 }
 
                 let scope_id = parent_id.unwrap().to_owned();
-                eprintln!(
+                debug!(
                     "[find_match] continuing to search in parent_id: {:?}",
                     parent_id
                 );
@@ -63,7 +63,7 @@ where
         .into_inner()
         .1;
 
-    eprintln!("[find_match] find entry res: {:?}", res);
+    debug!("[find_match] find entry res: {:?}", res);
 
     Ok(res)
 }
@@ -89,7 +89,7 @@ where
                 .get_mut(scope_id)
                 .expect("scope_id from previous iteration expected to exist.");
 
-            eprintln!(
+            debug!(
                 "[entries]  Looking for entry for key [{:?}] in scope [{:?}] ",
                 key, scope
             );
@@ -100,21 +100,21 @@ where
 
                 Done((scope_id.to_owned(), Some(entry)))
             } else {
-                eprintln!(
+                debug!(
                     "[entries] Did not find entry for key [{:?}] in scope [{:?}].",
                     key, scope
                 );
 
                 let parent_id = scope.parent_id();
-                // eprintln!("[entries] parent_id: {:?}", parent_id);
+                // debug!("[entries] parent_id: {:?}", parent_id);
 
                 if parent_id.is_none() {
-                    eprintln!("[entries] no parent_id, returning Done(None) to end fold_while.");
+                    debug!("[entries] no parent_id, returning Done(None) to end fold_while.");
                     return Done((scope_id.to_owned(), None));
                 }
 
                 let scope_id = parent_id.unwrap().to_owned();
-                eprintln!(
+                debug!(
                     "[entries] continuing to search in parent_id: {:?}",
                     parent_id
                 );
@@ -143,9 +143,16 @@ where
 
     match res {
         Some(value) => Ok(value),
-        _ => Err(try_eval_from_err!(format!(
-            "Could not find entry for key [{:?}]",
-            key
-        ))),
+        _ => {
+            eprintln!(
+                "Could not find entry for key [{:?}]",
+                key
+            );
+
+            Err(try_eval_from_err!(format!(
+                "Could not find entry for key [{:?}]",
+                key
+            )))
+        },
     }
 }
