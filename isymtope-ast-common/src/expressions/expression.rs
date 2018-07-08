@@ -896,7 +896,7 @@ pub fn eval_expression(
     match *src {
         ExpressionValue::Primitive(..) | ExpressionValue::Composite(..) => Ok(src.to_owned()),
 
-        ExpressionValue::Binding(ref binding, _) => {
+        ExpressionValue::Binding(ref binding, _) | ExpressionValue::BindingShape(BindingShape(ref binding, ..), ..) => {
             eval_inner_binding(binding, ctx)
         }
 

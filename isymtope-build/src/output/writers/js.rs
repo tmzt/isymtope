@@ -8,219 +8,185 @@ use output::*;
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct DefaultJsWriter {}
 
-impl ObjectWriter<Primitive, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        _ctx: &mut OutputContext,
-        obj: &Primitive,
-    ) -> DocumentProcessingResult<()> {
-        match *obj {
-            Primitive::Int32Val(n) => write!(w, "{}", n),
+fn write_primitive(
+    w: &mut io::Write,
+    obj: &Primitive,
+) -> DocumentProcessingResult<()> {
+    match *obj {
+        Primitive::Int32Val(n) => write!(w, "{}", n),
 
-            Primitive::BoolVal(b) if b => write!(w, "true"),
-            Primitive::BoolVal(_) => write!(w, "false"),
+        Primitive::BoolVal(b) if b => write!(w, "true"),
+        Primitive::BoolVal(_) => write!(w, "false"),
 
-            Primitive::CharVal(c) => write!(w, "'{}'", c),
-            Primitive::StringVal(ref s) => write!(w, "\"{}\"", s),
-            Primitive::NullVal => write!(w, "null"),
-            Primitive::Undefined => write!(w, "undefined"),
-        }?;
+        Primitive::CharVal(c) => write!(w, "'{}'", c),
+        Primitive::StringVal(ref s) => write!(w, "\"{}\"", s),
+        Primitive::NullVal => write!(w, "null"),
+        Primitive::Undefined => write!(w, "undefined"),
+    }?;
 
-        Ok(())
-    }
+    Ok(())
 }
 
-impl ObjectWriter<LensValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &LensValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter LensValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+fn write_lens(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &LensValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter LensValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        match *obj {
-            LensValue::ForLens(..) => Ok(()),
-            LensValue::GetLens(ref _alias, box ref value, _) => {
-                self.write_object(w, ctx, value)?;
-                Ok(())
-            }
+    match *obj {
+        LensValue::ForLens(..) => Ok(()),
+        LensValue::GetLens(ref _alias, box ref value, _) => {
+            write_value(w, ctx, value, eval)?;
+            Ok(())
+        }
 
-            LensValue::QueryLens(ref item_key, ref query_call, _) => {
-                let name = query_call.name();
-                write!(w, "/* query lens: {:?} in {} */", item_key, name)?;
-                write!(w, "[]")?;
+        LensValue::QueryLens(ref item_key, ref query_call, _) => {
+            let name = query_call.name();
+            write!(w, "/* query lens: {:?} in {} */", item_key, name)?;
+            write!(w, "[]")?;
 
-                Ok(())
-            }
+            Ok(())
         }
     }
 }
 
-impl ObjectWriter<ExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ExpressionValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        match *obj {
-            ExpressionValue::Composite(ref c) => self.write_object(w, ctx, c),
-            ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
-            ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
-            ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
-            ExpressionValue::BindingShape(ref s, _) => self.write_object(w, ctx, s.binding()),
-            ExpressionValue::Lens(ref l, _) => self.write_object(w, ctx, l),
-            ExpressionValue::SourceLens(_, _) => Ok(()),
-            ExpressionValue::Content(_, _) => Ok(()), // _ => Err(reduction_err_bt!())
-        }
+pub fn write_value(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ExpressionValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    match *obj {
+        ExpressionValue::Composite(ref c) => write_composite(w, ctx, c, eval),
+        ExpressionValue::Expression(ref e) => write_expression(w, ctx, e, eval),
+        ExpressionValue::Primitive(ref p) => write_primitive(w, p),
+        ExpressionValue::Binding(ref b, _) => write_binding(w, ctx, b, eval),
+        ExpressionValue::BindingShape(ref s, _) => write_binding(w, ctx, s.binding(), eval),
+        ExpressionValue::Lens(ref l, _) => write_lens(w, ctx, l, eval),
+        ExpressionValue::SourceLens(_, _) => Ok(()),
+        ExpressionValue::Content(_, _) => Ok(()), // _ => Err(reduction_err_bt!())
     }
 }
 
-// impl ObjectWriter<ExpressionValue<OutputExpression>, JsOutput> for DefaultJsWriter {
+fn write_binding(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &CommonBindings<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    eprintln!(
+        "ObjectWriter CommonBindings (JS): obj: {:?}",
+        obj
+    );
+
+    match *obj {
+        CommonBindings::CurrentReducerState(_) => write!(w, "state"),
+        CommonBindings::CurrentItem(_) => write!(w, "_item"),
+        CommonBindings::CurrentItemIndex => write!(w, "_idx"),
+        CommonBindings::CurrentItemKey => write!(w, "_key"),
+        CommonBindings::NamedReducerKey(ref key, _) => write!(w, "store.getState().{}", key),
+        CommonBindings::NamedReducerActionParam(ref ident, _) => write!(w, "action.{}", ident),
+        CommonBindings::NamedQueryParam(ref ident, _) => write!(w, "{}", ident),
+        CommonBindings::NamedComponentProp(ref ident, _) => write!(w, "props.{}", ident),
+        CommonBindings::ComponentPropsObject(_) => write!(w, "props"),
+        CommonBindings::NamedEventBoundValue(_, _) => write!(w, "_event.target.value"),
+        CommonBindings::NamedElementBoundValue(ref element_key, _) => {
+            // Is this element being emitted within a component definition (function)?
+            let is_component = ctx.environment()? == Some(OutputScopeEnvironment::Component);
+            // Also check if we have an element key in the context (if we are actually being output as HTML)
+            let element_key = match ctx.get_element_key()? {
+                Some(ref s) => format!("document.querySelector(\"[key = '{}.{}']\").value", s, element_key),
+                _ if is_component => format!("document.querySelector(\"[key = '\" + props.key + \".{}']\").value", element_key),
+                _ => format!("document.querySelector(\"[key = '{}']\").value", element_key)
+            };
+            write!(w, "{}", element_key)
+        }
+        CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
+        CommonBindings::CurrentElementKeyPath => write!(w, "props.key"),
+        CommonBindings::PathAlias(ref path, _) => write!(w, "{}", path),
+    }?;
+
+    Ok(())
+}
+
+// impl ObjectWriter<ParamValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
 //     fn write_object(
 //         &mut self,
 //         w: &mut io::Write,
 //         ctx: &mut OutputContext,
-//         obj: &ExpressionValue<OutputExpression>,
+//         obj: &ParamValue<ProcessedExpression>,
 //     ) -> DocumentProcessingResult<()> {
-//         match *obj {
-//             ExpressionValue::Expression(ref e) => self.write_object(w, ctx, e),
-//             ExpressionValue::Primitive(ref p) => self.write_object(w, ctx, p),
-//             // ExpressionValue::Binding(ref b, _) => self.write_object(w, ctx, b),
-//             _ => Err(try_process_from_err!(format!(
-//                 "Unsupported output expression: {:?}",
-//                 obj
-//             ))),
-//         }
+//         debug!(
+//             "ObjectWriter ParamValue<ProcessedExpression> (JS): obj: {:?}",
+//             obj
+//         );
+//         self.write_object(w, ctx, obj.value())
 //     }
 // }
 
-// impl<T: Clone + Debug> ObjectWriter<CommonBindings<T>, JsOutput> for DefaultJsWriter {
-impl ObjectWriter<CommonBindings<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &CommonBindings<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter CommonBindings (JS): obj: {:?}",
-            obj
-        );
-
-        match *obj {
-            CommonBindings::CurrentReducerState(_) => write!(w, "state"),
-            CommonBindings::CurrentItem(_) => write!(w, "_item"),
-            CommonBindings::CurrentItemIndex => write!(w, "_idx"),
-            CommonBindings::CurrentItemKey => write!(w, "_key"),
-            CommonBindings::NamedReducerKey(ref key, _) => write!(w, "store.getState().{}", key),
-            CommonBindings::NamedReducerActionParam(ref ident, _) => write!(w, "action.{}", ident),
-            CommonBindings::NamedQueryParam(ref ident, _) => write!(w, "{}", ident),
-            CommonBindings::NamedComponentProp(ref ident, _) => write!(w, "props.{}", ident),
-            CommonBindings::ComponentPropsObject(_) => write!(w, "props"),
-            CommonBindings::NamedEventBoundValue(_, _) => write!(w, "_event.target.value"),
-            CommonBindings::NamedElementBoundValue(ref element_key, _) => {
-                // Is this element being emitted within a component definition (function)?
-                let is_component = ctx.environment()? == Some(OutputScopeEnvironment::Component);
-                // Also check if we have an element key in the context (if we are actually being output as HTML)
-                let element_key = match ctx.get_element_key()? {
-                    Some(ref s) => format!("document.querySelector(\"[key = '{}.{}']\").value", s, element_key),
-                    _ if is_component => format!("document.querySelector(\"[key = '\" + props.key + \".{}']\").value", element_key),
-                    _ => format!("document.querySelector(\"[key = '{}']\").value", element_key)
-                };
-                write!(w, "{}", element_key)
-            }
-            CommonBindings::CurrentElementValue(_) => write!(w, "_event.target.value"),
-            CommonBindings::CurrentElementKeyPath => write!(w, "props.key"),
-            CommonBindings::PathAlias(ref path, _) => write!(w, "{}", path),
-        }?;
-
-        Ok(())
-    }
-}
-
-impl ObjectWriter<ParamValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ParamValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter ParamValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
-        self.write_object(w, ctx, obj.value())
-    }
-}
-
-impl ObjectWriter<PipelineComponentValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &PipelineComponentValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PipelineComponentValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
-
-        match *obj {
-            PipelineComponentValue::Member(ref s) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
-
-            PipelineComponentValue::MethodCall(ref s, ref params, _) => {
-                write!(w, "{}(", s)?;
-                if let &Some(ref params) = params {
-                    let mut first = true;
-                    for param in params {
-                        if !first {
-                            write!(w, ",")?;
-                        }
-                        self.write_object(w, ctx, param)?;
-                        first = false;
-                    }
-                }
-                write!(w, ")")?;
-                Ok(())
-            }
-        }
-    }
-}
-
-fn write_pipeline_head<T: Debug>(
-    _self: &mut DefaultJsWriter,
+pub fn write_pipeline_component(
     w: &mut io::Write,
     ctx: &mut OutputContext,
-    head: &ExpressionValue<T>,
-) -> DocumentProcessingResult<()>
-where
-    DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>,
-{
-    eprintln!("[JS] write_pipeline_head: head: {:?}", head);
-    match *head {
-        ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _)
-        | ExpressionValue::Binding(CommonBindings::NamedQueryParam(..), _) => {
-            write!(w, "toGen(")?;
-            _self.write_object(w, ctx, head)?;
+    obj: &PipelineComponentValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter PipelineComponentValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
+
+    match *obj {
+        PipelineComponentValue::Member(ref s) => {
+            write!(w, "{}", s)?;
+            Ok(())
+        }
+
+        PipelineComponentValue::MethodCall(ref s, ref params, _) => {
+            write!(w, "{}(", s)?;
+            if let &Some(ref params) = params {
+                let mut first = true;
+                for param in params {
+                    if !first {
+                        write!(w, ",")?;
+                    }
+                    write_value(w, ctx, param.value(), false)?;
+                    first = false;
+                }
+            }
             write!(w, ")")?;
+            Ok(())
         }
-
-        _ => {
-            _self.write_object(w, ctx, head)?;
-        }
-    };
-
-    Ok(())
+    }
 }
+
+// fn write_pipeline_head(
+//     w: &mut io::Write,
+//     ctx: &mut OutputContext,
+//     head: &ExpressionValue<ProcessedExpression>,
+//     eval: bool,
+// ) -> DocumentProcessingResult<()>
+// {
+//     eprintln!("[JS] write_pipeline_head: head: {:?}", head);
+//     match *head {
+//         ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _)
+//         | ExpressionValue::Binding(CommonBindings::NamedQueryParam(..), _) => {
+//             write!(w, "toGen(")?;
+//             write_value(w, ctx, head, eval)?;
+//             write!(w, ")")?;
+//         }
+
+//         _ => {
+//             write_value(w, ctx, head, eval)?;
+//         }
+//     };
+
+//     Ok(())
+// }
 
 fn get_binding_shape(ctx: &mut OutputContext, binding: &CommonBindings<ProcessedExpression>) -> DocumentProcessingResult<Option<OuterShape>> {
     if let Some(ExpressionValue::BindingShape(BindingShape(_, ref shape), _)) = ctx.find_value(binding)? {
@@ -241,32 +207,30 @@ struct EvaluateValue<T>(pub ExpressionValue<T>);
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct ReducerOutputValue<T>(pub ExpressionValue<T>);
 
-impl ObjectWriter<EvaluateValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &EvaluateValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        let shape = match obj.0 {
-            ExpressionValue::Binding(ref binding, _) => get_binding_shape(ctx, binding)?,
-            _ => None
-        };
+fn write_as_evaluation(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &EvaluateValue<ProcessedExpression>,
+) -> DocumentProcessingResult<()> {
+    let shape = match obj.0 {
+        ExpressionValue::Binding(ref binding, _) => get_binding_shape(ctx, binding)?,
+        _ => None
+    };
 
-        match shape {
-            Some(OuterShape::Array) | Some(OuterShape::Map) => {
-                write!(w, "values(")?;
-                self.write_object(w, ctx, &obj.0)?;
-                write!(w, ")")?;
-            }
+    match shape {
+        Some(OuterShape::Array) | Some(OuterShape::Map) => {
+            write!(w, "values(")?;
+            write_value(w, ctx, &obj.0, false)?;
+            write!(w, ")")?;
+        }
 
-            _ => {
-                self.write_object(w, ctx, &obj.0)?;
-            }
-        };
+        _ => {
+            // self.write_object(w, ctx, &obj.0)?;
+            write_value(w, ctx, &obj.0, false)?;
+        }
+    };
 
-        Ok(())
-    }
+    Ok(())
 }
 
 impl ObjectWriter<ReducerOutputValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
@@ -280,524 +244,518 @@ impl ObjectWriter<ReducerOutputValue<ProcessedExpression>, JsOutput> for Default
 
         if shape == Some(OuterShape::Array) || shape == Some(OuterShape::Map) {
             write!(w, "asMap(undefined, ")?;
-            self.write_object(w, ctx, &obj.0)?;
+            // self.write_object(w, ctx, &obj.0)?;
+            write_value(w, ctx, &obj.0, false)?;
             write!(w, ")")?;
         } else {
-            self.write_object(w, ctx, &obj.0)?;
+            write_value(w, ctx, &obj.0, false)?;
         }
 
         Ok(())
     }
 }
 
-impl ObjectWriter<ShapedExpressionValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ShapedExpressionValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        match obj.0 {
-            OuterShape::Array | OuterShape::Map => {
-                write!(w, "values(")?;
-                self.write_object(w, ctx, &obj.1)?;
-                write!(w, ")")?;
-            }
+fn write_shaped_expression(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ShapedExpressionValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    match obj.0 {
+        OuterShape::Array | OuterShape::Map => {
+            write!(w, "values(")?;
+            write_value(w, ctx, &obj.1, eval)?;
+            write!(w, ")")?;
+        }
 
-            _ => {
-                self.write_object(w, ctx, &obj.1)?;
-            }
-        };
+        _ => {
+            write_value(w, ctx, &obj.1, eval)?;
+        }
+    };
 
-        Ok(())
-    }
+    Ok(())
 }
 
-impl ObjectWriter<PipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &PipelineValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PipelineValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+fn write_pipeline(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &PipelineValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter PipelineValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        // Construct composite pipeline (function)
-        write!(w, "pipe(")?;
-        let mut first = true;
-        if obj.has_components() {
-            let components = obj.components();
-            for component in components {
-                if !first { write!(w, ", ")?; }
-                self.write_object(w, ctx, component)?;
-                first = false;
-            }
-        };
-        write!(w, ")")?;
+    // Construct composite pipeline (function)
+    write!(w, "pipe(")?;
+    let mut first = true;
+    if obj.has_components() {
+        let components = obj.components();
+        for component in components {
+            if !first { write!(w, ", ")?; }
+            write_pipeline_component(w, ctx, component, eval)?;
+            first = false;
+        }
+    };
+    write!(w, ")")?;
 
-        // Apply pipeline as a function to a value
-        write!(w, "(")?;
-        let write_shape = EvaluateValue(obj.head().to_owned());
-        self.write_object(w, ctx, &write_shape)?;
-        write!(w, ")")?;
+    // Apply pipeline as a function to a value
+    write!(w, "(")?;
+    let evaluation = EvaluateValue(obj.head().to_owned());
+    write_as_evaluation(w, ctx, &evaluation)?;
+    write!(w, ")")?;
 
-        Ok(())
-    }
+    Ok(())
 }
 
 ///
 /// Filter (sql-like) pipelines
 ///
 
-impl ObjectWriter<FilterValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &FilterValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter FilterValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+fn write_filter(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &FilterValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    eprintln!(
+        "ObjectWriter FilterValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        // Construct composite pipeline (function)
-        write!(w, "pipe(")?;
-        let mut first = true;
-        if obj.has_components() {
-            let components = obj.components();
-            for component in components {
-                if !first { write!(w, ", ")?; }
-                self.write_object(w, ctx, component)?;
-                first = false;
-            }
-        };
-        write!(w, ")")?;
-
-        // Apply pipeline as a function to a value
-        write!(w, "(")?;
-        let write_shape = EvaluateValue(obj.head().to_owned());
-        self.write_object(w, ctx, &write_shape)?;
-        write!(w, ")")?;
-
-        Ok(())
-    }
-}
-
-impl ObjectWriter<FilterComponentValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &FilterComponentValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter FilterComponentValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
-
-        match *obj {
-            FilterComponentValue::Where(ref wc, _) => {
-                write!(w, "filterFunc(_item => ")?;
-                self.write_object(w, ctx, wc)?;
-                write!(w, ")")?;
-
-                Ok(())
-            }
-
-            FilterComponentValue::Set(ref v, ref wc, _) => {
-                write!(w, "setObjectFunc(_item => ({{")?;
-
-                let mut first = true;
-                for set_assignment in v {
-                    match *set_assignment {
-                        FilterSetAssignment::SetMemberTo(ref s, ref e, _) => {
-                            if !first {
-                                write!(w, ", ")?;
-                            }
-                            write!(w, "\"{}\": ", s)?;
-                            self.write_object(w, ctx, e)?;
-                            first = false;
-                        }
-                    }
-                }
-                write!(w, "}})")?;
-
-                if let &Some(ref wc) = wc {
-                    write!(w, ", _item => ")?;
-                    self.write_object(w, ctx, wc)?;
-                };
-
-                write!(w, ")")?;
-
-                Ok(())
-            }
-
-            FilterComponentValue::Delete(ref wc, _) => {
-                write!(w, "_utils.removeObject(_item => ")?;
-                self.write_object(w, ctx, wc)?;
-                write!(w, ")")?;
-
-                Ok(())
-            }
-
-            FilterComponentValue::Unique(ref mapping, _) => {
-                write!(w, "_utils.uniqFunc(_item => ")?;
-                self.write_object(w, ctx, mapping)?;
-                write!(w, ")")?;
-
-                Ok(())
-            }
-        }
-    }
-}
-
-impl ObjectWriter<FilterWhereClause<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &FilterWhereClause<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter FilterWhereClause<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
-
-        let anded_conditions = obj.anded_conditions();
-        let mut first = true;
-        for cond in anded_conditions {
-            if !first {
-                write!(w, " && ")?;
-            }
-            self.write_object(w, ctx, cond)?;
+    // Construct composite pipeline (function)
+    write!(w, "pipe(")?;
+    let mut first = true;
+    if obj.has_components() {
+        let components = obj.components();
+        for component in components {
+            if !first { write!(w, ", ")?; }
+            write_filter_component(w, ctx, component, eval)?;
             first = false;
         }
+    };
+    write!(w, ")")?;
 
-        Ok(())
+    // Apply pipeline as a function to a value
+    write!(w, "(")?;
+    let evaluation = EvaluateValue(obj.head().to_owned());
+    write_as_evaluation(w, ctx, &evaluation)?;
+    write!(w, ")")?;
+
+    Ok(())
+}
+
+fn write_filter_component(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &FilterComponentValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    eprintln!(
+        "ObjectWriter FilterComponentValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
+
+    match *obj {
+        FilterComponentValue::Where(ref wc, _) => {
+            write!(w, "filterFunc(_item => ")?;
+            write_filter_where_clause(w, ctx, wc, false)?;
+            write!(w, ")")?;
+
+            Ok(())
+        }
+
+        FilterComponentValue::Set(ref v, ref wc, _) => {
+            write!(w, "setObjectFunc(_item => ({{")?;
+
+            let mut first = true;
+            for set_assignment in v {
+                match *set_assignment {
+                    FilterSetAssignment::SetMemberTo(ref s, ref e, _) => {
+                        if !first {
+                            write!(w, ", ")?;
+                        }
+                        write!(w, "\"{}\": ", s)?;
+                        write_value(w, ctx, e, false)?;
+                        first = false;
+                    }
+                }
+            }
+            write!(w, "}})")?;
+
+            if let Some(ref wc) = *wc {
+                write!(w, ", _item => ")?;
+                write_filter_where_clause(w, ctx, wc, false)?;
+            };
+
+            write!(w, ")")?;
+
+            Ok(())
+        }
+
+        FilterComponentValue::Delete(ref wc, _) => {
+            write!(w, "_utils.removeObject(_item => ")?;
+            write_filter_where_clause(w, ctx, wc, eval)?;
+            write!(w, ")")?;
+
+            Ok(())
+        }
+
+        FilterComponentValue::Unique(ref mapping, _) => {
+            write!(w, "_utils.uniqFunc(_item => ")?;
+            write_value(w, ctx, mapping, eval)?;
+            write!(w, ")")?;
+
+            Ok(())
+        }
     }
+}
+
+fn write_filter_where_clause(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &FilterWhereClause<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter FilterWhereClause<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
+
+    let anded_conditions = obj.anded_conditions();
+    let mut first = true;
+    for cond in anded_conditions {
+        if !first {
+            write!(w, " && ")?;
+        }
+        write_value(w, ctx, cond, false)?;
+        first = false;
+    }
+
+    Ok(())
 }
 
 ///
 /// Reduced pipeline
 ///
 
-impl ObjectWriter<ReducedPipelineValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ReducedPipelineValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter ReducedPipelineValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+fn write_reduced_pipeline(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ReducedPipelineValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter ReducedPipelineValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        let components: Vec<_> = obj.components().collect();
+    let components: Vec<_> = obj.components().collect();
 
-        // Special case, this pipeline returns a scalar value
-        let is_scalar = match components.last() {
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::First)) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::FirstWhere(..))) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::Count)) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::CountIf(..))) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MinBy(..))) => true,
-            Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MaxBy(..))) => true,
-            _ => false
-        };
+    // Special case, this pipeline returns a scalar value
+    let is_scalar = match components.last() {
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::First)) => true,
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::FirstWhere(..))) => true,
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::Count)) => true,
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::CountIf(..))) => true,
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MinBy(..))) => true,
+        Some(&&ReducedPipelineComponent::PipelineOp(ReducedMethodCall::MaxBy(..))) => true,
+        _ => false
+    };
 
-        if !is_scalar {
-            write!(w, "Array.from(")?;
-        }
-        write!(w, "pipe(")?;
-
-        let mut first = true;
-
-        for component in components {
-            if !first { writeln!(w, ", ")?; }
-            self.write_object(w, ctx, component)?;
-            first = false;
-        }
-        write!(w, ")(values(")?;
-        self.write_object(w, ctx, obj.head())?;
-        write!(w, "))")?;
-        if !is_scalar {
-            write!(w, ")")?;
-        };
-        Ok(())
+    if !is_scalar {
+        write!(w, "Array.from(")?;
     }
+    write!(w, "pipe(")?;
+
+    let mut first = true;
+
+    for component in components {
+        if !first { writeln!(w, ", ")?; }
+        write_reduced_pipeline_component(w, ctx, component, false)?;
+        first = false;
+    }
+    write!(w, ")(values(")?;
+    write_value(w, ctx, obj.head(), false)?;
+    write!(w, "))")?;
+    if !is_scalar {
+        write!(w, ")")?;
+    };
+    Ok(())
 }
 
-impl ObjectWriter<ReducedPipelineComponent<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ReducedPipelineComponent<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        match *obj {
-            ReducedPipelineComponent::PipelineOp(ref op) => {
-                match *op {
-                    ReducedMethodCall::Map(ref expr) => {
-                        write!(w, "mapFunc(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ")")?;
-                    }
-
-                    // ReducedMethodCall::MapIf(ref expr, ref cond) => {
-                    //     write!(w, ".map(_item => ")?;
-                    //     self.write_object(w, ctx, expr)?;
-                    //     write!(w, ", _item => ")?;
-                    //     self.write_object(w, ctx, cond)?;
-                    //     write!(w, ")")?;
-                    // }
-
-                    ReducedMethodCall::Filter(ref cond) => {
-                        // write!(w, "ng.filter(_item => ")?;
-                        write!(w, "filterFunc(_item => ")?;
-                        self.write_object(w, ctx, cond)?;
-                        write!(w, ")")?;
-                    }
-
-                    ReducedMethodCall::Reduce(ref expr, ref initial) => {
-                        write!(w, "reduceFunc(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ", ")?;
-                        self.write_object(w, ctx, initial)?;
-                        write!(w, ")")?;
-                    }
-
-                    ReducedMethodCall::ReduceIf(ref expr, ref cond, ref initial) => {
-                        write!(w, "_utils.reduceIf(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ", ")?;
-                        self.write_object(w, ctx, initial)?;
-                        write!(w, ", ")?;
-                        self.write_object(w, ctx, cond)?;
-                        write!(w, ")")?;
-                    }
-
-                    // TODO: Fix mapping function
-                    ReducedMethodCall::Uniq(_) => {
-                        // write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
-                        // write!(
-                        //     w,
-                        //     "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
-                        // )?;
-                        write!(w, "uniqFunc")?;
-                    }
-
-                    // ReducedMethodCall::UniqByKey(ref key) => {
-                    //     write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
-                    //     write!(
-                    //         w,
-                    //         "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
-                    //     )?;
-                    // }
-
-                    // ReducedMethodCall::MinBy(ref expr) => {
-                    //     // write!(w, ".reduce((v, acc) => (v < acc) ? v : acc)")?;
-                    //     write!(w, ".min(_item => ")?;
-                    //     self.write_object(w, ctx, expr)?;
-                    //     write!(w, ")")?;
-                    // }
-
-                    ReducedMethodCall::MaxBy(ref expr) => {
-                        // write!(w, ".reduce((v, acc) => (v > acc) ? v : acc)")?;
-                        write!(w, "maxByFunc(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ")")?;
-                    }
-
-                    ReducedMethodCall::Count => {
-                        write!(w, "_utils.count()")?;
-                    }
-
-                    ReducedMethodCall::CountIf(ref expr) => {
-                        // write!(w, ".count(_item => ")?;
-                        // self.write_object(w, ctx, expr)?;
-                        // write!(w, ")")?;
-                        // write!(w, "ng.map((() => { let n = 0; return _item => ")?;
-                        // self.write_object(w, ctx, expr)?;
-                        // write!(w, "})())")?;
-
-                        write!(w, "_utils.countIfFunc(_item => ")?;
-                        self.write_object(w, ctx, expr)?;
-                        write!(w, ")")?;
-                    }
-
-                    // ReducedMethodCall::FirstWhere(ref cond) => {
-                    //     write!(w, ".first(_item => ")?;
-                    //     self.write_object(w, ctx, cond)?;
-                    //     write!(w, ")")?;
-                    // }
-
-                    ReducedMethodCall::First => {
-                        // write!(w, ".first()")?;
-                        // write!(w, "ng.take(1)")?;
-                        write!(w, "first")?;
-                    }
-
-                    _ => {
-                        return Err(try_eval_from_err!("Reduced method call not supported."));
-                    }
+fn write_reduced_pipeline_component(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ReducedPipelineComponent<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    match *obj {
+        ReducedPipelineComponent::PipelineOp(ref op) => {
+            match *op {
+                ReducedMethodCall::Map(ref expr) => {
+                    write!(w, "mapFunc(_item => ")?;
+                    write_value(w, ctx, expr, eval)?;
+                    write!(w, ")")?;
                 }
-                Ok(())
-            }
 
-            ReducedPipelineComponent::Member(ref name) => {
-                write!(w, ".{}", name)?;
-                Ok(())
-            }
+                // ReducedMethodCall::MapIf(ref expr, ref cond) => {
+                //     write!(w, ".map(_item => ")?;
+                //     write_value(w, ctx, expr, eval)?;
+                //     write!(w, ", _item => ")?;
+                //     self.write_object(w, ctx, cond)?;
+                //     write!(w, ")")?;
+                // }
 
-            // ReducedPipelineComponent::ExpressionValue(ref expr) => self.write_object(w, ctx, expr)
-            _ => Ok(()),
+                ReducedMethodCall::Filter(ref cond) => {
+                    // write!(w, "ng.filter(_item => ")?;
+                    write!(w, "filterFunc(_item => ")?;
+                    write_value(w, ctx, cond, eval)?;
+                    write!(w, ")")?;
+                }
+
+                ReducedMethodCall::Reduce(ref expr, ref initial) => {
+                    write!(w, "reduceFunc(_item => ")?;
+                    write_value(w, ctx, expr, eval)?;
+                    write!(w, ", ")?;
+                    write_value(w, ctx, initial, eval)?;
+                    write!(w, ")")?;
+                }
+
+                ReducedMethodCall::ReduceIf(ref expr, ref cond, ref initial) => {
+                    write!(w, "_utils.reduceIf(_item => ")?;
+                    write_value(w, ctx, expr, eval)?;
+                    write!(w, ", ")?;
+                    write_value(w, ctx, initial, eval)?;
+                    write!(w, ", ")?;
+                    write_value(w, ctx, cond, eval)?;
+                    write!(w, ")")?;
+                }
+
+                // TODO: Fix mapping function
+                ReducedMethodCall::Uniq(_) => {
+                    // write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
+                    // write!(
+                    //     w,
+                    //     "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
+                    // )?;
+                    write!(w, "uniqFunc")?;
+                }
+
+                // ReducedMethodCall::UniqByKey(ref key) => {
+                //     write!(w, ".filter((function(_keys) {{ return function(_item) {{ let _key = item[_key]; ")?;
+                //     write!(
+                //         w,
+                //         "; return !(_keys.has(_key) || !_keys.add(_key) ); }}}})(new Set()))"
+                //     )?;
+                // }
+
+                // ReducedMethodCall::MinBy(ref expr) => {
+                //     // write!(w, ".reduce((v, acc) => (v < acc) ? v : acc)")?;
+                //     write!(w, ".min(_item => ")?;
+                //     write_value(w, ctx, expr, eval)?;
+                //     write!(w, ")")?;
+                // }
+
+                ReducedMethodCall::MaxBy(ref expr) => {
+                    // write!(w, ".reduce((v, acc) => (v > acc) ? v : acc)")?;
+                    write!(w, "maxByFunc(_item => ")?;
+                    write_value(w, ctx, expr, eval)?;
+                    write!(w, ")")?;
+                }
+
+                ReducedMethodCall::Count => {
+                    write!(w, "_utils.count()")?;
+                }
+
+                ReducedMethodCall::CountIf(ref expr) => {
+                    // write!(w, ".count(_item => ")?;
+                    // write_value(w, ctx, expr, eval)?;
+                    // write!(w, ")")?;
+                    // write!(w, "ng.map((() => { let n = 0; return _item => ")?;
+                    // write_value(w, ctx, expr, eval)?;
+                    // write!(w, "})())")?;
+
+                    write!(w, "_utils.countIfFunc(_item => ")?;
+                    write_value(w, ctx, expr, eval)?;
+                    write!(w, ")")?;
+                }
+
+                // ReducedMethodCall::FirstWhere(ref cond) => {
+                //     write!(w, ".first(_item => ")?;
+                //     self.write_object(w, ctx, cond)?;
+                //     write!(w, ")")?;
+                // }
+
+                ReducedMethodCall::First => {
+                    // write!(w, ".first()")?;
+                    // write!(w, "ng.take(1)")?;
+                    write!(w, "first")?;
+                }
+
+                _ => {
+                    return Err(try_eval_from_err!("Reduced method call not supported."));
+                }
+            }
+            Ok(())
         }
+
+        ReducedPipelineComponent::Member(ref name) => {
+            write!(w, ".{}", name)?;
+            Ok(())
+        }
+
+        // ReducedPipelineComponent::ExpressionValue(ref expr) => self.write_object(w, ctx, expr)
+        _ => Ok(()),
     }
 }
 
 ///
 /// Basic and compound expressions
 ///
+// impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &Expression<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//     }
+// }
 
-impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &Expression<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        eprintln!(
-            "ObjectWriter Expression<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+pub fn write_expression(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &Expression<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    eprintln!(
+        "ObjectWriter Expression<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        match *obj {
-            Expression::Path(ref p, _) => self.write_object(w, ctx, p),
+    match *obj {
+        Expression::Path(ref p, _) => write_path(w, ctx, p, eval),
 
-            Expression::Ident(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
+        Expression::Ident(ref s, _) => {
+            write!(w, "{}", s)?;
+            Ok(())
+        }
+
+        Expression::RawPath(ref s, _) => {
+            write!(w, "{}", s)?;
+            Ok(())
+        }
+
+        // Expression::Binding(ref b) => {
+        //     write_value(w, ctx, b)?;
+        // }
+        Expression::Pipeline(ref p, _) => write_pipeline(w, ctx, p, eval),
+        Expression::Filter(ref f, _) => write_filter(w, ctx, f, eval),
+
+        Expression::ReducedPipeline(ref p, _) => write_reduced_pipeline(w, ctx, p, eval),
+
+        Expression::Group(Some(box ref e)) => {
+            write!(w, "(")?;
+            write_value(w, ctx, e, eval)?;
+            write!(w, ")")?;
+
+            Ok(())
+        }
+
+        Expression::Group(_) => {
+            write!(w, "()")?;
+            Ok(())
+        }
+
+        Expression::UnaryOp(UnaryOp(ref op, box ref a)) => {
+            match *op {
+                UnaryOpType::Negate => write!(w, "!"),
+            }?;
+
+            write_value(w, ctx, a, eval)
+        }
+
+        Expression::BinaryOp(BinaryOp(ref op, box ref a, box ref b)) => {
+            if let BinaryOpType::Add = *op {
+                match (a, b) {
+                    (
+                        &ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _),
+                        _,
+                    ) => {
+                        let shape = get_current_reducer_shape(ctx)?;
+                        match shape {
+                            Some(OuterShape::Array) | Some(OuterShape::Map) => {
+                                write!(w, "flatten(values(")?;
+                                write_value(w, ctx, a, eval)?;
+                                write!(w, "), ")?;
+                                write_value(w, ctx, b, eval)?;
+                                write!(w, ")")?;
+                            }
+
+                            _ => {
+                                write_value(w, ctx, a, eval)?;
+                                write!(w, " + ")?;
+                                write_value(w, ctx, b, eval)?;
+                            }
+                        };
+
+                        return Ok(());
+                    }
+
+                    (
+                        &ExpressionValue::Composite(
+                            CompositeValue::ObjectValue(_),
+                        ),
+                        _,
+                    )
+                    | (
+                        _,
+                        &ExpressionValue::Composite(
+                            CompositeValue::ObjectValue(_),
+                        ),
+                    ) => {
+                        write!(w, "Object.assign({{}}, ")?;
+                        write_value(w, ctx, a, eval)?;
+                        write!(w, ", ")?;
+                        write_value(w, ctx, b, eval)?;
+                        write!(w, ")")?;
+
+                        return Ok(());
+                    }
+
+                    _ => {}
+                };
             }
 
-            Expression::RawPath(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
+            write_value(w, ctx, a, eval)?;
 
-            // Expression::Binding(ref b) => {
-            //     self.write_object(w, ctx, b)?;
-            // }
-            Expression::Pipeline(ref p, _) => self.write_object(w, ctx, p),
-            Expression::Filter(ref f, _) => self.write_object(w, ctx, f),
+            match *op {
+                BinaryOpType::Add => write!(w, " + "),
+                BinaryOpType::Sub => write!(w, " - "),
+                BinaryOpType::Mul => write!(w, " * "),
+                BinaryOpType::Div => write!(w, " / "),
+                BinaryOpType::EqualTo => write!(w, " == "),
+                BinaryOpType::NotEqualTo => write!(w, " != "),
+                BinaryOpType::LessThan => write!(w, " < "),
+                BinaryOpType::LessThanOrEqualTo => write!(w, " <= "),
+                BinaryOpType::GreaterThan => write!(w, " > "),
+                BinaryOpType::GreaterThanOrEqualTo => write!(w, " >= "),
+            }?;
 
-            Expression::ReducedPipeline(ref p, _) => self.write_object(w, ctx, p),
+            write_value(w, ctx, b, eval)?;
 
-            Expression::Group(Some(box ref e)) => {
-                write!(w, "(")?;
-                self.write_object(w, ctx, e)?;
-                write!(w, ")")?;
+            Ok(())
+        }
 
-                Ok(())
-            }
+        Expression::QueryCall(ref query_call, _) => write_query_call(w, ctx, query_call, eval),
 
-            Expression::Group(_) => {
-                write!(w, "()")?;
-                Ok(())
-            }
-
-            Expression::UnaryOp(UnaryOp(ref op, box ref a)) => {
-                match *op {
-                    UnaryOpType::Negate => write!(w, "!"),
-                }?;
-
-                self.write_object(w, ctx, a)
-            }
-
-            Expression::BinaryOp(BinaryOp(ref op, box ref a, box ref b)) => {
-                if let BinaryOpType::Add = *op {
-                    match (a, b) {
-                        (
-                            &ExpressionValue::Binding(CommonBindings::CurrentReducerState(_), _),
-                            _,
-                        ) => {
-                            let shape = get_current_reducer_shape(ctx)?;
-                            match shape {
-                                Some(OuterShape::Array) | Some(OuterShape::Map) => {
-                                    write!(w, "flatten(values(")?;
-                                    self.write_object(w, ctx, a)?;
-                                    write!(w, "), ")?;
-                                    self.write_object(w, ctx, b)?;
-                                    write!(w, ")")?;
-                                }
-
-                                _ => {
-                                    self.write_object(w, ctx, a)?;
-                                    write!(w, " + ")?;
-                                    self.write_object(w, ctx, b)?;
-                                }
-                            };
-
-                            return Ok(());
-                        }
-
-                        (
-                            &ExpressionValue::Composite(
-                                CompositeValue::ObjectValue(_),
-                            ),
-                            _,
-                        )
-                        | (
-                            _,
-                            &ExpressionValue::Composite(
-                                CompositeValue::ObjectValue(_),
-                            ),
-                        ) => {
-                            write!(w, "Object.assign({{}}, ")?;
-                            self.write_object(w, ctx, a)?;
-                            write!(w, ", ")?;
-                            self.write_object(w, ctx, b)?;
-                            write!(w, ")")?;
-
-                            return Ok(());
-                        }
-
-                        _ => {}
-                    };
-                }
-
-                self.write_object(w, ctx, a)?;
-
-                match *op {
-                    BinaryOpType::Add => write!(w, " + "),
-                    BinaryOpType::Sub => write!(w, " - "),
-                    BinaryOpType::Mul => write!(w, " * "),
-                    BinaryOpType::Div => write!(w, " / "),
-                    BinaryOpType::EqualTo => write!(w, " == "),
-                    BinaryOpType::NotEqualTo => write!(w, " != "),
-                    BinaryOpType::LessThan => write!(w, " < "),
-                    BinaryOpType::LessThanOrEqualTo => write!(w, " <= "),
-                    BinaryOpType::GreaterThan => write!(w, " > "),
-                    BinaryOpType::GreaterThanOrEqualTo => write!(w, " >= "),
-                }?;
-
-                self.write_object(w, ctx, b)?;
-
-                Ok(())
-            }
-
-            Expression::QueryCall(ref query_call, _) => self.write_object(w, ctx, query_call),
-
-            _ => {
-                eprintln!("ObjectWriter Expression<ProcessedExpression> (JS): Unsupported Expression: {:?}", obj);
-                Err(try_process_from_err!(
-                    "Unsupported expression in JS writer."
-                ))
-            }
+        _ => {
+            eprintln!("ObjectWriter Expression<ProcessedExpression> (JS): Unsupported Expression: {:?}", obj);
+            Err(try_process_from_err!(
+                "Unsupported expression in JS writer."
+            ))
         }
     }
 }
@@ -842,6 +800,29 @@ impl ObjectWriter<Expression<ProcessedExpression>, JsOutput> for DefaultJsWriter
 //     }
 // }
 
+pub fn write_query_call(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &QueryCall<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    let name = obj.name();
+    let params = obj.params();
+
+    write!(w, "query_{}(store", name)?;
+
+    for param in params {
+        write!(w, ", ")?;
+        // self.write_object(w, ctx, param.value())?;
+        write_value(w, ctx, param.value(), eval)?;
+    }
+
+    write!(w, ")")?;
+
+    Ok(())
+}
+
+
 impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter {
     fn write_object(
         &mut self,
@@ -856,7 +837,7 @@ impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 
         for param in params {
             write!(w, ", ")?;
-            self.write_object(w, ctx, param)?;
+            write_value(w, ctx, param.value(), false)?;
         }
 
         write!(w, ")")?;
@@ -865,45 +846,79 @@ impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter 
     }
 }
 
-impl ObjectWriter<QueryParamValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &QueryParamValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        self.write_object(w, ctx, obj.value())
-    }
+// impl ObjectWriter<QueryParamValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &QueryParamValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         self.write_object(w, ctx, obj.value())
+//     }
+// }
+
+fn write_object_value(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ObjectValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    let mut first = true;
+    write!(w, "{{")?;
+    if let Some(&box ref props) = obj.0.as_ref() {
+        for prop in props {
+            if !first {
+                write!(w, ", ")?;
+            }
+            write!(w, "\"{}\": ", prop.key())?;
+            if eval {
+                let expr = eval_expression(prop.value(), ctx)?;
+                write_value(w, ctx, &expr, eval)?;
+            } else {
+                write_value(w, ctx, prop.value(), eval)?;
+            }
+            first = false;
+        }
+    };
+    write!(w, "}}")?;
+    Ok(())
 }
 
-impl<T> ObjectWriter<ObjectValue<T>, JsOutput> for DefaultJsWriter
-    where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
+impl ObjectWriter<ObjectValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
 {
     fn write_object(
         &mut self,
         w: &mut io::Write,
         ctx: &mut OutputContext,
-        obj: &ObjectValue<T>,
+        obj: &ObjectValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
-        let mut first = true;
-        write!(w, "{{")?;
-        if let Some(&box ref props) = obj.0.as_ref() {
-            for prop in props {
-                if !first {
-                    write!(w, ", ")?;
-                }
-                write!(w, "\"{}\": ", prop.key())?;
-                self.write_object(w, ctx, prop.value())?;
-                first = false;
-            }
-        };
-        write!(w, "}}")?;
-        Ok(())
+        write_object_value(w, ctx, obj, false)
     }
 }
 
+pub fn write_array_value(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &ArrayValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    let mut first = true;
+    write!(w, "[")?;
+    if let Some(box ref params) = obj.0 {
+        for param in params {
+            if !first {
+                write!(w, ", ")?;
+            }
+            // self.write_object(w, ctx, param.value())?;
+            write_value(w, ctx, param.value(), eval)?;
+            first = false;
+        }
+    };
+    write!(w, "]")?;
+    Ok(())
+}
+
 impl ObjectWriter<ArrayValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
-    // where DefaultJsWriter: ObjectWriter<ExpressionValue<T>, JsOutput>
 {
     fn write_object(
         &mut self,
@@ -911,115 +926,161 @@ impl ObjectWriter<ArrayValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
         ctx: &mut OutputContext,
         obj: &ArrayValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
+        write_array_value(w, ctx, obj, false)
+    }
+}
+
+// impl<T> ObjectWriter<ArrayOf<T>, JsOutput> for DefaultJsWriter
+//     where DefaultJsWriter: ObjectWriter<T, JsOutput>
+// {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &ArrayOf<T>,
+//     ) -> DocumentProcessingResult<()> {
+//         let mut first = true;
+//         write!(w, "[")?;
+//         if let Some(box ref params) = obj.0 {
+//             for param in params {
+//                 if !first {
+//                     write!(w, ", ")?;
+//                 }
+//                 self.write_object(w, ctx, param)?;
+//                 first = false;
+//             }
+//         };
+//         write!(w, "]")?;
+//         Ok(())
+//     }
+// }
+
+pub fn write_map_value(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &MapValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    let auto_id = obj.0.as_ref().map(|s| s.to_owned())
+        .unwrap_or("id".to_owned());
+    write!(w, "asMap(e => e.{}, [", auto_id)?;
+    if let Some(box ref entries) = obj.1 {
         let mut first = true;
-        write!(w, "[")?;
-        if let Some(box ref params) = obj.0 {
-            for param in params {
-                if !first {
-                    write!(w, ", ")?;
-                }
-                self.write_object(w, ctx, param.value())?;
-                first = false;
+        for entry in entries {
+            if !first {
+                write!(w, ", ")?;
             }
-        };
-        write!(w, "]")?;
-        Ok(())
+            write_object_value(w, ctx, entry, eval)?;
+            first = false;
+        }
+    };
+    write!(w, "])")?;
+    Ok(())
+}
+
+
+// impl ObjectWriter<MapValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
+// {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &MapValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         write_map_value(w, ctx, obj, false)
+//     }
+// }
+
+pub fn write_composite(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &CompositeValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    match *obj {
+        CompositeValue::ArrayValue(ref value) => write_array_value(w, ctx, value, eval),
+        CompositeValue::ObjectValue(ref value) => write_object_value(w, ctx, value, eval),
+        CompositeValue::MapValue(ref value) => write_map_value(w, ctx, value, eval),
     }
 }
 
-impl<T> ObjectWriter<ArrayOf<T>, JsOutput> for DefaultJsWriter
-    where DefaultJsWriter: ObjectWriter<T, JsOutput>
-{
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ArrayOf<T>,
-    ) -> DocumentProcessingResult<()> {
-        let mut first = true;
-        write!(w, "[")?;
-        if let Some(box ref params) = obj.0 {
-            for param in params {
-                if !first {
-                    write!(w, ", ")?;
-                }
-                self.write_object(w, ctx, param)?;
-                first = false;
-            }
-        };
-        write!(w, "]")?;
-        Ok(())
-    }
-}
+// impl ObjectWriter<CompositeValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
+// {
+//     fn write_object(
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &CompositeValue<T>,
+//     ) -> DocumentProcessingResult<()> {
+//         write_composite(w, ctx, obj, false)
+//     }
+// }
 
-impl<T> ObjectWriter<MapValue<T>, JsOutput> for DefaultJsWriter
-    where DefaultJsWriter: ObjectWriter<ObjectValue<T>, JsOutput>
-{
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &MapValue<T>,
-    ) -> DocumentProcessingResult<()> {
-        let auto_id = obj.0.as_ref().map(|s| s.to_owned())
-            .unwrap_or("id".to_owned());
-        write!(w, "asMap(e => e.{}, [", auto_id)?;
-        if let Some(box ref entries) = obj.1 {
-            let mut first = true;
-            for entry in entries {
-                if !first {
-                    write!(w, ", ")?;
-                }
-                self.write_object(w, ctx, entry)?;
-                first = false;
-            }
-        };
-        write!(w, "])")?;
-        Ok(())
-    }
-}
+pub fn write_path(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &PathValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter PathValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-impl<T> ObjectWriter<CompositeValue<T>, JsOutput> for DefaultJsWriter
-    where DefaultJsWriter : ObjectWriter<ArrayValue<T>, JsOutput>,
-        DefaultJsWriter: ObjectWriter<ObjectValue<T>, JsOutput>,
-        DefaultJsWriter: ObjectWriter<MapValue<T>, JsOutput>
-{
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &CompositeValue<T>,
-    ) -> DocumentProcessingResult<()> {
-        match *obj {
-            CompositeValue::ArrayValue(ref value) => self.write_object(w, ctx, value),
-            CompositeValue::ObjectValue(ref value) => self.write_object(w, ctx, value),
-            CompositeValue::MapValue(ref value) => self.write_object(w, ctx, value),
+    write_value(w, ctx, obj.head(), eval)?;
+
+    if let Some(components) = obj.components() {
+        for component in components {
+            write!(w, ".{}", component)?;
         }
     }
+
+    Ok(())
 }
 
-impl ObjectWriter<PathValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &PathValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PathValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
+// impl ObjectWriter<PathValue<ProcessedExpression>, JsOutput> for DefaultJsWriter {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &PathValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         write_path(w, ctx, obj, false)
+//     }
+// }
 
-        // write_pipeline_head(self, w, ctx, obj.head())?;
-        self.write_object(w, ctx, obj.head())?;
+pub fn write_path_component_value(
+    w: &mut io::Write,
+    ctx: &mut OutputContext,
+    obj: &PathComponentValue<ProcessedExpression>,
+    eval: bool,
+) -> DocumentProcessingResult<()> {
+    debug!(
+        "ObjectWriter PathComponentValue<ProcessedExpression> (JS): obj: {:?}",
+        obj
+    );
 
-        if let Some(components) = obj.components() {
-            for component in components {
-                write!(w, ".{}", component)?;
-            }
+    match *obj {
+        PathComponentValue::Member(ref s, _) => {
+            write!(w, "{}", s)?;
+            Ok(())
         }
 
-        Ok(())
+        PathComponentValue::MethodCall(ref s, ref params, _) => {
+            write!(w, "{}(", s)?;
+            if let &Some(ref params) = params {
+                let mut first = true;
+                for param in params {
+                    if !first {
+                        write!(w, ",")?;
+                    }
+                    // self.write_object(w, ctx, param)?;
+                    write_value(w, ctx, param.value(), eval)?;
+                    first = false;
+                }
+            }
+            write!(w, ")")?;
+            Ok(())
+        }
     }
 }
 
@@ -1030,94 +1091,9 @@ impl ObjectWriter<PathComponentValue<ProcessedExpression>, JsOutput> for Default
         ctx: &mut OutputContext,
         obj: &PathComponentValue<ProcessedExpression>,
     ) -> DocumentProcessingResult<()> {
-        debug!(
-            "ObjectWriter PathComponentValue<ProcessedExpression> (JS): obj: {:?}",
-            obj
-        );
-
-        match *obj {
-            PathComponentValue::Member(ref s, _) => {
-                write!(w, "{}", s)?;
-                Ok(())
-            }
-
-            PathComponentValue::MethodCall(ref s, ref params, _) => {
-                write!(w, "{}(", s)?;
-                if let &Some(ref params) = params {
-                    let mut first = true;
-                    for param in params {
-                        if !first {
-                            write!(w, ",")?;
-                        }
-                        self.write_object(w, ctx, param)?;
-                        first = false;
-                    }
-                }
-                write!(w, ")")?;
-                Ok(())
-            }
-        }
+        write_path_component_value(w, ctx, obj, false)
     }
 }
-
-// impl ObjectWriter<PathValue<OutputExpression>, JsOutput> for DefaultJsWriter {
-//     fn write_object(
-//         &mut self,
-//         w: &mut io::Write,
-//         ctx: &mut OutputContext,
-//         obj: &PathValue<OutputExpression>,
-//     ) -> DocumentProcessingResult<()> {
-//         debug!(
-//             "ObjectWriter PathValue<OutputExpression> (JS): obj: {:?}",
-//             obj
-//         );
-
-//         write_pipeline_head(self, w, ctx, obj.head())?;
-
-//         if let Some(components) = obj.components() {
-//             for component in components {
-//                 write!(w, ".{}", component)?;
-//             }
-//         }
-
-//         Ok(())
-//     }
-// }
-
-// impl ObjectWriter<PathComponentValue<OutputExpression>, JsOutput> for DefaultJsWriter {
-//     fn write_object(
-//         &mut self,
-//         w: &mut io::Write,
-//         _ctx: &mut OutputContext,
-//         obj: &PathComponentValue<OutputExpression>,
-//     ) -> DocumentProcessingResult<()> {
-//         debug!(
-//             "ObjectWriter PathComponentValue<OutputExpression> (JS): obj: {:?}",
-//             obj
-//         );
-
-//         match *obj {
-//             PathComponentValue::Member(ref s, _) => {
-//                 write!(w, "{}", s)?;
-//                 Ok(())
-//             }
-
-//             PathComponentValue::MethodCall(ref s, ref _params, _) => {
-//                 write!(w, "{}(...)", s)?;
-//                 // if let &Some(ref params) = params {
-//                 //     let mut first = true;
-//                 //     for param in params {
-//                 //         if !first { write!(w, ",")?; }
-//                 //         self.write_object(w, ctx, param)?;
-//                 //         first = false;
-//                 //     }
-//                 // }
-//                 // write!(w, ")")?;
-//                 Ok(())
-//             }
-//         }
-//     }
-// }
 
 ///
 /// Components
@@ -1273,7 +1249,8 @@ fn write_open<'s>(
     for prop in const_props {
         let (name, expr) = prop;
         write!(w, ", \"{}\", ", name)?;
-        _self.write_object(w, ctx, &expr)?;
+        // _write_value, eval(w, ctx, &expr)?;
+        write_value(w, ctx, &expr, false)?;
     }
     write!(w, "]")?;
 
@@ -1293,10 +1270,10 @@ fn write_open<'s>(
         let use_classes = name == "class" && expr.is_object();
 
         if (tag == "input" || tag == "button") && name == "disabled" {
-            _self.write_object(w, ctx, &expr)?;
+            write_value(w, ctx, &expr, false)?;
             write!(w, " ? 'disabled' : null, ")?;
 
-            _self.write_object(w, ctx, &expr)?;
+            write_value(w, ctx, &expr, false)?;
             write!(w, " ? 'disabled' : null")?;
 
             continue;
@@ -1306,7 +1283,8 @@ fn write_open<'s>(
         if use_classes {
             write!(w, "classes(")?;
         }
-        _self.write_object(w, ctx, &expr)?;
+        // _write_value, eval(w, ctx, &expr)?;
+        write_value(w, ctx, &expr, false)?;
         if use_classes {
             write!(w, ")")?;
         }
@@ -1317,16 +1295,19 @@ fn write_open<'s>(
             if let Some(read_expr) = value_binding.read_expr() {
                 write!(w, ", ")?;
 
-                _self.write_object(w, ctx, read_expr)?;
+                // _self.write_object(w, ctx, read_expr)?;
+                write_value(w, ctx, read_expr, false)?;
                 write!(w, " ? 'checked' : null, ")?;
 
-                _self.write_object(w, ctx, read_expr)?;
+                // _self.write_object(w, ctx, read_expr)?;
+                write_value(w, ctx, read_expr, false)?;
                 write!(w, " ? 'checked' : null")?;
             };
         } else if is_textbox {
             if let Some(read_expr) = value_binding.read_expr() {
                 write!(w, ", \"value\", ")?;
-                _self.write_object(w, ctx, read_expr)?;
+                // _self.write_object(w, ctx, read_expr)?;
+                write_value(w, ctx, read_expr, false)?;
             };
         }
     };
@@ -1336,11 +1317,10 @@ fn write_open<'s>(
     if let Some(read_expr) = desc.value_binding().and_then(|b| b.read_expr()) {
         if is_textbox {
             write!(w, ".value = ")?;
-            _self.write_object(w, ctx, read_expr)?;
         } else if is_checkbox {
             write!(w, ".checked = ")?;
-            _self.write_object(w, ctx, read_expr)?;
-        }
+        };
+        write_value(w, ctx, read_expr, false)?;
     }
 
     writeln!(w, ";")?;
@@ -1403,7 +1383,8 @@ fn write_comp_desc<'s>(
             if item_key == Some(key) {
                 write!(w, "_item[1]")?;
             } else {
-                _self.write_object(w, ctx, prop.expr())?;
+                // _self.write_object(w, ctx, prop.expr())?;
+                write_value(w, ctx, prop.expr(), false)?;
             };
         }
 
@@ -1488,7 +1469,8 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 
             ElementOp::WriteValue(ref e, _) => {
                 write!(w, "IncrementalDOM.text(")?;
-                self.write_object(w, ctx, e)?;
+                // self.write_object(w, ctx, e)?;
+                write_value(w, ctx, e, false)?;
                 writeln!(w, ");")?;
 
                 Ok(())
@@ -1500,7 +1482,8 @@ impl ObjectWriter<ElementOp<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 
             ElementOp::MapInstanceComponent(ref comp_desc, ref item_key, ref coll, _) => {
                 write!(w, "for (const _item of enumerate(values(")?;
-                self.write_object(w, ctx, coll)?;
+                // self.write_object(w, ctx, coll)?;
+                write_value(w, ctx, coll, false)?;
                 writeln!(w, "))) {{")?;
 
                 let item_key = item_key.as_ref().map(|s| s.as_str());
@@ -1556,9 +1539,11 @@ impl ObjectWriter<Query<ProcessedExpression>, JsOutput> for DefaultJsWriter {
             match *component {
                 QueryComponent::CaseWhere(box ref expr, box ref cond, _) => {
                     write!(w, "        if (")?;
-                    self.write_object(w, ctx, cond)?;
+                    // self.write_object(w, ctx, cond)?;
+                    write_value(w, ctx, expr, false)?;
                     write!(w, ") {{ return ")?;
-                    self.write_object(w, ctx, expr)?;
+                    // write_value(w, ctx, expr, eval)?;
+                    write_value(w, ctx, expr, false)?;
                     writeln!(w, "; }}")?;
                 }
             }
@@ -1594,7 +1579,8 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
                     for prop in props {
                         write!(w, ", \"{}\": ", prop.key())?;
                         if is_route_dispatch || prop.value().is_primitive() {
-                            self.write_object(w, ctx, prop.value())?;
+                            // self.write_object(w, ctx, prop.value())?;
+                            write_value(w, ctx, prop.value(), false)?;
                         } else {
                             write!(w, "{}.{}", prefix, prop.key())?;
                         }
@@ -1606,7 +1592,8 @@ impl ObjectWriter<ActionOpOutput<ProcessedExpression>, JsOutput> for DefaultJsWr
             ActionOp::Navigate(ref prop, _) => {
                 write!(w, "store.dispatch(navigate(")?;
                 if  is_route_dispatch || prop.is_primitive() {
-                    self.write_object(w, ctx, prop)?;
+                    // self.write_object(w, ctx, prop)?;
+                    write_value(w, ctx, prop, false)?;
                 } else {
                     write!(w, "{}", prefix)?;
                 };

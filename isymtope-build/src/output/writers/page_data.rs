@@ -287,7 +287,8 @@ impl InternalTemplateDataBuilder {
 
                 if let Some(expr) = reducer.default_value() {
                     bytes.truncate(0);
-                    js_writer.write_object(&mut bytes, &mut ctx, expr)?;
+                    // js_writer.write_object(&mut bytes, &mut ctx, expr)?;
+                    write_value(&mut bytes, &mut ctx, expr, false)?;
 
                     let value = str::from_utf8(bytes.as_slice())?.to_owned();
                     let body = match *expr {
