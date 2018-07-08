@@ -1524,6 +1524,11 @@ pub fn eval_inner_binding(
         };
     };
 
+    // Handle bindings only available in the frontend application
+    if let CommonBindings::CurrentElementValue(..) = *binding {
+        return Ok(ExpressionValue::Binding(binding.to_owned(), Default::default()));
+    }
+
     if let Some(expr) = ctx.find_value(binding)? {
         return eval_expression(&expr, ctx);
     };

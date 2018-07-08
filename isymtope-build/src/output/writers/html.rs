@@ -220,13 +220,19 @@ impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, HtmlOutput> fo
         let name = obj.0.as_ref().map(|s| s.to_owned()).unwrap_or("click".to_owned());
         let key = &obj.1;
 
-        // let props: ObjectValue<OutputExpression> =
-        //     TryEvalFrom::try_eval_from(&obj.2, ctx)?;
+        // Evaluate event parameters when outputing as part of the HTML element
+        let props: ObjectValue<ProcessedExpression> = match &obj.2 {
+            ObjectValue(Some(box ref v)) => {
+                let arr = ok_or_error(v.into_iter().map(|e| eval_expression(e.value(), ctx).map(
+                    |expr| PropValue::new(e.key().to_owned(), expr, None))))?.collect();
+                ObjectValue(Some(Box::new(arr)))
+            },
+            _ => ObjectValue(None)
+        };
 
         let mut bytes: Vec<u8> = Vec::with_capacity(1024);
         let mut js = DefaultJsWriter::default();
-        // TODO: Stop writing OutputExpressions to JS
-        js.write_object(&mut bytes, ctx, &obj.2)?;
+        js.write_object(&mut bytes, ctx, &props)?;
 
         let props_str = str::from_utf8(bytes.as_slice())?
             .replace("\"", "&quot;")
