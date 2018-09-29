@@ -25,7 +25,7 @@ impl Message for GetTemplate {
 impl Handler<GetTemplate> for PlaygroundApi {
     type Result = MessageResult<GetTemplate>;
 
-    fn handle(&mut self, msg: GetTemplate, _: &mut Context<PlaygroundApi>) -> Self::Result {
+    fn handle(&mut self, msg: GetTemplate, _: &mut Self::Context) -> Self::Result {
         let slug = &msg.slug;
 
         // TODO: Make this lookup and cache

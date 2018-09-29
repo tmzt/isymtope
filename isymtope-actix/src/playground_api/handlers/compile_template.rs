@@ -7,8 +7,8 @@ use compiler::*;
 use super::*;
 
 pub struct CompileTemplate {
-    pub api: Addr<Syn, PlaygroundApi>,
-    pub compiler: Addr<Syn, Compiler>,
+    pub api: Addr<PlaygroundApi>,
+    pub compiler: Addr<Compiler>,
     pub base_url: String,
     pub route: String,
     pub slug: String,
@@ -48,7 +48,7 @@ impl From<MailboxError> for PlaygroundApiError {
 impl Handler<CompileTemplate> for PlaygroundApi {
     type Result = Response<CompileTemplateResponse, PlaygroundApiError>;
 
-    fn handle(&mut self, msg: CompileTemplate, _: &mut Context<PlaygroundApi>) -> Self::Result {
+    fn handle(&mut self, msg: CompileTemplate, _: &mut Self::Context) -> Self::Result {
         let base_url = msg.base_url.to_owned();
         let route = msg.route.to_owned();
         let slug = msg.slug.to_owned();

@@ -59,7 +59,7 @@ impl Message for CompileSource {
 impl Handler<CompileSource> for Compiler {
     type Result = MessageResult<CompileSource>;
 
-    fn handle(&mut self, msg: CompileSource, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: CompileSource, _: &mut Self::Context) -> Self::Result {
         // let app_name = &msg.app_name;
         let ism_path = "/app.ism";
         let route = &msg.route;

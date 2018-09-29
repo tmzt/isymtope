@@ -26,7 +26,7 @@ impl Message for GetApp {
 impl Handler<GetApp> for PlaygroundApi {
     type Result = MessageResult<GetApp>;
 
-    fn handle(&mut self, msg: GetApp, _: &mut Context<PlaygroundApi>) -> Self::Result {
+    fn handle(&mut self, msg: GetApp, _: &mut Self::Context) -> Self::Result {
         let slug = &msg.slug;
 
         // TODO: Make this lookup and cache

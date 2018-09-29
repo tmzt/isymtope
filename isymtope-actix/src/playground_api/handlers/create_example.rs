@@ -27,7 +27,7 @@ pub struct Example {
 impl Handler<CreateExample> for PlaygroundApi {
     type Result = MessageResult<CreateExample>;
 
-    fn handle(&mut self, msg: CreateExample, _: &mut Context<PlaygroundApi>) -> Self::Result {
+    fn handle(&mut self, msg: CreateExample, _: &mut Self::Context) -> Self::Result {
         let uuid = format!("{}", Uuid::new_v4());
         let slug = allocate_element_key();
         let template_name = msg.template_name.to_owned();

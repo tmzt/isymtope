@@ -25,7 +25,7 @@ lazy_static! {
 //     pub api: Addr<Syn, PlaygroundApi>
 // }
 
-pub fn create_example(req: HttpRequest<AppState>, body: Json<CreateExampleRequest>) -> FutureResponse<HttpResponse> {
+pub fn create_example((req, body): (HttpRequest<AppState>, Json<CreateExampleRequest>)) -> FutureResponse<HttpResponse> {
     let template_name = body.template_name.to_owned();
     req.state().api.send(CreateExample {
             base_app_uuid: "abcd".to_owned(),
@@ -33,31 +33,32 @@ pub fn create_example(req: HttpRequest<AppState>, body: Json<CreateExampleReques
     })
     .from_err()
     .and_then(move |res| {
-        match res {
-            Ok(example) => {
-                let scheme = req.connection_info().scheme();
-                let host = req.connection_info().host();
-                // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
-                let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
-                let path = format!("/r/{}", example.slug);
-                let redirect = format!("{}://{}/r/{}", scheme, host, example.slug);
-                let iframe_base = format!("{}://{}.f.r{}{}/", scheme, example.slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
+        if let Ok(example) = res {
+            let scheme = req.connection_info().scheme().to_owned();
+            let host = req.connection_info().host().to_owned();
+            // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
+            let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
+            let path = format!("/r/{}", example.slug);
+            let redirect = format!("{}://{}/r/{}", scheme, host, example.slug);
+            let iframe_base = format!("{}://{}.f.r{}{}/", scheme, example.slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
 
-                let json = CreateExampleResponse {
-                    uuid: example.uuid.to_owned(),
-                    slug: example.slug.to_owned(),
-                    base_app_uuid: example.base_app_uuid.to_owned(),
-                    base_app_slug: example.base_app_slug.to_owned(),
-                    template_name: example.template_name.to_owned(),
-                    path: path,
-                    redirect: redirect.to_owned(),
-                    iframe_base: iframe_base.to_owned(),
-                };
-                Ok(HttpResponse::Ok().json(json))
-            },
-            _ => Ok(HttpResponse::InternalServerError().into())
-        }
-    }).responder()
+            let res = CreateExampleResponse {
+                uuid: example.uuid.to_owned(),
+                slug: example.slug.to_owned(),
+                base_app_uuid: example.base_app_uuid.to_owned(),
+                base_app_slug: example.base_app_slug.to_owned(),
+                template_name: example.template_name.to_owned(),
+                path: path,
+                redirect: redirect.to_owned(),
+                iframe_base: iframe_base.to_owned(),
+            };
+            return ok(HttpResponse::Ok().json(res));
+        };
+        ok(HttpResponse::InternalServerError().finish())
+        // Ok(HttpResponse::Ok().json(json))
+    })
+    // .and_then(|res| Ok(HttpResponse::Ok().json(res)))
+    .responder()
 }
 
 pub fn get_example_index(req: HttpRequest<AppState>) -> FutureResponse<HttpResponse> {
@@ -105,7 +106,7 @@ pub fn get_app_meta(slug: &str, app: &GetAppResponse, iframe_base: &str) -> Resu
     Ok(json)
 }
 
-pub fn get_app(req: HttpRequest<AppState>, slug: Path<(String,)>) -> FutureResponse<HttpResponse> {
+pub fn get_app((req, slug): (HttpRequest<AppState>, Path<(String,)>)) -> impl Responder { //FutureResponse<HttpResponse> {
     let slug = slug.0.to_owned();
 
     req.state().api.send(GetApp {
@@ -113,25 +114,22 @@ pub fn get_app(req: HttpRequest<AppState>, slug: Path<(String,)>) -> FutureRespo
     })
     .from_err()
     .and_then(move |res| {
-        match res {
-            Ok(Some(app)) => {
-                let scheme = req.connection_info().scheme();
-                let host = req.connection_info().host();
-                // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
+        if let Ok(Some(app)) = res {
+            let scheme = req.connection_info().scheme().to_owned();
+            let host = req.connection_info().host().to_owned();
+            // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
 
-                let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
-                let iframe_base = format!("{}://{}.f.r{}{}/", scheme, slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
+            let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
+            let iframe_base = format!("{}://{}.f.r{}{}/", scheme, slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
 
-                get_app_meta(&slug, &app, &iframe_base)
-                    .and_then(|json| Ok(HttpResponse::Ok().json(json)))
-            },
-            Ok(None) => Ok(HttpResponse::NotFound().into()),
-            _ => Ok(HttpResponse::InternalServerError().into())
-        }
+            return get_app_meta(&slug, &app, &iframe_base)
+                .and_then(|json| Ok(HttpResponse::Ok().json(json)))
+        };
+        Ok(HttpResponse::NotFound().finish().into())
     }).responder()
 }
 
-pub fn compile_app_source(req: HttpRequest<AppState>, slug: Path<(String,)>) -> FutureResponse<HttpResponse> {
+pub fn compile_app_source((req, slug): (HttpRequest<AppState>, Path<(String,)>)) -> impl Responder { //FutureResponse<HttpResponse> {
     let api = req.state().api.clone();
     let compiler = req.state().compiler.clone();
     let slug = slug.0.to_owned();
@@ -150,23 +148,24 @@ pub fn compile_app_source(req: HttpRequest<AppState>, slug: Path<(String,)>) -> 
            let bytes: &[u8] = bytes.as_ref();
            String::from_utf8(bytes.to_vec()).map_err(|err| ::std::io::Error::new(::std::io::ErrorKind::InvalidInput, "Unable to parse payload from bytes").into()).into_future()
        })
-       .from_err()
+       .map_err(Error::from)
        .and_then(move |source|
                 api_.send(CompileSource { api: api, compiler: compiler, source: source, base_url: iframe_base.clone(), route: route, slug: slug })
                     .from_err()
-                    .and_then(|res| match res {
-                        Ok(res) => {
-                            Ok(HttpResponse::Ok()
+                    .and_then(move |res| {
+                        if let Ok(res) = res {
+                            let res = HttpResponse::Ok()
                                 .content_type("text/html")
-                                .body(res.body))
-                        },
-                        _ => Ok(HttpResponse::InternalServerError().into())
+                                .body(res.body);
+                            return ok(res);
+                        };
+                        ok(HttpResponse::InternalServerError().finish())
                     })
        )
        .responder()
 }
 
-pub fn github_auth(mut req: HttpRequest<AppState>, path: Path<(String,)>) -> FutureResponse<HttpResponse> {
+pub fn github_auth((req, path): (&HttpRequest<AppState>, Path<(String,)>)) -> FutureResponse<HttpResponse> {
         let state = ::uuid::Uuid::new_v4().to_string();
         let request_id = ::uuid::Uuid::new_v4().to_string();
         eprintln!("State: {}", state);
@@ -177,12 +176,12 @@ pub fn github_auth(mut req: HttpRequest<AppState>, path: Path<(String,)>) -> Fut
 
         // req.session().set("auth_request_id", path.1.to_owned()).unwrap();
 
-        let scheme = req.connection_info().scheme();
-        let host = req.connection_info().host();
-        let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
+        // let scheme = req.connection_info().scheme();
+        // let host = req.connection_info().host();
+        // let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
 
         let auth_url = "https://github.com/login/oauth/authorize";
-        let token_url = "https://github.com/login/oauth/access_token";
+        // let token_url = "https://github.com/login/oauth/access_token";
 
         // let redirect_url = format!("{}://{}/api/auth/github/complete/apps/{}/requests/{}", scheme, host, path.0, path.1);
         // let popup_url = format!("{}?client_id={}&redirect_uri={}&scope=gist&state={}", auth_url, &*GITHUB_CLIENT_ID, redirect_url, state);
@@ -231,7 +230,7 @@ pub fn github_auth(mut req: HttpRequest<AppState>, path: Path<(String,)>) -> Fut
         //     .responder()
 }
 
-pub fn github_auth_complete(mut req: HttpRequest<AppState>, query: Query<GithubAuthComplete>) -> FutureResponse<HttpResponse> {
+pub fn github_auth_complete((req, query): (&HttpRequest<AppState>, Query<GithubAuthComplete>)) -> FutureResponse<HttpResponse> {
     let request_id = req.session().get::<String>("auth_request_id").ok().unwrap().unwrap_or_default();
     let auth_state = req.session().get::<String>("auth_state").ok().unwrap().unwrap_or_default();
     eprintln!("[auth complete] RequestId: {}", request_id);

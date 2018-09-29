@@ -150,12 +150,73 @@ fn do_count(
     }
 }
 
+fn do_first(
+    state: PipelineState,
+    cond: Option<&ExpressionValue<ProcessedExpression>>,
+    ctx: &mut OutputContext,
+) -> DocumentProcessingResult<PipelineState> {
+    eprintln!(
+        "[pipeline] eval_reduced_pipeline: (do_first) pipeline state: {:?}",
+        state
+    );
+
+    match state {
+        PipelineState::Single(item) => {
+            if let Some(cond) = cond {
+                let res = apply_cond(&item, None, None, cond, ctx)?;
+                if res {
+                    return Ok(PipelineState::Single(item.clone()));
+                }
+            }
+            Ok(PipelineState::Empty)
+        }
+
+        PipelineState::Indexed(v) => {
+            let iter = v.into_iter().enumerate();
+            let mut count = 0;
+            for (idx, expr) in iter {
+                if let Some(cond) = cond {
+                    let res = apply_cond(&expr, Some(idx), None, cond, ctx)?;
+                    if res {
+                        return Ok(PipelineState::Single(expr.to_owned()));
+                    }
+                }
+                break;
+            }
+
+            Ok(PipelineState::Empty)
+        }
+
+        PipelineState::Keyed(v) => {
+            let iter = v.into_iter().enumerate();
+            let mut count = 0;
+            for (idx, item) in iter {
+                if let Some(cond) = cond {
+                    let res = apply_cond(&item.1, Some(idx), Some(&item.0), cond, ctx)?;
+                    if res {
+                        return Ok(PipelineState::Single(item.1.to_owned()));
+                    }
+                }
+                break;
+            }
+
+            Ok(PipelineState::Empty)
+        }
+
+        PipelineState::Empty => {
+            Ok(PipelineState::Single(ExpressionValue::Primitive(Primitive::Int32Val(0))))
+        }
+    }
+}
+
 pub fn apply_method(state: PipelineState, method: &ReducedMethodCall<ProcessedExpression>, ctx: &mut OutputContext) -> DocumentProcessingResult<PipelineState> {
     match *method {
         ReducedMethodCall::Filter(ref cond) => do_filter(state, cond, ctx),
 
         ReducedMethodCall::CountIf(ref cond) => do_count(state, Some(cond), ctx),
         ReducedMethodCall::Count => do_count(state, None, ctx),
+
+        ReducedMethodCall::First => do_first(state, None, ctx),
 
         _ => Err(try_eval_from_err!("Unimplemented reduced pipeline method"))
     }
@@ -221,6 +282,12 @@ impl PipelineState {
                 Ok(PipelineState::Keyed(v))
             }
 
+            ExpressionValue::Composite(CompositeValue::MapValue(MapValue(ref keyname, None))) => {
+                let v = vec![];
+
+                Ok(PipelineState::Keyed(v))
+            }
+
             ExpressionValue::Composite(CompositeValue::MapValue(MapValue(ref keyname, Some(box ref v)))) => {
                 let keyname = keyname.as_ref().map_or_else(|| "id".to_owned(), |s| s.to_owned());
                 let v: Vec<_> = ok_or_error(v.into_iter()
@@ -260,9 +327,18 @@ impl PipelineState {
             PipelineState::Indexed(v) => {
                 let v: Vec<_> = v.into_iter().map(move |e| ParamValue::new(e)).collect();
                 Ok(ArrayValue(Some(Box::new(v))))
-            },
+            }
 
-            _ => Err(try_eval_from_err!("Invalid final pipeline state"))
+            PipelineState::Keyed(v) => {
+                let v: Vec<_> = v.into_iter().map(move |(_, value)| ParamValue::new(value)).collect();
+                Ok(ArrayValue(Some(Box::new(v))))
+            }
+
+            PipelineState::Empty => {
+                Ok(ArrayValue(None))
+            }
+
+            // _ => Err(try_eval_from_err!("Invalid final pipeline state"))
         }
     }
 }
@@ -296,7 +372,7 @@ pub fn eval_reduced_pipeline_to_value(
     let final_state = eval_reduced_pipeline(src, ctx)?;
 
     match final_state {
-        PipelineState::Indexed(..) => {
+        PipelineState::Indexed(..) | PipelineState::Keyed(..) | PipelineState::Empty => {
             final_state.into_array_value()
                 .map(|arr| ExpressionValue::Composite(CompositeValue::ArrayValue(arr)))
         }

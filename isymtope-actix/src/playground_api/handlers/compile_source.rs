@@ -1,7 +1,7 @@
 use futures::Future;
 
 use actix::*;
-use actix::prelude::*;
+use actix_web::*;
 
 use isymtope_generate::*;
 
@@ -9,8 +9,8 @@ use compiler::{Compiler, CompileSource as CompileSourceMsg};
 use super::*;
 
 pub struct CompileSource {
-    pub api: Addr<Syn, PlaygroundApi>,
-    pub compiler: Addr<Syn, Compiler>,
+    pub api: Addr<PlaygroundApi>,
+    pub compiler: Addr<Compiler>,
     pub source: String,
     pub base_url: String,
     pub route: String,
@@ -51,7 +51,7 @@ impl From<MailboxError> for PlaygroundApiError {
 impl Handler<CompileSource> for PlaygroundApi {
     type Result = Response<CompileSourceResponse, PlaygroundApiError>;
 
-    fn handle(&mut self, msg: CompileSource, _: &mut Context<PlaygroundApi>) -> Self::Result {
+    fn handle(&mut self, msg: CompileSource, _: &mut Self::Context) -> Self::Result {
         let source = msg.source.to_owned();
         let base_url = msg.base_url.to_owned();
         let route = msg.route.to_owned();

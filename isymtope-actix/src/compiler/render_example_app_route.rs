@@ -62,7 +62,7 @@ fn render(template_file_cache: &mut HashMap<String, DefaultTemplateContext>, bas
 impl Handler<RenderExampleAppRoute> for Compiler {
     type Result = MessageResult<RenderExampleAppRoute>;
 
-    fn handle(&mut self, msg: RenderExampleAppRoute, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: RenderExampleAppRoute, _: &mut Self::Context) -> Self::Result {
         let base_url = &msg.base_url;
         let app_name = &msg.app_name;
         let ism_path = "/app.ism";
