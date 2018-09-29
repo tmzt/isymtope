@@ -71,16 +71,16 @@ impl<T: Hash + Eq + Debug> OutputScope<T> {
     where
         T: Clone,
     {
-        eprintln!(
-            "[OutputContext scope {}] Getting value for binding [{:?}]",
-            self.scope_id, common_binding
-        );
-        for binding in self.scoped_values.iter() {
-            eprintln!(
-                "[OutputContext scope {}] Binding: {:?}",
-                self.scope_id, binding
-            );
-        }
+        // eprintln!(
+        //     "[OutputContext scope {}] Getting value for binding [{:?}]",
+        //     self.scope_id, common_binding
+        // );
+        // for binding in self.scoped_values.iter() {
+        //     eprintln!(
+        //         "[OutputContext scope {}] Binding: {:?}",
+        //         self.scope_id, binding
+        //     );
+        // }
 
         self.scoped_values.get(common_binding).map(|v| v.to_owned())
     }

@@ -221,6 +221,22 @@ impl PipelineState {
                 Ok(PipelineState::Keyed(v))
             }
 
+            ExpressionValue::Composite(CompositeValue::MapValue(MapValue(ref keyname, Some(box ref v)))) => {
+                let keyname = keyname.as_ref().map_or_else(|| "id".to_owned(), |s| s.to_owned());
+                let v: Vec<_> = ok_or_error(v.into_iter()
+                    .map(move |obj| {
+                        if let Some(ExpressionValue::Primitive(Primitive::StringVal(ref key))) = obj.get(&keyname) {
+                            Ok((key.to_owned(), ExpressionValue::Composite(CompositeValue::ObjectValue(obj.to_owned()))))
+                        } else {
+                            eprintln!("Missing or unsupported key {} on object in map with keyname.", keyname);
+                            Err(try_eval_from_err!(format!("Missing key {} on object in map with keyname.", keyname)))
+                        }
+                    }))?
+                    .collect();
+
+                Ok(PipelineState::Keyed(v))
+            }
+
             _ => Err(try_eval_from_err!("Invalid expression to initialize pipeline"))
         }
     }

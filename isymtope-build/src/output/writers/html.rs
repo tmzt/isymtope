@@ -231,8 +231,8 @@ impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, HtmlOutput> fo
         };
 
         let mut bytes: Vec<u8> = Vec::with_capacity(1024);
-        let mut js = DefaultJsWriter::default();
-        js.write_object(&mut bytes, ctx, &props)?;
+        // let mut js = DefaultJsWriter::default();
+        write_object_value(&mut bytes, ctx, &props, false)?;
 
         let props_str = str::from_utf8(bytes.as_slice())?
             .replace("\"", "&quot;")
@@ -373,6 +373,12 @@ impl ObjectWriter<ComponentInstanceDescriptor<ProcessedExpression>, HtmlOutput>
                 // let expr: ExpressionValue<OutputExpression> =
                 //     TryEvalFrom::try_eval_from(prop.expr(), ctx)?;
                 let expr = prop.expr();
+
+                // Interpret props to prevent a loop
+                let expr = match *expr {
+                    ExpressionValue::Binding(CommonBindings::NamedComponentProp(..), ..) => eval_expression(expr, ctx)?,
+                    _ => expr.to_owned()
+                };
                 let binding =
                     CommonBindings::NamedComponentProp(prop.name().to_owned(), Default::default());
                 eprintln!(

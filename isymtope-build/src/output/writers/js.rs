@@ -857,7 +857,7 @@ impl ObjectWriter<QueryCall<ProcessedExpression>, JsOutput> for DefaultJsWriter 
 //     }
 // }
 
-fn write_object_value(
+pub fn write_object_value(
     w: &mut io::Write,
     ctx: &mut OutputContext,
     obj: &ObjectValue<ProcessedExpression>,
@@ -884,17 +884,17 @@ fn write_object_value(
     Ok(())
 }
 
-impl ObjectWriter<ObjectValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
-{
-    fn write_object(
-        &mut self,
-        w: &mut io::Write,
-        ctx: &mut OutputContext,
-        obj: &ObjectValue<ProcessedExpression>,
-    ) -> DocumentProcessingResult<()> {
-        write_object_value(w, ctx, obj, false)
-    }
-}
+// impl ObjectWriter<ObjectValue<ProcessedExpression>, JsOutput> for DefaultJsWriter
+// {
+//     fn write_object(
+//         &mut self,
+//         w: &mut io::Write,
+//         ctx: &mut OutputContext,
+//         obj: &ObjectValue<ProcessedExpression>,
+//     ) -> DocumentProcessingResult<()> {
+//         write_object_value(w, ctx, obj, false)
+//     }
+// }
 
 pub fn write_array_value(
     w: &mut io::Write,
@@ -1176,7 +1176,8 @@ impl ObjectWriter<ElementEventBindingOutput<ProcessedExpression>, JsOutput> for 
         //     TryEvalFrom::try_eval_from(&obj.2, ctx)?;
         let props = &obj.2;
 
-        self.write_object(w, ctx, props)?;
+        // self.write_object(w, ctx, props)?;
+        write_object_value(w, ctx, props, false)?;
 
         write!(
             w,

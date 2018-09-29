@@ -493,6 +493,15 @@ where
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectValue<T>(pub Option<Box<Vec<PropValue<T>>>>);
 
+impl<T: Clone> ObjectValue<T> {
+    pub fn get(&self, key: &str) -> Option<ExpressionValue<T>> {
+        match *self {
+            ObjectValue(Some(box ref fields)) => fields.into_iter().filter(|e| e.key() == key).nth(0).map(|prop| prop.value().to_owned()),
+            _ => None
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ArrayValue<T>(pub Option<Box<Vec<ParamValue<T>>>>);
 
@@ -1530,6 +1539,10 @@ pub fn eval_inner_binding(
     }
 
     if let Some(expr) = ctx.find_value(binding)? {
+        eprintln!(
+            "[expression] eval_inner_binding: evaluating result of binding: {:?}",
+            expr
+        );
         return eval_expression(&expr, ctx);
     };
 
