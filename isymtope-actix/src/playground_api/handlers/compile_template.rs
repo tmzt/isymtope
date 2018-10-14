@@ -1,7 +1,7 @@
-use futures::Future;
+use futures::{future,Future};
 
 use actix::*;
-use actix::prelude::*;
+
 use isymtope_generate::*;
 use compiler::*;
 use super::*;
@@ -11,17 +11,17 @@ pub struct CompileTemplate {
     pub compiler: Addr<Compiler>,
     pub base_url: String,
     pub route: String,
-    pub slug: String,
+    pub template_name: String,
 }
 
-#[derive(Debug, Message)]
-pub struct CompileTemplateResponse {
-    pub get_template_response: GetTemplateResponse,
-    pub body: String
-}
+// #[derive(Debug, Message)]
+// pub struct CompileTemplateResponse {
+//     pub template: TemplateData,
+//     pub body: String
+// }
 
 impl Message for CompileTemplate {
-    type Result = Result<CompileTemplateResponse, PlaygroundApiError>;
+    type Result = Result<CompileSourceResponse, Error>;
 }
 
 // impl ResponseType for CompileTemplate {
@@ -46,30 +46,48 @@ impl From<MailboxError> for PlaygroundApiError {
 }
 
 impl Handler<CompileTemplate> for PlaygroundApi {
-    type Result = Response<CompileTemplateResponse, PlaygroundApiError>;
+    type Result = Box<Future<Item = CompileSourceResponse, Error = Error>>;
+    // type Result = MessageResult<CompileTemplate>;
 
     fn handle(&mut self, msg: CompileTemplate, _: &mut Self::Context) -> Self::Result {
         let base_url = msg.base_url.to_owned();
         let route = msg.route.to_owned();
-        let slug = msg.slug.to_owned();
+        let template_name = msg.template_name.to_owned();
 
-        let result = msg.api.send(GetTemplate { slug: slug })
-            .from_err()
-            .and_then(move |res| match res {
-                Ok(slug_res) => {
-                    let app_name = slug_res.static_template.as_ref().unwrap().to_owned();
-                    msg.compiler.send(RenderExampleAppRoute { app_name: app_name, route:  route, base_url: base_url })
-                        .and_then(move |res| match res {
-                            Ok(body) => Ok(CompileTemplateResponse {
-                                get_template_response: slug_res.to_owned(),
-                                body: body
-                            }),
-                            _ => panic!("Cannot render template")
-                        })
-                },
-                _ => panic!("Cannot find template")
-            });
+        let source = "".to_string();
+        let result = self::compile_named_template_for_app(&msg.api, &template_name, &source);
+        Box::new(result)
 
-        Response::async(result.from_err())
+        // let result = msg.api.send(GetTemplate { template_name: template_name })
+        //     .and_then(move |response| match response {
+        //         Ok(response) => {
+        //             let template = response.template.to_owned();
+        //             let template_name = template.template_name.to_owned();
+        //             msg.compiler.send(RenderExampleAppRoute { app_name: template_name, route:  route, base_url: base_url })
+        //                 .and_then(move |res| match res {
+        //                     Ok(body) => Ok(CompileTemplateResponse {
+        //                         template: template.to_owned(),
+        //                         body: body
+        //                     }),
+        //                     _ => panic!("Cannot render template")
+        //                 })
+        //         },
+        //         _ => panic!("Cannot find template")
+        //     })
+        //     .map_err(Error::from);
+
+        // let result = msg.api.send(GetTemplate { template_name: template_name })
+        //     // .map_err(Error::from)
+        //     .and_then(move |response| {
+        //         let template = response.unwrap().template.to_owned();
+        //         let body = "".to_string();
+        //         future::ok(CompileTemplateResponse {
+        //             template: template.to_owned(),
+        //             body: body
+        //         }).into_future()
+        //     })
+        //     .map_err(Error::from);
+
+        // MessageResult(result)
     }
 }

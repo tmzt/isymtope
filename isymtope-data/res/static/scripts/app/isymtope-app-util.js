@@ -86,6 +86,10 @@ function setObject(values = {}, wc = () => true, arr) {
 }
 
 function values(obj) {
+    if ('undefined' === typeof obj || !obj) {
+        return new Array()
+    }
+
     if (obj instanceof Map) {
         return obj.values()
     }

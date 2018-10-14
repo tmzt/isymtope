@@ -8,6 +8,7 @@ actix = "0.7"
 bytes = "0.4.6"
 dotenv = "0.13.0"
 env_logger = "0.5.8"
+failure = "^0.1.2"
 futures = "0.1"
 lazy_static = "1.0.0"
 log = "0.4.1"
@@ -50,7 +51,8 @@ version = "1.0.40"
 
 [dependencies.uuid]
 optional = true
-version = "0.6.3"
+version = "0.7"
+features = ["v4"]
 
 [features]
 playground_api = [

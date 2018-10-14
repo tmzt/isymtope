@@ -1,7 +1,8 @@
-use futures::Future;
+use futures::{future,Future};
 
 use actix::*;
 use actix_web::*;
+use actix_web::error::*;
 
 use isymtope_generate::*;
 
@@ -19,12 +20,12 @@ pub struct CompileSource {
 
 #[derive(Debug, Message)]
 pub struct CompileSourceResponse {
-    pub get_template_response: GetTemplateResponse,
+    pub template: TemplateData,
     pub body: String
 }
 
 impl Message for CompileSource {
-    type Result = Result<CompileSourceResponse, PlaygroundApiError>;
+    type Result = Result<CompileSourceResponse, Error>;
 }
 
 // impl ResponseType for CompileSource {
@@ -32,24 +33,27 @@ impl Message for CompileSource {
 //     type Error = IsymtopeGenerateError;
 // }
 
-pub enum PlaygroundApiError {
-    IsymtopeGenerateError(IsymtopeGenerateError),
-    MailboxError(MailboxError)
-}
+// pub enum PlaygroundApiError {
+//     IsymtopeGenerateError(IsymtopeGenerateError),
+//     MailboxError(MailboxError),
+//     TemplateNotFoundError,
+//     ApplicationNotFoundError,
+// }
 
-impl From<IsymtopeGenerateError> for PlaygroundApiError {
-    fn from(err: IsymtopeGenerateError) -> Self {
-        PlaygroundApiError::IsymtopeGenerateError(err)
-    }
-}
-impl From<MailboxError> for PlaygroundApiError {
-    fn from(err: MailboxError) -> Self {
-        PlaygroundApiError::MailboxError(err)
-    }
-}
+// impl From<IsymtopeGenerateError> for PlaygroundApiError {
+//     fn from(err: IsymtopeGenerateError) -> Self {
+//         PlaygroundApiError::IsymtopeGenerateError(err)
+//     }
+// }
+// impl From<MailboxError> for PlaygroundApiError {
+//     fn from(err: MailboxError) -> Self {
+//         PlaygroundApiError::MailboxError(err)
+//     }
+// }
 
 impl Handler<CompileSource> for PlaygroundApi {
-    type Result = Response<CompileSourceResponse, PlaygroundApiError>;
+    // type Result = MessageResult<CompileSource>;
+    type Result = Box<Future<Item = CompileSourceResponse, Error = Error>>;
 
     fn handle(&mut self, msg: CompileSource, _: &mut Self::Context) -> Self::Result {
         let source = msg.source.to_owned();
@@ -57,23 +61,60 @@ impl Handler<CompileSource> for PlaygroundApi {
         let route = msg.route.to_owned();
         let slug = msg.slug.to_owned();
 
-        let result = msg.api.send(GetTemplate { slug: slug })
-            .from_err()
-            .and_then(move |res| match res {
-                Ok(slug_res) => {
-                    let app_name = slug_res.static_template.as_ref().unwrap().to_owned();
-                    msg.compiler.send(CompileSourceMsg { source: source, route: route, base_url: base_url })
-                        .and_then(move |res| match res {
-                            Ok(body) => Ok(CompileSourceResponse {
-                                get_template_response: slug_res.to_owned(),
-                                body: body
-                            }),
-                            _ => panic!("Cannot render template")
-                        })
-                },
-                _ => panic!("Cannot find template")
-            });
+        // let result = self.get_existing_app(&slug)
+        //     .map_err(Error::from)
+        //     .map(move |app| {
+        //         let template_name = app.template_name.to_owned();
 
-        Response::async(result.from_err())
+            //     msg.api.send(GetTemplate { template_name: template_name })
+            //         .map_err(Error::from)
+            //         .and_then(move |res| {
+            //             res.and_then(move |template_response| {
+            //                 let template = template_response.template;
+            //                 msg.compiler.send(CompileSourceMsg { source: source, route: route, base_url: base_url })
+            //                     // .map_err(|err| ErrorInternalServerError(err))
+            //                     .map_err(Error::from)
+            //                     .and_then(move |res| {
+            //                         res.and_then(move |body| {
+            //                             Ok(CompileSourceResponse {
+            //                                 template: template,
+            //                                 body: body
+            //                             })
+            //                         })
+            //                     })
+            //             })
+            //         })
+            //         .map_err(Error::from)
+            // })
+            // .map_err(|err| ErrorInternalServerError(err));
+
+        let result = future::result(self.get_existing_app(&slug.to_owned()))
+            .map_err(Error::from)
+            .and_then(move |app| {
+                let source = "".to_string();
+                let template_name = app.template_name.to_string();
+                let response = self::compile_named_template_for_app(&msg.api, &template_name, &source);
+
+                response
+
+                // let template_name = app.template_name.to_owned();
+
+                // msg.api.send(GetTemplate { template_name: template_name })
+                //     .map_err(Error::from)
+                //     .and_then(move |res| {
+                //         let template = res.unwrap().template.to_owned();
+                //         let body = "".to_string();
+
+                //         future::ok(CompileSourceResponse {
+                //             template: template,
+                //             body: body
+                //         })
+                //     })
+            });
+            // .map_err(Error::from);
+
+        // MessageResult(result)
+        // result
+        Box::new(result)
     }
 }

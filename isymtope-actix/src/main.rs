@@ -1,3 +1,8 @@
+#![feature(custom_attribute)]
+
+#[macro_use]
+extern crate failure;
+
 extern crate dotenv;
 #[macro_use]
 extern crate log;
@@ -49,10 +54,11 @@ use regex::Regex;
 use actix::prelude::*;
 use actix_web::*;
 use actix_web::http::Method;
-use actix_web::middleware::{Middleware, Started, Response};
+use actix_web::http::header::{ContentDisposition, DispositionType};
+use actix_web::middleware::{Middleware, Started, Response, Logger};
 use actix_web::middleware::session::{SessionStorage, RequestSession, CookieSessionBackend};
 use actix_web::server;
-use actix_web::fs::{NamedFile, DefaultConfig};
+use actix_web::fs::NamedFile;
 use futures::Future;
 use futures::future::ok;
 
@@ -183,16 +189,20 @@ fn serve_static_file(req: &HttpRequest<AppState>) ->Result<NamedFile> {
 struct ExampleStaticFiles;
 impl<S: 'static> Middleware<S> for ExampleStaticFiles {
     fn start(&self, req: &HttpRequest<S>) -> Result<Started> {
-        let route = req.uri().path().to_owned();
-        // let route: PathBuf = req.match_info().query("route")?;
+        let route = req.uri().path().trim_left_matches('/').to_owned();
+
         let path = &*EXAMPLES_DIR
             .join(&*APP_NAME)
             .join(route);
 
-        if path.exists() {
+        eprintln!("Looking for example static file at path: {:?}", path);
+
+        if path.is_file() {
             let file = NamedFile::open(path);
             if let Ok(file) = file {
-                let resp = file.respond_to(req)?;
+                let resp = file
+                    .set_content_disposition(ContentDisposition { disposition: DispositionType::Inline, parameters: vec![] })
+                    .respond_to(req)?;
 
                 return Ok(Started::Response(resp));
             }
@@ -222,6 +232,7 @@ fn main() {
                 // .middleware(ErrorHandlers::new()
                 //     .handler(http::StatusCode::INTERNAL_SERVER_ERROR, render_500)
                 // )
+                .middleware(Logger::default())
                 .middleware(SessionStorage::new(
                     CookieSessionBackend::signed(&[0; 32])
                         .secure(false)
@@ -234,7 +245,7 @@ fn main() {
                     // .resource("/r/{slug:[0-9a-zA-Z]+}", |r| r.method(Method::GET).a(render_route))
                     .resource("/api/create_example", |r| r.method(Method::POST).with(create_example))
                     .resource("/api/examples", |r| r.method(Method::GET).with(get_example_index))
-                    .resource("/api/apps/{slug:[0-9a-zA-Z]+}", |r| r.method(Method::GET).with(get_app))
+                    .resource("/api/apps/{slug:[0-9a-zA-Z]+}", |r| r.get().with(get_app))
                     // .resource("/api/apps/{slug:[0-9a-zA-Z]+}/compile", |r| r.method(Method::POST).a(compile_app_source))
                     // .resource("/api/apps/{slug:[0-9a-zA-Z]+}/github_auth", |r| r.method(Method::POST).a(github_auth))
                     // .resource("/api/auth/github/complete", |r| r.method(Method::GET).a(github_auth_complete));

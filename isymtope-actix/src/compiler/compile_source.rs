@@ -1,13 +1,14 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 
-use actix::prelude::*;
+use failure::*;
+
+use actix_web::{Error, HttpResponse};
+use actix_web::error::{ResponseError, ErrorInternalServerError};
+use actix_web::http::StatusCode;
 use super::*;
 
 use isymtope_ast_common::*;
 use isymtope_parser::*;
-use isymtope_build::*;
 use isymtope_generate::*;
 
 fn parse_template(src: &str) -> IsymtopeGenerateResult<impl DocumentProvider> {
@@ -53,7 +54,26 @@ pub struct CompileSource {
 }
 
 impl Message for CompileSource {
-    type Result = IsymtopeGenerateResult<String>;
+    // type Result = IsymtopeGenerateResult<String>;
+    type Result = Result<String, Error>;
+}
+
+#[derive(Fail, Debug)]
+pub enum CompilerError {
+    #[fail(display = "Generate error: {:?}", _0)]
+    GenerateError(IsymtopeGenerateError)
+}
+
+impl From<IsymtopeGenerateError> for CompilerError {
+    fn from(err: IsymtopeGenerateError) -> Self {
+        CompilerError::GenerateError(err)
+    }
+}
+
+impl ResponseError for CompilerError {
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 impl Handler<CompileSource> for Compiler {
@@ -66,7 +86,9 @@ impl Handler<CompileSource> for Compiler {
         let base_url = &msg.base_url;
 
         let source = &msg.source;
-        let body = compile_template(source, base_url);
+        let body = compile_template(source, base_url)
+            .map_err(CompilerError::from)
+            .map_err(|err| ErrorInternalServerError(err));
 
         MessageResult(body)
     }

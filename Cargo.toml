@@ -16,11 +16,6 @@ default-features = false
 optional = true
 path = "./isymtope-ast-common"
 
-[dependencies.isymtope-parser]
-default-features = false
-optional = true
-path = "./isymtope-parser"
-
 [dependencies.isymtope-build]
 default-features = false
 optional = true
@@ -39,6 +34,11 @@ path = "./isymtope-data"
 optional = true
 path = "./isymtope-generate"
 
+[dependencies.isymtope-parser]
+default-features = false
+optional = true
+path = "./isymtope-parser"
+
 [dependencies.isymtope-wasm]
 default-features = false
 optional = true
@@ -51,7 +51,6 @@ path = "./wasm-log"
 
 [features]
 playground_api = ["isymtope-actix/playground_api"]
-
 [profile.dev]
 debug-assertions = true
 

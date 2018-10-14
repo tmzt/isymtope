@@ -5,7 +5,7 @@ mod requests;
 use std::io::Read;
 use std::str;
 use actix::*;
-use actix_web::*;
+// use actix_web::*;
 use actix_web::fs::NamedFile;
 use bytes::*;
 use futures::{Future, IntoFuture};
@@ -32,32 +32,13 @@ pub fn create_example((req, body): (HttpRequest<AppState>, Json<CreateExampleReq
             template_name: template_name,
     })
     .from_err()
-    .and_then(move |res| {
-        if let Ok(example) = res {
-            let scheme = req.connection_info().scheme().to_owned();
-            let host = req.connection_info().host().to_owned();
-            // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
-            let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
-            let path = format!("/r/{}", example.slug);
-            let redirect = format!("{}://{}/r/{}", scheme, host, example.slug);
-            let iframe_base = format!("{}://{}.f.r{}{}/", scheme, example.slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
+    .and_then(move |res| res)
+    .and_then(move |response| {
+        let (app, template) = (response.app, response.template);
+        let renderable = RenderableApp::with_app(&req, app, template);
 
-            let res = CreateExampleResponse {
-                uuid: example.uuid.to_owned(),
-                slug: example.slug.to_owned(),
-                base_app_uuid: example.base_app_uuid.to_owned(),
-                base_app_slug: example.base_app_slug.to_owned(),
-                template_name: example.template_name.to_owned(),
-                path: path,
-                redirect: redirect.to_owned(),
-                iframe_base: iframe_base.to_owned(),
-            };
-            return ok(HttpResponse::Ok().json(res));
-        };
-        ok(HttpResponse::InternalServerError().finish())
-        // Ok(HttpResponse::Ok().json(json))
+        ok(HttpResponse::Ok().json(renderable))
     })
-    // .and_then(|res| Ok(HttpResponse::Ok().json(res)))
     .responder()
 }
 
@@ -68,65 +49,63 @@ pub fn get_example_index(req: HttpRequest<AppState>) -> FutureResponse<HttpRespo
 
     let json = GetExampleIndexResponse {
         index: items,
-        defaultSlug: "todomvc".to_owned(),
+        default_slug: "todomvc".to_owned(),
     };
 
     result(Ok(HttpResponse::Ok().json(json)))
         .responder()
 }
 
-pub fn get_app_meta(slug: &str, app: &GetAppResponse, iframe_base: &str) -> Result<GetAppRestResponse, Error> {
-    let static_template = app.static_template.as_ref().map(|s| s.to_owned());
-    let base_app_uuid = app.base_app_uuid.as_ref().map(|s| s.to_owned());
-    let base_app_slug = app.base_app_slug.as_ref().map(|s| s.to_owned());
-    let pathname = format!("/r/{}", slug);
+// pub fn get_app_meta(slug: &str, response: &GetAppResponse, iframe_base: &str) -> Result<TemplateData, Error> {
+//     let template = response.app.template.clone();
 
-    let static_template = static_template.unwrap();
-    let meta_path = format!("../examples/app/{}/app.json", static_template);
+//     result(Ok(HttpResponse::Ok().json(json)))
+//         .responder()
 
-    let mut file = NamedFile::open(&meta_path)?;
-    let mut data = String::new();
-    file.read_to_string(&mut data)?;
+//     // let static_template = app.static_template.as_ref().map(|s| s.to_owned());
+//     // let base_app_uuid = app.base_app_uuid.as_ref().map(|s| s.to_owned());
+//     // let base_app_slug = app.base_app_slug.as_ref().map(|s| s.to_owned());
+//     // let pathname = format!("/r/{}", slug);
+//     // let meta_path = format!("../examples/app/{}/app.json", &response.app.template_name);
 
-    let meta: AppMetadata = serde_json::from_str(&data)?;
+//     // let mut file = NamedFile::open(&meta_path)?;
+//     // let mut data = String::new();
+//     // file.read_to_string(&mut data)?;
 
-    let files: Vec<AppMetadataFile> = meta.files.iter().cloned().collect();
+//     // let meta: AppMetadata = serde_json::from_str(&data)?;
 
-    let json = GetAppRestResponse {
-        uuid: app.uuid.to_owned(),
-        slug: slug.to_owned(),
-        base_app_uuid: base_app_uuid,
-        base_app_slug: base_app_slug,
-        static_template: Some(static_template),
-        pathname: pathname,
-        iframe_base: iframe_base.to_owned(),
-        files: files
-    };
+//     // let files: Vec<AppMetadataFile> = meta.files.iter().cloned().collect();
 
-    Ok(json)
-}
+//     // // let json = GetAppRestResponse {
+//     // //     app: app.clone(),
+//     // //     // uuid: app.uuid.to_owned(),
+//     // //     // slug: slug.to_owned(),
+//     // //     // base_app_uuid: base_app_uuid,
+//     // //     // base_app_slug: base_app_slug,
+//     // //     // static_template: Some(static_template),
+//     // //     pathname: pathname,
+//     // //     iframe_base: iframe_base.to_owned(),
+//     // //     files: files
+//     // // };
 
-pub fn get_app((req, slug): (HttpRequest<AppState>, Path<(String,)>)) -> impl Responder { //FutureResponse<HttpResponse> {
+//     // Ok(json)
+// }
+
+pub fn get_app((req, slug): (HttpRequest<AppState>, Path<(String,)>)) -> FutureResponse<HttpResponse> {
     let slug = slug.0.to_owned();
 
     req.state().api.send(GetApp {
             slug: slug.to_owned(),
     })
-    .from_err()
+    .map_err(Error::from)
     .and_then(move |res| {
-        if let Ok(Some(app)) = res {
-            let scheme = req.connection_info().scheme().to_owned();
-            let host = req.connection_info().host().to_owned();
-            // let port = req.uri().port().map_or(Default::default(), |p| format!(":{}", p));
-
-            let port = &DEV_PORT.map(|p| format!(":{}", p)).unwrap_or_default();
-            let iframe_base = format!("{}://{}.f.r{}{}/", scheme, slug, &*PLAYGROUND_APP_DNS_SUFFIX, port);
-
-            return get_app_meta(&slug, &app, &iframe_base)
-                .and_then(|json| Ok(HttpResponse::Ok().json(json)))
-        };
-        Ok(HttpResponse::NotFound().finish().into())
-    }).responder()
+        res.map(move |response| {
+            let (app, template) = (response.app, response.template);
+            let renderable = RenderableApp::with_app(&req, app, template);
+            HttpResponse::Ok().json(renderable)
+        }).or_else(|_| Ok(HttpResponse::NotFound().finish()))
+    })
+    .responder()
 }
 
 pub fn compile_app_source((req, slug): (HttpRequest<AppState>, Path<(String,)>)) -> impl Responder { //FutureResponse<HttpResponse> {

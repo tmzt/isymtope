@@ -1,42 +1,34 @@
 use futures::Future;
 
 use actix::*;
-use actix::prelude::*;
-use isymtope_generate::*;
-use compiler::*;
 use super::*;
 
 #[derive(Debug)]
 pub struct GetTemplate {
-    pub slug: String,
+    pub template_name: String,
 }
 
 #[derive(Debug, Message, Clone)]
 pub struct GetTemplateResponse {
-    pub uuid: String,
-    pub base_app_uuid: Option<String>,
-    pub static_template: Option<String>,
+    pub template: TemplateData,
 }
 
 impl Message for GetTemplate {
-    type Result = Result<GetTemplateResponse, PlaygroundApiError>;
+    type Result = Result<GetTemplateResponse, Error>;
 }
 
 impl Handler<GetTemplate> for PlaygroundApi {
     type Result = MessageResult<GetTemplate>;
 
     fn handle(&mut self, msg: GetTemplate, _: &mut Self::Context) -> Self::Result {
-        let slug = &msg.slug;
+        // let slug = &msg.slug;
 
         // TODO: Make this lookup and cache
-        let entry = self.slug_cache.get(slug).unwrap();
+        // let entry = self.slug_cache.get(slug).unwrap();
+        let res = self.get_or_load_template(&msg.template_name)
+            .map_err(Error::from)
+            .map(|template| GetTemplateResponse { template: template });
 
-        let result = GetTemplateResponse {
-            uuid: entry.uuid.to_owned(),
-            base_app_uuid: entry.base_app_uuid.as_ref().map(|s| s.to_owned()),
-            static_template: entry.static_template.as_ref().map(|s| s.to_owned()),
-        };
-
-        MessageResult(Ok(result))
+        MessageResult(res)
     }
 }
