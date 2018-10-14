@@ -63,7 +63,7 @@ impl Handler<CompileSource> for PlaygroundApi {
             .and_then(move |app| {
                 let source = "".to_string();
                 let template_name = app.template_name.to_string();
-                let response = self::compile_named_template_for_app(&msg.api, &template_name, &source);
+                let response = self::compile_named_template_for_app(msg.api.clone(), msg.compiler.clone(), &template_name, &base_url, &route, &source);
 
                 response
 

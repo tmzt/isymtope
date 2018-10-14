@@ -94,19 +94,25 @@ impl PlaygroundApi {
     }
 }
 
-fn compile_named_template_for_app(api: &Addr<PlaygroundApi>, template_name: &str, source: &str) -> impl Future<Item = CompileTemplateSourceResponse, Error = Error> {
+fn compile_named_template_for_app(api: Addr<PlaygroundApi>, compiler: Addr<Compiler>, template_name: &str, base_url: &str, route: &str, source: &str) -> impl Future<Item = CompileTemplateSourceResponse, Error = Error> {
     let template_name = template_name.to_string();
+        let base_url = base_url.to_string();
+        let route = route.to_string();
 
-    api.send(GetTemplate { template_name: template_name })
+    api.send(GetTemplate { template_name: template_name.clone() })
         .map_err(Error::from)
         .and_then(move |res| {
             let template = res.unwrap().template.to_owned();
             let body = "".to_string();
 
-            future::ok(CompileTemplateSourceResponse {
-                template: template,
-                body: body
-            })
+            compiler.send(RenderExampleAppRoute { app_name: template_name, route:  route, base_url: base_url })
+                .map_err(Error::from)
+                .and_then(|res| {
+                    future::ok(CompileTemplateSourceResponse {
+                        template: template,
+                        body: body
+                    })
+                })
         })
 }
 
