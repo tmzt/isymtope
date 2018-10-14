@@ -43,7 +43,7 @@ impl Handler<CompileTemplate> for PlaygroundApi {
         let template_name = msg.template_name.to_owned();
 
         let source = "".to_string();
-        let result = self::compile_named_template_for_app(msg.api.clone(), msg.compiler.clone(), &template_name, &base_url, &route, &source);
+        let result = self::render_named_template_for_app(msg.api.clone(), msg.compiler.clone(), &template_name, &base_url, &route, &source);
         Box::new(result)
 
         // let result = msg.api.send(GetTemplate { template_name: template_name })

@@ -94,7 +94,7 @@ impl PlaygroundApi {
     }
 }
 
-fn compile_named_template_for_app(api: Addr<PlaygroundApi>, compiler: Addr<Compiler>, template_name: &str, base_url: &str, route: &str, source: &str) -> impl Future<Item = CompileTemplateSourceResponse, Error = Error> {
+fn render_named_template_for_app(api: Addr<PlaygroundApi>, compiler: Addr<Compiler>, template_name: &str, base_url: &str, route: &str, source: &str) -> impl Future<Item = CompileTemplateSourceResponse, Error = Error> {
     let template_name = template_name.to_string();
         let base_url = base_url.to_string();
         let route = route.to_string();
