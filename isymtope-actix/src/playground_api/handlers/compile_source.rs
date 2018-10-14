@@ -18,42 +18,12 @@ pub struct CompileSource {
     pub slug: String,
 }
 
-#[derive(Debug, Message)]
-pub struct CompileSourceResponse {
-    pub template: TemplateData,
-    pub body: String
-}
-
 impl Message for CompileSource {
-    type Result = Result<CompileSourceResponse, Error>;
+    type Result = Result<CompileTemplateSourceResponse, Error>;
 }
-
-// impl ResponseType for CompileSource {
-//     type Item = CompileSourceResponse;
-//     type Error = IsymtopeGenerateError;
-// }
-
-// pub enum PlaygroundApiError {
-//     IsymtopeGenerateError(IsymtopeGenerateError),
-//     MailboxError(MailboxError),
-//     TemplateNotFoundError,
-//     ApplicationNotFoundError,
-// }
-
-// impl From<IsymtopeGenerateError> for PlaygroundApiError {
-//     fn from(err: IsymtopeGenerateError) -> Self {
-//         PlaygroundApiError::IsymtopeGenerateError(err)
-//     }
-// }
-// impl From<MailboxError> for PlaygroundApiError {
-//     fn from(err: MailboxError) -> Self {
-//         PlaygroundApiError::MailboxError(err)
-//     }
-// }
 
 impl Handler<CompileSource> for PlaygroundApi {
-    // type Result = MessageResult<CompileSource>;
-    type Result = Box<Future<Item = CompileSourceResponse, Error = Error>>;
+    type Result = Box<Future<Item = CompileTemplateSourceResponse, Error = Error>>;
 
     fn handle(&mut self, msg: CompileSource, _: &mut Self::Context) -> Self::Result {
         let source = msg.source.to_owned();

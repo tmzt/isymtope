@@ -38,6 +38,12 @@ pub struct PlaygroundApi {
     template_cache: HashMap<String, TemplateData>,
 }
 
+#[derive(Debug, Message)]
+pub struct CompileTemplateSourceResponse {
+    pub template: TemplateData,
+    pub body: String
+}
+
 impl PlaygroundApi {
     pub fn get_or_load_template(&mut self, template_name: &str) -> Result<TemplateData> {
         // let entry = self.template_cache.entry(template_name.to_owned())
@@ -88,7 +94,7 @@ impl PlaygroundApi {
     }
 }
 
-fn compile_named_template_for_app(api: &Addr<PlaygroundApi>, template_name: &str, source: &str) -> impl Future<Item = CompileSourceResponse, Error = Error> {
+fn compile_named_template_for_app(api: &Addr<PlaygroundApi>, template_name: &str, source: &str) -> impl Future<Item = CompileTemplateSourceResponse, Error = Error> {
     let template_name = template_name.to_string();
 
     api.send(GetTemplate { template_name: template_name })
@@ -97,7 +103,7 @@ fn compile_named_template_for_app(api: &Addr<PlaygroundApi>, template_name: &str
             let template = res.unwrap().template.to_owned();
             let body = "".to_string();
 
-            future::ok(CompileSourceResponse {
+            future::ok(CompileTemplateSourceResponse {
                 template: template,
                 body: body
             })

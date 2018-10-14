@@ -14,20 +14,9 @@ pub struct CompileTemplate {
     pub template_name: String,
 }
 
-// #[derive(Debug, Message)]
-// pub struct CompileTemplateResponse {
-//     pub template: TemplateData,
-//     pub body: String
-// }
-
 impl Message for CompileTemplate {
-    type Result = Result<CompileSourceResponse, Error>;
+    type Result = Result<CompileTemplateSourceResponse, Error>;
 }
-
-// impl ResponseType for CompileTemplate {
-//     type Item = CompileTemplateResponse;
-//     type Error = IsymtopeGenerateError;
-// }
 
 pub enum PlaygroundApiError {
     IsymtopeGenerateError(IsymtopeGenerateError),
@@ -46,8 +35,7 @@ impl From<MailboxError> for PlaygroundApiError {
 }
 
 impl Handler<CompileTemplate> for PlaygroundApi {
-    type Result = Box<Future<Item = CompileSourceResponse, Error = Error>>;
-    // type Result = MessageResult<CompileTemplate>;
+    type Result = Box<Future<Item = CompileTemplateSourceResponse, Error = Error>>;
 
     fn handle(&mut self, msg: CompileTemplate, _: &mut Self::Context) -> Self::Result {
         let base_url = msg.base_url.to_owned();
